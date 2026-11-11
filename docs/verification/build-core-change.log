@@ -23,7 +23,7 @@ $ turbo run build --cache=local:rw
 @company/gallery:build: dist/index.html                  0.36 kB │ gzip:  0.29 kB
 @company/gallery:build: dist/assets/index-DuNFyzKV.css   0.13 kB │ gzip:  0.13 kB
 @company/gallery:build: dist/assets/index-BjedpW-h.js   62.89 kB │ gzip: 24.96 kB
-@company/gallery:build: 
+@company/gallery:build:
 @company/gallery:build: ✓ built in 80ms
 @company/preview-gateway:build: $ tsc -p tsconfig.build.json
 @company/charts-core:build: $ tsc -p tsconfig.build.json
@@ -44,8 +44,8 @@ $ turbo run build --cache=local:rw
 @company/example-react:build: computing gzip size...
 @company/example-react:build: dist/index.html                  0.29 kB │ gzip:   0.24 kB
 @company/example-react:build: dist/assets/index-iuOMr8Rg.js  504.26 kB │ gzip: 163.84 kB
-@company/example-react:build: 
-@company/example-react:build: [plugin builtin:vite-reporter] 
+@company/example-react:build:
+@company/example-react:build: [plugin builtin:vite-reporter]
 @company/example-react:build: (!) Some chunks are larger than 500 kB after minification. Consider:
 @company/example-react:build: - Using dynamic import() to code-split the application
 @company/example-react:build: - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
@@ -57,10 +57,9 @@ $ turbo run build --cache=local:rw
 @company/example-vue:build: dist/index.html                   0.36 kB │ gzip:   0.28 kB
 @company/example-vue:build: dist/assets/index-CVFNSj9R.css    0.06 kB │ gzip:   0.08 kB
 @company/example-vue:build: dist/assets/index-njVAcm1I.js   347.34 kB │ gzip: 120.15 kB
-@company/example-vue:build: 
+@company/example-vue:build:
 @company/example-vue:build: ✓ built in 115ms
 
  Tasks:    10 successful, 10 total
 Cached:    5 cached, 10 total
-  Time:    1.017s 
-
+  Time:    1.017s
