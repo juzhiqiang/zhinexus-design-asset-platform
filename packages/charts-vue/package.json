@@ -7,15 +7,20 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "tsc -p tsconfig.build.json --watch"
+    "build": "node scripts/build.mjs",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json",
+    "dev": "vue-tsc --noEmit -p tsconfig.json --watch"
   },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
-    }
+    },
+    "./line": {
+      "types": "./dist/line.d.ts",
+      "import": "./dist/line.js"
+    },
+    "./style.css": "./dist/style.css"
   },
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
@@ -28,7 +33,9 @@
   },
   "devDependencies": {
     "vue": "3.5.45",
-    "echarts": "6.1.0"
+    "echarts": "6.1.0",
+    "vue-tsc": "3.3.14",
+    "typescript": "6.0.3"
   },
   "publishConfig": {
     "access": "restricted"
