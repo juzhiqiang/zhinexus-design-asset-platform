@@ -1,0 +1,9 @@
+Checking Windows PowerShell 5.1 bootstrap: fresh download
+Downloading Node 26.13.0 to project-local .tools
+Invoke-WebRequest : Windows PowerShell is in NonInteractive mode. Read and Prompt functionality is not available.
+At D:\project\zhinexus-design-asset-platform\.tools\bootstrap-check-06dc6c0a9a784daca5c1462d9414b3cc\scripts\bootstrap.
+ps1:18 char:12
++   $sums = (Invoke-WebRequest -Uri "$baseUri/SHASUMS256.txt").Content
++            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : InvalidOperation: (:) [Invoke-WebRequest], PSInvalidOperationException
+    + FullyQualifiedErrorId : InvalidOperation,Microsoft.PowerShell.Commands.InvokeWebRequestCommand

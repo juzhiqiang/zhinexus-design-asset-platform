@@ -20,6 +20,8 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。当前交付的是可开发
 
 浏览器测试消费构建后的 `dist`，运行前先 build，并关闭占用 5173–5175 端口的开发服务。浏览器安装后可用 `.\scripts\verify.ps1` 顺序重跑全部基础检查。`dev` 同时启动 10 个开发任务，Ctrl+C 停止；Windows 上若停在 shutting down，再按一次 Ctrl+C 结束子任务。其他操作系统可以自行安装同一版本工具链，但尚不在本次验证范围内。
 
+安装脚本支持 Windows 自带的 PowerShell 5.1 非交互执行。修改工具链或下载逻辑后，运行 `.\scripts\verify-bootstrap.ps1`：它会在独立临时目录中真实下载、校验并探测固定版本，再验证缓存重跑，结束后仅清理该测试目录。此检查需要联网和额外下载，不包含在日常 `verify.ps1` 中。
+
 | 入口 | 地址 / 用途 |
 | --- | --- |
 | 画廊 | `http://127.0.0.1:5173`，空平台入口 |
@@ -65,5 +67,6 @@ build/typecheck 使用本地缓存，dev 不缓存；test、浏览器和 compone
 - [实施评估](component-platform-implementation-assessment.md) / [原始架构](component-platform-architecture.md)
 - [本次初始化范围](docs/superpowers/plans/2026-11-11-bootstrap-execution.md)
 - [初始化验证](docs/verification/bootstrap.md) / [Turbo 缓存证据](docs/verification/turbo-baseline.md)
+- [独立审查与实施决定](docs/verification/bootstrap-review.md)
 
 下一步是 G1 协议冻结及 G2 基础设施验证，同时开始 T02 与 CLI/消费者设施；不要因骨架通过测试而将整个 T01 标记完成。

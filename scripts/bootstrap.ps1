@@ -15,11 +15,11 @@ if (-not (Test-Path -LiteralPath (Join-Path $nodeDir 'node.exe'))) {
   $archivePath = Join-Path $toolsDir $archiveName
   $baseUri = "https://nodejs.org/dist/v$nodeVersion"
   Write-Host "Downloading Node $nodeVersion to project-local .tools"
-  $sums = (Invoke-WebRequest -Uri "$baseUri/SHASUMS256.txt").Content
+  $sums = (Invoke-WebRequest -UseBasicParsing -Uri "$baseUri/SHASUMS256.txt").Content
   $line = ($sums -split '\r?\n' | Where-Object { $_ -match ("\s+" + [regex]::Escape($archiveName) + '$') })
   if (@($line).Count -ne 1) { throw 'Node checksum entry not found or ambiguous' }
   $expected = ($line -split '\s+')[0]
-  Invoke-WebRequest -Uri "$baseUri/$archiveName" -OutFile $archivePath
+  Invoke-WebRequest -UseBasicParsing -Uri "$baseUri/$archiveName" -OutFile $archivePath
   if ((Get-FileHash -LiteralPath $archivePath -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) { throw 'Node checksum mismatch' }
   Expand-Archive -LiteralPath $archivePath -DestinationPath $toolsDir -Force
 }
@@ -27,7 +27,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $pnpmDir 'package/pnpm.exe'))) {
   Write-Host "Downloading pnpm $pnpmVersion to project-local .tools"
   $metadata = Invoke-RestMethod -Uri "https://registry.npmjs.org/@pnpm%2fexe.win32-x64/$pnpmVersion"
   $archivePath = Join-Path $toolsDir "pnpm-native-$pnpmVersion.tgz"
-  Invoke-WebRequest -Uri $metadata.dist.tarball -OutFile $archivePath
+  Invoke-WebRequest -UseBasicParsing -Uri $metadata.dist.tarball -OutFile $archivePath
   $digest = [Security.Cryptography.SHA512]::Create()
   try { $actual = 'sha512-' + [Convert]::ToBase64String($digest.ComputeHash([IO.File]::ReadAllBytes($archivePath))) } finally { $digest.Dispose() }
   if ($actual -ne $metadata.dist.integrity) { throw 'pnpm integrity mismatch' }

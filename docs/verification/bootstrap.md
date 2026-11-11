@@ -7,6 +7,7 @@
 | 命令 / 项目 | 实际结果 |
 | --- | --- |
 | scripts/bootstrap.ps1 | 官方 Node SHA-256、pnpm 平台包 SHA-512 校验；项目本地版本探测通过 |
+| scripts/verify-bootstrap.ps1 | Windows PowerShell 5.1.26100.9444 非交互、干净目录首次下载与缓存重跑均通过；修复前观察到确认提示导致失败 |
 | pnpm install --frozen-lockfile | 成功，无锁文件更新 |
 | pnpm peers check | No peer dependency issues found |
 | pnpm verify:workspace | 10 个成员，依赖无环，4 个公开包壳，平台依赖边界通过 |
@@ -25,11 +26,12 @@
 
 实际安装：Node 26.13.0、pnpm 12.18.0、Turbo 2.11.10、TypeScript 7.0.2、Vite 8.3.8、Vue 3.5.45、React/React DOM 19.3.1、ECharts 6.1.0、Fastify 5.12.8、Vitest 5.1.0、Playwright 1.65.0。完整精确依赖在各 package.json 与 pnpm-lock.yaml；官方候选发现见 `docs/versions.discovery.json`。
 
-实际发现并解决三项工具链适配：
+实际发现并解决四项工具链适配：
 
 1. pnpm 12 使用原生平台可执行文件，旧 `bin/pnpm.cjs` 入口不存在。bootstrap 按官方 `@pnpm/exe.win32-x64@12.18.0` 元数据下载并校验，启动真实 `pnpm.exe`；不修改系统 Node 24.6.0 / pnpm 10.25.0。
 2. pnpm 12 将安装设置放在 workspace YAML，旧 onlyBuiltDependencies 已被 allowBuilds 替代。改为只允许 esbuild 构建，并显式指定官方 registry、精确依赖与严格 peer/engine 检查；保留安装器为固定 Vite 8.3.8 生成的 release-age 例外，不放宽所有包。
 3. vue-tsc 3.3.14 的 Volar 依赖要求 TypeScript `<7`，直接运行也报 `ERR_PACKAGE_PATH_NOT_EXPORTED: typescript/lib/tsc`。根 TS 保持 7.0.2，仅 gallery/Vue example 的 SFC 类型检查隔离使用官方稳定 6.0.3。元数据见 vue-typescript-exception.json；修正后无 peer 问题且两类类型检查通过。该例外须在 Vue 工具支持原生 TS 后重新评估，不宣称所有包均用 TS7。
+4. 独立审查发现 Windows PowerShell 5.1 的 `Invoke-WebRequest` 首次请求需要确认，导致非交互脚本失败；统一加 `-UseBasicParsing`。新增隔离回归先失败再通过，真实重新下载 Node/pnpm、校验摘要与版本，并再次运行缓存路径；证据为 `bootstrap-ps51-red.log` / `bootstrap-ps51-green.log`。修复后重跑完整验证，构建、类型、5 个单元测试、3 个浏览器测试和服务白名单均通过，见 `final-checks.log`。
 
 兼容处理的代价是同时维护两种类型检查器；没有把候选版本发现当作完整组件兼容矩阵。React 示例构建约 504 kB，触发 Vite 的 500 kB 警告；当前版本探针引入 ECharts 核心，按需注册/分包与体积验收留在 T02/T03，不掩盖该警告。
 
