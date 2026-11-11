@@ -7,6 +7,7 @@
     "build": "vite build",
     "typecheck": "tsc --noEmit",
     "dev": "vite --host 127.0.0.1 --port 5175 --strictPort",
+    "dev:strict": "vite --host 127.0.0.1 --port 5176 --strictPort",
     "preview": "vite preview --host 127.0.0.1 --port 5175 --strictPort"
   },
   "dependencies": {

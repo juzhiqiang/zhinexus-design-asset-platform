@@ -1,16 +1,28 @@
 import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import { getReactRuntimeInfo } from '@company/charts-react';
+import { createRoot, type Root } from 'react-dom/client';
+import { App } from './App';
+import '@company/charts-react/style.css';
+import './styles.css';
 
-const runtime = getReactRuntimeInfo();
-const container = document.getElementById('app');
-if (!container) throw new Error('Missing app container');
-createRoot(container).render(
-  <StrictMode>
-    <main style={{ fontFamily: 'system-ui, sans-serif', margin: 48, color: '#263044' }}>
-      <h1>React 工程示例</h1>
-      <p>工作区包入口已连接，图表组件待 T02/T03 实现。</p>
-      <pre data-testid="runtime-info">{JSON.stringify(runtime, null, 2)}</pre>
-    </main>
-  </StrictMode>,
-);
+let root: Root | null = null;
+
+function mountApp(): void {
+  const container = document.getElementById('app');
+  if (!container) {
+    throw new Error('Missing app container');
+  }
+  root = createRoot(container);
+  root.render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+mountApp();
+
+// 测试钩子：卸载后重新挂载，验证 StrictMode 清理是否彻底
+window.__EXAMPLE_REMOUNT__ = () => {
+  root?.unmount();
+  mountApp();
+};
