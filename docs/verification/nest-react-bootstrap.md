@@ -10,7 +10,7 @@
 | apps/preview-gateway | 独立 NestJS module/controller/service，GET /healthz，3001 |
 | apps/gallery | React + Vite，createRoot/StrictMode、TSX、独立 CSS，5173 |
 | SDK 与 examples | Vue/React 双框架保留，示例 5174/5175 |
-| 测试入口 | test 先 build:services，再运行 Vitest；HTTP 测试加载已编译 Nest 应用 |
+| 测试与类型检查入口 | test/typecheck 均先 build:services；HTTP 测试加载已编译 Nest 应用 |
 
 两个后端使用 Nest 默认 Express 适配器，尚未实现静态文件代理、上传、鉴权、发布与作业。POST /v1/releases 仍返回 404。健康响应保持 status=ok、stage=bootstrap，不作为生产 readiness。
 
@@ -27,10 +27,11 @@ Nest CLI 的官方 TypeScript 依赖为 ~6.0.2，因此两个后端显式固定 
 | 官方版本发现 | 24 个候选包，React/Nest 版本与安装清单一致 |
 | 冻结安装 / peers | 锁文件未更新；No peer dependency issues found |
 | workspace | 10 个成员、无环、4 个公开包壳，服务边界通过 |
-| 全量 build / typecheck | 10/10 构建；14/14 Turbo 类型检查及依赖构建任务，根脚本/测试类型检查通过 |
+| 全量 build / typecheck | 10/10 构建；typecheck 先完成 5 个服务任务，再完成 14 个 Turbo 类型检查及依赖构建任务，根脚本/测试类型检查通过 |
 | 单元与服务 HTTP | 5/5：CLI 3 项、两个已编译 Nest 服务各 1 项；实际 DI、health 200 和发布 404 |
 | 浏览器 | 3/3：React 画廊、Vue 示例、React 示例 |
 | 缺少 dist 的测试启动 | 将 API/网关/contracts 的 dist 移至隔离备份，并强制绕过 Turbo 缓存；根 test 自动完成 5 个服务任务，再通过 5/5 测试 |
+| 缺少 dist 的类型检查 | 将 API/网关 dist 移至隔离备份，修复前根 typecheck 因两项 TS2307 失败；补齐前置构建后，强制绕过缓存完成 5 + 14 个任务及根类型检查，退出码 0 |
 | 后端 start/dev | API 与网关各 2 个真实命令，4 次 health 200；各次仅结束本次测试进程树，端口均释放 |
 | 服务任务图 | 只有 contracts build、两个后端 build/typecheck，共 5 项；没有组件、画廊、示例或浏览器 |
 | 重复 build | 10/10 命中本地缓存；测试本身未进入 Turbo 缓存 |
@@ -57,4 +58,10 @@ Windows 服务入口冒烟使用 taskkill /T /F 清理本次拥有的进程树�
 | 保留 Vue SDK/example | 平台前端修正为 React，组件双框架要求仍有效；若未来取消 Vue，需单独调整范围 |
 | 两个 Nest 应用固定 TypeScript 6.0.3 | 对齐 CLI 编译器；升级时需重新验证编译器兼容 |
 
-独立审查结论在本轮审查后补充。
+## 独立审查与修复
+
+整分支审查范围为 `09742a0..8e72a87`。结论为 0 项 Critical、1 项 Important/P2、0 项 Minor；唯一问题已修复：HTTP 测试改为导入 Nest dist 后，根 typecheck 未生成两个服务自身的声明，干净工作区会出现 TS2307，已有 dist 也可能造成过期接口参与检查。
+
+根 typecheck 现与 test 一样先执行 build:services，随后保留原有全部类型检查范围。没有恢复旧 dist，修复后直接强制绕过缓存运行 typecheck，通过 5 个服务前置任务、14 个原任务及根 tsc。证据：[修复前 RED](nest-clean-typecheck-red.log)、[修复后 GREEN](nest-clean-typecheck-green.log)。随后完整 verify.ps1 再次通过（冻结安装、workspace、10 包构建、类型检查、5 个单元/HTTP 测试、3 个浏览器测试、服务构建），peer 检查无问题；[完整验证日志](nest-react-checks.log) 已更新为修复后的运行。
+
+审查未覆盖的后续验收继续保留：G1/G2 与业务能力；Linux 部署信号、在途请求排空及生产端口配置；SDK 按需打包、工作区外 tarball 消费和 React example 体积优化。本轮没有未解决的审查问题，但这些业务与部署门槛仍未完成。

@@ -10,7 +10,7 @@
   },
   "scripts": {
     "build": "turbo run build --cache=local:rw",
-    "typecheck": "turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit",
+    "typecheck": "pnpm build:services && turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit",
     "dev": "turbo run dev --concurrency=12 --cache=local:rw",
     "test": "pnpm build:services && vitest run",
     "test:browser": "playwright test --config tests/playwright.config.ts",

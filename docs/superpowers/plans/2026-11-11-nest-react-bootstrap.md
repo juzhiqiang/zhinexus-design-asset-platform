@@ -18,7 +18,7 @@
 ## Review Focus
 
 - Nest 依赖注入需要真实 decorator metadata：服务测试必须运行已编译代码，并通过 controller→service 返回健康响应。
-- 全新安装后直接 `pnpm test`：入口须先构建服务，不依赖遗留 dist。
+- 全新安装后直接 `pnpm test` 或 `pnpm typecheck`：两个入口均须先构建服务，不依赖遗留 dist。
 - `dev` 与 `start` 必须使用同一 Nest 模块，确保监听端口和停止进程可用；实际 HTTP 冒烟覆盖两个入口。
 - React 画廊迁移不得误删 Vue SDK/example：工作区检查与三个页面浏览器测试覆盖。
 - 平台服务构建不应带入组件和浏览器：重新检查 Turbo 服务子图与重复缓存。
@@ -29,10 +29,10 @@
 
 **Interfaces:** 保留导出名 `buildServer()`，改为 `Promise<INestApplication>`；`GET /healthz` 返回原 `{status:'ok',service:'api'|'preview-gateway',stage:'bootstrap'}`；Nest 生命周期管理关闭。
 
-- [ ] 将服务测试改为加载真实 dist，await 工厂、监听 loopback 临时端口并通过 fetch 断言 health 200、未实现发布 404；在旧 Fastify 实现上观察失败。
-- [ ] 实现两个 Nest module/controller/service，启用 decorator metadata，使用 Nest CLI 构建/开发、Node 运行 dist；精确依赖写入锁文件。
-- [ ] `pnpm test` 先执行服务白名单构建再直接运行 Vitest。Expected：5/5 测试通过；服务构建不包含 charts/examples/gallery。
-- [ ] 实测两个 `start` 和 `dev` HTTP 入口，停止后端口释放。Expected：各 health 200，停止后无本轮遗留服务。
+- [x] 将服务测试改为加载真实 dist，await 工厂、监听 loopback 临时端口并通过 fetch 断言 health 200、未实现发布 404；在旧 Fastify 实现上观察失败。
+- [x] 实现两个 Nest module/controller/service，启用 decorator metadata，使用 Nest CLI 构建/开发、Node 运行 dist；精确依赖写入锁文件。
+- [x] `pnpm test` 先执行服务白名单构建再直接运行 Vitest。Expected：5/5 测试通过；服务构建不包含 charts/examples/gallery。
+- [x] 实测两个 `start` 和 `dev` HTTP 入口，停止后端口释放。Expected：各 health 200，停止后无本轮遗留服务。
 
 ### Task 2: React 平台入口与文档验证
 
@@ -40,7 +40,9 @@
 
 **Interfaces:** 画廊仍在 5173，Vue/React example 仍在 5174/5175；协议版本来自 contracts，现有画廊标题与骨架提示保持。
 
-- [ ] 用 React createRoot/StrictMode 与 React Vite 插件替换画廊 Vue 入口，移除画廊的 Vue/TS6/vue-tsc 依赖，保留 Vue example。
-- [ ] 刷新官方版本发现，更新当前选型和三人职责；旧验证记录明确为迁移前历史。
-- [ ] 运行冻结安装、peer 检查、workspace、build、typecheck、test、browser、services。Expected：10 个成员；所有检查通过，3 个浏览器测试通过。
-- [ ] 复核 Turbo 服务图、重复构建缓存，记录兼容取舍、已验证范围和后续门槛，独立审查后修复必要问题。
+- [x] 用 React createRoot/StrictMode 与 React Vite 插件替换画廊 Vue 入口，移除画廊的 Vue/TS6/vue-tsc 依赖，保留 Vue example。
+- [x] 刷新官方版本发现，更新当前选型和三人职责；旧验证记录明确为迁移前历史。
+- [x] 运行冻结安装、peer 检查、workspace、build、typecheck、test、browser、services。Expected：10 个成员；所有检查通过，3 个浏览器测试通过。
+- [x] 复核 Turbo 服务图、重复构建缓存，记录兼容取舍、已验证范围和后续门槛，独立审查后修复必要问题。
+
+实施与审查已完成；审查发现的根类型检查依赖遗漏已通过无 dist 的 RED/GREEN 复现与完整检查验证。详见 [验证记录](../../verification/nest-react-bootstrap.md)。本计划完成只代表技术栈初始化修正，完整 T01 和业务计划继续开放。

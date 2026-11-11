@@ -1,0 +1,61 @@
+$ pnpm build:services && turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit
+$ turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw
+
+   • turbo 2.11.10
+   • Packages in scope: @company/platform-api, @company/preview-gateway
+   • Running build, typecheck in 2 packages
+   • Remote caching disabled
+
+@company/contracts:build: cache bypass, force executing 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/platform-api:typecheck: cache bypass, force executing df30500e08e6ac82
+@company/platform-api:build: cache bypass, force executing a4a76444cfde777d
+@company/preview-gateway:typecheck: cache bypass, force executing 7a66d112fa611bd0
+@company/preview-gateway:build: cache bypass, force executing d8e5dca631069ee1
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/platform-api:build: $ nest build
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:build: $ nest build
+
+ Tasks:    5 successful, 5 total
+Cached:    0 cached, 5 total
+  Time:    1.701s
+
+
+   • turbo 2.11.10
+   • Packages in scope: @company/charts-core, @company/charts-react, @company/charts-vue, @company/component-cli, @company/contracts, @company/example-react, @company/example-vue, @company/gallery, @company/platform-api, @company/preview-gateway
+   • Running typecheck in 10 packages
+   • Remote caching disabled
+
+@company/charts-core:typecheck: cache bypass, force executing ee2abdfec14fefa8
+@company/contracts:typecheck: cache bypass, force executing ffebcf5c77d53748
+@company/contracts:build: cache bypass, force executing 33f4e6c6d6a7cb47
+@company/charts-core:build: cache bypass, force executing 988cbf5cce571fe3
+@company/charts-core:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/contracts:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/charts-core:build: $ tsc -p tsconfig.build.json
+@company/platform-api:typecheck: cache bypass, force executing df30500e08e6ac82
+@company/gallery:typecheck: cache bypass, force executing b7cb061c677cea62
+@company/preview-gateway:typecheck: cache bypass, force executing 7a66d112fa611bd0
+@company/component-cli:typecheck: cache bypass, force executing f1e72318a95c90b4
+@company/charts-vue:build: cache bypass, force executing 61706faedb61d2be
+@company/charts-react:typecheck: cache bypass, force executing a8e39f0a9117ad4c
+@company/charts-react:build: cache bypass, force executing 72e26b255d6cc9e5
+@company/charts-vue:typecheck: cache bypass, force executing 11d88280d129d5f9
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/gallery:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/component-cli:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-vue:build: $ tsc -p tsconfig.build.json
+@company/charts-react:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-react:build: $ tsc -p tsconfig.build.json
+@company/example-vue:typecheck: cache bypass, force executing a167b5e6c270b81c
+@company/charts-vue:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/example-vue:typecheck: $ vue-tsc --noEmit
+@company/example-react:typecheck: cache bypass, force executing 8030d5b13abba9c4
+@company/example-react:typecheck: $ tsc --noEmit
+
+ Tasks:    14 successful, 14 total
+Cached:    0 cached, 14 total
+  Time:    2.055s

@@ -1,0 +1,43 @@
+$ turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit
+
+   • turbo 2.11.10
+   • Packages in scope: @company/charts-core, @company/charts-react, @company/charts-vue, @company/component-cli, @company/contracts, @company/example-react, @company/example-vue, @company/gallery, @company/platform-api, @company/preview-gateway
+   • Running typecheck in 10 packages
+   • Remote caching disabled
+
+@company/contracts:typecheck: cache hit, replaying logs ffebcf5c77d53748
+@company/charts-core:build: cache hit, replaying logs 988cbf5cce571fe3
+@company/contracts:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-core:typecheck: cache hit, replaying logs ee2abdfec14fefa8
+@company/charts-core:build: $ tsc -p tsconfig.build.json
+@company/charts-core:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/contracts:build: cache hit, replaying logs 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/charts-react:typecheck: cache hit, replaying logs a8e39f0a9117ad4c
+@company/charts-vue:typecheck: cache hit, replaying logs 11d88280d129d5f9
+@company/charts-react:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-vue:build: cache hit, replaying logs 61706faedb61d2be
+@company/charts-vue:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/platform-api:typecheck: cache hit, replaying logs df30500e08e6ac82
+@company/gallery:typecheck: cache hit, replaying logs b7cb061c677cea62
+@company/charts-react:build: cache hit, replaying logs 72e26b255d6cc9e5
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:typecheck: cache hit, replaying logs 7a66d112fa611bd0
+@company/component-cli:typecheck: cache hit, replaying logs f1e72318a95c90b4
+@company/charts-vue:build: $ tsc -p tsconfig.build.json
+@company/charts-react:build: $ tsc -p tsconfig.build.json
+@company/gallery:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/component-cli:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/example-vue:typecheck: cache hit, replaying logs a167b5e6c270b81c
+@company/example-react:typecheck: cache hit, replaying logs 8030d5b13abba9c4
+@company/example-vue:typecheck: $ vue-tsc --noEmit
+@company/example-react:typecheck: $ tsc --noEmit
+
+ Tasks:    14 successful, 14 total
+Cached:    14 cached, 14 total
+  Time:    19ms >>> FULL TURBO
+
+tests/unit/bootstrap.test.ts(3,29): error TS2307: Cannot find module '../../apps/api/dist/app.js' or its corresponding type declarations.
+tests/unit/bootstrap.test.ts(4,51): error TS2307: Cannot find module '../../apps/preview-gateway/dist/app.js' or its corresponding type declarations.
+[ELIFECYCLE] Command failed with exit code 1.
