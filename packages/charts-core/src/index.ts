@@ -1,6 +1,33 @@
+export type {
+  ChartComponentOption,
+  ChartConfig,
+  ChartController,
+  ChartData,
+  ChartEvent,
+  ChartPoint,
+  ChartSeries,
+  LineChartConfig,
+  LineChartOption,
+  PointClickListener,
+  Renderer,
+  SupportedOptionOverrides,
+  ThemeName,
+  UnitSpec,
+  Unsubscribe,
+} from './types.js';
+export { ChartDataError, alignSeriesValues, collectCategories, normalizeChartData } from './data.js';
+export { MISSING_VALUE_DISPLAY, formatValue } from './format.js';
+export { darkTheme, lightTheme, resolveTheme } from './theme.js';
+export type { ChartTheme } from './theme.js';
+export { buildLineOption } from './charts/line.js';
+export { createChartController } from './controller.js';
+
 import { version } from 'echarts/core.js';
 
-/** Bootstrap probe only; the chart controller belongs to T02. */
+/**
+ * 工程骨架探针：返回 ECharts 运行时版本。
+ * T03 起由双框架组件与控制器取代其探针作用，保留以兼容既有引导验证。
+ */
 export function getCoreRuntimeInfo() {
   return { stage: 'bootstrap', echartsVersion: version } as const;
 }
