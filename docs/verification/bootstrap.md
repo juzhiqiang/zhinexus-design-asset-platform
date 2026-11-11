@@ -1,5 +1,7 @@
 # 工程初始化验证记录
 
+> 历史记录：本文与其日志记录技术栈调整前的初始化。当前 NestJS 服务、React 画廊和编译器范围以 [Nest/React 验证记录](nest-react-bootstrap.md) 为准。
+
 日期：2026-11-11，Windows x64。范围为 [初始化执行范围](../superpowers/plans/2026-11-11-bootstrap-execution.md)，不是整个 T01 的验收。
 
 ## 已验证结果

@@ -5,16 +5,13 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
     "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
   },
   "dependencies": {
-    "vue": "3.5.45",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "@company/contracts": "workspace:*"
-  },
-  "devDependencies": {
-    "typescript": "6.0.3",
-    "vue-tsc": "3.3.14"
   }
 }

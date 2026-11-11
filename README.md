@@ -1,6 +1,6 @@
 # Zhinexus 组件资产平台
 
-Monorepo + pnpm workspace + Turborepo 工程骨架。当前交付的是可开发基线：10 个包、协议草案、API/预览网关健康检查、CLI help/version、Vue/React 示例入口。上传、发布、图表控制器、真实包消费与截图验证尚待后续任务实现。
+Monorepo + pnpm workspace + Turborepo 工程骨架。平台前端使用 React 19.3.1 + Vite，API 与预览网关使用 NestJS 12.4.2（默认 Express 适配器）；组件侧保留 Vue/React 双框架。当前交付包含 10 个包、协议草案、健康检查、CLI help/version 与示例入口。上传、发布、图表控制器、真实包消费与截图验证尚待后续任务实现。
 
 ## 开始开发（Windows x64）
 
@@ -36,9 +36,9 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。当前交付的是可开发
 ## 工作区职责
 
 ```text
-apps/api                 平台 API（目前仅 healthz）
-apps/gallery             Vue 画廊入口
-apps/preview-gateway     静态预览网关（目前仅 healthz）
+apps/api                 NestJS 平台 API（目前仅 healthz）
+apps/gallery             React + Vite 画廊入口
+apps/preview-gateway     NestJS 静态预览网关（目前仅 healthz）
 packages/contracts       私有协议类型草案，未实现运行时校验
 packages/charts-core     ECharts 共享核心包壳
 packages/charts-vue       Vue 适配包壳 → core
@@ -54,7 +54,9 @@ infra                    基础设施待办与责任边界
 
 ## 工具链与缓存
 
-固定 Node 26.13.0、pnpm 12.18.0、Turbo 2.11.10；根 TypeScript 7.0.2。Vue SFC 检查因 vue-tsc/volar 的编译器 API 约束，仅在 gallery 与 Vue example 内固定 TypeScript 6.0.3、vue-tsc 3.3.14。两种编译器均已验证；该兼容例外和官方证据见 [初始化记录](docs/verification/bootstrap.md)。
+固定 Node 26.13.0、pnpm 12.18.0、Turbo 2.11.10；根与 React 画廊使用 TypeScript 7.0.2。两个 Nest 应用使用 Nest CLI 12.0.12 与 TypeScript 6.0.3，和 CLI 自带编译器保持一致，启用 decorator metadata。仅 Vue example 的 SFC 检查使用 vue-tsc 3.3.14 + TypeScript 6.0.3；画廊已移除 Vue 工具依赖。当前版本与验证证据见 [Nest/React 调整记录](docs/verification/nest-react-bootstrap.md)。
+
+两个后端均提供 Nest module/controller/service。单独开发执行 `pnpm --filter @company/platform-api dev`，构建后运行 `pnpm --filter @company/platform-api start`；网关替换为 `@company/preview-gateway`。本机请用上述 PowerShell wrapper 替代 `pnpm`。测试加载真实 Nest 编译结果，因此根 `test` 会先执行 `build:services`，再直接运行 Vitest。
 
 pnpm 12 的配置放在 `pnpm-workspace.yaml`，包含官方 registry、严格 peer/engine、精确版本及仅允许 esbuild 的安装脚本。`.npmrc` 仅保留 npm 通用配置。所有人使用锁文件安装；新增依赖由 C 收口，不以脚本启动前隐式安装代替冻结安装检查。
 
@@ -66,7 +68,8 @@ build/typecheck 使用本地缓存，dev 不缓存；test、浏览器和 compone
 - [完整实现计划 T01–T17](docs/superpowers/plans/2026-11-11-component-platform-implementation.md)
 - [实施评估](component-platform-implementation-assessment.md) / [原始架构](component-platform-architecture.md)
 - [本次初始化范围](docs/superpowers/plans/2026-11-11-bootstrap-execution.md)
-- [初始化验证](docs/verification/bootstrap.md) / [Turbo 缓存证据](docs/verification/turbo-baseline.md)
+- [当前 Nest/React 验证](docs/verification/nest-react-bootstrap.md)
+- [迁移前初始化验证](docs/verification/bootstrap.md) / [迁移前 Turbo 缓存证据](docs/verification/turbo-baseline.md)
 - [独立审查与实施决定](docs/verification/bootstrap-review.md)
 
 下一步是 G1 协议冻结及 G2 基础设施验证，同时开始 T02 与 CLI/消费者设施；不要因骨架通过测试而将整个 T01 标记完成。

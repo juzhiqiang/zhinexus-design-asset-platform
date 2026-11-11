@@ -1,0 +1,189 @@
+Scope: all 11 workspace projects
+✓ Lockfile passes supply-chain policies (verified 17s ago)
+Lockfile is up to date, resolution step is skipped
+Done in 47ms using pnpm v12.18.0
+$ tsx scripts/verify-workspace.ts
+Workspace verified: 10 members, no cycles, four publishable shells, safe service graph.
+$ turbo run build --cache=local:rw
+
+   • turbo 2.11.10
+   • Packages in scope: @company/charts-core, @company/charts-react, @company/charts-vue, @company/component-cli, @company/contracts, @company/example-react, @company/example-vue, @company/gallery, @company/platform-api, @company/preview-gateway
+   • Running build in 10 packages
+   • Remote caching disabled
+
+@company/charts-core:build: cache hit, replaying logs 988cbf5cce571fe3
+@company/charts-core:build: $ tsc -p tsconfig.build.json
+@company/contracts:build: cache hit, replaying logs 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/charts-vue:build: cache hit, replaying logs 61706faedb61d2be
+@company/charts-react:build: cache hit, replaying logs 72e26b255d6cc9e5
+@company/gallery:build: cache miss, executing 7b6ee63ba246e816
+@company/charts-vue:build: $ tsc -p tsconfig.build.json
+@company/charts-react:build: $ tsc -p tsconfig.build.json
+@company/component-cli:build: cache hit, replaying logs 6cd16280e5ff60a0
+@company/component-cli:build: $ tsc -p tsconfig.build.json
+@company/preview-gateway:build: cache hit, replaying logs d8e5dca631069ee1
+@company/platform-api:build: cache hit, replaying logs a4a76444cfde777d
+@company/preview-gateway:build: $ nest build
+@company/platform-api:build: $ nest build
+@company/example-react:build: cache hit, replaying logs 7ce958a410a08cf8
+@company/example-vue:build: cache hit, replaying logs b01a8b5a1bebcb35
+@company/example-react:build: $ vite build
+@company/example-react:build: vite v8.3.8 building client environment for production...
+@company/example-react:build: transforming...
+@company/example-react:build: ✓ 209 modules transformed.
+@company/example-react:build: rendering chunks...
+@company/example-react:build: computing gzip size...
+@company/example-react:build: dist/index.html                  0.29 kB │ gzip:   0.24 kB
+@company/example-react:build: dist/assets/index-iuOMr8Rg.js  504.26 kB │ gzip: 163.84 kB
+@company/example-react:build:
+@company/example-react:build: [plugin builtin:vite-reporter]
+@company/example-react:build: (!) Some chunks are larger than 500 kB after minification. Consider:
+@company/example-react:build: - Using dynamic import() to code-split the application
+@company/example-react:build: - Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+@company/example-react:build: - Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+@company/example-react:build: ✓ built in 177ms
+@company/example-vue:build: $ vite build
+@company/example-vue:build: vite v8.3.8 building client environment for production...
+@company/example-vue:build: transforming...
+@company/example-vue:build: ✓ 207 modules transformed.
+@company/example-vue:build: rendering chunks...
+@company/example-vue:build: computing gzip size...
+@company/example-vue:build: dist/index.html                   0.36 kB │ gzip:   0.28 kB
+@company/example-vue:build: dist/assets/index-CVFNSj9R.css    0.06 kB │ gzip:   0.08 kB
+@company/example-vue:build: dist/assets/index-njVAcm1I.js   347.34 kB │ gzip: 120.15 kB
+@company/example-vue:build:
+@company/example-vue:build: ✓ built in 155ms
+@company/gallery:build: $ vite build
+@company/gallery:build: vite v8.3.8 building client environment for production...
+@company/gallery:build: transforming...
+@company/gallery:build: ✓ 17 modules transformed.
+@company/gallery:build: rendering chunks...
+@company/gallery:build: computing gzip size...
+@company/gallery:build: dist/index.html                   0.36 kB │ gzip:  0.29 kB
+@company/gallery:build: dist/assets/index-DuNFyzKV.css    0.13 kB │ gzip:  0.13 kB
+@company/gallery:build: dist/assets/index-C4JTf0on.js   219.80 kB │ gzip: 68.87 kB
+@company/gallery:build:
+@company/gallery:build: ✓ built in 79ms
+
+ Tasks:    10 successful, 10 total
+Cached:    9 cached, 10 total
+  Time:    412ms
+
+$ turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit
+
+   • turbo 2.11.10
+   • Packages in scope: @company/charts-core, @company/charts-react, @company/charts-vue, @company/component-cli, @company/contracts, @company/example-react, @company/example-vue, @company/gallery, @company/platform-api, @company/preview-gateway
+   • Running typecheck in 10 packages
+   • Remote caching disabled
+
+@company/charts-core:typecheck: cache hit, replaying logs ee2abdfec14fefa8
+@company/contracts:typecheck: cache hit, replaying logs ffebcf5c77d53748
+@company/charts-core:build: cache hit, replaying logs 988cbf5cce571fe3
+@company/charts-core:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-core:build: $ tsc -p tsconfig.build.json
+@company/contracts:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/contracts:build: cache hit, replaying logs 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/charts-react:typecheck: cache hit, replaying logs a8e39f0a9117ad4c
+@company/charts-react:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-vue:build: cache hit, replaying logs 61706faedb61d2be
+@company/charts-vue:typecheck: cache hit, replaying logs 11d88280d129d5f9
+@company/preview-gateway:typecheck: cache hit, replaying logs 7a66d112fa611bd0
+@company/gallery:typecheck: cache miss, executing b7cb061c677cea62
+@company/charts-react:build: cache hit, replaying logs 72e26b255d6cc9e5
+@company/charts-vue:build: $ tsc -p tsconfig.build.json
+@company/charts-vue:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/component-cli:typecheck: cache hit, replaying logs f1e72318a95c90b4
+@company/platform-api:typecheck: cache hit, replaying logs df30500e08e6ac82
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/charts-react:build: $ tsc -p tsconfig.build.json
+@company/component-cli:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/example-react:typecheck: cache hit, replaying logs 8030d5b13abba9c4
+@company/example-vue:typecheck: cache hit, replaying logs a167b5e6c270b81c
+@company/example-vue:typecheck: $ vue-tsc --noEmit
+@company/example-react:typecheck: $ tsc --noEmit
+@company/gallery:typecheck: $ tsc -p tsconfig.json --noEmit
+
+ Tasks:    14 successful, 14 total
+Cached:    13 cached, 14 total
+  Time:    290ms
+
+$ pnpm build:services && vitest run
+$ turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw
+
+   • turbo 2.11.10
+   • Packages in scope: @company/platform-api, @company/preview-gateway
+   • Running build, typecheck in 2 packages
+   • Remote caching disabled
+
+@company/contracts:build: cache hit, replaying logs 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/platform-api:typecheck: cache hit, replaying logs df30500e08e6ac82
+@company/preview-gateway:typecheck: cache hit, replaying logs 7a66d112fa611bd0
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:build: cache hit, replaying logs d8e5dca631069ee1
+@company/platform-api:build: cache hit, replaying logs a4a76444cfde777d
+@company/preview-gateway:build: $ nest build
+@company/platform-api:build: $ nest build
+
+ Tasks:    5 successful, 5 total
+Cached:    5 cached, 5 total
+  Time:    20ms >>> FULL TURBO
+
+
+ RUN  v5.1.0 D:/project/zhinexus-design-asset-platform
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:31:06
+   Duration  518ms (import 57%, tests 34%, transform 9%, worker 1%)
+
+$ playwright test --config tests/playwright.config.ts
+[WebServer] $ vite preview --host 127.0.0.1 --port 5173 --strictPort
+[WebServer] (node:36080) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] $ vite preview --host 127.0.0.1 --port 5174 --strictPort
+[WebServer] (node:2040) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+[WebServer] $ vite preview --host 127.0.0.1 --port 5175 --strictPort
+[WebServer] (node:11728) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+Running 3 tests using 2 workers
+
+(node:35992) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+(node:51224) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+  ok 1 tests\browser\bootstrap.spec.ts:9:3 › vue built example loads framework and core through package exports (137ms)
+  ok 2 tests\browser\bootstrap.spec.ts:3:1 › gallery explains its bootstrap stage (144ms)
+  ok 3 tests\browser\bootstrap.spec.ts:9:3 › react built example loads framework and core through package exports (135ms)
+
+  3 passed (2.9s)
+$ turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw
+
+   • turbo 2.11.10
+   • Packages in scope: @company/platform-api, @company/preview-gateway
+   • Running build, typecheck in 2 packages
+   • Remote caching disabled
+
+@company/contracts:build: cache hit, replaying logs 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/platform-api:typecheck: cache hit, replaying logs df30500e08e6ac82
+@company/preview-gateway:typecheck: cache hit, replaying logs 7a66d112fa611bd0
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:build: cache hit, replaying logs d8e5dca631069ee1
+@company/platform-api:build: cache hit, replaying logs a4a76444cfde777d
+@company/preview-gateway:build: $ nest build
+@company/platform-api:build: $ nest build
+
+ Tasks:    5 successful, 5 total
+Cached:    5 cached, 5 total
+  Time:    22ms >>> FULL TURBO
+
+Bootstrap verification passed (not full T01 acceptance).

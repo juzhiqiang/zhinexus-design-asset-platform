@@ -1,0 +1,46 @@
+[
+  {
+    "taskId": "@company/contracts#build",
+    "command": "tsc -p tsconfig.build.json",
+    "dependencies": [],
+    "outputs": [
+      "dist/**"
+    ]
+  },
+  {
+    "taskId": "@company/platform-api#build",
+    "command": "nest build",
+    "dependencies": [
+      "@company/contracts#build"
+    ],
+    "outputs": [
+      "dist/**"
+    ]
+  },
+  {
+    "taskId": "@company/platform-api#typecheck",
+    "command": "tsc -p tsconfig.json --noEmit",
+    "dependencies": [
+      "@company/contracts#build"
+    ],
+    "outputs": null
+  },
+  {
+    "taskId": "@company/preview-gateway#build",
+    "command": "nest build",
+    "dependencies": [
+      "@company/contracts#build"
+    ],
+    "outputs": [
+      "dist/**"
+    ]
+  },
+  {
+    "taskId": "@company/preview-gateway#typecheck",
+    "command": "tsc -p tsconfig.json --noEmit",
+    "dependencies": [
+      "@company/contracts#build"
+    ],
+    "outputs": null
+  }
+]

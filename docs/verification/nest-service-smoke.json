@@ -1,0 +1,51 @@
+{
+  "verifiedAt": "2026-11-11T10:30:19.834Z",
+  "platform": "win32",
+  "stopMethod": "taskkill /T /F of each test-owned parent PID; not a graceful signal verification",
+  "results": [
+    {
+      "package": "@company/platform-api",
+      "mode": "start",
+      "health": {
+        "status": "ok",
+        "service": "api",
+        "stage": "bootstrap"
+      },
+      "status": 200,
+      "portReleased": true
+    },
+    {
+      "package": "@company/platform-api",
+      "mode": "dev",
+      "health": {
+        "status": "ok",
+        "service": "api",
+        "stage": "bootstrap"
+      },
+      "status": 200,
+      "portReleased": true
+    },
+    {
+      "package": "@company/preview-gateway",
+      "mode": "start",
+      "health": {
+        "status": "ok",
+        "service": "preview-gateway",
+        "stage": "bootstrap"
+      },
+      "status": 200,
+      "portReleased": true
+    },
+    {
+      "package": "@company/preview-gateway",
+      "mode": "dev",
+      "health": {
+        "status": "ok",
+        "service": "preview-gateway",
+        "stage": "bootstrap"
+      },
+      "status": 200,
+      "portReleased": true
+    }
+  ]
+}

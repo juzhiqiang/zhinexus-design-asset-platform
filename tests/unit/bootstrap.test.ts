@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { runCli } from '../../packages/component-cli/src/cli.js';
-import { buildServer } from '../../apps/api/src/app.js';
-import { buildServer as buildPreviewServer } from '../../apps/preview-gateway/src/app.js';
+import { buildServer } from '../../apps/api/dist/app.js';
+import { buildServer as buildPreviewServer } from '../../apps/preview-gateway/dist/app.js';
 
 describe('bootstrap entry points', () => {
   it('reports the supplied CLI version', () => {
@@ -20,13 +20,17 @@ describe('bootstrap entry points', () => {
   });
   for (const [service, create] of [['api', buildServer], ['preview-gateway', buildPreviewServer]] as const) {
     it(`${service} exposes liveness without claiming production readiness`, async () => {
-      const server = create();
+      const server = await create();
       try {
-        const response = await server.inject({ method: 'GET', url: '/healthz' });
-        expect(response.statusCode).toBe(200);
-        expect(response.json()).toEqual({ status: 'ok', service, stage: 'bootstrap' });
-        const missing = await server.inject({ method: 'POST', url: '/v1/releases', payload: {} });
-        expect(missing.statusCode).toBe(404);
+        await server.listen(0, '127.0.0.1');
+        const origin = await server.getUrl();
+        const response = await fetch(`${origin}/healthz`);
+        expect(response.status).toBe(200);
+        expect(await response.json()).toEqual({ status: 'ok', service, stage: 'bootstrap' });
+        const missing = await fetch(`${origin}/v1/releases`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
+        });
+        expect(missing.status).toBe(404);
       } finally { await server.close(); }
     });
   }

@@ -12,7 +12,7 @@
     "build": "turbo run build --cache=local:rw",
     "typecheck": "turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit",
     "dev": "turbo run dev --concurrency=12 --cache=local:rw",
-    "test": "vitest run",
+    "test": "pnpm build:services && vitest run",
     "test:browser": "playwright test --config tests/playwright.config.ts",
     "verify:workspace": "tsx scripts/verify-workspace.ts",
     "versions:resolve": "node scripts/resolve-versions.mjs",

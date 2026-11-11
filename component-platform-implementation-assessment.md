@@ -20,12 +20,12 @@
 
 | 类别 | 本次计划采用的内容 |
 | --- | --- |
-| 用户明确要求 | 根据现有架构完成评估和实现计划；2026 年内；人员动态分配；采用 Monorepo + pnpm workspace + Turborepo。 |
+| 用户明确要求 | 根据现有架构完成评估和实现计划；2026 年内；先投入 3 名开发并可动态分配；采用 Monorepo + pnpm workspace + Turborepo；平台后端 NestJS，平台前端最新稳定 React。 |
 | 架构已有约束 | 一期同时支持 Vue 与 React；ECharts；Verdaccio、PostgreSQL、MinIO；本地构建和截图；双入口提交同一类预构建产物；服务端不执行上传组件。 |
-| 本计划建议 | TypeScript；Vue 画廊；Fastify 管理 API；PostgreSQL 持久化任务；S3 SDK；本地 Playwright；公司单租户、OIDC 登录。新增工具版本在初始化任务中复核。 |
+| 当前技术选型 | TypeScript；React 19.3.1 + Vite 画廊；NestJS 12.4.2 管理 API 和预览网关（Express 适配器）。保留建议的 PostgreSQL 持久化任务、S3 SDK、本地 Playwright、公司单租户与 OIDC 登录；后续新增工具继续在实施时复核。 |
 | 待项目方提供的输入 | OIDC 接入参数及权限映射、域名/TLS/部署机器、npm scope、组件负责人、两类真实试点项目、首批场景与验收人员。 |
 | 工程默认值 | scope 暂用 `@company`；Windows 11 x64 为首个本地截图环境；Linux 为服务部署环境；其他开发 OS 单独扩展验证矩阵。这些是估算假设。 |
-| 本次未执行 | 初始化工程、安装依赖、构建组件、发布包、部署基础设施、创建自动化任务。 |
+| 交付状态 | 工程初始化及 Nest/React 技术栈调整已执行，见当前验证记录；业务组件、发布包与基础设施部署仍待实施。 |
 
 ### 2.1 已确认的仓库组织与任务编排
 
@@ -166,7 +166,7 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 版本来源入口：`https://registry.npmjs.org/<package>/latest`、`https://nodejs.org/dist/index.json`、`https://www.postgresql.org/support/versioning/`、`https://api.github.com/repos/minio/minio`、`https://api.github.com/repos/minio/minio/releases/latest`、`https://raw.githubusercontent.com/minio/minio/master/README.md`。逐项查询地址保存在版本证据 JSON。
 
-这次查询只确认公开元数据；没有安装或运行该组合。新增 Turborepo（`turbo`）、Fastify、测试库、S3 客户端和 schema 库也需在 T01 查证、锁定并通过实验；现有版本证据 JSON 未包含 `turbo`，不将其视为已查询或已验证。MinIO 保留用户架构中的选型，不擅自替换；维护风险属于实施评估中的实际依赖。
+本节上表保留最初评估的公开元数据，不能独立证明兼容。后续工程初始化已实际安装并验证 Turbo、NestJS、React、测试工具，当前精确值和结果分别见 `docs/versions.discovery.json`、[Nest/React 验证记录](docs/verification/nest-react-bootstrap.md)。S3 客户端、schema 库与生产设施仍需在相应任务中查证、锁定并验证。MinIO 保留用户架构中的选型，维护风险仍需在基础设施评估中处理。
 
 ## 10. 计划复核结果
 

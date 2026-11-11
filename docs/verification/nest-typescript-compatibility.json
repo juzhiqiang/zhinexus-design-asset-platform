@@ -1,0 +1,11 @@
+{
+  "queriedAt": "2026-11-11T10:33:54.7060762Z",
+  "source": "https://registry.npmjs.org/@nestjs%2fcli/12.0.12",
+  "version": "12.0.12",
+  "engines": {
+    "node": ">= 20.11"
+  },
+  "typescriptDependency": "~6.0.2",
+  "selectedServiceTypeScript": "6.0.3",
+  "rationale": "Align Nest CLI watch/build and application typecheck compilers; root and React gallery stay on 7.0.2."
+}

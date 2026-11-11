@@ -1,7 +1,114 @@
 {
-  "queriedAt": "2026-11-11T09:36:06.901Z",
+  "queriedAt": "2026-11-11T10:30:47.832Z",
   "status": "official-discovery-only",
   "npm": [
+    {
+      "name": "@nestjs/cli",
+      "version": "12.0.12",
+      "engines": {
+        "node": ">= 20.11"
+      },
+      "peerDependencies": {
+        "webpack": "^5.105.4",
+        "@swc/cli": "^0.8.0",
+        "@swc/core": "^1.15.18",
+        "ts-loader": "^9.5.4",
+        "@rspack/core": "^1.7.7 || ^2.1.10",
+        "webpack-node-externals": "^3.0.0",
+        "tsconfig-paths-webpack-plugin": "^4.2.0",
+        "fork-ts-checker-webpack-plugin": "^9.1.0"
+      },
+      "peerDependenciesMeta": {
+        "webpack": {
+          "optional": true
+        },
+        "@swc/cli": {
+          "optional": true
+        },
+        "@swc/core": {
+          "optional": true
+        },
+        "ts-loader": {
+          "optional": true
+        },
+        "@rspack/core": {
+          "optional": true
+        },
+        "webpack-node-externals": {
+          "optional": true
+        },
+        "tsconfig-paths-webpack-plugin": {
+          "optional": true
+        },
+        "fork-ts-checker-webpack-plugin": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-6Ab0zxLqYzZD8aEYWvleCIkvxJhcUtjR1VfQ/Hqg1/xhinKmSaFXEbFxc3QgqsJdoM//hRoMl0iQ4sudam1pjg==",
+      "source": "https://registry.npmjs.org/%40nestjs%2Fcli/latest"
+    },
+    {
+      "name": "@nestjs/common",
+      "version": "12.4.2",
+      "engines": {},
+      "peerDependencies": {
+        "rxjs": "^7.1.0",
+        "class-validator": ">=0.13.2",
+        "reflect-metadata": "^0.1.12 || ^0.2.0",
+        "class-transformer": ">=0.4.1"
+      },
+      "peerDependenciesMeta": {
+        "class-validator": {
+          "optional": true
+        },
+        "class-transformer": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-V39QSKjG6hMyI2WBtwH4g8ZRS4X5r2IlNcu5czlaEkGwsiT3P6JFywP21wlfd+O++UfoNvn6AmqRKsRmmeb9LA==",
+      "source": "https://registry.npmjs.org/%40nestjs%2Fcommon/latest"
+    },
+    {
+      "name": "@nestjs/core",
+      "version": "12.4.2",
+      "engines": {
+        "node": ">= 20"
+      },
+      "peerDependencies": {
+        "rxjs": "^7.1.0",
+        "@nestjs/common": "^12.0.0",
+        "reflect-metadata": "^0.1.12 || ^0.2.0",
+        "@nestjs/websockets": "^12.0.0",
+        "@nestjs/microservices": "^12.0.0",
+        "@nestjs/platform-express": "^12.0.0"
+      },
+      "peerDependenciesMeta": {
+        "@nestjs/websockets": {
+          "optional": true
+        },
+        "@nestjs/microservices": {
+          "optional": true
+        },
+        "@nestjs/platform-express": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-x0Xt+4Koah/CY97P89GxudJomylIMhlU5hmiyJOvBuayU9zIzQiYoOFzTs6/WdKM9ppAnWjfTnOYqQVIQ3t1mA==",
+      "source": "https://registry.npmjs.org/%40nestjs%2Fcore/latest"
+    },
+    {
+      "name": "@nestjs/platform-express",
+      "version": "12.4.2",
+      "engines": {},
+      "peerDependencies": {
+        "rxjs": "^7.1.0",
+        "@nestjs/core": "^12.0.0",
+        "@nestjs/common": "^12.0.0"
+      },
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-YWPJ0lIN0QJLsX658dCm0elvTtc76XvjX8VgahYbPDw6OGB2hgkdd7nLC6CI7q+tdhSNlXoF0rithWyGNRd7hQ==",
+      "source": "https://registry.npmjs.org/%40nestjs%2Fplatform-express/latest"
+    },
     {
       "name": "@playwright/test",
       "version": "1.65.0",
@@ -92,15 +199,6 @@
       "source": "https://registry.npmjs.org/echarts/latest"
     },
     {
-      "name": "fastify",
-      "version": "5.12.8",
-      "engines": {},
-      "peerDependencies": {},
-      "peerDependenciesMeta": {},
-      "integrity": "sha512-moP8exb2sCHLUbJkwp+I6C0padhy4D8lp0SdmzY7HhSdZuqm7O/u3o2aq7u8okaQ//33QDzj3G/u+FsSdB8Qzw==",
-      "source": "https://registry.npmjs.org/fastify/latest"
-    },
-    {
       "name": "pnpm",
       "version": "12.18.0",
       "engines": {
@@ -132,6 +230,24 @@
       "peerDependenciesMeta": {},
       "integrity": "sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ==",
       "source": "https://registry.npmjs.org/react-dom/latest"
+    },
+    {
+      "name": "reflect-metadata",
+      "version": "0.2.2",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-urBwgfrvVP/eAyXx4hluJivBKzuEbSQs9rKWCrCkbSxNv8mxPcUZKeuoF3Uy4mJl3Lwprp6yy5/39VWigZ4K6Q==",
+      "source": "https://registry.npmjs.org/reflect-metadata/latest"
+    },
+    {
+      "name": "rxjs",
+      "version": "7.8.2",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==",
+      "source": "https://registry.npmjs.org/rxjs/latest"
     },
     {
       "name": "tsx",

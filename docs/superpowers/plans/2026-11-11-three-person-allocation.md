@@ -8,7 +8,7 @@
 
 因此，三人可以按一期目标推进，但**不能承诺完整一期年底必达**。需要另安排测试 12–18 人日、运维 5–8 人日的兼职支持；他们不是隐藏的第四名全职开发。如果这些工作也由三人承担，总需求为 89–121 人日，连下界都超过现有容量。11 月 11 日的自动初始化不作为已经节省了若干完整开发人日，后续按实际剩余工作重估。
 
-本次已建立工程基线 G0：10 个 workspace 成员、本地工具链、锁文件、构建/类型检查/测试入口、协议类型草案、服务健康检查和双框架示例壳。验证范围见 [初始化记录](../../verification/bootstrap.md)。**完整 T01 仍未完成，图表组件、发布功能也尚未实现。**
+本次已建立工程基线 G0：10 个 workspace 成员、本地工具链、锁文件、构建/类型检查/测试入口、协议类型草案、NestJS 服务健康检查、React 画廊与双框架示例壳。根据用户补充，API/预览网关使用 NestJS 12.4.2，平台前端使用 React 19.3.1 + Vite；原架构的 Vue/React 组件范围保留。验证范围见 [当前调整记录](../../verification/nest-react-bootstrap.md)。**完整 T01 仍未完成，图表组件、发布功能也尚未实现。**
 
 | 门槛 | 内容与负责人 | 当前状态 / 目标 |
 | --- | --- | --- |
@@ -23,8 +23,10 @@ G2 交付物：三存储写读与进程重启恢复记录、固定版本/镜像�
 ## 2. 三人职责与工作量
 
 A：SDK 与图表核心，主目录 `packages/charts-*`、双框架 examples。
-B：CLI、本地验证、画廊与手动提交，主目录 `packages/component-cli`、`apps/gallery`、消费者和浏览器测试。
-C：平台与工程负责人，主目录 `apps/api`、`apps/preview-gateway`、`packages/contracts`、`infra`、根工具链配置。
+B：CLI、本地验证、React 画廊与手动提交，主目录 `packages/component-cli`、`apps/gallery`、消费者和浏览器测试。
+C：NestJS 平台与工程负责人，主目录 `apps/api`、`apps/preview-gateway`、`packages/contracts`、`infra`、根工具链配置。
+
+技术栈带来的协作边界：C 维护 Nest 模块、controller/service、认证和作业状态；B 根据 contracts 与固定 fixtures 实现 React 页面，通过 HTTP 契约联调，不导入后端 Nest 模块。C 的 schema/API 冻结与 B 的 React 页面框架可并行，但真实上传、目录和预览验收必须等待 T05/T06/T07 对应服务。A 的 Vue/React SDK 工作无需等待 React 画廊完成。两个后端沿用独立 Nest 入口，不在初始化时合并为单一服务。
 
 下表为开发人日分配，列相加等于原任务估计；不是三个人都全时参与同一个任务。
 

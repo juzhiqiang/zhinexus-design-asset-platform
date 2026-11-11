@@ -6,13 +6,14 @@
 
 **Architecture:** 采用 Monorepo + pnpm workspace + Turborepo，单仓保存共享图表核心、Vue/React 适配、CLI、画廊和管理 API；pnpm 管理依赖，Turbo 编排开发任务与缓存。组件构建、示例运行、截图与视觉差异在开发者电脑执行；服务端只处理预构建产物，通过 PostgreSQL 持久化任务协调 Verdaccio、PostgreSQL 和 MinIO。AI 检索和自动接入在后续独立任务中实现。
 
-**Tech Stack:** TypeScript、pnpm workspace、Turborepo（npm 包 `turbo`）、ECharts、Vue、React、Vite、Playwright、Fastify、PostgreSQL、Verdaccio、MinIO/S3 API；Vitest 验证单元与服务集成。仓库组织方案已获用户确认；Fastify、Vitest、Zod、pg、S3 SDK 和 OpenAPI 生成器属于本计划建议。`turbo` 等新增工具的精确版本及兼容性由 T01 查询、锁定并验证。
+**Tech Stack:** TypeScript、pnpm workspace、Turborepo（npm 包 `turbo`）、ECharts、Vue/React 组件、React + Vite 平台前端、NestJS 平台 API/预览网关、Playwright、PostgreSQL、Verdaccio、MinIO/S3 API；Vitest 验证单元与服务集成。用户已明确平台后端 NestJS、前端最新稳定 React；当前锁定 NestJS 12.4.2（Express 适配器）、React 19.3.1，见 [调整验证](../../verification/nest-react-bootstrap.md)。Zod、pg、S3 SDK 和 OpenAPI 生成器仍属计划建议，实施时查询并验证。
 
 **Spec:** `D:/project/zhinexus-design-asset-platform/component-platform-architecture.md`。范围与预算见项目根目录 `component-platform-implementation-assessment.md`。2026-11-11 已完成 [工程初始化子集](2026-11-11-bootstrap-execution.md)，[验证记录](../../verification/bootstrap.md) 仅覆盖工程骨架，完整 T01 保持开放。当前人员与日历以 [三人分工计划](2026-11-11-three-person-allocation.md) 为准。
 
 ## Global Constraints
 
 - 用户补充确认：采用 Monorepo + pnpm workspace + Turborepo；Turbo 只负责仓库任务，不承担线上发布作业调度。
+- 用户补充确认：平台前端使用 React，API/预览网关使用 NestJS；组件侧 Vue 与 React 支持范围保留。
 - 原文：“已确定同时支持 Vue 与 React，图表引擎采用 ECharts，私有 npm 仓库采用 Verdaccio，数据库采用 PostgreSQL，对象存储采用 MinIO。”
 - 原文：“所有选定依赖以实施时官方最新稳定版为初始基线，核实后锁定精确版本或镜像摘要”。当前版本证据仅为候选输入。
 - 原文：“若最新依赖组合存在冲突，应列出冲突并优先适配，不静默回退旧版本。”
@@ -40,10 +41,10 @@
 
 ```text
 apps/
-  api/src/                 # HTTP API、身份、发布任务、资产目录
+  api/src/                 # NestJS 模块、HTTP API、身份、发布任务、资产目录
   api/migrations/          # PostgreSQL schema 与版本迁移
-  gallery/src/             # Vue 画廊、详情、上传、任务进度
-  preview-gateway/src/     # 独立域名静态文件授权网关；不是执行器
+  gallery/src/             # React 画廊、详情、上传、任务进度
+  preview-gateway/src/     # NestJS 独立域名静态文件授权网关；不是执行器
 packages/
   contracts/src/           # manifest、示例、报告、API/AI 协议
   charts-core/src/         # 数据、option、模块注册、实例控制

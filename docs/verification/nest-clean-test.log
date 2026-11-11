@@ -1,0 +1,31 @@
+$ pnpm build:services && vitest run
+$ turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw
+
+   • turbo 2.11.10
+   • Packages in scope: @company/platform-api, @company/preview-gateway
+   • Running build, typecheck in 2 packages
+   • Remote caching disabled
+
+@company/contracts:build: cache bypass, force executing 33f4e6c6d6a7cb47
+@company/contracts:build: $ tsc -p tsconfig.build.json
+@company/preview-gateway:typecheck: cache bypass, force executing 7a66d112fa611bd0
+@company/platform-api:build: cache bypass, force executing a4a76444cfde777d
+@company/platform-api:typecheck: cache bypass, force executing df30500e08e6ac82
+@company/preview-gateway:build: cache bypass, force executing d8e5dca631069ee1
+@company/preview-gateway:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/platform-api:build: $ nest build
+@company/platform-api:typecheck: $ tsc -p tsconfig.json --noEmit
+@company/preview-gateway:build: $ nest build
+
+ Tasks:    5 successful, 5 total
+Cached:    0 cached, 5 total
+  Time:    1.727s
+
+
+ RUN  v5.1.0 D:/project/zhinexus-design-asset-platform
+
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  18:32:52
+   Duration  499ms (import 61%, tests 36%, transform 3%, worker 1%)
