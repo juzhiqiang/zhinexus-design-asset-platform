@@ -11,7 +11,7 @@
 - `packages/component-cli/`（`@company/component-cli`，公开包，命令 `component`）：开发者本地 CLI，负责初始化、构建、`pnpm pack` 冻结、工作区外临时消费者安装、本地 Playwright 截图、视觉对比、基线确认、产物上传与发布恢复。
 - `apps/api/`（`@company/platform-api`，`private: true`）：NestJS 12 平台管理与发布 API（默认 Express 适配器，端口 `3000`），负责 OIDC 鉴权、上传会话与文件摘要校验、发布作业协调（PostgreSQL / Verdaccio / MinIO）、资产目录、基线管理与审计。
 - `apps/preview-gateway/`（`@company/preview-gateway`，`private: true`）：独立 NestJS 12 静态预览网关（默认 Express 适配器，端口 `3001`），负责在独立注册域名下校验短期预览授权（preview grant）并分发只读静态预览资源；禁止承载组件构建或代码执行逻辑。
-- `apps/gallery/`（`@company/gallery`，`private: true`）：React 19 + Vite 平台前端画廊（端口 `5173`），负责组件分类/文本/框架筛选、分框架文档与 API 展示、沙箱 `iframe` 隔离预览、网页手动产物提交与任务进度展示。
+- `apps/gallery/`（`@company/gallery`，`private: true`）：React 19 + Next.js 16 App Router 平台前端画廊（端口 `5173`），公开发现页面使用 SSG/ISR 宿主，控制台路由预留 OIDC 登录保护并设置 noindex。负责组件分类/文本/框架筛选、分框架文档与 API 展示、沙箱 `iframe` 隔离预览、网页手动产物提交与任务进度展示；当前目录和上传仅占位，真实数据与权限仍按 T05/T07 验收。
 - `examples/vue/`（`@company/example-vue`，`private: true`，端口 `5174`）与 `examples/react/`（`@company/example-react`，`private: true`，端口 `5175`）：双框架工作区示例入口，消费共享确定性数据（`examples/fixtures/`）并实现统一的示例就绪协议。
 - `tests/`：契约测试、单元测试、服务 HTTP 集成测试、Playwright 浏览器测试及工作区外消费者模板（`tests/consumers/` 不作为 workspace 成员）。
 - `infra/`：PostgreSQL、Verdaccio、MinIO、OIDC 与预览域名的容器编排与基础设施验证配置。

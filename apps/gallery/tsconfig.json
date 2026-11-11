@@ -9,15 +9,16 @@
       "DOM",
       "DOM.Iterable"
     ],
-    "jsx": "react-jsx",
-    "types": [
-      "vite/client"
-    ],
-    "allowImportingTsExtensions": true
+    "jsx": "preserve",
+    "plugins": [
+      { "name": "next" }
+    ]
   },
   "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "vite.config.ts"
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    ".next/types/**/*.ts",
+    "dist/types/**/*.ts"
   ]
 }

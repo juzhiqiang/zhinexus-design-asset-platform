@@ -22,10 +22,10 @@
 | --- | --- |
 | 用户明确要求 | 根据现有架构完成评估和实现计划；2026 年内；先投入 3 名开发并可动态分配；采用 Monorepo + pnpm workspace + Turborepo；平台后端 NestJS，平台前端最新稳定 React。 |
 | 架构已有约束 | 一期同时支持 Vue 与 React；ECharts；Verdaccio、PostgreSQL、MinIO；本地构建和截图；双入口提交同一类预构建产物；服务端不执行上传组件。 |
-| 当前技术选型 | TypeScript；React 19.3.1 + Vite 画廊；NestJS 12.4.2 管理 API 和预览网关（Express 适配器）。保留建议的 PostgreSQL 持久化任务、S3 SDK、本地 Playwright、公司单租户与 OIDC 登录；后续新增工具继续在实施时复核。 |
+| 当前技术选型 | TypeScript；React 19.3.1 + Next.js 16.4.6 画廊（App Router，公开发现页支持 SSG/ISR，控制台路由预留登录保护）；NestJS 12.4.2 管理 API 和预览网关（Express 适配器）。保留建议的 PostgreSQL 持久化任务、S3 SDK、本地 Playwright、公司单租户与 OIDC 登录；后续新增工具继续在实施时复核。 |
 | 待项目方提供的输入 | OIDC 接入参数及权限映射、域名/TLS/部署机器、npm scope、组件负责人、两类真实试点项目、首批场景与验收人员。 |
 | 工程默认值 | scope 暂用 `@company`；Windows 11 x64 为首个本地截图环境；Linux 为服务部署环境；其他开发 OS 单独扩展验证矩阵。这些是估算假设。 |
-| 交付状态 | 工程初始化及 Nest/React 技术栈调整已执行，见当前验证记录；业务组件、发布包与基础设施部署仍待实施。 |
+| 交付状态 | 工程初始化、Nest/React 基线及 gallery Next.js 公开/私有渲染基础已验证，分别见初始化记录和 [迁移验证](docs/verification/gallery-next-migration.md)；业务组件、真实目录、OIDC 授权、发布包与基础设施部署仍待实施。 |
 
 ### 2.1 已确认的仓库组织与任务编排
 

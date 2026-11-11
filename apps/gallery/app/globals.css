@@ -1,0 +1,36 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", "Microsoft YaHei", sans-serif;
+  color: #202a36;
+  background: #f4f6f8;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+}
+
+a {
+  color: #155e75;
+}
+
+main {
+  width: min(100% - 48px, 960px);
+  margin: 64px auto;
+}
+
+.eyebrow {
+  color: #607080;
+  font-size: 14px;
+}
+
+.empty-state {
+  margin-top: 40px;
+  padding: 24px 0;
+  border-top: 1px solid #cbd5dc;
+}

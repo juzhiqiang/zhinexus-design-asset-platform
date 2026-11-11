@@ -27,6 +27,7 @@
 - 各工作区成员显式提供 `build`、`typecheck`、`dev` 脚本并直接调用自身编译器或开发服务器，严禁在子包脚本中递归调用 `turbo`。
 - 根 `typecheck` 与 `test` 先执行 `pnpm build:services`，确保首次或干净工作区运行时已生成 Nest 服务的 `dist/` 编译产物与类型声明。
 - `build`（输出 `dist/**`）和 `typecheck`（无文件输出）启用本地缓存 `--cache=local:rw`；`dev` 固定 `cache: false`、`persistent: true`。一期不启用远程缓存。
+- gallery build 的已验证兼容例外：`@company/gallery#build` 使用 `cache: false`，仍由 Turbo 编排，并传入 `NEXT_PUBLIC_SITE_URL`。恢复 Next 输出会保留旧运行时 route-cache，导致切换域名后 sitemap 错误；在干净恢复得到回归验证前不启用该包的构建缓存，见 `docs/verification/gallery-next-migration.md`。
 - `test`、`test:browser`、`component`、工作区外 tarball 消费、本地截图、视觉回归、产物冻结、上传发布、故障恢复与基线更新**严禁进入 Turbo 缓存**；若未来包装为 Turbo 任务，必须显式设置 `cache: false`。
 - 服务端构建只执行 `pnpm build:services`（过滤 `@company/platform-api` 与 `@company/preview-gateway` 及其依赖 `@company/contracts`），不运行根全量 `pnpm build`。
 

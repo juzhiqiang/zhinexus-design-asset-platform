@@ -6,7 +6,7 @@
 
 **Architecture:** 采用 Monorepo + pnpm workspace + Turborepo，单仓保存共享图表核心、Vue/React 适配、CLI、画廊和管理 API；pnpm 管理依赖，Turbo 编排开发任务与缓存。组件构建、示例运行、截图与视觉差异在开发者电脑执行；服务端只处理预构建产物，通过 PostgreSQL 持久化任务协调 Verdaccio、PostgreSQL 和 MinIO。AI 检索和自动接入在后续独立任务中实现。
 
-**Tech Stack:** TypeScript、pnpm workspace、Turborepo（npm 包 `turbo`）、ECharts、Vue/React 组件、React + Vite 平台前端、NestJS 平台 API/预览网关、Playwright、PostgreSQL、Verdaccio、MinIO/S3 API；Vitest 验证单元与服务集成。用户已明确平台后端 NestJS、前端最新稳定 React；当前锁定 NestJS 12.4.2（Express 适配器）、React 19.3.1，见 [调整验证](../../verification/nest-react-bootstrap.md)。Zod、pg、S3 SDK 和 OpenAPI 生成器仍属计划建议，实施时查询并验证。
+**Tech Stack:** TypeScript、pnpm workspace、Turborepo（npm 包 `turbo`）、ECharts、Vue/React 组件、React 19.3.1 + Next.js 16.4.6 平台前端（App Router，公开发现页支持 SSG/ISR，控制台路由预留登录保护）、NestJS 平台 API/预览网关、Playwright、PostgreSQL、Verdaccio、MinIO/S3 API；Vitest 验证单元与服务集成。用户已明确平台后端 NestJS、前端最新稳定 React；当前锁定 NestJS 12.4.2（Express 适配器）、React 19.3.1 与 Next.js 16.4.6，见 [调整验证](../../verification/nest-react-bootstrap.md)、[画廊迁移验证](../../verification/gallery-next-migration.md) 与迁移计划。Zod、pg、S3 SDK 和 OpenAPI 生成器仍属计划建议，实施时查询并验证。
 
 **Spec:** `D:/project/zhinexus-design-asset-platform/component-platform-architecture.md`。范围与预算见项目根目录 `component-platform-implementation-assessment.md`。2026-11-11 已完成 [工程初始化子集](2026-11-11-bootstrap-execution.md)，[验证记录](../../verification/bootstrap.md) 仅覆盖工程骨架，完整 T01 保持开放。当前人员与日历以 [三人分工计划](2026-11-11-three-person-allocation.md) 为准。
 
@@ -349,13 +349,13 @@ flowchart LR
 
 ### T07：画廊与隔离静态预览（6–8 人日）
 
-**Files:** 创建 `apps/gallery/src/pages/{Catalog,ComponentDetail}.vue`、`components/{VariantSelector,PreviewFrame,VerificationBadge}.vue`、`api/client.ts`；`apps/api/src/catalog/routes.ts`；`apps/preview-gateway/src/{server,auth,path-policy}.ts`；`infra/gateway/preview.conf`；`tests/browser/{gallery,preview-isolation}.spec.ts`。
+**Files:** 创建 `apps/gallery/app/(public)/components/{page,[slug]/page}.tsx`、`components/{VariantSelector,PreviewFrame,VerificationBadge}.tsx`、`api/client.ts`；控制台页面放入 `apps/gallery/app/(console)/`；`apps/api/src/catalog/routes.ts`；`apps/preview-gateway/src/{server,auth,path-policy}.ts`；`infra/gateway/preview.conf`；`tests/browser/{gallery,preview-isolation}.spec.ts`。
 
-**Interfaces:** 消费第 2.3 节目录/详情/preview-grants；`createPreviewGrant(subject,variantReleaseId): {bootstrapUrl,expiresAt}`，网关签发仅可读指定版本目录的短期会话。每个 variant_release 分配独立 origin（例如 `r-<id>.preview.company-assets.net`），使用与主平台不同的注册域；T01 准备 wildcard DNS/TLS。安装命令固定框架包版本，存在已验证组合时同时给出 ECharts 精确版本；仅手动来源且无验证记录时展示真实声明范围和“需本地验证”，不把范围内版本宣称为已兼容。
+**Interfaces:** 公开目录与详情使用 Next App Router，按公开 DTO 做 SSG/ISR；仅包含明确公开且 Ready 的资产。登录后上传/发布/任务使用同一应用的动态控制台路由，统一 `noindex`、不进入 sitemap，并通过 T05 OIDC 会话与 API 授权保护；不得仅靠客户端隐藏控件。消费第 2.3 节目录/详情/preview-grants；`createPreviewGrant(subject,variantReleaseId): {bootstrapUrl,expiresAt}`，网关签发仅可读指定版本目录的短期会话。每个 variant_release 分配独立 origin（例如 `r-<id>.preview.company-assets.net`），使用与主平台不同的注册域；T01 准备 wildcard DNS/TLS。安装命令固定框架包版本，存在已验证组合时同时给出 ECharts 精确版本；仅手动来源且无验证记录时展示真实声明范围和“需本地验证”，不把范围内版本宣称为已兼容。
 
-- [ ] 写失败测试：React 筛选不能返回仅 Vue 资产；非 Ready 不可见；手动图显示“手动上传 / 无自动回归记录”；一实现 Ready 不代表另一实现可安装。
+- [ ] 写失败测试：公开初始 HTML 有组件标题/摘要/结构化数据；私有 DTO 不出现在 SSR HTML、metadata 或 sitemap，私有页面带 noindex；React 筛选不能返回仅 Vue 资产；非 Ready 不可见；手动图显示“手动上传 / 无自动回归记录”；一实现 Ready 不代表另一实现可安装。
 - [ ] 编写预览攻击样本，断言无法访问父页面 DOM/token、无法请求任意 MinIO 路径、无法顶层跳转、撤销权限后再次获取资源被拒绝。预览 404 或 grant 到期显示可恢复错误。
-- [ ] 实现最小画廊筛选与详情；API 版本、截图、示例与安装命令必须来自同一个 variant_release，不拼接其他版本数据。主平台文档/描述渲染禁用原始 HTML，做 URL/schema 清理，代码仅高亮文本；上传 HTML 只能在预览域运行，增加文档脚本注入用例。
+- [ ] 实现最小公开目录筛选与详情；只将公开 DTO 的内容用于 SSG/ISR，API 版本、截图、示例与安装命令必须来自同一个 variant_release，不拼接其他版本数据。私有字段只在已鉴权动态请求后加载，不进入公开 cache。主平台文档/描述渲染禁用原始 HTML，做 URL/schema 清理，代码仅高亮文本；上传 HTML 只能在预览域运行，增加文档脚本注入用例。
 - [ ] 实现独立站点网关、完整目录鉴权、路径归一化和 MIME；iframe 使用 `sandbox="allow-scripts allow-same-origin"`，以便静态模块/资源正常加载，但每版本 origin 必须与父页面和其他版本不同，绝不在主平台 origin 使用该组合；不授予 forms/popups/top-navigation。CSP 仅允许本预览资源，connect-src 为 none，禁止外部子资源。无平台 token 传入 iframe；postMessage 校验 event.origin、event.source 与消息 schema。
 - [ ] grant 通过一次性 bootstrap 换取当前预览主机的 Secure/HttpOnly、host-only 短期会话，禁止设置父域 cookie，并清除 URL 中凭证，设置 no-referrer；grant 仅允许该版本、5 分钟有效，资源请求检查撤销状态。验证目标浏览器第三方 cookie 策略和跨版本隔离；如 cookie 被阻止，提供同等隔离的独立预览窗口作为明确降级，不放宽凭证隔离。
 - [ ] 本地运行 gallery 与 preview-isolation 测试并检查页面；静态网关只转发文件，不执行渲染。提交。
@@ -364,7 +364,7 @@ flowchart LR
 
 ### T08：网页手动提交（3–4 人日）
 
-**Files:** 创建 `apps/gallery/src/pages/{UploadRelease,ReleaseJob}.vue`、`uploads/{manifest-form,screenshot-validation}.ts`；`tests/browser/manual-release.spec.ts`；扩展 `tests/integration/upload-validation.test.ts`。
+**Files:** 创建 `apps/gallery/app/(console)/{upload,releases,jobs/[jobId]}/page.tsx`、`uploads/{manifest-form,screenshot-validation}.ts`；`tests/browser/manual-release.spec.ts`；扩展 `tests/integration/upload-validation.test.ts`。
 
 **Interfaces:** 复用 T05 上传/发布接口与 schema；只接收已构建产物，截图来源 manual-upload；不在网页触发远程构建或截图。
 

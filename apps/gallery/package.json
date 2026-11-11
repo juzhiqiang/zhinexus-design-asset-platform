@@ -4,14 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
+    "build": "next build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
-    "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
+    "dev": "next dev --hostname 127.0.0.1 --port 5173",
+    "preview": "next start --hostname 127.0.0.1 --port 5173"
   },
   "dependencies": {
+    "@company/contracts": "workspace:*",
+    "next": "16.4.6",
     "react": "19.3.1",
-    "react-dom": "19.3.1",
-    "@company/contracts": "workspace:*"
+    "react-dom": "19.3.1"
   }
 }

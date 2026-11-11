@@ -4,13 +4,14 @@
 
 ## 项目概述
 
-本项目用于构建 **Zhinexus 组件资产平台（公司图表与组件资产平台）**，采用 **Monorepo + pnpm workspace + Turborepo** 工程架构。平台前端画廊使用 **React 19.3.1 + Vite**，管理 API 与静态预览网关使用 **NestJS 12.4.2**（默认 Express 适配器）；组件侧同时支持 **Vue 3.5.45 与 React 19.3.1 双框架**，图表引擎采用 **ECharts 6.1.0**，存储层采用 **Verdaccio、PostgreSQL、MinIO**。
+本项目用于构建 **Zhinexus 组件资产平台（公司图表与组件资产平台）**，采用 **Monorepo + pnpm workspace + Turborepo** 工程架构。平台前端画廊使用 **React 19.3.1 + Next.js 16.4.6 App Router**，管理 API 与静态预览网关使用 **NestJS 12.4.2**（默认 Express 适配器）；组件侧同时支持 **Vue 3.5.45 与 React 19.3.1 双框架**，图表引擎采用 **ECharts 6.1.0**，存储层采用 **Verdaccio、PostgreSQL、MinIO**。
 
 - 原始架构规格：`component-platform-architecture.md`
 - 实施评估与总体计划：`component-platform-implementation-assessment.md`
 - 完整实现计划（T01–T17）：`docs/superpowers/plans/2026-11-11-component-platform-implementation.md`
 - 三人分工与排期计划：`docs/superpowers/plans/2026-11-11-three-person-allocation.md`
 - 验证记录与技术栈调整证据：`docs/verification/nest-react-bootstrap.md`
+- 画廊 Next 迁移与公开/私有渲染边界：`docs/verification/gallery-next-migration.md`
 - 详细工程规则：`rules/`
 
 ## 唯一事实来源

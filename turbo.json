@@ -17,6 +17,12 @@
         "dist/**"
       ]
     },
+    "@company/gallery#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "env": ["NEXT_PUBLIC_SITE_URL"],
+      "cache": false
+    },
     "typecheck": {
       "dependsOn": [
         "^build"
