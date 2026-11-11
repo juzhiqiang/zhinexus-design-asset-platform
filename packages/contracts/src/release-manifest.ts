@@ -1,10 +1,11 @@
 import type { ExampleRef, ScreenshotRef } from './examples.js';
 import type { CompatibilityRecord } from './reports.js';
+import type { ValidationIssue } from './errors.js';
 
 export type Framework = 'vue' | 'react';
 export type ScreenshotSource = 'local-automatic' | 'manual-upload';
 export type ReleaseChannel = 'cli' | 'web';
-/** Unvalidated string. G1 must check lowercase SHA-256 and all cross references. */
+/** Runtime validators require 64 lowercase hexadecimal characters. */
 export type Sha256 = string;
 export type ArtifactRef = { path: string; sha256: Sha256; bytes: number };
 export type PackageRef = {
@@ -27,4 +28,4 @@ export type ReleaseManifestV1 = {
 };
 export type ValidationResult<T> =
   | { ok: true; value: T }
-  | { ok: false; issues: { code: string; path: string; message: string }[] };
+  | { ok: false; issues: ValidationIssue[] };

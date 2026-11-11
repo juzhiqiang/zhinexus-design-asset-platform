@@ -1,0 +1,26 @@
+[
+  {
+    "name": "missing-screenshot",
+    "code": "SCREENSHOT_REQUIRED"
+  },
+  {
+    "name": "wrong-framework",
+    "code": "SCREENSHOT_VARIANT_MISMATCH"
+  },
+  {
+    "name": "wrong-digest",
+    "code": "DIGEST_MISMATCH"
+  },
+  {
+    "name": "forged-source",
+    "code": "SOURCE_FORBIDDEN"
+  },
+  {
+    "name": "conflicting-package",
+    "code": "CONFLICT"
+  },
+  {
+    "name": "unsafe-path",
+    "code": "INVALID_PATH"
+  }
+]

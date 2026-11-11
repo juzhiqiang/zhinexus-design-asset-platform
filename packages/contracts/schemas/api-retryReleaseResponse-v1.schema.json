@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "retryReleaseResponse",
+  "type": "object",
+  "properties": {
+    "jobId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "state": {
+      "type": "string",
+      "enum": [
+        "UPLOADING",
+        "VALIDATING",
+        "PENDING",
+        "PUBLISHING",
+        "READY",
+        "REJECTED",
+        "RETRY_WAIT",
+        "CONFLICT"
+      ]
+    }
+  },
+  "required": [
+    "jobId",
+    "state"
+  ],
+  "additionalProperties": false
+}

@@ -7,7 +7,7 @@ export type EnvironmentV1 = {
   renderer: Renderer; width: number; height: number; theme: string;
   frameworkVersion: string; echartsVersion: string;
 };
-/** G1 enforces React DOM and passed/report/timestamp requirements at runtime. */
+/** Runtime validation requires ReactDOM for React and report/time evidence for passed. */
 export type CompatibilityRecord = {
   framework: Framework; frameworkVersion: string; reactDomVersion?: string;
   echartsVersion: string; status: 'candidate' | 'passed' | 'failed';

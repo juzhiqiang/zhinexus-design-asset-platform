@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "error",
+  "type": "object",
+  "properties": {
+    "code": {
+      "type": "string",
+      "enum": [
+        "INVALID_SCHEMA",
+        "INVALID_PATH",
+        "DUPLICATE_ID",
+        "CONFLICT",
+        "REFERENCE_NOT_FOUND",
+        "ARTIFACT_MISMATCH",
+        "DIGEST_MISMATCH",
+        "SCREENSHOT_REQUIRED",
+        "SCREENSHOT_VARIANT_MISMATCH",
+        "SOURCE_FORBIDDEN",
+        "REPORT_REQUIRED",
+        "REPORT_MISMATCH",
+        "COMPATIBILITY_EVIDENCE_REQUIRED",
+        "FILE_REQUIRED",
+        "UNEXPECTED_FILE",
+        "UNAUTHENTICATED",
+        "FORBIDDEN",
+        "NOT_FOUND",
+        "UPLOAD_INCOMPLETE",
+        "LIMIT_EXCEEDED",
+        "LEASE_LOST",
+        "INFRA_UNAVAILABLE",
+        "INTERNAL_ERROR"
+      ]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "\\S"
+    },
+    "details": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "INVALID_SCHEMA",
+              "INVALID_PATH",
+              "DUPLICATE_ID",
+              "CONFLICT",
+              "REFERENCE_NOT_FOUND",
+              "ARTIFACT_MISMATCH",
+              "DIGEST_MISMATCH",
+              "SCREENSHOT_REQUIRED",
+              "SCREENSHOT_VARIANT_MISMATCH",
+              "SOURCE_FORBIDDEN",
+              "REPORT_REQUIRED",
+              "REPORT_MISMATCH",
+              "COMPATIBILITY_EVIDENCE_REQUIRED",
+              "FILE_REQUIRED",
+              "UNEXPECTED_FILE"
+            ]
+          },
+          "path": {
+            "type": "string",
+            "pattern": "^(?:/.*)?$"
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "code",
+          "path",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "requestId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    }
+  },
+  "required": [
+    "code",
+    "message",
+    "details",
+    "requestId"
+  ],
+  "additionalProperties": false
+}

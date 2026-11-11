@@ -1,6 +1,13 @@
 import type { ArtifactRef, Framework, ScreenshotSource, Sha256 } from './release-manifest.js';
 
 export type Renderer = 'canvas' | 'svg';
+export type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
+/** Browser examples expose this as window.__COMPONENT_EXAMPLE__; no DOM global augmentation. */
+export type ComponentExample = {
+  ready: Promise<void>;
+  runState(name: string): Promise<void>;
+  getChecks(): CheckResult[];
+};
 export type ExampleRef = {
   id: string; previewEntry: string; previewFiles: ArtifactRef[];
   fixtureDigest: Sha256; renderer: Renderer; theme: string;

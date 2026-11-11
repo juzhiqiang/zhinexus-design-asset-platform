@@ -1,0 +1,152 @@
+{
+  "reports/line-vue.json": {
+    "id": "report-line-vue",
+    "toolVersion": "0.0.1",
+    "variantId": "line-vue",
+    "packageSha256": "5dc5518b79bd551449c90d36521f7957ce0dde9e9950107f7d36a607614f8199",
+    "exampleId": "example-line-vue",
+    "environment": {
+      "os": "windows",
+      "arch": "x64",
+      "browserVersion": "131.0.0.0",
+      "browserRevision": "1234",
+      "fontDigest": "14c75b1895ebc80d0ade2be74b2152d4e17da2adf870cad5e6770a12632534c9",
+      "locale": "zh-CN",
+      "timezone": "Asia/Shanghai",
+      "deviceScaleFactor": 1,
+      "renderer": "canvas",
+      "width": 800,
+      "height": 600,
+      "theme": "light",
+      "frameworkVersion": "3.5.45",
+      "echartsVersion": "6.1.0"
+    },
+    "checks": [
+      {
+        "name": "synthetic-render",
+        "status": "passed"
+      }
+    ],
+    "screenshots": [
+      {
+        "id": "screenshot-line-vue",
+        "variantId": "line-vue",
+        "framework": "vue",
+        "packageVersion": "0.0.1",
+        "exampleId": "example-line-vue",
+        "state": "default",
+        "source": "local-automatic",
+        "image": {
+          "path": "screenshots/line-vue.png",
+          "sha256": "abc3938b4035ab1361ea8e9f1dc228c7f6b027f99540b67f075e8e3e69e7e8d0",
+          "bytes": 30
+        },
+        "packageSha256": "5dc5518b79bd551449c90d36521f7957ce0dde9e9950107f7d36a607614f8199",
+        "environmentKey": "33e20c9b906df0efbc2d6f6d66651895479ead2c0676703ca4a22c542dfce9d0",
+        "reportId": "report-line-vue"
+      }
+    ],
+    "baselineResult": "NEW",
+    "createdAt": "2026-11-12T09:00:00.000Z"
+  },
+  "reports/bar-vue.json": {
+    "id": "report-bar-vue",
+    "toolVersion": "0.0.1",
+    "variantId": "bar-vue",
+    "packageSha256": "5dc5518b79bd551449c90d36521f7957ce0dde9e9950107f7d36a607614f8199",
+    "exampleId": "example-bar-vue",
+    "environment": {
+      "os": "windows",
+      "arch": "x64",
+      "browserVersion": "131.0.0.0",
+      "browserRevision": "1234",
+      "fontDigest": "14c75b1895ebc80d0ade2be74b2152d4e17da2adf870cad5e6770a12632534c9",
+      "locale": "zh-CN",
+      "timezone": "Asia/Shanghai",
+      "deviceScaleFactor": 1,
+      "renderer": "canvas",
+      "width": 800,
+      "height": 600,
+      "theme": "light",
+      "frameworkVersion": "3.5.45",
+      "echartsVersion": "6.1.0"
+    },
+    "checks": [
+      {
+        "name": "synthetic-render",
+        "status": "passed"
+      }
+    ],
+    "screenshots": [
+      {
+        "id": "screenshot-bar-vue",
+        "variantId": "bar-vue",
+        "framework": "vue",
+        "packageVersion": "0.0.1",
+        "exampleId": "example-bar-vue",
+        "state": "default",
+        "source": "local-automatic",
+        "image": {
+          "path": "screenshots/bar-vue.png",
+          "sha256": "abc3938b4035ab1361ea8e9f1dc228c7f6b027f99540b67f075e8e3e69e7e8d0",
+          "bytes": 30
+        },
+        "packageSha256": "5dc5518b79bd551449c90d36521f7957ce0dde9e9950107f7d36a607614f8199",
+        "environmentKey": "33e20c9b906df0efbc2d6f6d66651895479ead2c0676703ca4a22c542dfce9d0",
+        "reportId": "report-bar-vue"
+      }
+    ],
+    "baselineResult": "NEW",
+    "createdAt": "2026-11-12T09:00:00.000Z"
+  },
+  "reports/line-react.json": {
+    "id": "report-line-react",
+    "toolVersion": "0.0.1",
+    "variantId": "line-react",
+    "packageSha256": "72dd6d27cb89c5e9cd8d9c17f63336e393fb555c0e58bdf1f4366bd3f9d74c6b",
+    "exampleId": "example-line-react",
+    "environment": {
+      "os": "windows",
+      "arch": "x64",
+      "browserVersion": "131.0.0.0",
+      "browserRevision": "1234",
+      "fontDigest": "14c75b1895ebc80d0ade2be74b2152d4e17da2adf870cad5e6770a12632534c9",
+      "locale": "zh-CN",
+      "timezone": "Asia/Shanghai",
+      "deviceScaleFactor": 1,
+      "renderer": "canvas",
+      "width": 800,
+      "height": 600,
+      "theme": "light",
+      "frameworkVersion": "19.3.1",
+      "echartsVersion": "6.1.0"
+    },
+    "checks": [
+      {
+        "name": "synthetic-render",
+        "status": "passed"
+      }
+    ],
+    "screenshots": [
+      {
+        "id": "screenshot-line-react",
+        "variantId": "line-react",
+        "framework": "react",
+        "packageVersion": "0.0.1",
+        "exampleId": "example-line-react",
+        "state": "default",
+        "source": "local-automatic",
+        "image": {
+          "path": "screenshots/line-react.png",
+          "sha256": "abc3938b4035ab1361ea8e9f1dc228c7f6b027f99540b67f075e8e3e69e7e8d0",
+          "bytes": 30
+        },
+        "packageSha256": "72dd6d27cb89c5e9cd8d9c17f63336e393fb555c0e58bdf1f4366bd3f9d74c6b",
+        "environmentKey": "33e20c9b906df0efbc2d6f6d66651895479ead2c0676703ca4a22c542dfce9d0",
+        "reportId": "report-line-react"
+      }
+    ],
+    "baselineResult": "NEW",
+    "createdAt": "2026-11-12T09:00:00.000Z"
+  }
+}

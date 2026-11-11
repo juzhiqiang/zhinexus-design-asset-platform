@@ -20,6 +20,7 @@
     "component": "node packages/component-cli/dist/index.js"
   },
   "devDependencies": {
+    "@company/contracts": "workspace:*",
     "@playwright/test": "1.65.0",
     "@types/node": "26.6.6",
     "@types/react": "19.3.0",

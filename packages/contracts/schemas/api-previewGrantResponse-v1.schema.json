@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "previewGrantResponse",
+  "type": "object",
+  "properties": {
+    "bootstrapUrl": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^https?://[^\\s]+$"
+    },
+    "expiresAt": {
+      "type": "string",
+      "format": "date-time"
+    }
+  },
+  "required": [
+    "bootstrapUrl",
+    "expiresAt"
+  ],
+  "additionalProperties": false
+}

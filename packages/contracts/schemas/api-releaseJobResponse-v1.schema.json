@@ -1,0 +1,163 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "releaseJobResponse",
+  "type": "object",
+  "properties": {
+    "state": {
+      "type": "string",
+      "enum": [
+        "UPLOADING",
+        "VALIDATING",
+        "PENDING",
+        "PUBLISHING",
+        "READY",
+        "REJECTED",
+        "RETRY_WAIT",
+        "CONFLICT"
+      ]
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "UPLOADING",
+        "VALIDATING",
+        "PENDING",
+        "PUBLISHING",
+        "READY",
+        "REJECTED",
+        "RETRY_WAIT",
+        "CONFLICT",
+        "FINALIZE_OBJECTS",
+        "ENSURE_PACKAGES",
+        "REGISTER_ASSETS",
+        "CHECK_AVAILABILITY",
+        "READY_TX"
+      ]
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 9007199254740991
+    },
+    "lastError": {
+      "type": "object",
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": [
+            "INVALID_SCHEMA",
+            "INVALID_PATH",
+            "DUPLICATE_ID",
+            "CONFLICT",
+            "REFERENCE_NOT_FOUND",
+            "ARTIFACT_MISMATCH",
+            "DIGEST_MISMATCH",
+            "SCREENSHOT_REQUIRED",
+            "SCREENSHOT_VARIANT_MISMATCH",
+            "SOURCE_FORBIDDEN",
+            "REPORT_REQUIRED",
+            "REPORT_MISMATCH",
+            "COMPATIBILITY_EVIDENCE_REQUIRED",
+            "FILE_REQUIRED",
+            "UNEXPECTED_FILE",
+            "UNAUTHENTICATED",
+            "FORBIDDEN",
+            "NOT_FOUND",
+            "UPLOAD_INCOMPLETE",
+            "LIMIT_EXCEEDED",
+            "LEASE_LOST",
+            "INFRA_UNAVAILABLE",
+            "INTERNAL_ERROR"
+          ]
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "\\S"
+        },
+        "details": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "enum": [
+                  "INVALID_SCHEMA",
+                  "INVALID_PATH",
+                  "DUPLICATE_ID",
+                  "CONFLICT",
+                  "REFERENCE_NOT_FOUND",
+                  "ARTIFACT_MISMATCH",
+                  "DIGEST_MISMATCH",
+                  "SCREENSHOT_REQUIRED",
+                  "SCREENSHOT_VARIANT_MISMATCH",
+                  "SOURCE_FORBIDDEN",
+                  "REPORT_REQUIRED",
+                  "REPORT_MISMATCH",
+                  "COMPATIBILITY_EVIDENCE_REQUIRED",
+                  "FILE_REQUIRED",
+                  "UNEXPECTED_FILE"
+                ]
+              },
+              "path": {
+                "type": "string",
+                "pattern": "^(?:/.*)?$"
+              },
+              "message": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "\\S"
+              }
+            },
+            "required": [
+              "code",
+              "path",
+              "message"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 0
+        },
+        "requestId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details",
+        "requestId"
+      ],
+      "additionalProperties": false
+    },
+    "missingArtifacts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?#<>|\"\\u0000-\\u0020]+(?:/[^/\\\\:%?#<>|\"\\u0000-\\u0020]+)*$"
+      },
+      "minItems": 0
+    },
+    "pollAfterMs": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 9007199254740991
+    }
+  },
+  "required": [
+    "state",
+    "stage",
+    "attempt",
+    "missingArtifacts",
+    "pollAfterMs"
+  ],
+  "additionalProperties": false
+}
