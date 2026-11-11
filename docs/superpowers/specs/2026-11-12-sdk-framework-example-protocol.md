@@ -80,3 +80,15 @@ type ComponentExample = {
 - T02 控制器当前为折线专用（`createChartController(host, LineChartConfig)`）；T09 增加其他图表时把 config 泛化为图表类型联合，框架层 `config` 类型随之扩展。这是计划内扩展点，T03 不提前泛化。
 - 就绪协议的 JSON Schema / 运行时校验属 G1，由 C 在 contracts 落 validator；本文只冻结形状与语义。
 - API 清单由编译产物的类型/Props/Emits/TSX 生成（`docs/api/`），不与手写文档并行维护；示例与清单由测试交叉核对。
+
+## 7. 实施结果（2026-11-12）
+
+按本文实现完成，与本文的差异如下：
+
+- 组件新增命令式句柄 `whenRendered()`：Vue 通过 `defineExpose`，React 通过 `ref` prop（React 19 约定，未使用已废弃的 `forwardRef`）。示例就绪协议依赖该信号判定渲染完成。
+- Hook 名称统一为 `useChart`（两包一致），未提供 `useLineChart` 别名；`sameLineConfig` 一并导出供上层复用。
+- 示例状态集合固定为 `default` / `empty` / `updated` / `missing` / `single`，数据与期望系列 id 由 `examples/fixtures/line.json` 统一驱动，保证两框架示例等价。
+- 示例与消费者模板均显式导入 `<package>/style.css`；`.charts-line` 需要明确宽高，零宽高按设计等待 `ResizeObserver`。
+- `charts-vue` 构建链为 `vue-tsc`（声明）+ `vite` 库模式（ESM）；构建对 vite 子进程强制 `NODE_ENV=production` 并关闭 `prodDevtools`，避免 SFC 产物写入构建机绝对路径（`__file`）。
+- 集成测试命名为 `tests/integration/packed-consumer-frameworks.test.ts`：B 已在 `feat/t04-cli` 提交 `tests/integration/packed-consumer.test.ts`（charts-core 消费者），本任务聚焦框架包消费者，避免互相覆盖。
+- `tests/playwright.config.ts` 增加 React 示例 dev webServer（`dev:strict`，端口 5176）用于 StrictMode 开发态验证。

@@ -102,6 +102,12 @@ test('vue_keepalive_resizes_on_activate', async ({ page }) => {
     Number(document.querySelector('canvas')?.getAttribute('width') ?? '0'),
   );
   expect(canvasWidthBefore).toBeGreaterThan(0);
+  // 停用后 KeepAlive 会把 DOM 移出文档，先捕获容器引用
+  await page.evaluate(() => {
+    const frame = document.querySelector('.chart-frame');
+    if (!frame) throw new Error('chart-frame missing');
+    (window as unknown as { __chartFrame?: HTMLElement }).__chartFrame = frame as HTMLElement;
+  });
 
   // 切到占位视图：KeepAlive 停用图表，实例与数据保留
   await page.getByRole('button', { name: '占位视图' }).click();
@@ -109,16 +115,29 @@ test('vue_keepalive_resizes_on_activate', async ({ page }) => {
 
   // 切回折线图：onActivated 后尺寸恢复，仍只有一个实例
   await page.getByRole('button', { name: '折线图' }).click();
-  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await page.waitForFunction(() => document.querySelector('.charts-line canvas') !== null);
   await expect(page.locator('canvas')).toHaveCount(1);
   expect((await checkByName(page, 'single-instance'))?.status).toBe('passed');
   expect((await checkByName(page, 'series-match'))?.status).toBe('passed');
 
-  // 停用期间改变视口，激活后画布必须跟随新尺寸
+  // 停用期间改变容器宽度，激活后画布必须跟随新尺寸
   await page.getByRole('button', { name: '占位视图' }).click();
-  await page.setViewportSize({ width: 900, height: 700 });
+  await page.evaluate(() => {
+    const frame = (window as unknown as { __chartFrame?: HTMLElement }).__chartFrame;
+    if (!frame) throw new Error('captured chart frame missing');
+    frame.style.width = '480px';
+  });
   await page.getByRole('button', { name: '折线图' }).click();
-  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await page.waitForFunction(
+    (previous) => {
+      const canvas = document.querySelector('canvas');
+      if (!canvas) return false;
+      const width = Number(canvas.getAttribute('width') ?? '0');
+      return width > 0 && width !== previous;
+    },
+    canvasWidthBefore,
+    { timeout: 10_000 },
+  );
   const canvasWidthAfter = await page.evaluate(() =>
     Number(document.querySelector('canvas')?.getAttribute('width') ?? '0'),
   );
