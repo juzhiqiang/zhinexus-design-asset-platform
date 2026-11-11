@@ -4,6 +4,8 @@
 依据：`component-platform-architecture.md`，规划版本 2026-11-10  
 状态：保留实施前评估基准；2026-11-11 已交付工程初始化子集，完整 T01 与生产能力尚未完成。当前按用户补充的 3 名开发排期，见 [三人分工计划](docs/superpowers/plans/2026-11-11-three-person-allocation.md) 与 [初始化验证](docs/verification/bootstrap.md)。
 
+2026-11-12 执行更新：C 主责 G1 校验、错误码和 fixtures，A/B 示例、截图/报告评审目标为 **2026-11-13**。实现与命令见 [G1 子计划](docs/superpowers/plans/2026-11-12-g1-contracts-platform.md) 和 [新增验证记录](docs/verification/g1-contracts-2026-11-12.md)；API 补充字段作为候选记录在 packages/contracts/README.md，未实施业务端点。G2 五项由 C 接入总责，外部实名与日期待确认，见 [接入清单](docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)。G1 人工回执、G2 实测未具备，完整 T01 保持开放，不改原架构及历史验证。
+
 ## 1. 评估结论
 
 架构具备落地条件，建议采用“先跑通一张图表的双框架完整链路，再补足一期能力”的实施路径。共享核心、双框架适配、本地产物验证、统一发布 API 和三类存储的边界合理；工作量最大的部分是产物与截图的可信关联、跨存储发布恢复，以及双框架生命周期和视觉环境的验证。

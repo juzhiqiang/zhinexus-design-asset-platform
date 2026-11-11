@@ -267,6 +267,8 @@ flowchart LR
 
 ### T01：锁定基线、Monorepo/Turbo 工程骨架与公共协议（5–7 人日）
 
+2026-11-12 G1 执行补充：C 的 V1 校验、JSON Schema、错误码、示例接口、API 消息与 fixtures 见 [子计划](2026-11-12-g1-contracts-platform.md)；候选补充字段与边界见 packages/contracts/README.md。A/B 实际评审目标提前至 **2026-11-13**，回执与 G2 责任/计划日期见 [交接清单](2026-11-12-g1-review-g2-access.md)。人工评审、G2 实测和完整 T01 仍未完成，不因契约测试通过勾选整个任务。
+
 **Files:** 创建第 1 节根配置，包含 `turbo.json`、`pnpm-workspace.yaml`、根/成员 `package.json` 和 `.gitignore`；`scripts/resolve-versions.ts`、`scripts/verify-workspace.ts`、`scripts/test-infra.ts`；`packages/contracts/src/{release-manifest,examples,reports,index}.ts`；`infra/compose.yaml`、`infra/verdaccio/config.yaml`、`infra/minio/Dockerfile`；`tests/contracts/release-manifest.test.ts`；`docs/versions.lock.json`、`docs/verification/turbo-baseline.md`。
 
 **Interfaces:** 输入原架构、本次版本证据和已确认的 Monorepo/pnpm/Turbo 选型；输出第 2 节 schema、工作区成员/任务图、基础验证命令、精确版本/镜像清单与可用开发服务地址。任务不预先承诺任何未经运行的 peerDependencies 范围。

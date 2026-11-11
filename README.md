@@ -39,7 +39,7 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19
 apps/api                 NestJS 平台 API（目前仅 healthz）
 apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
 apps/preview-gateway     NestJS 静态预览网关（目前仅 healthz）
-packages/contracts       私有协议类型草案，未实现运行时校验
+packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）
 packages/charts-core     ECharts 共享核心包壳
 packages/charts-vue       Vue 适配包壳 → core
 packages/charts-react     React 适配包壳 → core
@@ -74,4 +74,4 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 - [迁移前初始化验证](docs/verification/bootstrap.md) / [迁移前 Turbo 缓存证据](docs/verification/turbo-baseline.md)
 - [独立审查与实施决定](docs/verification/bootstrap-review.md)
 
-下一步是 G1 协议冻结及 G2 基础设施验证，同时开始 T02 与 CLI/消费者设施；不要因骨架通过测试而将整个 T01 标记完成。
+2026-11-12：C 已补齐 G1 运行时结构/关联与冻结字节校验、错误码、示例接口、API 消息及合成 fixtures。调用与边界见 [contracts README](packages/contracts/README.md)，命令见 [G1 验证记录](docs/verification/g1-contracts-2026-11-12.md)。G1 仍待 A/B 于 **2026-11-13** 前实际评审回执；G2 五项责任和计划日期见 [评审与接入清单](docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)。尚无真实联系人确认或接入证据，G2/T01 保持开放；合成 fixtures 不代替真实 tarball、截图或服务验收。
