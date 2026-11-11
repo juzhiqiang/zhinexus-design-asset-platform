@@ -32,16 +32,18 @@ validateManifest 只核对结构、引用和来源，不能证明报告对象来
 - 包名+版本唯一；同名同版本不同摘要返回 CONFLICT。core-only 包不虚构框架 variants；包内受管理导出完整性由 T05 核对真实 tarball。
 - 每个 VariantRef 至少一张截图；逐项匹配 variantId/framework/packageVersion/exampleId/state/packageSha256。一包多组件逐实现检查，Vue 通过不代表 React 通过。
 - previewEntry 属于本示例 previewFiles；API、文档、预览、图片、报告与 evidence 均在 manifest.files 中有完全相同的路径、摘要、字节数。
-- 路径为 POSIX 相对路径；拒绝穿越、绝对/盘符/反斜杠、编码路径、ADS、Windows 设备名、空段、末尾点/空格；完整清单拒绝 NFC/Windows 大小写归一化冲突。真实符号链接与解包目录限制归 T05。
+- 路径为 POSIX 相对路径；拒绝穿越、绝对/盘符/反斜杠、编码路径、ADS、Windows 通配符/设备名（含 COM/LPT 的 ¹²³ 别名）、空段、末尾点/空格；完整清单采用 NFC + Unicode 大写的保守碰撞策略，包含 Σ/ς、s/ſ。此策略可能拒绝目标文件系统本可区分的名称，不声称完整模拟 Windows 文件系统。真实符号链接与解包目录限制归 T05。
 - web 图片只能 manual-upload / unknown-manual；无报告时 compatibility 只能为空或 candidate，不能伪造 passed/failed。API 入库时同样必须强制来源，不信任调用方选择的 channel。
 - 自动截图有完全匹配的报告和截图记录，覆盖所有示例的每个 requiredStates；手动展示图不要求伪造全套自动状态覆盖。
-- React 兼容记录必填精确 reactDomVersion；passed 需匹配本 variant、包摘要、框架/ECharts 精确版本的报告及有效 UTC verifiedAt；检查全部 passed、视觉结果 PASS 或 NEW、全部必需状态有成功证据。NEW 不表示基线已被接受。V1 环境不单独记录 ReactDOM 运行版本，字段存在不等于已证明运行版本（由 T03/T04 消费者证据补足）。
+- React 兼容记录必填精确 reactDomVersion；passed 需匹配本 variant、包摘要、框架/ECharts 精确版本的报告及有效 UTC verifiedAt；检查全部 passed、视觉结果 PASS 或 NEW、全部必需状态有成功证据，所有贡献报告的 createdAt 均不得晚于 verifiedAt。NEW 不表示基线已被接受。V1 环境不单独记录 ReactDOM 运行版本，字段存在不等于已证明运行版本（由 T03/T04 消费者证据补足）。
 - 手动展示图可引用同实现/示例/包的独立本地报告；报告保留自己的自动截图，不把手动图升级为自动图。
 - Ready 可达性、来源、基线、索引状态分开建模，不能相互推导。
 
 ## 确定性编码与环境键
 
-canonicalJson：有限、无环 JSON；对象键按 JS UTF-16 字符序递归排列，数组保留顺序，标准 JSON 字符串/数字编码，无额外空白；UTF-8 后计算 SHA-256。manifestDigest 使用此编码，不另行排序数组或重写路径。拒绝 undefined、BigInt、非有限数、稀疏数组、accessor、class 实例等非 JSON 输入。
+canonicalJson：有限、无环 JSON；对象键按 JS UTF-16 字符序递归排列，数组保留顺序，标准 JSON 字符串/数字编码，无额外空白；UTF-8 后计算 SHA-256。manifestDigest 使用此编码，不另行排序数组或重写路径。拒绝 undefined、BigInt、非有限数、稀疏数组、accessor、class 实例等非 JSON 输入；数组只接受普通可枚举 data descriptor 索引和原生 length，不读取 getter，不允许额外属性、Symbol 或数组子类。
+
+精确版本采用 SemVer 语法且不含构建元数据；纯数字预发布标识不允许前导零，含字母或连字符的标识允许数字前缀。语法层不把主/次/修订号转为 JS number，也不添加 npm 实现的安全整数上限；仍受字符串长度预算约束。真实 npm 包版本的可安装性与工具实现限制须由 T04/T05 核对，语法通过不等于 npm 可发布。
 
 environmentKey：取 os、arch、browserVersion、browserRevision、fontDigest、locale、timezone、deviceScaleFactor、renderer、width、height、theme；字符串 trim+NFC，os/arch 额外小写，再按上述编码算 64 位小写 SHA-256。frameworkVersion、echartsVersion、包版本和 exampleId 不进入键；外层以 variant/example 隔离基线。unknown-manual 不用于基线接受。尺寸为 1–8192 正整数、scale 为正数；日期为真实 UTC ISO-8601（Z，可带三位毫秒）。
 

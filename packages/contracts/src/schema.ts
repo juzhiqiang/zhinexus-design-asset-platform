@@ -12,7 +12,8 @@ export type Schema = {
   enum?: readonly unknown[]; const?: unknown; format?: 'date-time';
 };
 export const text: Schema = { type: 'string', minLength: 1, maxLength: 2048, pattern: '\\S' };
-export const exactVersion: Schema = { ...text, pattern: '^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z-]+(?:\\.[0-9A-Za-z-]+)*)?$' };
+const prereleaseIdentifier = '(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)';
+export const exactVersion: Schema = { ...text, pattern: `^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-${prereleaseIdentifier}(?:\\.${prereleaseIdentifier})*)?$` };
 export const hash: Schema = { type: 'string', pattern: '^[a-f0-9]{64}$' };
 export const timestamp: Schema = { type: 'string', format: 'date-time' };
 export const integer = (minimum = 0, maximum = Number.MAX_SAFE_INTEGER): Schema => ({ type: 'integer', minimum, maximum });
@@ -22,7 +23,7 @@ export const object = (properties: Record<string, Schema>, optional: string[] = 
   type: 'object', properties, required: Object.keys(properties).filter(key => !optional.includes(key)), additionalProperties: false,
 });
 // Portable POSIX-relative logical paths: no decoding, device aliases, ADS or Windows normalization ambiguity.
-export const PATH_PATTERN = '^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9]|[lL][pP][tT][1-9])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?#<>|"\\u0000-\\u0020]+(?:/[^/\\\\:%?#<>|"\\u0000-\\u0020]+)*$';
+export const PATH_PATTERN = '^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|"\\u0000-\\u0020]+(?:/[^/\\\\:%?*#<>|"\\u0000-\\u0020]+)*$';
 export const artifactPath: Schema = { ...text, pattern: PATH_PATTERN };
 
 export function isTimestamp(value: string): boolean {
@@ -44,7 +45,15 @@ export function assertJson(input: unknown): void {
     if (!Array.isArray(value) && Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null) throw new TypeError('Expected a JSON object');
     active.add(value);
     if (Array.isArray(value)) {
-      for (let i = 0; i < value.length; i++) { if (!Object.hasOwn(value, i)) throw new TypeError('Sparse arrays are not JSON'); visit(value[i], depth + 1); }
+      if (Object.getPrototypeOf(value) !== Array.prototype) throw new TypeError('Expected an ordinary JSON array');
+      if (value.length > 100_000 - nodes) throw new TypeError('JSON input exceeds validation budget');
+      const keys = Reflect.ownKeys(value);
+      if (keys.length !== value.length + 1) throw new TypeError('Expected only JSON array indices and length');
+      for (let i = 0; i < value.length; i++) {
+        const descriptor = Object.getOwnPropertyDescriptor(value, String(i));
+        if (!descriptor || !('value' in descriptor) || !descriptor.enumerable) throw new TypeError('Expected ordinary, dense JSON array entries');
+        visit(descriptor.value, depth + 1);
+      }
     } else {
       for (const key of Reflect.ownKeys(value)) {
         const descriptor = Object.getOwnPropertyDescriptor(value, key);

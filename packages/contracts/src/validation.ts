@@ -27,7 +27,7 @@ export function validateCheckReport(input: unknown): ValidationResult<CheckRepor
     if (shot.variantId !== report.variantId || shot.packageSha256 !== report.packageSha256 || shot.exampleId !== report.exampleId || shot.reportId !== report.id) issues.push({ code: 'REPORT_MISMATCH', path: `/screenshots/${i}`, message: 'Screenshot must identify this exact report, variant, example and package digest' });
     if (shot.source !== 'local-automatic' || shot.environmentKey === 'unknown-manual') issues.push({ code: 'SOURCE_FORBIDDEN', path: `/screenshots/${i}/source`, message: 'A local check report must contain automatic screenshot evidence' });
   });
-  return issues.length ? { ok: false, issues } : shape;
+  return issues.length ? { ok: false, issues: issues.slice(0, 100) } : shape;
 }
 
 export type ManifestValidationContext = {
@@ -43,7 +43,7 @@ export function validateManifest(input: unknown, context: ManifestValidationCont
   const inventory = new Map<string, ArtifactRef>();
   const normalizedPaths = new Set<string>();
   manifest.files.forEach((file, i) => {
-    const normalized = file.path.normalize('NFC').toLowerCase();
+    const normalized = file.path.normalize('NFC').toUpperCase();
     if (normalizedPaths.has(normalized)) add('DUPLICATE_ID', `/files/${i}/path`, 'Logical file paths collide under NFC/Windows case normalization');
     normalizedPaths.add(normalized);
     inventory.set(file.path, file);
@@ -136,7 +136,7 @@ export function validateManifest(input: unknown, context: ManifestValidationCont
       if (report && (report.variantId !== variant.variantId || report.packageSha256 !== pkg?.tarball.sha256 || report.environment.frameworkVersion !== record.frameworkVersion || report.environment.echartsVersion !== record.echartsVersion)) add('COMPATIBILITY_EVIDENCE_REQUIRED', `${path}/reportId`, 'Compatibility evidence must belong to this exact variant, package and dependency combination');
       if (record.status === 'passed' && (!record.verifiedAt || !report || report.variantId !== variant.variantId || report.packageSha256 !== pkg?.tarball.sha256 || report.environment.frameworkVersion !== record.frameworkVersion || report.environment.echartsVersion !== record.echartsVersion || report.checks.some(check => check.status !== 'passed') || !['PASS', 'NEW'].includes(report.baselineResult) || Date.parse(record.verifiedAt) < Date.parse(report.createdAt))) add('COMPATIBILITY_EVIDENCE_REQUIRED', path, 'Passed compatibility requires a successful report for the exact package and dependency versions, with a valid verification time');
       if (record.status === 'passed') {
-        const evidence = [...reports.values()].filter(r => r.variantId === variant.variantId && r.packageSha256 === pkg?.tarball.sha256 && r.environment.frameworkVersion === record.frameworkVersion && r.environment.echartsVersion === record.echartsVersion && r.checks.every(c => c.status === 'passed') && ['PASS', 'NEW'].includes(r.baselineResult));
+        const evidence = [...reports.values()].filter(r => r.variantId === variant.variantId && r.packageSha256 === pkg?.tarball.sha256 && r.environment.frameworkVersion === record.frameworkVersion && r.environment.echartsVersion === record.echartsVersion && Date.parse(r.createdAt) <= Date.parse(record.verifiedAt ?? '') && r.checks.every(c => c.status === 'passed') && ['PASS', 'NEW'].includes(r.baselineResult));
         if (!variant.examples.every(example => example.requiredStates.every(state => evidence.some(r => r.exampleId === example.id && r.screenshots.some(s => s.state === state))))) add('COMPATIBILITY_EVIDENCE_REQUIRED', path, 'Successful reports must cover every required example state for passed compatibility');
       }
       if (record.status !== 'candidate' && !report) add('COMPATIBILITY_EVIDENCE_REQUIRED', path, 'Without a local report only candidate compatibility is permitted');
