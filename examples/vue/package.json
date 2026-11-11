@@ -12,6 +12,7 @@
   "dependencies": {
     "vue": "3.5.45",
     "@company/charts-vue": "workspace:*",
+    "@company/charts-core": "workspace:*",
     "echarts": "6.1.0"
   },
   "devDependencies": {
