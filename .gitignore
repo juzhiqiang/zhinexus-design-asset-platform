@@ -1,0 +1,13 @@
+node_modules/
+.tools/
+.turbo/
+dist/
+coverage/
+playwright-report/
+test-results/
+.release/
+.env
+.env.*
+!.env.example
+*.tsbuildinfo
+.superpowers/

@@ -1,0 +1,17 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+  - 'examples/vue'
+  - 'examples/react'
+
+minimumReleaseAgeExclude:
+  - vite@8.3.8
+
+registry: https://registry.npmjs.org/
+saveExact: true
+strictPeerDependencies: true
+engineStrict: true
+verifyDepsBeforeRun: false
+
+allowBuilds:
+  esbuild: true

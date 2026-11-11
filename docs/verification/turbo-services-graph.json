@@ -1,0 +1,50 @@
+{
+  "capturedAt": "2026-11-11T17:37:13.8022007+08:00",
+  "turboVersion": "2.11.10",
+  "tasks": [
+    {
+      "taskId": "@company/contracts#build",
+      "hash": "33f4e6c6d6a7cb47",
+      "dependencies": [],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/platform-api#build",
+      "hash": "802b430e5627d7c9",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/platform-api#typecheck",
+      "hash": "63e918a6a6b7bc1d",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/preview-gateway#build",
+      "hash": "5fdf6c2e7cad6a10",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/preview-gateway#typecheck",
+      "hash": "d3f84208a27168c9",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": null
+    }
+  ]
+}

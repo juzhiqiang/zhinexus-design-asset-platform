@@ -1,0 +1,333 @@
+{
+  "queriedAt": "2026-11-11T09:36:06.901Z",
+  "status": "official-discovery-only",
+  "npm": [
+    {
+      "name": "@playwright/test",
+      "version": "1.65.0",
+      "engines": {
+        "node": ">=20"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-iGURLGuKDLakSEl7Pgfv8h7f+XLT+V861Wfhz0zlEl5nyFuKUopdkFBPKqTllTUp06aOwPuH8iuUEb3yp3MpbQ==",
+      "source": "https://registry.npmjs.org/%40playwright%2Ftest/latest"
+    },
+    {
+      "name": "@types/node",
+      "version": "26.6.6",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-MzQj+8Kx3XI40OmUAE6Qoh58ZMNstNNMwn2nfd3qWsfe7nDNSqJNzes4njhz6AHwrSHOffSLwXU6yb474Q4aog==",
+      "source": "https://registry.npmjs.org/%40types%2Fnode/latest"
+    },
+    {
+      "name": "@types/react",
+      "version": "19.3.0",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-N0rFCuH9YoxG9/m61l9MfpJKfmLOVU0em7ipIz6TRgSSkvReLB9vL85GB+yr8Bs5leqpvg96JSwF4ZS1s4viQg==",
+      "source": "https://registry.npmjs.org/%40types%2Freact/latest"
+    },
+    {
+      "name": "@types/react-dom",
+      "version": "19.3.0",
+      "engines": {},
+      "peerDependencies": {
+        "@types/react": "^19.3.0"
+      },
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-ZI7bU42mZXXKHn/qNLEw2IrbiINU7X5+vfgdixBHkCNpYWXjKgfQ/P+uyGb5CjOLB9UcnTeg3rylQtV2hym44Q==",
+      "source": "https://registry.npmjs.org/%40types%2Freact-dom/latest"
+    },
+    {
+      "name": "@vitejs/plugin-react",
+      "version": "6.3.0",
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "peerDependencies": {
+        "vite": "^8.0.0",
+        "oxc-transform-react": ">=0.152.0 <0.157.0",
+        "@rolldown/plugin-babel": "^0.1.7 || ^0.2.0 || ^0.3.0",
+        "babel-plugin-react-compiler": "^1.0.0"
+      },
+      "peerDependenciesMeta": {
+        "oxc-transform-react": {
+          "optional": true
+        },
+        "@rolldown/plugin-babel": {
+          "optional": true
+        },
+        "babel-plugin-react-compiler": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-H9E955aVvD2F4zNHCw4eIZbIfF6xKldlh7MNu+hSU7xwQzh65lI/N+CJWqmfhi0PEjDXIt/H7T7J/4wU63KJiw==",
+      "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-react/latest"
+    },
+    {
+      "name": "@vitejs/plugin-vue",
+      "version": "6.0.10",
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "peerDependencies": {
+        "vue": "^3.2.25 || ^3.6.0-rc.10",
+        "vite": "^5.0.0 || ^6.0.0 || ^7.0.0 || ^8.0.0"
+      },
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-b80aUQh3n+qEzzZm5oQp3rT2QImeCx58K6eFl/RkJ3d65KW0kTuv5lNsLRVAjbW9YRUpo/wzmvzMgV34bTAItA==",
+      "source": "https://registry.npmjs.org/%40vitejs%2Fplugin-vue/latest"
+    },
+    {
+      "name": "echarts",
+      "version": "6.1.0",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-q0yaFPggC9FUdsWH4blavRWFmxdrIodbkoKNAjJudAI6CA9gNPxHtV2RcZNEepZVlk4yvBYkOkbk6HIVpIyHZA==",
+      "source": "https://registry.npmjs.org/echarts/latest"
+    },
+    {
+      "name": "fastify",
+      "version": "5.12.8",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-moP8exb2sCHLUbJkwp+I6C0padhy4D8lp0SdmzY7HhSdZuqm7O/u3o2aq7u8okaQ//33QDzj3G/u+FsSdB8Qzw==",
+      "source": "https://registry.npmjs.org/fastify/latest"
+    },
+    {
+      "name": "pnpm",
+      "version": "12.18.0",
+      "engines": {
+        "node": ">=18"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-nXiC1dyCFH7PxOBiqjSDTgrQKWcQoYN6ERWuASEn02txCeMhrBWYod0KZVl2gbHpmRfhLtDXSerpEYeUM2O+sw==",
+      "source": "https://registry.npmjs.org/pnpm/latest"
+    },
+    {
+      "name": "react",
+      "version": "19.3.1",
+      "engines": {
+        "node": ">=0.10.0"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-QNhWdt7nrgVWWQG58QuGsAR3jv3Hbe4mb4vz7w2csnHavciZJgda1CPNaldF6eVxv90ud3jUXpKlHL69gO38yw==",
+      "source": "https://registry.npmjs.org/react/latest"
+    },
+    {
+      "name": "react-dom",
+      "version": "19.3.1",
+      "engines": {},
+      "peerDependencies": {
+        "react": "^19.3.1"
+      },
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-Y0bARz53lhEC1NMCASs0/j+faB/zqt3R8hpvg1e8+61ZVJ4UL0UdC4cBbXfZMcIuhrfgeILTLe+ZeBCavQPtKQ==",
+      "source": "https://registry.npmjs.org/react-dom/latest"
+    },
+    {
+      "name": "tsx",
+      "version": "4.23.15",
+      "engines": {
+        "node": ">=18.0.0"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-Yiex1Ovn8z2xPpOWckIiysV1SSyRMY9BkLF++q0yKiDxCqRhosKfMg3janKkiLBwZ5c/YryloKwGZcrEmtwxKw==",
+      "source": "https://registry.npmjs.org/tsx/latest"
+    },
+    {
+      "name": "turbo",
+      "version": "2.11.10",
+      "engines": {},
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-3GJYwig8ygEI89oaOZdduJX8/aw6O9eRPYHoIt6T3FZl9hkKjiyIspufJoVgqXihPoJu8M5CSV0DlZvzfohBCw==",
+      "source": "https://registry.npmjs.org/turbo/latest"
+    },
+    {
+      "name": "typescript",
+      "version": "7.0.2",
+      "engines": {
+        "node": ">=16.20.0"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-8FYau96o3NKOhbjKi/qNvG/W5jhzxkbdm5sj9AbZ/5T5sWqn3hJgLfGx27sRKZWTvyzCP8dLRBTf5tBTSRVUNA==",
+      "source": "https://registry.npmjs.org/typescript/latest"
+    },
+    {
+      "name": "vite",
+      "version": "8.3.8",
+      "engines": {
+        "node": "^20.19.0 || >=22.12.0"
+      },
+      "peerDependencies": {
+        "tsx": "^4.8.1",
+        "jiti": ">=1.21.0",
+        "less": "^4.0.0",
+        "sass": "^1.70.0",
+        "yaml": "^2.4.2",
+        "stylus": ">=0.54.8",
+        "terser": "^5.16.0",
+        "esbuild": "^0.27.0 || ^0.28.0",
+        "sugarss": "^5.0.0",
+        "@types/node": "^20.19.0 || >=22.12.0",
+        "sass-embedded": "^1.70.0",
+        "@vitejs/devtools": "^0.7.1 || ^0.8.0"
+      },
+      "peerDependenciesMeta": {
+        "tsx": {
+          "optional": true
+        },
+        "jiti": {
+          "optional": true
+        },
+        "less": {
+          "optional": true
+        },
+        "sass": {
+          "optional": true
+        },
+        "yaml": {
+          "optional": true
+        },
+        "stylus": {
+          "optional": true
+        },
+        "terser": {
+          "optional": true
+        },
+        "esbuild": {
+          "optional": true
+        },
+        "sugarss": {
+          "optional": true
+        },
+        "@types/node": {
+          "optional": true
+        },
+        "sass-embedded": {
+          "optional": true
+        },
+        "@vitejs/devtools": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-LzOn3h9rG/0vhLdXrV4yJ4QFA9eEoqCl+Yx+kGJd7aB9w6nfNgVHKSYwLPZUHrz4ZGa+t+kXjV9itvcHDLQouA==",
+      "source": "https://registry.npmjs.org/vite/latest"
+    },
+    {
+      "name": "vitest",
+      "version": "5.1.0",
+      "engines": {
+        "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
+      },
+      "peerDependencies": {
+        "vite": "^6.4.0 || ^7.0.0 || ^8.0.0",
+        "jsdom": "*",
+        "happy-dom": "*",
+        "@vitest/ui": "5.1.0",
+        "@types/node": "^22.0.0 || >=24.0.0",
+        "@edge-runtime/vm": "*",
+        "@opentelemetry/api": "^1.9.0",
+        "@vitest/coverage-v8": "5.1.0",
+        "@vitest/browser-preview": "5.1.0",
+        "@vitest/coverage-istanbul": "5.1.0",
+        "@vitest/browser-playwright": "5.1.0",
+        "@vitest/browser-webdriverio": "^5.0.0-beta.5 || >=5.0.0"
+      },
+      "peerDependenciesMeta": {
+        "vite": {
+          "optional": false
+        },
+        "jsdom": {
+          "optional": true
+        },
+        "happy-dom": {
+          "optional": true
+        },
+        "@vitest/ui": {
+          "optional": true
+        },
+        "@types/node": {
+          "optional": true
+        },
+        "@edge-runtime/vm": {
+          "optional": true
+        },
+        "@opentelemetry/api": {
+          "optional": true
+        },
+        "@vitest/coverage-v8": {
+          "optional": true
+        },
+        "@vitest/browser-preview": {
+          "optional": true
+        },
+        "@vitest/coverage-istanbul": {
+          "optional": true
+        },
+        "@vitest/browser-playwright": {
+          "optional": true
+        },
+        "@vitest/browser-webdriverio": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-MzmNFnrwa8v8lF1bLxw3UJ4EREwVOVb75VqJZmUDRjJ6EluK/x9th7qTbaeDk41WxE1GxWqmTXcdsfobfH5sOA==",
+      "source": "https://registry.npmjs.org/vitest/latest"
+    },
+    {
+      "name": "vue",
+      "version": "3.5.45",
+      "engines": {},
+      "peerDependencies": {
+        "typescript": "*"
+      },
+      "peerDependenciesMeta": {
+        "typescript": {
+          "optional": true
+        }
+      },
+      "integrity": "sha512-3cvsib8m9c0vB24+MDKsgcW4+Da4xaBl9Z/5Tbm2pmSIsRPxcil4cdXjXlVsmJ2g64XJo5h+IRd7rsdGT9pZaw==",
+      "source": "https://registry.npmjs.org/vue/latest"
+    },
+    {
+      "name": "vue-tsc",
+      "version": "3.3.14",
+      "engines": {},
+      "peerDependencies": {
+        "typescript": ">=5.0.0"
+      },
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-URAu2H9AuMZMg9GCgnqbaHHHd8pBZRAwNV2e2yYS8VDsoTVXHiOSo663OS6DkEvauQ2yixn5TPFJ9WV9QIspkA==",
+      "source": "https://registry.npmjs.org/vue-tsc/latest"
+    },
+    {
+      "name": "yaml",
+      "version": "2.9.1",
+      "engines": {
+        "node": ">= 14.6"
+      },
+      "peerDependencies": {},
+      "peerDependenciesMeta": {},
+      "integrity": "sha512-3NxN8+78OdzbT7C/WjGsyfPAtJaN3FNDsWxv7Y7mcDsT/oOmgW8BpyQQFFBnvZE3j9Y2Sdz1ULFLezL7Eb2yFw==",
+      "source": "https://registry.npmjs.org/yaml/latest"
+    }
+  ],
+  "node": {
+    "version": "v26.13.0",
+    "lts": "Lithium",
+    "source": "https://nodejs.org/dist/index.json"
+  },
+  "note": "Discovery does not change package.json or the lockfile and does not prove compatibility. See bootstrap verification for installed results."
+}

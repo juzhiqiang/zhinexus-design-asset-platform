@@ -8,7 +8,7 @@
 
 **Tech Stack:** TypeScript、pnpm workspace、Turborepo（npm 包 `turbo`）、ECharts、Vue、React、Vite、Playwright、Fastify、PostgreSQL、Verdaccio、MinIO/S3 API；Vitest 验证单元与服务集成。仓库组织方案已获用户确认；Fastify、Vitest、Zod、pg、S3 SDK 和 OpenAPI 生成器属于本计划建议。`turbo` 等新增工具的精确版本及兼容性由 T01 查询、锁定并验证。
 
-**Spec:** `D:/project/zhinexus-design-asset-platform/component-platform-architecture.md`。范围、预算、日历和风险见项目根目录 `component-platform-implementation-assessment.md`。文中命令和文件均是待实施内容，本次未初始化工程。
+**Spec:** `D:/project/zhinexus-design-asset-platform/component-platform-architecture.md`。范围与预算见项目根目录 `component-platform-implementation-assessment.md`。2026-11-11 已完成 [工程初始化子集](2026-11-11-bootstrap-execution.md)，[验证记录](../../verification/bootstrap.md) 仅覆盖工程骨架，完整 T01 保持开放。当前人员与日历以 [三人分工计划](2026-11-11-three-person-allocation.md) 为准。
 
 ## Global Constraints
 

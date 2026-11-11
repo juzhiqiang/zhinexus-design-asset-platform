@@ -1,0 +1,36 @@
+{
+  "name": "zhinexus-design-asset-platform",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "packageManager": "pnpm@12.18.0",
+  "engines": {
+    "node": "26.13.0",
+    "pnpm": "12.18.0"
+  },
+  "scripts": {
+    "build": "turbo run build --cache=local:rw",
+    "typecheck": "turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit",
+    "dev": "turbo run dev --concurrency=12 --cache=local:rw",
+    "test": "vitest run",
+    "test:browser": "playwright test --config tests/playwright.config.ts",
+    "verify:workspace": "tsx scripts/verify-workspace.ts",
+    "versions:resolve": "node scripts/resolve-versions.mjs",
+    "build:services": "turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw",
+    "component": "node packages/component-cli/dist/index.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.65.0",
+    "@types/node": "26.6.6",
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "@vitejs/plugin-vue": "6.0.10",
+    "tsx": "4.23.15",
+    "turbo": "2.11.10",
+    "typescript": "7.0.2",
+    "vite": "8.3.8",
+    "vitest": "5.1.0",
+    "yaml": "2.9.1"
+  }
+}

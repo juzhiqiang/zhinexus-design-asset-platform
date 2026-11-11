@@ -1,0 +1,178 @@
+{
+  "capturedAt": "2026-11-11T17:37:13.7884950+08:00",
+  "turboVersion": "2.11.10",
+  "tasks": [
+    {
+      "taskId": "@company/charts-core#build",
+      "hash": "988cbf5cce571fe3",
+      "dependencies": [],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/charts-core#typecheck",
+      "hash": "ee2abdfec14fefa8",
+      "dependencies": [],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/charts-react#build",
+      "hash": "72e26b255d6cc9e5",
+      "dependencies": [
+        "@company/charts-core#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/charts-react#typecheck",
+      "hash": "a8e39f0a9117ad4c",
+      "dependencies": [
+        "@company/charts-core#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/charts-vue#build",
+      "hash": "61706faedb61d2be",
+      "dependencies": [
+        "@company/charts-core#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/charts-vue#typecheck",
+      "hash": "11d88280d129d5f9",
+      "dependencies": [
+        "@company/charts-core#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/component-cli#build",
+      "hash": "6cd16280e5ff60a0",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/component-cli#typecheck",
+      "hash": "f1e72318a95c90b4",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/contracts#build",
+      "hash": "33f4e6c6d6a7cb47",
+      "dependencies": [],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/contracts#typecheck",
+      "hash": "ffebcf5c77d53748",
+      "dependencies": [],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/example-react#build",
+      "hash": "7ce958a410a08cf8",
+      "dependencies": [
+        "@company/charts-react#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/example-react#typecheck",
+      "hash": "8030d5b13abba9c4",
+      "dependencies": [
+        "@company/charts-react#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/example-vue#build",
+      "hash": "b01a8b5a1bebcb35",
+      "dependencies": [
+        "@company/charts-vue#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/example-vue#typecheck",
+      "hash": "a167b5e6c270b81c",
+      "dependencies": [
+        "@company/charts-vue#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/gallery#build",
+      "hash": "85522caaa5ed17ba",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/gallery#typecheck",
+      "hash": "283c2ea3aa591c07",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/platform-api#build",
+      "hash": "802b430e5627d7c9",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/platform-api#typecheck",
+      "hash": "63e918a6a6b7bc1d",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": null
+    },
+    {
+      "taskId": "@company/preview-gateway#build",
+      "hash": "5fdf6c2e7cad6a10",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": [
+        "dist/**"
+      ]
+    },
+    {
+      "taskId": "@company/preview-gateway#typecheck",
+      "hash": "d3f84208a27168c9",
+      "dependencies": [
+        "@company/contracts#build"
+      ],
+      "outputs": null
+    }
+  ]
+}

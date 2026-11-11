@@ -1,0 +1,38 @@
+{
+  "name": "@company/charts-react",
+  "version": "0.0.0",
+  "private": false,
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsc -p tsconfig.build.json --watch"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "types": "./dist/index.d.ts",
+  "main": "./dist/index.js",
+  "dependencies": {
+    "@company/charts-core": "workspace:*"
+  },
+  "peerDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "echarts": "6.1.0"
+  },
+  "devDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "echarts": "6.1.0"
+  },
+  "publishConfig": {
+    "access": "restricted"
+  }
+}

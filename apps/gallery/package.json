@@ -1,0 +1,20 @@
+{
+  "name": "@company/gallery",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit",
+    "dev": "vite --host 127.0.0.1 --port 5173 --strictPort",
+    "preview": "vite preview --host 127.0.0.1 --port 5173 --strictPort"
+  },
+  "dependencies": {
+    "vue": "3.5.45",
+    "@company/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "6.0.3",
+    "vue-tsc": "3.3.14"
+  }
+}

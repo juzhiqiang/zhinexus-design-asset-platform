@@ -1,0 +1,10 @@
+{
+  "name": "typescript",
+  "version": "6.0.3",
+  "engines": {
+    "node": ">=14.17"
+  },
+  "integrity": "sha512-y2TvuxSZPDyQakkFRPZHKFm+KKVqIisdg9/CZwm9ftvKXLP8NRWj38/ODjNbr43SsoXqNuAisEf1GdCxqWcdBw==",
+  "source": "https://registry.npmjs.org/typescript/6.0.3",
+  "reason": "Vue SFC type checking only; vue-tsc/volar require the pre-7 JavaScript compiler API. Root stays on 7.0.2."
+}
