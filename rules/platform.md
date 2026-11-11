@@ -1,49 +1,45 @@
 # 工具链、双框架与运行环境规则
 
-## 运行与支持环境基线
+## 支持矩阵
 
-- **本地开发与截图环境**：一期已验证的本地开发、示例运行与 Playwright 截图环境为 **Windows 10/11 x64**（引导脚本兼容 Windows 自带 PowerShell 5.1 非交互模式）。其他操作系统可按相同精确版本自行配置工具链，但在完成独立验证矩阵前，不得声明已验证支持。
-- **服务端部署环境**：`apps/api`、`apps/preview-gateway`、PostgreSQL、Verdaccio 与 MinIO 面向 **Linux** 环境部署；服务端只运行平台 API、静态预览网关与三类存储，不安装或运行组件构建器与截图浏览器。
+以 `component-platform-implementation-assessment.md`、`docs/superpowers/plans/2026-11-11-component-platform-implementation.md` 与 `docs/verification/nest-react-bootstrap.md` 为准：
+
+- **本地开发与截图基线**：Windows 10/11 x64（引导脚本支持 Windows 自带 PowerShell 5.1 非交互执行）+ 本地 Playwright Chromium。其他操作系统可按相同精确版本自行配置工具链，但在完成独立验证矩阵前，不得声明已验证支持。
+- **服务端运行基线**：Linux 容器/主机环境运行 `apps/api`、`apps/preview-gateway`、PostgreSQL 18.6、Verdaccio 7.1.0、MinIO（固定 `RELEASE.2025-10-15T17-29-55Z` 源码与镜像摘要）。服务端不安装或执行组件构建器与截图浏览器。
+- **组件框架与引擎基线**：Vue `3.5.45`、React / ReactDOM `19.3.1`、ECharts `6.1.0`。任何扩大或缩减兼容版本范围的改动，必须同步更新兼容矩阵测试与 `compatibility_records`。
 
 ## 固定工具链与编译器分层
 
-- **本地隔离工具链（`.tools`）**：
-  - 项目固定 **Node.js `26.13.0`**（`.node-version` 与 `package.json#engines`）、**pnpm `12.18.0`**（`packageManager`）、**Turbo `2.11.10`**。
-  - Windows 下通过 `.\scripts\bootstrap.ps1` 自动下载官方 Node 与原生 pnpm 到仓库 `.tools/` 目录，并严格校验 SHA-256 / SHA-512 摘要，不修改系统全局 Node/pnpm。
-  - 日常开发与验证命令统一通过 `.\scripts\pnpm.ps1 <args>` 执行；该包装脚本自动将 `.tools` 注入当前进程 `PATH`，并将 `PLAYWRIGHT_BROWSERS_PATH` 指向 `.tools/playwright`。
-- **TypeScript 编译器分层**：
+- **本地隔离工具链（`.tools/`）**：
+  - 仓库固定 **Node.js `26.13.0`**（`.node-version` 与 `package.json#engines`）、**pnpm `12.18.0`**（`packageManager`）、**Turbo `2.11.10`**。
+  - `.\scripts\bootstrap.ps1` 自动将官方 Node 与原生 pnpm 下载至 `.tools/` 并校验 SHA-256 / SHA-512 摘要，不修改系统全局环境。
+  - Windows 本机统一通过 `.\scripts\pnpm.ps1 <args>` 执行命令；该脚本自动将 `.tools/bin` 与 Node 目录注入当前进程 `PATH`，并将 `PLAYWRIGHT_BROWSERS_PATH` 设为 `.tools/playwright`。
+- **TypeScript 双编译器策略**：
   - 根工作区、`apps/gallery`、`packages/charts-*`、`packages/component-cli`、`packages/contracts` 与 `examples/react` 使用 **TypeScript `7.0.2`**。
-  - 两个 NestJS 服务（`apps/api`、`apps/preview-gateway`）显式固定 **Nest CLI `12.0.12` + TypeScript `6.0.3`**，启用 `experimentalDecorators` 与 `emitDecoratorMetadata`，确保编译产物具备完整依赖注入元数据。
-  - `examples/vue` 的 SFC 类型检查隔离使用 **`vue-tsc 3.3.14` + TypeScript `6.0.3`**（记录于 `docs/verification/vue-typescript-exception.json`）。
-  - 升级任一编译器或框架版本时，必须重新验证双编译器兼容性与 Nest DI 元数据。
-- **pnpm 工作区约束**：
-  - 统一在 `pnpm-workspace.yaml` 中配置 `saveExact: true`、`strictPeerDependencies: true`、`engineStrict: true`、`verifyDepsBeforeRun: false` 及 `allowBuilds: { esbuild: true }`。
-  - `.npmrc` 仅保留 npm 通用配置。所有成员共用根 `pnpm-lock.yaml`，日常与 CI 检查一律使用 `pnpm install --frozen-lockfile`。
+  - `apps/api` 与 `apps/preview-gateway` 显式固定 **Nest CLI `12.0.12` + TypeScript `6.0.3`**，启用 `experimentalDecorators` 与 `emitDecoratorMetadata`，确保编译产物具备完整依赖注入元数据。
+  - `examples/vue` 的 SFC 类型检查隔离使用 **`vue-tsc 3.3.14` + TypeScript `6.0.3`**（兼容例外记录于 `docs/verification/vue-typescript-exception.json`）。
+- **pnpm 工作区配置**：
+  - `pnpm-workspace.yaml` 固定启用 `saveExact: true`、`strictPeerDependencies: true`、`engineStrict: true`、`verifyDepsBeforeRun: false` 及 `allowBuilds: { esbuild: true }`。
+  - `.npmrc` 仅保留 npm 通用配置。所有成员共用根 `pnpm-lock.yaml`，安装依赖一律使用 `--frozen-lockfile`，不以脚本启动前隐式安装代替冻结安装检查。
 
 ## Turbo 任务编排与缓存边界
 
-- **脚本约定**：每个工作区成员必须显式定义 `build`、`typecheck`、`dev` 三个脚本，直接调用各自的编译器或开发服务器，严禁在子包脚本中递归调用 `turbo`。
-- **前置服务构建**：由于测试与根类型检查直接加载已编译的 Nest 服务产物与声明，根 `typecheck` 与 `test` 脚本均须先执行 `pnpm build:services`。
-- **允许缓存的任务**：仅 `build`（输出 `dist/**`）和 `typecheck`（无文件输出）允许使用 Turbo 本地缓存（`--cache=local:rw`）；`globalDependencies` 跟踪 `tsconfig.base.json`、`pnpm-workspace.yaml` 与 `.node-version`。一期不启用远程缓存。
-- **严禁缓存的任务**：
-  - `dev` 必须配置 `cache: false` 与 `persistent: true`；
-  - `test`、`test:browser`、`component`、工作区外 tarball 消费、本地截图、视觉回归比对、产物打包冻结、上传发布、故障恢复演练与基线更新**严禁放入 Turbo 缓存**，每次必须真实运行并产出独立记录。
-- **服务端构建白名单**：服务端仅执行 `pnpm build:services`（过滤 `@company/platform-api` 与 `@company/preview-gateway` 及其依赖 `@company/contracts`），不构建前端画廊、图表包或示例。
+- 各工作区成员显式提供 `build`、`typecheck`、`dev` 脚本并直接调用自身编译器或开发服务器，严禁在子包脚本中递归调用 `turbo`。
+- 根 `typecheck` 与 `test` 先执行 `pnpm build:services`，确保首次或干净工作区运行时已生成 Nest 服务的 `dist/` 编译产物与类型声明。
+- `build`（输出 `dist/**`）和 `typecheck`（无文件输出）启用本地缓存 `--cache=local:rw`；`dev` 固定 `cache: false`、`persistent: true`。一期不启用远程缓存。
+- `test`、`test:browser`、`component`、工作区外 tarball 消费、本地截图、视觉回归、产物冻结、上传发布、故障恢复与基线更新**严禁进入 Turbo 缓存**；若未来包装为 Turbo 任务，必须显式设置 `cache: false`。
+- 服务端构建只执行 `pnpm build:services`（过滤 `@company/platform-api` 与 `@company/preview-gateway` 及其依赖 `@company/contracts`），不运行根全量 `pnpm build`。
 
-## 双框架组件与 ECharts 生命周期适配
+## 双框架组件与视觉环境适配
 
-- **双框架对等实现**：基础图表（折线、柱状、饼图/环图、散点）与场景组件（趋势卡片、排名、占比）均须提供独立的 Vue 3（Composition API / SFC）和 React 19（函数组件 / Hooks）实现，共享 `@company/charts-core` 的数据映射、option 生成与事件语义，按各自框架惯例暴露接口（如 Vue `point-click` 对应 React `onPointClick`）。
-- **容器与生命周期安全**：
-  - 挂载时检测容器尺寸，零宽高容器须等待 `ResizeObserver` 获得有效尺寸后再初始化 ECharts 实例，避免渲染异常或告警；
-  - 组件卸载时必须解除事件监听、断开 `ResizeObserver` 并调用 `dispose()` 销毁实例；
-  - Vue 实现必须处理 `KeepAlive` 激活（`onActivated`）时的尺寸同步与重绘；
-  - React 实现的 `useEffect` 建立与清理必须兼容 `StrictMode` 下的重复挂载/清理，不得残留失效实例或丢失图表；
-  - 数据更新须区分普通增量更新、系列删减（使用稳定 series id 与合理 `replaceMerge` 避免旧系列残留）以及主题/渲染器（Canvas/SVG）切换导致的实例重建。
-- **SSR 安全导入边界**：组件包与 `charts-core` 模块顶层严禁直接访问 `window`、`document`、`navigator` 等浏览器全局对象；SSR 宿主导入时只输出容器占位，图表实例仅在客户端挂载阶段创建。
-- **按需加载导出**：高频图表须提供明确的子路径导出，内部基于 `echarts/core` 按需注册所需图表、组件与渲染器，并通过打包体积与外部消费者构建验证按需加载效果。
-
-## 确定性截图与视觉环境签名
-
-- **示例就绪协议**：Vue 与 React 示例通过统一的就绪信号（数据加载、字体就绪、容器非零尺寸、ECharts 渲染完成事件）驱动 Playwright 截图；截图模式必须关闭动画并注入固定确定性数据（`examples/fixtures`），严禁仅靠固定 `sleep` 延时截图。
-- **环境签名严格匹配**：每次本地截图、检查报告与视觉基线都必须记录完整环境签名（操作系统版本、CPU 架构、Chromium 版本与修订号、字体配置、语言、时区、设备像素比、视口宽高、主题与渲染器）。
-- **跨环境不兼容保护**：当运行环境签名与已有基线不一致时，检查器必须返回 `INCOMPATIBLE`，提示开发者在目标环境显式建立或确认对应基线，严禁自动算作通过或通过盲目调大阈值掩盖环境差异。
+- **双框架对等实现**：一期 7 个逻辑组件（折线、柱状、饼图/环图、散点、趋势卡片、排名、占比）共 14 个框架实现，共用 `@company/charts-core` 控制器与 option 逻辑，分别按 Vue 3（SFC / Emits）和 React 19（TSX / Callbacks）惯例暴露 API。
+- **生命周期与容器适配**：
+  - 挂载时检测容器尺寸，零宽高或隐藏容器须等待 `ResizeObserver` 获得有效尺寸后再初始化或 `resize` ECharts 实例；
+  - 卸载时解除全部监听、断开 `ResizeObserver` 并调用 `dispose()`；
+  - React 实现须兼容 `StrictMode` 开发态 Effect 重复挂载/清理；Vue 实现须兼容 `KeepAlive` 激活（`onActivated`）后的尺寸恢复；
+  - 数据更新须正确处理系列删减（稳定 series id 与合理 `replaceMerge` 防止旧系列残留）及主题/渲染器（`canvas` / `svg`）切换重建。
+- **SSR 安全导入**：`charts-core`、`charts-vue`、`charts-react` 模块顶层不得访问 `window`、`document`、`navigator` 等浏览器全局对象；SSR 宿主仅安全导入并在客户端挂载后创建图表实例。
+- **确定性截图与 `environmentKey`**：
+  - 示例页面通过统一就绪协议（数据、字体、非零尺寸、ECharts 渲染完成信号）关闭动画后触发截图，禁止依赖固定 `sleep`；
+  - `environmentKey` 由规范化的 `os/arch/browserVersion/browserRevision/fontDigest/locale/timezone/deviceScaleFactor/renderer/width/height/theme` 计算；被测 `frameworkVersion`、`echartsVersion` 和包版本记录在报告中，不计入 `environmentKey`；
+  - 环境签名与基线不一致时返回 `INCOMPATIBLE`，不得自动判为通过；网页手动上传截图的 `environmentKey` 固定为 `unknown-manual`，不得用于建立或更新自动回归基线。

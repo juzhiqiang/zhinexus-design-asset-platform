@@ -1,38 +1,28 @@
 # 平台与产物安全规则
 
-## 服务端零组件执行原则
+## 服务端零执行与本地隔离
 
-- **只处理预构建产物**：`apps/api` 与 `apps/preview-gateway` 仅接收、校验、存储和分发开发者本地预构建的组件包、元数据、文档、截图与静态预览文件。
-- **严禁服务端执行上传代码**：服务端进程与容器镜像严禁构建组件、严禁导入或执行上传包中的 JavaScript 代码、严禁运行 npm 生命周期脚本（`preinstall`/`install`/`postinstall`）、严禁启动 Playwright 或其他无头浏览器渲染组件。
-- **本地消费者脚本防护**：CLI 在工作区外临时消费者目录安装候选 tarball 进行验证时，应限制任意第三方生命周期脚本执行（仅允许工作区白名单内的构建依赖如 `esbuild`），并对待测产物执行严格的包结构与导出检查。
+- `apps/api` 与 `apps/preview-gateway` 只接收、校验、存储和分发开发者本地预构建产物（tarball、manifest、文档、截图、检查报告和静态预览文件）。
+- 服务端进程与部署镜像严禁构建组件、严禁导入或动态执行上传包中的代码、严禁运行 npm 生命周期脚本（`preinstall` / `install` / `postinstall`）、严禁启动 Playwright 或任何无头浏览器。
+- 本地工作区在 `pnpm-workspace.yaml` 中通过 `allowBuilds` 仅允许白名单构建脚本（`esbuild: true`）；CLI 在工作区外临时消费者安装候选 tarball 时，同样不得放开任意第三方安装脚本执行。
 
-## 静态预览隔离与网关安全
+## 静态预览隔离与网关策略
 
-- **独立注册域名与 Origin 隔离**：静态预览网关（`apps/preview-gateway`）必须部署在与平台画廊（`apps/gallery`）和管理 API（`apps/api`）不同的独立注册域名下（按发布版本划分独立 origin），确保预览页面无法读取主平台的 Cookie、`localStorage`/`sessionStorage` 或 IndexedDB。
-- **沙箱 iframe 与最小权限**：画廊内嵌静态预览时必须使用受控 `iframe` `sandbox` 属性，禁止赋予同源特权、顶层导航劫持或未授权弹窗能力；预览页面严禁获取平台用户的认证 Token，也严禁直接调用管理 API。
-- **短期预览授权（Preview Grant）**：访问静态预览资源必须经过 `preview-gateway` 的授权校验；权限撤销、凭证过期或版本未就绪时，网关必须拒绝返回资源，不得将 MinIO 私有存储桶直接对公网裸露。
-- **路径穿越与响应头防护**：
-  - `preview-gateway` 解析请求路径时必须执行规范化校验，严格限制在已授权的包版本静态目录与不可变对象键范围内，拒绝 `..`、编码绕过、反斜杠或符号链接穿越；
-  - 静态响应必须设置严格的 `Content-Security-Policy`（CSP）、`X-Content-Type-Options: nosniff` 和准确的 MIME 类型，只允许返回白名单内的静态预览资产。
+- 静态预览网关（`apps/preview-gateway`）必须使用与平台画廊（`apps/gallery`）和管理 API（`apps/api`）不同的独立注册域名，并按发布版本隔离 origin，防止预览脚本读取主平台 Cookie、`localStorage`、`sessionStorage` 或 IndexedDB。
+- 画廊内嵌预览必须使用沙箱 `iframe`（受控 `sandbox` 属性），禁止赋予与主站同源的特权或顶层窗口劫持能力；预览页面严禁获取平台登录凭证或直接请求管理 API。
+- 访问预览资源必须通过 `POST /v1/preview-grants` 颁发的短期授权（`bootstrapUrl` / `expiresAt`）；未授权、授权过期、权限撤销或版本未就绪时，`preview-gateway` 必须拒绝访问，严禁将 MinIO 存储桶直接公开暴露。
+- `preview-gateway` 必须对请求路径做规范化与固定包内前缀校验，拦截 `..`、反斜杠、编码绕过和符号链接穿越；响应头必须设置严格的 `Content-Security-Policy`（CSP）、`X-Content-Type-Options: nosniff` 和准确的 MIME 类型。
 
-## 上传校验、契约校验与来源真实性
+## 上传校验与来源防伪
 
-- **外部输入默认不可信（`unknown`）**：所有来自 CLI、网页表单、HTTP 请求参数、上传 manifest、检查报告及外部存储回调的数据，在通过 `@company/contracts` 运行时 Schema 校验前一律视为 `unknown`；严禁仅用 TypeScript `as` 类型断言代替运行时校验。
-- **多维度文件与摘要校验**：
-  - 上传会话必须核对每个文件的实际字节数、SHA-256 摘要、文件魔数/实际 MIME 类型及图片像素尺寸；
-  - 截图文件必须为合法光栅图像（如 PNG），校验实际文件头与宽高，拒绝夹带可执行脚本的伪造图片或超限文件；
-  - 包 tarball 内的 `package.json` 必须与发布 manifest 声明的包名、精确版本、导出入口及 tarball SHA-256 完全一致。
-- **逐实现截图必检与来源防伪**：
-  - 无论是单组件包还是一包多组件，每个待发布逻辑组件的每个框架实现（Vue / React）都必须关联至少一张有效展示截图；禁止将 Vue 截图冒充为 React 截图或只上传部分实现截图就放行整包；
-  - 网页手动提交入口必须在前端与 `apps/api` 两端同时执行缺图拦截，且服务端强制将网页入口提交的报告/截图来源标记为 `manual-upload`，严禁客户端通过请求参数伪造 `cli-auto` 来源或冒充已通过自动回归检查。
+- 所有来自 CLI、网页表单、HTTP 请求、上传 manifest（`ReleaseManifestV1`）及检查报告（`CheckReportV1`）的输入默认视为不可信 `unknown`，必须先通过 `@company/contracts` 的运行时 Schema 与交叉引用校验，不得仅使用 TypeScript `as` 断言。
+- 上传完成（`POST /v1/uploads/:id/complete`）与发布校验阶段必须逐文件核对字节数、小写十六进制 SHA-256 摘要、实际文件头/MIME 类型及图片宽高，拒绝伪造后缀、超限文件或夹带脚本的异常资源。
+- 无论是单组件包还是一包多组件，每个待发布组件的每个框架实现（`VariantRef`）必须关联至少一张所属框架与 `variantId` 匹配的有效截图；严禁跨框架借图（如用 Vue 截图充当 React 截图）或部分实现缺图放行。
+- 网页手动提交（`channel: 'web'`）必须在前端和 `apps/api` 两端同时拦截缺图，且服务端强制将截图来源设为 `'manual-upload'`、`environmentKey` 设为 `'unknown-manual'`；无关联本地检查报告时，`compatibility.status` 只能为空或 `'candidate'`，严禁客户端通过参数伪造 `'local-automatic'` 或 `'passed'`。
 
-## 身份鉴权、凭证隔离与安全审计
+## 身份鉴权、凭证与日志
 
-- **统一身份与权限控制**：CLI（通过 OIDC PKCE / 本地回环回调）与网页端共用同一套 OIDC 身份体系与角色/组件负责人权限校验；上传、触发发布、更新视觉基线和废弃版本均需验证操作者对目标组件/包的权限。
-- **npm 与存储读写权限分离**：
-  - Verdaccio 严格区分平台发布服务专用的写入账号与开发者/业务项目使用的只读消费凭证；
-  - PostgreSQL 与 MinIO 仅由后端服务按最小权限访问，客户端不得直接持有数据库或对象存储写凭证。
-- **密钥与敏感信息保护**：
-  - OIDC 密钥、数据库密码、MinIO Secret Key、Verdaccio 发布 Token、会话凭据等只能通过环境变量或密钥管理服务注入；
-  - 严禁将任何凭证、Token、Cookie 或开发者本机隐私路径硬编码或写入 Git 仓库、`docs/verification/` 日志、检查报告、测试 fixtures 或构建产物（`dist/`）。
-- **关键操作留痕**：所有发布任务创建与状态变更、视觉基线新建/更新（须含操作者与更新理由）、版本废弃（deprecate）及权限拒绝事件，均须写入 PostgreSQL `audit_events` 表，且审计记录中不得保存明文密钥。
+- CLI（OIDC PKCE / 本地回环回调）与网页端共用同一 OIDC 身份体系（操作者 `subject` 一律从服务端鉴权上下文提取，不信任请求体字段），按角色与组件负责人校验上传、发布、基线更新和版本废弃权限。
+- Verdaccio 严格分离平台发布服务专用的写入账号与开发者/业务项目的只读消费凭证；客户端不直接持有 PostgreSQL、MinIO 或 Verdaccio 的写凭证。
+- 数据库密码、MinIO 密钥、Verdaccio Token、OIDC Client Secret、Cookie 等敏感值只能通过环境变量或密钥管理注入，严禁写入代码、配置文件、`docs/verification/` 日志、检查报告或 Git 提交。
+- 发布状态变更、视觉基线创建/更新（含操作者与理由）、版本废弃（`POST /v1/variant-releases/:id/deprecate`）及鉴权拒绝均须记录到 `audit_events` 表。
