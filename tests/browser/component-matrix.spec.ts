@@ -18,6 +18,14 @@ const VUE_TREND_CARD = 'http://127.0.0.1:5174/trend-card.html';
 const REACT_TREND_CARD = 'http://127.0.0.1:5175/trend-card.html';
 const REACT_TREND_CARD_DEV = 'http://127.0.0.1:5176/trend-card.html';
 
+const VUE_RANKING = 'http://127.0.0.1:5174/ranking.html';
+const REACT_RANKING = 'http://127.0.0.1:5175/ranking.html';
+const REACT_RANKING_DEV = 'http://127.0.0.1:5176/ranking.html';
+
+const VUE_PROPORTION = 'http://127.0.0.1:5174/proportion.html';
+const REACT_PROPORTION = 'http://127.0.0.1:5175/proportion.html';
+const REACT_PROPORTION_DEV = 'http://127.0.0.1:5176/proportion.html';
+
 type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
 
 type ExampleTestHook = {
@@ -35,6 +43,8 @@ type ExampleTestHook = {
   sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
   /** 趋势卡片数值摘要槽位文本（[标题, 当前值, meta]）；ignore 槽位为 null。 */
   summarySlots(): (string | null)[];
+  /** 类目轴标签文本（已应用 axisLabel.formatter）：断言排行榜名次标签。 */
+  categoryLabels(): string[];
 };
 
 declare global {
@@ -923,5 +933,342 @@ test('vue_trend-card_remount_leaves_single_instance', async ({ page }) => {
   await clickFirstTrendPoint(page);
   expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
   await assertChecksPass(page, VUE_TREND_CARD);
+  expect(pageErrors).toEqual([]);
+});
+
+/**
+ * 点击横向条形（排行榜 / 占比）第一条：`pointClientPosition` 对横向条形按数值取 x、
+ * 按类目取 y，返回条形末端。末端在条体边界上，向左偏移若干像素保证落在条体内部。
+ */
+const HORIZONTAL_BAR_BODY_OFFSET_X = -8;
+
+async function clickFirstHorizontalBar(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const hook = window.__COMPONENT_EXAMPLE_TEST__;
+    if (!hook) {
+      return false;
+    }
+    const position = hook.pointClientPosition(0, 0);
+    return position != null && position.x > 0 && position.y > 0;
+  });
+  const position = await page.evaluate(() =>
+    window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0),
+  );
+  expect(position).not.toBeNull();
+  await page.mouse.click(position!.x + HORIZONTAL_BAR_BODY_OFFSET_X, position!.y);
+}
+
+for (const url of [VUE_RANKING, REACT_RANKING]) {
+  test(`ranking_empty_data_renders_no_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+
+    await runState(page, 'empty');
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    // 空数据下统计行必须隐藏、提示必须出现，不得残留上一次的「共 N 项」
+    const slots = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(slots[1]).toBeNull();
+    expect(slots[2]).toBe('暂无数据');
+    await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`ranking_missing_values_do_not_enter_ranking: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'missing');
+
+    // 「柱状图」为缺失值：不进入排行，也不占用名次（5 项而非 6 项）
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toEqual([[180, 120, 90, 60, 30]]);
+    const slots = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(slots[1]).toBe('共 5 项');
+    await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`ranking_sorts_descending_with_tied_ranks: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+
+    // default：180/180/120/90/60 降序；并列的柱状图与饼图共享第 1 名，其后跳到第 3 名
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([180, 180, 120, 90, 60]);
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.categoryLabels()),
+    ).toEqual(['1. 柱状图', '1. 饼图', '3. 折线图', '4. 散点图', '5. 趋势卡片']);
+    // limit 固定为 5：default 有 6 项，统计行必须说明取前 5 名
+    const slots = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(slots[0]).toBe('热门组件 Top 5');
+    expect(slots[1]).toBe('共 6 项 · 取前 5 名');
+
+    // tied：三项并列 150，名次为 1,1,1,4,5；并列项之间保持输入顺序
+    await runState(page, 'tied');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([150, 150, 150, 90, 60]);
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.categoryLabels()),
+    ).toEqual(['1. 折线图', '1. 柱状图', '1. 饼图', '4. 散点图', '5. 趋势卡片']);
+    await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`ranking_update_reflects_new_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+
+    // updated：7 项取前 5 名，排序结果完全换血
+    await runState(page, 'updated');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([270, 260, 250, 240, 230]);
+    const slots = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(slots[1]).toBe('共 7 项 · 取前 5 名');
+
+    // single：只剩一项，名次为 1
+    await runState(page, 'single');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([200]);
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.categoryLabels()),
+    ).toEqual(['1. 折线图']);
+    await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`ranking_click_payload_is_consistent: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+
+    await clickFirstHorizontalBar(page);
+
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    // 横向条形系列数据项带 name：载荷为 [条目名称, 数值]，与折线 / 柱状 / 饼图同构
+    expect(clicks[0]).toEqual({
+      seriesId: 'hot',
+      dataIndex: 0,
+      value: ['柱状图', 180],
+      nativeType: 'click',
+    });
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('ranking_click_payload_matches_in_both_frameworks', async ({ page }) => {
+  const payloads: ChartEvent[] = [];
+  for (const url of [VUE_RANKING, REACT_RANKING]) {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+    await clickFirstHorizontalBar(page);
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    payloads.push(clicks[0]!);
+    expect(pageErrors, `${url} 页面错误`).toEqual([]);
+  }
+  expect(payloads[0]).toEqual(payloads[1]);
+  expect(payloads[0]).toEqual({
+    seriesId: 'hot',
+    dataIndex: 0,
+    value: ['柱状图', 180],
+    nativeType: 'click',
+  });
+});
+
+test('react_ranking_strictmode_cleans_and_remounts', async ({ page }) => {
+  const pageErrors = await openExample(page, REACT_RANKING_DEV);
+
+  await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+  await assertChecksPass(page, REACT_RANKING_DEV);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstHorizontalBar(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test('vue_ranking_remount_leaves_single_instance', async ({ page }) => {
+  const pageErrors = await openExample(page, VUE_RANKING);
+  await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-ranking canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstHorizontalBar(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  await assertChecksPass(page, VUE_RANKING);
+  expect(pageErrors).toEqual([]);
+});
+
+/**
+ * 占比场景的就绪探针限制：`zero-total`（全零）与 `empty`（无系列）渲染结果完全相同
+ * （都没有系列、都显示「暂无数据」），系列快照不会变化，`arm()` 会一直等到超时。
+ * 因此这两个状态必须各自从 `default` 单独进入，不能连续切换。
+ */
+for (const url of [VUE_PROPORTION, REACT_PROPORTION]) {
+  test(`proportion_zero_total_shows_no_data: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+
+    // zero-total：总量不可算，系列整体撤下、展示「暂无数据」，不得产出 NaN%
+    await runState(page, 'zero-total');
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    const zero = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(zero[1]).toBeNull();
+    expect(zero[2]).toBe('暂无数据');
+    expect(JSON.stringify(zero)).not.toContain('NaN');
+    await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`proportion_empty_data_renders_no_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+
+    await runState(page, 'empty');
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    const empty = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(empty[1]).toBeNull();
+    expect(empty[2]).toBe('暂无数据');
+    await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`proportion_missing_values_are_excluded_from_total: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+
+    // default：总量 300，缺失的「自然」不进入系列数据
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([120, 80, 100]);
+    const initial = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(initial[1]).toBe('总量 300次');
+
+    // missing：「直投」缺失，分母变为 280 而不是 300
+    await runState(page, 'missing');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([120, 60, 100]);
+    const missing = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(missing[1]).toBe('总量 280次');
+    await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`proportion_keeps_input_order: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+
+    // 占比场景不排序：类目轴顺序必须与输入一致（搜索 / 直投 / 合作），
+    // 需要排序时用排行榜组件，两个场景的顺序口径因此可对照
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.categoryLabels()),
+    ).toEqual(['搜索', '直投', '合作']);
+
+    // updated：数值整体变化，顺序仍然保持输入顺序
+    await runState(page, 'updated');
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.categoryLabels()),
+    ).toEqual(['搜索', '直投', '自然', '合作']);
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([210, 90, 30, 170]);
+    const updated = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(updated[1]).toBe('总量 500次');
+    await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`proportion_single_entry_owns_the_whole_total: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'single');
+
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([300]);
+    const single = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(single[1]).toBe('总量 300次');
+    await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`proportion_click_payload_is_consistent: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+
+    await clickFirstHorizontalBar(page);
+
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    expect(clicks[0]).toEqual({
+      seriesId: 'source',
+      dataIndex: 0,
+      value: ['搜索', 120],
+      nativeType: 'click',
+    });
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('proportion_click_payload_matches_in_both_frameworks', async ({ page }) => {
+  const payloads: ChartEvent[] = [];
+  for (const url of [VUE_PROPORTION, REACT_PROPORTION]) {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+    await clickFirstHorizontalBar(page);
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    payloads.push(clicks[0]!);
+    expect(pageErrors, `${url} 页面错误`).toEqual([]);
+  }
+  expect(payloads[0]).toEqual(payloads[1]);
+  expect(payloads[0]).toEqual({
+    seriesId: 'source',
+    dataIndex: 0,
+    value: ['搜索', 120],
+    nativeType: 'click',
+  });
+});
+
+test('react_proportion_strictmode_cleans_and_remounts', async ({ page }) => {
+  const pageErrors = await openExample(page, REACT_PROPORTION_DEV);
+
+  await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+  await assertChecksPass(page, REACT_PROPORTION_DEV);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstHorizontalBar(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test('vue_proportion_remount_leaves_single_instance', async ({ page }) => {
+  const pageErrors = await openExample(page, VUE_PROPORTION);
+  await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-proportion canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstHorizontalBar(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  await assertChecksPass(page, VUE_PROPORTION);
   expect(pageErrors).toEqual([]);
 });

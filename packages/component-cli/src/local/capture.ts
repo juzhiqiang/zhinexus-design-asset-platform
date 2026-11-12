@@ -107,6 +107,8 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
         document.querySelector('.charts-pie') ||
         document.querySelector('.charts-scatter') ||
         document.querySelector('.charts-trend-card') ||
+        document.querySelector('.charts-ranking') ||
+        document.querySelector('.charts-proportion') ||
         document.querySelector('.chart-frame') ||
         document.querySelector('#chart') ||
         document.querySelector('#app');

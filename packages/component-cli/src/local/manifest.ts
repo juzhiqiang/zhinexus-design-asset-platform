@@ -30,7 +30,14 @@ import type { ExampleRef, ScreenshotRef } from '../contracts/examples.js';
 import type { CheckReportV1, CompatibilityRecord } from '../contracts/reports.js';
 import { findRepoRoot } from '../commands/check.js';
 
-export type ComponentName = 'line' | 'bar' | 'pie' | 'scatter' | 'trend-card';
+export type ComponentName =
+  | 'line'
+  | 'bar'
+  | 'pie'
+  | 'scatter'
+  | 'trend-card'
+  | 'ranking'
+  | 'proportion';
 
 /**
  * 消费者页面入口文件名。`line` 用 `index.html`，其余组件用 `<component>.html`；
@@ -43,6 +50,8 @@ const COMPONENT_ENTRY_HTML: Record<ComponentName, string> = {
   pie: 'pie.html',
   scatter: 'scatter.html',
   'trend-card': 'trend-card.html',
+  ranking: 'ranking.html',
+  proportion: 'proportion.html',
 };
 
 /** 组件在框架包中的命名导出与中文描述，用于生成 api / docs 材料。 */
@@ -52,6 +61,8 @@ const COMPONENT_EXPORT: Record<ComponentName, { exportName: string; exportDesc: 
   pie: { exportName: 'PieChart', exportDesc: '饼图' },
   scatter: { exportName: 'ScatterChart', exportDesc: '散点图' },
   'trend-card': { exportName: 'TrendCard', exportDesc: '趋势卡片' },
+  ranking: { exportName: 'Ranking', exportDesc: '排行榜' },
+  proportion: { exportName: 'Proportion', exportDesc: '占比' },
 };
 
 export type PrepareReleaseBundleOptions = {
@@ -146,7 +157,15 @@ export async function prepareReleaseBundle(
 ): Promise<PrepareReleaseBundleResult> {
   const repoRoot = options.repoRoot ?? findRepoRoot();
   const bundleDir = path.resolve(options.bundleDir);
-  const components = options.components ?? ['line', 'bar', 'pie', 'scatter', 'trend-card'];
+  const components: ComponentName[] = options.components ?? [
+    'line',
+    'bar',
+    'pie',
+    'scatter',
+    'trend-card',
+    'ranking',
+    'proportion',
+  ];
   const frameworks = options.frameworks ?? ['vue', 'react'];
   const timeoutMs = options.timeoutMs ?? 30_000;
   const stagingDir =
