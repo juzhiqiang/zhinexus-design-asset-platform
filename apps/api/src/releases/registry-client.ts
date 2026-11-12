@@ -5,8 +5,16 @@ import { parseNpmArchive } from '../uploads/artifact-parser.js';
 
 export type RegistryConfig = { origin: string; token: string };
 export type PackageIdentity = Pick<PackageRef, 'name' | 'version'>;
-type Metadata = { name: string; version: string; dependencies?: Record<string, string>; dist: { tarball: string; integrity?: string; shasum?: string } };
+type Metadata = { name: string; version: string; dependencies?: Record<string, string>; peerDependencies?: Record<string, string>; dist: { tarball: string; integrity?: string; shasum?: string } };
 export const digestBytes = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
+export function dependenciesOf(pkg: { dependencies?: Record<string, string>; peerDependencies?: Record<string, string> }): Record<string, string> {
+  const result: Record<string, string> = Object.create(null) as Record<string, string>;
+  for (const group of [pkg.dependencies ?? {}, pkg.peerDependencies ?? {}]) for (const [name, version] of Object.entries(group)) {
+    if (result[name] && result[name] !== version) throw new PlatformError('ARTIFACT_MISMATCH');
+    result[name] = version;
+  }
+  return result;
+}
 const identity = (ref: PackageIdentity) => {
   if (!/^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(ref.name) ||
     !/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?$/.test(ref.version)) throw new PlatformError('ARTIFACT_MISMATCH');
@@ -20,7 +28,7 @@ export function orderPackages(packages: PackageRef[]): PackageRef[] {
     if (visiting.has(pkg.name)) throw new PlatformError('ARTIFACT_MISMATCH');
     if (done.has(pkg.name)) return;
     visiting.add(pkg.name);
-    for (const [name, version] of Object.entries(pkg.dependencies)) {
+    for (const [name, version] of Object.entries(dependenciesOf(pkg))) {
       const candidate = pending.get(name);
       if (candidate) { if (candidate.version !== version) throw new PlatformError('ARTIFACT_MISMATCH'); visit(candidate); }
     }
@@ -89,9 +97,13 @@ export class RegistryClient {
       const archive = parseNpmArchive(artifact.bytes);
       const manifest = JSON.parse(new TextDecoder().decode(archive.get('package.json'))) as Record<string, unknown>;
       if (manifest.name !== ref.name || manifest.version !== ref.version) throw new Error();
-      const dependencies = manifest.dependencies ?? {};
-      if (typeof dependencies !== 'object' || dependencies === null || Array.isArray(dependencies) || Object.values(dependencies).some(value => typeof value !== 'string')) throw new Error();
-      return { ...meta, dependencies: dependencies as Record<string, string> };
+      for (const field of ['dependencies', 'peerDependencies']) {
+        const values = manifest[field] ?? {};
+        if (typeof values !== 'object' || values === null || Array.isArray(values) || Object.values(values).some(value => typeof value !== 'string')) throw new Error();
+      }
+      const result = { ...meta, dependencies: (manifest.dependencies ?? {}) as Record<string, string>, peerDependencies: (manifest.peerDependencies ?? {}) as Record<string, string> };
+      dependenciesOf(result);
+      return result;
     } catch { throw new PlatformError('CONFLICT'); }
   }
   async verifyPackage(ref: PackageRef): Promise<void> {
@@ -102,7 +114,7 @@ export class RegistryClient {
     if (seen.size + active.size >= 100) throw new PlatformError('LIMIT_EXCEEDED');
     active.add(key);
     const meta = await this.verify(ref); if (!meta) throw new PlatformError('UPLOAD_INCOMPLETE');
-    for (const [name, version] of Object.entries(meta.dependencies ?? {})) if (name.startsWith('@company/')) await this.verifyDependencies({ name, version }, seen, active);
+    for (const [name, version] of Object.entries(dependenciesOf(meta))) if (name.startsWith('@company/')) await this.verifyDependencies({ name, version }, seen, active);
     active.delete(key); seen.add(key);
   }
   async ensurePackage(ref: PackageRef, bytes: Uint8Array, candidateTag: string): Promise<{ status: 'published' | 'already-identical'; integrity: string }> {
@@ -133,5 +145,18 @@ export class RegistryClient {
     await this.verifyPackage(ref);
     const response = await this.request(`/-/package/${encodeURIComponent(ref.name)}/dist-tags/latest`, 'PUT', ref.version);
     if (response.status < 200 || response.status >= 300) throw new PlatformError('INFRA_UNAVAILABLE');
+  }
+  async latest(name: string): Promise<string | undefined> {
+    identity({ name, version: '0.0.0' });
+    const response = await this.request(`/-/package/${encodeURIComponent(name)}/dist-tags`);
+    if (response.status === 404) return undefined;
+    if (response.status !== 200) throw new PlatformError('INFRA_UNAVAILABLE');
+    try {
+      const tags = JSON.parse(new TextDecoder().decode(response.bytes)) as Record<string, unknown>;
+      if (!tags || typeof tags !== 'object' || Array.isArray(tags)) throw new Error();
+      if (tags.latest === undefined) return undefined;
+      if (typeof tags.latest !== 'string') throw new Error();
+      identity({ name, version: tags.latest }); return tags.latest;
+    } catch { throw new PlatformError('INFRA_UNAVAILABLE'); }
   }
 }

@@ -72,3 +72,9 @@
 - [ ] README、API README、分工/实施计划追加当前结果，新建 `docs/verification/t06-release-worker-2026-11-12.md`。
 - [ ] 平台根与 API 兼容功能升到 0.0.2，CHANGELOG 独立中文升版提交。
 - [ ] 检查 main 干净及并行变更，合并后运行相关验证，报告提交与外部缺口；不 push。
+
+## 实施补充：真实注册表边界
+
+Verdaccio 7.1.0 的 `@verdaccio/store/build/lib/storage-utils.mjs` 中 normalizePackage 在缺 latest 时按版本排序补出 latest。初始发布请求严格仅含 candidate tag，但首次包 metadata 的默认版本仍可在 Ready 前可见；这属于原计划已区分的注册表读权限边界，客户端无法通过删除 tag 消除合成值。平台以 Ready 控制目录/推荐，未新增注册表访问网关。
+
+默认 tag 的 HTTP 请求无法携带 PostgreSQL fencing token，因此单靠 advisory lock 不承诺外部线性一致。按独立审查补充：目标选最高 Ready SemVer，成功后每 60 秒读取核对实际值，失败 5 秒后重试；旧请求晚到可恢复，短暂偏离仍可能存在。预发布按既有 SemVer 优先级排序，不作为正式一期验收通过依据。

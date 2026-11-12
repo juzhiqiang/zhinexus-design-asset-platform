@@ -3,8 +3,8 @@ import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { realRegistry, workerHarness } from './t06-support.js';
 
-it('does not publish a framework package before its missing company dependency becomes reachable', async () => {
-  const h = await workerHarness(fixture => { fixture.manifest.packages[0]!.dependencies['@company/t06-absent-dependency'] = '0.0.1'; });
+it.each(['dependencies', 'peerDependencies'] as const)('does not publish a framework package before its missing company %s becomes reachable', async field => {
+  const h = await workerHarness(fixture => { fixture.manifest.packages[0]![field]['@company/t06-absent-dependency'] = '0.0.1'; });
   try {
     const registry = await realRegistry(); const publish = vi.spyOn(registry, 'ensurePackage');
     await new ReleaseWorker(h.db, h.store, registry).runOnce(h.jobId);
@@ -29,7 +29,9 @@ it('atomically registers Ready, preserves manual evidence and queues indexing an
     expect((await h.db.query('SELECT count(*) FROM baseline_heads')).rows[0]!.count).toBe('0');
     expect((await h.db.query('SELECT state FROM release_outbox')).rows).toEqual([{ state: 'pending' }]);
     expect((await h.db.query('SELECT applied_generation FROM release_tags')).rows.every(r => r.applied_generation === '0')).toBe(true);
-    const failedTag = vi.spyOn(registry, 'promote').mockRejectedValueOnce(new Error('sensitive upstream message'));
+    // Verdaccio 7.1.0 synthesizes latest on reads when a new package has only a candidate tag.
+    expect(await registry.latest(h.fixture.manifest.packages[0]!.name)).toBe('0.0.1');
+    const failedTag = vi.spyOn(registry, 'latest').mockRejectedValueOnce(new Error('sensitive upstream message'));
     await worker.tags.runOnce(); failedTag.mockRestore();
     expect((await h.db.query('SELECT state FROM release_jobs')).rows[0]!.state).toBe('READY');
     expect((await h.db.query('SELECT last_error FROM release_tags WHERE last_error IS NOT NULL')).rows).toEqual([{ last_error: 'INFRA_UNAVAILABLE' }]);

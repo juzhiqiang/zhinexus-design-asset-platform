@@ -47,10 +47,10 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 - 最终私有对象位于 `releases/<jobId>/<原相对路径>`，完整映射存于 release_artifacts；条件 PUT 只允许首次写，恢复时核对相同摘要。已接受作业不受原上传会话到期影响。
 - npm 先按依赖拓扑发布 core，再发布框架包；使用同一 tarball 的 npm HTTP 协议，不执行 npm 脚本。先写 candidate-<jobId> tag；已有版本必须下载真实字节核对，相同则继续，不同进入 CONFLICT。
 - Ready 前核对全部文件、预览入口、包字节和公司依赖；READY_TX 恢复时重新检查。Ready 同事务写包/实现/任务状态、审计、release_outbox 和 release_tags。报告来源、基线确认和索引状态不受 Ready 推断。
-- 默认 latest tag 在 Ready 后独立更新，失败保留待办；每包使用 PostgreSQL 会话 advisory lock 串行更新，目标变化重新读取。tag 和索引失败不会倒退 Ready；release_outbox 的索引消费者属于后续任务。
+- 默认 latest tag 在 Ready 后独立协调，目标选择最高 Ready SemVer（预发布按 SemVer 排序，Ready 不代表正式投产验收）；旧版本晚完成不会下调目标。每包使用 PostgreSQL 会话 advisory lock 串行更新，成功后每 60 秒重检实际值，失败 5 秒后再试。npm 不提供 tag CAS，超时旧请求可能晚到，重检负责恢复，存在短暂不一致窗口；不是严格线性一致。tag 和索引失败不会倒退 Ready；release_outbox 的索引消费者属于后续任务。
 - 可恢复错误进入 RETRY_WAIT，默认自动重试 5 次（5/15/45/120/300 秒 ±20% 抖动），耗尽后等待人工 retry；进程连续崩溃同样限制接管次数。人工 retry 重置自动预算，保留 attempt 总计与原检查点。
 - 同版本异摘要为 CONFLICT，确定性材料错误为 REJECTED，两者不能用 retry 绕过；修正需新版本/新材料。UPLOAD_INCOMPLETE 表示缺资源/依赖，GET 作业的 missingArtifacts 给出关联材料路径。外部错误正文和凭证不会写入作业错误。
-- 精确 npm 版本可能在 Ready 前已经可下载；目录/推荐仍须按 Ready 控制。这是 npm 可见性边界，不能声称注册表天然隐藏 candidate 版本。
+- 精确 npm 版本可能在 Ready 前已经可下载。实测 Verdaccio 7.1.0 在首次包只有 candidate tag 时，读取 metadata/dist-tags 会自动补出 latest（store 的 normalizePackage 逻辑）；平台发布请求仍仅写 candidate，首次包的默认安装同样不能靠 tag 隐藏。目录/推荐须按 Ready 控制；若需注册表层隐藏所有未 Ready 包，需要另立读权限/网关需求。
 
 迁移目录按顺序、事务和摘要检查执行；不得修改已应用 SQL。程序化空库回滚仅用于测试，拒绝任何有业务数据的库。部署前备份数据库，在测试环境演练向前迁移；迁移后应用回退不能假设 schema 自动回退。
 

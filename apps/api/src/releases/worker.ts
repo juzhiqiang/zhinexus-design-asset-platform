@@ -6,9 +6,10 @@ import { enqueueReady } from '../index/outbox.js';
 import { ReleaseLeases, type ReleaseLease } from './leases.js';
 import { ReleaseArtifacts } from './artifact-store.js';
 import { checkAvailability } from './availability.js';
-import { orderPackages, type RegistryClient } from './registry-client.js';
+import { dependenciesOf, orderPackages, type RegistryClient } from './registry-client.js';
 import { requireCheckpoint } from './state-machine.js';
 import { ReleaseTags } from './tags.js';
+import { compareVersions } from './version-order.js';
 
 class MissingArtifacts extends PlatformError {
   constructor(readonly paths: string[]) { super('UPLOAD_INCOMPLETE'); }
@@ -50,7 +51,7 @@ export class ReleaseWorker {
         case 'ENSURE_PACKAGES':
           for (const pkg of orderPackages(lease.manifest.packages)) {
             checkHeartbeat(); await this.leases.assert(lease);
-            for (const [name, version] of Object.entries(pkg.dependencies)) if (name.startsWith('@company/')) {
+            for (const [name, version] of Object.entries(dependenciesOf(pkg))) if (name.startsWith('@company/')) {
               try { await this.registry.verifyDependencies({ name, version }); }
               catch (error) { if (error instanceof PlatformError && error.code === 'UPLOAD_INCOMPLETE') throw new MissingArtifacts([pkg.tarball.path]); throw error; }
             }
@@ -94,10 +95,14 @@ export class ReleaseWorker {
         WHERE s.job_id=$1 AND a.job_id=s.job_id AND a.path=s.metadata->'image'->>'path'`, [lease.id]);
       await enqueueReady(sql, lease.id);
       // Rows are locked in a stable name order by concurrent Ready transactions.
-      await sql.query(`INSERT INTO release_tags(name,package_release_id)
-        SELECT name,id FROM package_releases WHERE job_id=$1 ORDER BY name
-        ON CONFLICT(name) DO UPDATE SET package_release_id=EXCLUDED.package_release_id,
-          generation=release_tags.generation+1,next_attempt_at=clock_timestamp(),updated_at=clock_timestamp()`, [lease.id]);
+      const packages = (await sql.query('SELECT id,name,version FROM package_releases WHERE job_id=$1 ORDER BY name', [lease.id])).rows;
+      for (const pkg of packages) {
+        await sql.query('INSERT INTO release_tags(name,package_release_id) VALUES ($1,$2) ON CONFLICT(name) DO NOTHING', [pkg.name, pkg.id]);
+        const current = (await sql.query(`SELECT p.version FROM release_tags t JOIN package_releases p ON p.id=t.package_release_id
+          WHERE t.name=$1 FOR UPDATE OF t`, [pkg.name])).rows[0]!;
+        if (compareVersions(pkg.version, current.version) > 0) await sql.query(`UPDATE release_tags SET package_release_id=$2,
+          generation=generation+1,next_attempt_at=clock_timestamp(),updated_at=clock_timestamp() WHERE name=$1`, [pkg.name, pkg.id]);
+      }
       await sql.query(`UPDATE release_jobs SET state='READY',stage='READY',lease_until=NULL,last_error=NULL,
         missing_artifacts='[]',next_attempt_at=NULL,updated_at=clock_timestamp() WHERE id=$1`, [lease.id]);
       await audit(sql, lease.subject, 'RELEASE_READY', lease.id, { manifestDigest: (await sql.query('SELECT manifest_digest FROM release_jobs WHERE id=$1', [lease.id])).rows[0].manifest_digest });
