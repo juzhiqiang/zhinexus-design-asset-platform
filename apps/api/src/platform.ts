@@ -6,7 +6,7 @@ import { audit, type RequestContext } from './db/access.js';
 import { ArtifactStore, type StorageConfig } from './storage/artifact-store.js';
 import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
-import { validatePreviewConfig, type PreviewConfig } from '@company/contracts';
+import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 
 export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig };
 export function environmentOptions(): PlatformOptions {

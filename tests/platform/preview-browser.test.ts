@@ -58,6 +58,11 @@ it('isolates active preview HTML from platform credentials, network, top navigat
           try { await navigator.serviceWorker.register('/preview/line-vue/worker.js'); probe.worker=true; } catch {}
           window.__probe=probe; document.body.dataset.ready='yes';
         </script></body></html>`));
+      const oldPath = 'preview/line-vue/index.html'; const newPath = 'preview/line-vue/图表.HTML';
+      fixture.files.set(newPath, fixture.files.get(oldPath)!); fixture.files.delete(oldPath);
+      for (const file of fixture.manifest.files) if (file.path === oldPath) file.path = newPath;
+      const example = fixture.manifest.variants[0]!.examples[0]!;
+      example.previewEntry = newPath; example.previewFiles[0]!.path = newPath;
     }, { preview });
     await new ReleaseWorker(h.db, h.store, await realRegistry()).runOnce(h.jobId);
     const ids = (await h.db.query('SELECT id,variant_id FROM variant_releases')).rows;
@@ -77,14 +82,14 @@ it('isolates active preview HTML from platform credentials, network, top navigat
     expect(await frame.locator('body').evaluate(() => (window as unknown as { __probe: unknown }).__probe)).toEqual({ ownStorage: true, parentDOM: false, parentStorage: false, network: false, worker: false, cookies: '' });
     const childOrigin = new URL(bootstrapUrl).origin;
     const child = page.frames().find(f => f.url().startsWith(childOrigin))!;
-    expect(child.url()).toBe(`${childOrigin}/preview/line-vue/index.html`);
+    expect(child.url()).toBe(`${childOrigin}/preview/line-vue/%E5%9B%BE%E8%A1%A8.HTML`);
     const cookies = await context.cookies(childOrigin);
     expect(cookies.find(c => c.name === '__Host-preview')).toMatchObject({ httpOnly: true, secure: true, sameSite: 'None', domain: new URL(childOrigin).hostname });
     expect((await context.cookies(`https://r-${other}.preview.assets.test:${port}`)).some(c => c.name === '__Host-preview')).toBe(false);
     await frame.locator('#escape').click();
     expect(page.url()).toBe(`${preview.platformOrigin}/`); expect(apiRequests).toBe(0);
     await h.db.query("DELETE FROM component_permissions WHERE subject='alice'");
-    await child.goto(`${childOrigin}/preview/line-vue/index.html?after=revoked`);
+    await child.goto(`${childOrigin}/preview/line-vue/%E5%9B%BE%E8%A1%A8.HTML?after=revoked`);
     expect(await child.locator('body').textContent()).toBe('Preview unavailable');
   } finally {
     await browser?.close(); await gateway?.close(); await h?.close();

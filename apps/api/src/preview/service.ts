@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { previewOriginFor, validateApiMessage, type PreviewConfig, type ApiMessages } from '@company/contracts';
+import { validateApiMessage, type ApiMessages } from '@company/contracts';
+import { previewOriginFor, type PreviewConfig } from '@company/contracts/preview';
 import type { Database } from '../db/database.js';
 import { audit, uuid, type RequestContext } from '../db/access.js';
 import { PlatformError } from '../errors.js';

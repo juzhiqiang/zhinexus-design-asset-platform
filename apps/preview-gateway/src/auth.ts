@@ -1,6 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { Pool } from 'pg';
-import { previewOriginFor, validatePreviewConfig, type VariantRef, type PreviewConfig } from '@company/contracts';
+import type { VariantRef } from '@company/contracts';
+import { previewOriginFor, validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 import type { GatewayOptions } from './config.js';
 import { PreviewStorage } from './storage.js';
 import { PreviewDenied, resourcePath, resourceMime } from './path-policy.js';

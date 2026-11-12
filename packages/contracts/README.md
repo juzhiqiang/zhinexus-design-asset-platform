@@ -121,3 +121,5 @@ src/schemas.ts 和 src/api.ts 的结构定义生成 schemas/*.schema.json（2020
 修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/g1-contracts-2026-11-12.md、docs/superpowers/plans/2026-11-12-g1-review-g2-access.md。
 
 V1 评审通过后冻结字段/错误码；兼容可选字段明确同步调用方，不兼容修改升级 schemaVersion 并保留旧版解析策略。本包 private=true，版本仍 0.0.0；本次无对外业务端点/组件/CLI 功能发布，不触发公开包或平台升版。CLI 将来使用本包须内联运行时代码，不保留私有运行时依赖，并验证干净消费者。
+
+T07 兼容扩展（2026-11-12）：新增 variantReportsResponse，返回指定发布记录的检查报告；原有详情 DTO 保持不变。纯配置/路径策略通过独立 `@company/contracts/preview` 子路径提供 validatePreviewConfig、previewOriginFor、isArtifactPath，避免 CLI 固定内联根契约时引入预览部署逻辑。CLI 的 src/contracts/api.ts 由既有构建脚本同步，内容与契约源保持一致。

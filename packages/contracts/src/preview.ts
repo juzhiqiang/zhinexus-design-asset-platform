@@ -1,4 +1,7 @@
 import { getDomain } from 'tldts';
+import { artifactPath, validateSchema } from './schema.js';
+
+export function isArtifactPath(path: unknown): path is string { return validateSchema<string>(artifactPath, path).ok; }
 
 /** Deployment configuration, never inferred from a request Host or forwarding header. */
 export type PreviewConfig = { platformOrigin: string; apiOrigin: string; previewOrigin: string };

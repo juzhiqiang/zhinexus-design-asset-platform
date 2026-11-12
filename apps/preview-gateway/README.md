@@ -29,7 +29,7 @@ GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,tex
 2. 访问该地址一次性兑换 `__Host-preview` Cookie：`Secure; HttpOnly; SameSite=None; Path=/`，没有 Domain。303 跳转至第一示例入口，地址中不再含凭证。
 3. grant 及 session 共用签发起 5 分钟期限，不滑动续期；数据库只保存随机令牌 SHA-256。兑换具有事务锁，进程重启不丢会话。
 4. 所有 GET/HEAD 文件请求检查当前 Ready、组件 public/ACL、停用用户、grant 撤销与到期，其他方法返回 405。文件须位于该实现声明的 `previewFiles`，对象 key 必须属于同一发布 job；每次读取核对长度与摘要。兄弟实现、任意桶路径、文档和 tarball 不作为预览资源分发。
-5. 路径仅接受 ASCII 字母数字、点、下划线、横杠及目录分隔符，拒绝百分号编码、空段、`.`/`..`、反斜杠。HTML/JS/MJS/CSS/JSON/PNG/JPEG/SVG/WOFF/WOFF2/TXT 有固定 MIME；未支持类型失败关闭。预览单文件上限 50 MiB。
+5. URL 只解码一次，随后按共享契约校验逻辑路径；支持中文文件名，拒绝双重编码、编码分隔符、空段、`.`/`..`、反斜杠和非法设备名。常见 HTML/JS/CSS/JSON、图片、字体、WASM 使用准确 MIME，扩展名大小写不影响识别；其他已声明字节作为 application/octet-stream 分发，不声明可执行。预览单文件上限 50 MiB。
 
 响应始终 `no-store`、`no-referrer`、`nosniff`、`noindex`。CSP 允许同 origin 的脚本/样式及内联预构建代码，禁止 connect、子 iframe、worker、object、外部脚本和顶层导航权限；frame-ancestors 仅为配置的画廊。HTML/SVG 属于不可信代码，安全边界是独立注册域、每版本 origin 和 CSP sandbox。
 

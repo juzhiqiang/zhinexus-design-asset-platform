@@ -1,9 +1,10 @@
 import type { ArtifactRef, Framework, PackageRef, ReleaseManifestV1, ValidationResult, VariantRef } from './release-manifest.js';
 import type { ApiError } from './errors.js';
+import type { CheckReportV1 } from './reports.js';
 import { API_ERROR_CODES, CONTRACT_ERROR_CODES } from './errors.js';
 import { array, artifactPath, choice, hash, integer, object, text, timestamp, validateSchema } from './schema.js';
 import type { Schema } from './schema.js';
-import { artifactSchema, manifestSchema, packageSchema, variantSchema } from './schemas.js';
+import { artifactSchema, manifestSchema, packageSchema, variantSchema, reportSchema } from './schemas.js';
 import { validateManifest } from './validation.js';
 import type { ManifestValidationContext } from './validation.js';
 
@@ -24,6 +25,7 @@ export type ApiMessages = {
   componentsQuery: { framework?: Framework; category?: string; query?: string; page?: number; pageSize?: number };
   componentsResponse: { items: { componentId: string; variants: PublicVariantSummary[] }[]; page: number; pageSize: number; total: number };
   variantReleaseResponse: { variantReleaseId: string; variant: VariantRef; package: PackageRef; availability: 'Ready' | 'DEPRECATED'; reportSource: 'local-automatic' | 'manual-upload' | 'none'; baselineStatus: 'unconfirmed' | 'accepted' | 'incompatible'; indexStatus: 'pending' | 'indexed' | 'failed' };
+  variantReportsResponse: { variantReleaseId: string; reports: CheckReportV1[] };
   createBaselineRequest: { variantId: string; exampleId: string; environmentKey: string; screenshotId: string; reason: string; expectedRevision?: string };
   createBaselineResponse: { revisionId: string };
   deprecateRequest: { reason: string };
@@ -49,6 +51,7 @@ const schemas: Record<keyof ApiMessages, Schema> = {
   componentsQuery: object({ framework: choice('vue', 'react'), category: text, query: text, page: integer(1), pageSize: integer(1, 100) }, ['framework', 'category', 'query', 'page', 'pageSize']),
   componentsResponse: object({ items: array(object({ componentId: identifier, variants: array(object({ variantReleaseId: identifier, variantId: identifier, framework: choice('vue', 'react'), packageName: packageSchema.properties!.name!, packageVersion: packageSchema.properties!.version! }), 1) })), page: integer(1), pageSize: integer(1, 100), total: integer() }),
   variantReleaseResponse: object({ variantReleaseId: identifier, variant: variantSchema, package: packageSchema, availability: choice('Ready', 'DEPRECATED'), reportSource: choice('local-automatic', 'manual-upload', 'none'), baselineStatus: choice('unconfirmed', 'accepted', 'incompatible'), indexStatus: choice('pending', 'indexed', 'failed') }),
+  variantReportsResponse: object({ variantReleaseId: identifier, reports: array(reportSchema) }),
   createBaselineRequest: object({ variantId: identifier, exampleId: identifier, environmentKey: hash, screenshotId: identifier, reason: text, expectedRevision: identifier }, ['expectedRevision']),
   createBaselineResponse: object({ revisionId: identifier }),
   deprecateRequest: object({ reason: text }),

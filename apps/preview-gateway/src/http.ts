@@ -12,6 +12,7 @@ export function previewHandler(runtime: PreviewRuntime) {
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
     response.setHeader('Content-Security-Policy', `default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self'; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors ${runtime.config?.platformOrigin ?? "'none'"}; sandbox allow-scripts allow-same-origin`);
     try {
+      if (!runtime.config) throw new PreviewDenied();
       if (request.method !== 'GET' && request.method !== 'HEAD') { response.statusCode = 405; response.setHeader('Allow', 'GET, HEAD'); response.end(); return; }
       const raw = request.url ?? ''; const path = resourcePath(raw);
       if (path === 'bootstrap') {
@@ -20,7 +21,7 @@ export function previewHandler(runtime: PreviewRuntime) {
         if (raw.split('?').length !== 2 || [...query.keys()].length !== 1 || !query.has('grant')) throw new PreviewDenied();
         const redeemed = await runtime.redeem(query.get('grant')!, request.headers.host);
         response.setHeader('Set-Cookie', `__Host-preview=${redeemed.token}; Path=/; Max-Age=${Math.max(0, Math.floor((redeemed.expires.getTime() - Date.now()) / 1000))}; Secure; HttpOnly; SameSite=None`);
-        response.statusCode = 303; response.setHeader('Location', `/${redeemed.entry}`); response.end(); return;
+        response.statusCode = 303; response.setHeader('Location', `/${redeemed.entry.split('/').map(encodeURIComponent).join('/')}`); response.end(); return;
       }
       const result = await runtime.resource(path, sessionToken(request.headers.cookie), request.headers.host);
       response.statusCode = 200; response.setHeader('Content-Type', result.mime); response.setHeader('Content-Length', result.bytes.length);

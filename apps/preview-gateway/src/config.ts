@@ -1,4 +1,4 @@
-import type { PreviewConfig } from '@company/contracts';
+import type { PreviewConfig } from '@company/contracts/preview';
 export type StorageConfig = { endpoint: string; region: string; bucket: string; accessKeyId: string; secretAccessKey: string };
 export type GatewayOptions = { databaseUrl?: string; storage?: StorageConfig; preview?: PreviewConfig };
 export function environmentOptions(): GatewayOptions {
