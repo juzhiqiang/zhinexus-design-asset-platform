@@ -71,7 +71,7 @@
 - [x] 独立整分支代码审查，重要问题 RED→GREEN 修复；原始架构摘要检查。
 - [x] README、API README、分工/实施计划追加当前结果，新建 `docs/verification/t06-release-worker-2026-11-12.md`。
 - [x] 平台根与 API 兼容功能升到 0.0.2，CHANGELOG 独立中文升版提交。
-- [ ] 检查 main 并行变更并保留无关修改，合并后运行相关验证，报告提交与外部缺口；不 push。
+- [x] 检查 main 并行变更并保留无关修改，合并后运行相关验证，报告提交与外部缺口；不 push。合并 `4c48869`，main 平台 35/35、注册表 14/14 复验通过，详见 [验证记录](../../verification/t06-release-worker-2026-11-12.md)。
 
 ## 实施补充：真实注册表边界
 
