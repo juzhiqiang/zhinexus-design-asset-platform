@@ -9,7 +9,7 @@ import { migrateRegistry } from '../../apps/api/dist/db/migrate.js';
 import { ArtifactStore } from '../../apps/api/dist/storage/artifact-store.js';
 import { isolatedDatabase, localCredentials } from './support.js';
 
-export async function platformHarness() {
+export async function platformHarness(overrides: Record<string, unknown> = {}) {
   const isolated = await isolatedDatabase();
   const db = new Database(isolated.url);
   await migrateRegistry(db);
@@ -21,7 +21,7 @@ export async function platformHarness() {
   const keys = await generateKeyPair('RS256');
   const jwk = { ...await exportJWK(keys.publicKey), kid: 'test-key', alg: 'RS256', use: 'sig' };
   const oidc = { issuer: 'https://issuer.t05.test', audience: 'platform-api', jwksUri: 'https://issuer.t05.test/jwks', webClientIds: ['web'], cliClientIds: ['cli'] };
-  const options = { databaseUrl: isolated.url, storage, oidc, keyResolver: createLocalJWKSet({ keys: [jwk] }) };
+  const options = { databaseUrl: isolated.url, storage, oidc, keyResolver: createLocalJWKSet({ keys: [jwk] }), ...overrides };
   let app = await buildServer(options);
   await app.listen(0, '127.0.0.1');
   let origin = await app.getUrl();
@@ -29,7 +29,7 @@ export async function platformHarness() {
     .setProtectedHeader({ alg: 'RS256', kid: 'test-key' }).setIssuer(oidc.issuer).setAudience(oidc.audience)
     .setSubject(subject).setIssuedAt().setExpirationTime('5m').sign(keys.privateKey);
   return {
-    db, store, token, platform: () => app.get(Platform),
+    db, store, token, options, platform: () => app.get(Platform),
     request: (path: string, body: unknown, auth?: string, method = 'POST', extra: Record<string, string> = {}) => fetch(`${origin}${path}`, {
       method, headers: { 'content-type': 'application/json', ...(auth ? { authorization: `Bearer ${auth}` } : {}), ...extra },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(30_000),

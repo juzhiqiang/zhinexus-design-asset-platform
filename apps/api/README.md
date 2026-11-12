@@ -56,7 +56,7 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 
 ## HTTP
 
-所有业务请求使用 `Authorization: Bearer <access token>`。JSON 请求最大 8 MiB，响应错误结构为 `{code,message,details,requestId}`。角色拒绝 403，他人私有会话/作业返回 404 并记录拒绝审计。
+写操作、用户态目录和预览授权使用 `Authorization: Bearer <access token>`；T07 公开目录和公开详情允许匿名读取。JSON 请求最大 8 MiB，响应错误结构为 `{code,message,details,requestId}`。角色拒绝 403，他人私有会话/作业返回 404 并记录拒绝审计。
 
 | 接口 | 行为 |
 | --- | --- |
@@ -67,6 +67,20 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 | POST /v1/releases/:id/retry | 仅 RETRY_WAIT 且租约已释放的作业进入 PENDING，保留发布检查点 |
 | POST /v1/baselines | maintainer + 组件权限；服务端 screenshotId、variant/example/environment、reason、更新时 expectedRevision |
 | POST /v1/variant-releases/:id/deprecate | maintainer + 组件权限；仅已有 Ready 版本，必须提供 reason |
+| GET /v1/components | 仅公开 Ready 目录；framework/category/query/page/pageSize，默认 1/20，pageSize 最大 100；先过滤再分页，每实现取最高 Ready SemVer |
+| GET /v1/variants/:id/releases/:version | 精确版本公开详情；包、API、文档、截图、示例与兼容记录来自同一 variant_release；废弃详情保留标识，不在目录推荐 |
+| GET /v1/variants/:id/releases/:version/artifacts?path=... | 仅该实现的 docs/API/截图；文档为 text/plain，禁止执行 HTML；不返回预览文件或 tarball |
+| GET /v1/variants/:id/releases/:version/reports | 当前 job/variant 的完整检查记录；manual-upload 无报告时返回空数组；对应 /v1/me/ 路径支持私有访问 |
+| GET /v1/variant-releases/:releaseId | 推荐入口：直接使用目录返回的 variantReleaseId；支持 /artifacts?path=... 与 /reports，以及 /v1/me/ 私有路径 |
+| GET /v1/me/components | 已登录目录；角色与组件 ACL；不进入 SSR/ISR 共享缓存 |
+| GET /v1/me/variants/:id/releases/:version | 已登录精确详情；支持相同的 /artifacts 子路径 |
+| POST /v1/preview-grants | `{variantReleaseId}` → `{bootstrapUrl,expiresAt}`；5 分钟一次性授权，详见网关 README |
+
+所有 API 响应 `Cache-Control: no-store`。公开入口即使携带 Bearer 也只返回公开 DTO；私有入口加 `X-Robots-Tag: noindex, nofollow`，还需 B 在页面 SSR/metadata/sitemap 层落实隔离。Ready、reportSource、baselineStatus、indexStatus 四个状态独立；公开 DTO 不包含操作者、上传会话、对象 key 或存储凭证。
+
+迁移 005 增加 `components.category`（默认 uncategorized）、`component_permissions.can_read` 和 `disabled_subjects`；读取私有组件需要 reader/publisher/maintainer 角色及该组件 can_read/can_publish/can_maintain。停用主体会拒绝所有需登录的 API，并立即阻断其预览资源；OIDC 角色撤销需由公司身份同步器同时停用主体/撤销授权，该外部接入仍待验收。
+
+`components.public` 默认 false，上传 manifest 无法自行公开。当前没有审批 UI，可信管理员须在同一事务中维护 public/category/ACL/disabled_subjects 并向 audit_events 写入操作者、目标和理由；撤回公开后新请求即时生效，B 必须同步清理旧 ISR 页面及 sitemap。迁移 006 增加预览授权表，网关配置、最小权限和日志脱敏见 [预览网关接入](../preview-gateway/README.md)。
 
 会话 24 小时，签名 URL 15 分钟。超过 URL 有效期可新建会话重传；目前没有刷新签名 URL 接口。会话绑定 subject/client/channel，complete 重试不会生成另一份已完成材料。冻结副本不接受客户端覆盖，同包同版本不能被另一个作业重新占用。
 
@@ -81,3 +95,5 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 真实公司 OIDC/PKCE/撤权、独立预览域和生产容量尚未验收。T06 本地恢复测试使用真实三存储，完整 SDK 发布使用历史 0.0.2 冻结样本；两类新消费者验证精确注册表安装，未重新执行该历史版本浏览器截图。CLI 当前 Bundle 的 preview HTML 为占位内容，文件可达不会据此宣称 T07 在线预览可用。
 
 合并最新 SDK 后的接入边界：SDK 0.0.3 新增 ./pie，而 CLI 的 Bundle 入口目前仍只生成 line/bar 材料，该输入会被 T05 正确拒绝。正向回归保留实际验证过的 0.0.2 冻结样本；当前 SDK 必须由 B 补齐 pie 的双框架材料后才能完整提交，不允许删除 API 的逐导出覆盖检查。
+
+T07 精确定位补充：同一 variant 换包名后可能存在同号版本。B 应以目录返回的 variantReleaseId 调用 `/v1/variant-releases/:releaseId` 及材料/报告子资源；旧 variantId/version 路径仅在唯一时可用，多条匹配返回 CONFLICT，不随意选择材料。当前 SDK 已到 0.0.4（line/bar/pie/scatter 八实现）；B 仍需同步已合入 T06，并提供该版本完整冻结材料和真实画廊联调证据。

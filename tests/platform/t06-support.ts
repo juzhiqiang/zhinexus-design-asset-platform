@@ -20,8 +20,8 @@ export async function realRegistry() {
   return new RegistryClient({ origin: 'http://127.0.0.1:14873', token: await registryToken() });
 }
 /** Unique protocol-test packages: never labeled as real chart/browser evidence. */
-export async function workerHarness(configure?: (fixture: Awaited<ReturnType<typeof createValidBundle>>) => void) {
-  const fixture = await createValidBundle(); const prefix = `@company/t06-${randomUUID()}`;
+export async function workerHarness(configure?: (fixture: Awaited<ReturnType<typeof createValidBundle>>) => void, overrides: Record<string, unknown> = {}, channel: 'web'|'cli' = 'web') {
+  const fixture = await createValidBundle(channel); const prefix = `@company/t06-${randomUUID()}`;
   for (const [i, pkg] of fixture.manifest.packages.entries()) {
     const oldName = pkg.name; pkg.name = `${prefix}-${i}`;
     for (const variant of fixture.manifest.variants) if (variant.packageName === oldName) variant.packageName = pkg.name;
@@ -29,8 +29,8 @@ export async function workerHarness(configure?: (fixture: Awaited<ReturnType<typ
   }
   configure?.(fixture);
   if (configure) for (const [i, pkg] of fixture.manifest.packages.entries()) replaceBundleArtifact(fixture, pkg.tarball.path, await packageBytes(fixture, i));
-  const h = await platformHarness();
-  await grant(h); const token = await h.token();
+  const h = await platformHarness(overrides);
+  await grant(h); const token = await h.token('alice', ['publisher'], channel);
   for (const pkg of fixture.manifest.packages) await h.db.query("INSERT INTO package_permissions(subject,package_name) VALUES ('alice',$1)", [pkg.name]);
   const body = await upload(h, fixture, token);
   const response = await release(h, body, token); expect(response.status).toBe(202);

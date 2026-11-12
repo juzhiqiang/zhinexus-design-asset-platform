@@ -141,3 +141,5 @@ flowchart LR
 2026-11-12 C 的本地 T05 开发已经形成可运行 API 与真实 SDK 上传证据，交接入口为 [API 接入](../../../apps/api/README.md) 和 [T05 验证](../../verification/t05-platform-http.md)。下一开工点是 C 的 T06 协调器、B 的真实上传/状态调用与注册表适配；完整 T05/G2 仍需公司 OIDC/PKCE/撤权及独立预览域证据，不能将 PENDING 登记当作已发布。
 
 T13–T14（二期档案检索、设计稿匹配）为 28–42 开发人日，依赖一期 Ready 目录、真实 API/截图和评估集；T15–T17（三期识别、接入、验证/MCP）为 35–50 人日，依赖二期可验证装配方案及真实项目。三人当前不排入年底承诺；一期通过后再按实际人员分配，避免与 T04/T06/T11 争抢关键资源。
+
+2026-11-12 T07交接：C的目录/详情/报告/材料及静态预览网关已在feat/t07-catalog-preview完成本地验证。B应先保存当前feat/t04-t06-release-registry的未提交改动，再同步main已完成的T06，保留CLI工作并复用C的worker/registry-client；画廊按目录variantReleaseId接入，不能用含歧义的包版本别名拼接材料。C没有覆盖B工作区。A继续T09场景组件；B补当前SDK0.0.4八实现材料及画廊，C后续配合真实OIDC/独立域验收。接口及完整证据见 [T07 C验证](../../verification/t07-catalog-preview-2026-11-12.md)。

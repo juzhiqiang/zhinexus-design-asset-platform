@@ -6,11 +6,14 @@ import { audit, type RequestContext } from './db/access.js';
 import { ArtifactStore, type StorageConfig } from './storage/artifact-store.js';
 import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
+import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig };
 export function environmentOptions(): PlatformOptions {
   const env = process.env;
   const result: PlatformOptions = {};
+  if (env.PLATFORM_PREVIEW_ORIGIN) result.preview = { previewOrigin: env.PLATFORM_PREVIEW_ORIGIN,
+    platformOrigin: env.PLATFORM_GALLERY_ORIGIN ?? '', apiOrigin: env.PLATFORM_API_ORIGIN ?? '' };
   if (env.PLATFORM_DATABASE_URL) result.databaseUrl = env.PLATFORM_DATABASE_URL;
   if (env.PLATFORM_S3_ENDPOINT) result.storage = {
     endpoint: env.PLATFORM_S3_ENDPOINT, bucket: env.PLATFORM_S3_BUCKET ?? '', region: env.PLATFORM_S3_REGION ?? 'us-east-1',
@@ -28,7 +31,9 @@ export class Platform {
   readonly db?: Database;
   readonly store?: ArtifactStore;
   readonly uploads?: UploadService;
+  readonly preview?: PreviewConfig;
   constructor(options: PlatformOptions) {
+    if (options.preview) this.preview = validatePreviewConfig(options.preview);
     this.verifier = new OidcVerifier(options.oidc, options.keyResolver);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
@@ -41,6 +46,7 @@ export class Platform {
       principal = await this.verifier.verify(authorization);
       requireRole(principal, action);
       if (!this.db || !this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
+      if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
       return await operation({ principal, requestId }, this.uploads, this.db);
     } catch (error) {
       const code = error instanceof PlatformError && error.authorizationDenied ? 'FORBIDDEN'
