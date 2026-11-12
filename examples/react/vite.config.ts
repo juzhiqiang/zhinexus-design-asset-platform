@@ -9,6 +9,7 @@ export default defineConfig({
         index: 'index.html',
         bar: 'bar.html',
         pie: 'pie.html',
+        scatter: 'scatter.html',
       },
     },
   },

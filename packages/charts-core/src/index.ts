@@ -16,6 +16,8 @@ export type {
   PieChartOption,
   PointClickListener,
   Renderer,
+  ScatterChartConfig,
+  ScatterChartOption,
   SupportedOptionOverrides,
   ThemeName,
   UnitSpec,
@@ -28,6 +30,7 @@ export type { ChartTheme } from './theme.js';
 export { buildBarOption } from './charts/bar.js';
 export { buildLineOption } from './charts/line.js';
 export { buildPieOption, pieTotal } from './charts/pie.js';
+export { buildScatterOption } from './charts/scatter.js';
 export { createChartController } from './controller.js';
 
 import { version } from 'echarts/core.js';

@@ -5,6 +5,7 @@ import type {
   LegendComponentOption,
   LineSeriesOption,
   PieSeriesOption,
+  ScatterSeriesOption,
   TitleComponentOption,
   TooltipComponentOption,
   XAXisComponentOption,
@@ -24,7 +25,7 @@ export type ThemeName = 'light' | 'dark';
  * 图表类型联合（T09 起按图表扩展）：决定 option 构建与按需模块注册。
  * 控制器与框架层按该联合分发，不引入 `any` 或任意对象配置。
  */
-export type ChartType = 'line' | 'bar' | 'pie';
+export type ChartType = 'line' | 'bar' | 'pie' | 'scatter';
 
 /** 单个数据点。y 为 null 表示缺失值，共享核心禁止将其转换为 0。 */
 export type ChartPoint = { x: string | number; y: number | null };
@@ -87,7 +88,7 @@ export type BarChartConfig = ChartConfig & {
 };
 
 /** 控制器入口接受的图表配置联合。 */
-export type AnyChartConfig = LineChartConfig | BarChartConfig | PieChartConfig;
+export type AnyChartConfig = LineChartConfig | BarChartConfig | PieChartConfig | ScatterChartConfig;
 
 /**
  * 饼图 / 环形图配置：基础配置 + 饼图特有语义。
@@ -101,6 +102,19 @@ export type PieChartConfig = ChartConfig & {
    * 不影响数据、角度顺序、图例规则与占比口径。缺省为实心饼图。
    */
   donut?: boolean;
+};
+
+/**
+ * 散点图配置：基础配置 + 散点特有语义。
+ * `points[].x` 为数值轴坐标（必须为数值），`points[].y` 为数值；缺失值（null）该点不渲染。
+ */
+export type ScatterChartConfig = ChartConfig & {
+  /** 图表类型标识：必填判别字段，散点图不接受折线 / 柱状 / 饼图专属配置。 */
+  chart: 'scatter';
+  /** x 数值轴名称；x 轴标签按无单位格式化（unit 只描述 y 轴口径）。 */
+  xAxisName?: string;
+  /** y 数值轴名称。 */
+  yAxisName?: string;
 };
 
 /**
@@ -132,6 +146,9 @@ export type BarChartOption = ComposeOption<BarSeriesOption | ChartComponentOptio
 
 /** 饼图 / 环形图 option 类型：按入口注册的系列与组件联合（无坐标轴组件）。 */
 export type PieChartOption = ComposeOption<PieSeriesOption | ChartComponentOption>;
+
+/** 散点图 option 类型：按入口注册的系列与组件联合（双数值轴）。 */
+export type ScatterChartOption = ComposeOption<ScatterSeriesOption | ChartComponentOption>;
 
 /**
  * 图表控制器：双框架适配层共用的实例生命周期与事件入口。

@@ -103,10 +103,7 @@ export function createChartController(
       const event: ChartEvent = {
         seriesId: typeof params.seriesId === 'string' ? params.seriesId : '',
         dataIndex: typeof params.dataIndex === 'number' ? params.dataIndex : -1,
-        value: [
-          typeof params.name === 'string' || typeof params.name === 'number' ? params.name : '',
-          typeof params.value === 'number' ? params.value : null,
-        ],
+        value: eventValue(params),
         nativeType: rawEvent?.type ?? params.type,
       };
       for (const listener of [...pointClickListeners]) {
@@ -222,4 +219,23 @@ export function createChartController(
   }
 
   return { update, resize, setPresentation, onPointClick, whenRendered, getInstance, dispose };
+}
+
+/**
+ * 点击载荷的数值部分：散点图数据项为 `[x, y]` 数值对，params.value 即该数组，
+ * 原样进入载荷（`value: [x, y]`）；折线 / 柱状 / 饼图的 params.value 为单一数值，
+ * 载荷保持 `[名称, 数值]`。两条路径显式区分，避免把数值对压成名称或丢失坐标。
+ */
+function eventValue(params: { name?: unknown; value?: unknown }): [string | number, number | null] {
+  const raw = params.value;
+  if (Array.isArray(raw)) {
+    return [
+      typeof raw[0] === 'number' || typeof raw[0] === 'string' ? raw[0] : '',
+      typeof raw[1] === 'number' ? raw[1] : null,
+    ];
+  }
+  return [
+    typeof params.name === 'string' || typeof params.name === 'number' ? params.name : '',
+    typeof raw === 'number' ? raw : null,
+  ];
 }

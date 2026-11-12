@@ -2,6 +2,18 @@
 
 本文件记录 `@company/charts-vue` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.4] - 2026-11-12
+
+### Added
+
+- `ScatterChart` 散点图组件（SFC）：`data` / `config` / `optionOverrides` 属性与 `point-click` 事件，载荷为 `[x, y]` 数值对且与 React 实现对等（T09 第三批）。
+- `./scatter` 子路径入口（按需加载）与 `.charts-scatter` 容器基础样式。
+- `sameScatterConfig` 配置等价判断；自 `@company/charts-core` 重新导出 `ScatterChartConfig` 共享类型。
+
+### Changed
+
+- `useChart` 的 `chart` 参数接受 `'scatter'`；`LineChart` / `BarChart` / `PieChart`、既有子路径与既有导出行为不变。
+
 ## [0.0.3] - 2026-11-12
 
 ### Added

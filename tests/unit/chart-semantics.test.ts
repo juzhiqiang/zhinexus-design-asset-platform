@@ -5,6 +5,7 @@ import {
   buildBarOption,
   buildLineOption,
   buildPieOption,
+  buildScatterOption,
   collectCategories,
   formatPercent,
   formatValue,
@@ -14,6 +15,7 @@ import type {
   BarChartConfig,
   ChartData,
   PieChartConfig,
+  ScatterChartConfig,
   SupportedOptionOverrides,
 } from '../../packages/charts-core/src/index.js';
 
@@ -466,6 +468,215 @@ describe('饼图 / 环形图 option 构建', () => {
   it('同一数据重复构建得到等价 option', () => {
     const first = buildPieOption(pieSingle, { chart: 'pie', donut: true });
     const second = buildPieOption(pieSingle, { chart: 'pie', donut: true });
+    expect(serializable(first)).toEqual(serializable(second));
+  });
+});
+
+/** 散点图双系列：x 为数值轴坐标，y 为数值；含一个缺失值。 */
+const scatterTwoSeries: ChartData = {
+  series: [
+    {
+      id: 'revenue',
+      name: '收入',
+      points: [
+        { x: 1, y: 120 },
+        { x: 2, y: 180 },
+        { x: 3, y: null },
+        { x: 4, y: 200 },
+      ],
+    },
+    {
+      id: 'cost',
+      name: '成本',
+      points: [
+        { x: 1, y: 40 },
+        { x: 2, y: 60 },
+        { x: 3, y: 55 },
+        { x: 4, y: 80 },
+      ],
+    },
+  ],
+};
+
+/** 散点图单系列含负值：数值轴自行渲染零轴以下区域。 */
+const scatterWithNegative: ChartData = {
+  series: [
+    {
+      id: 'revenue',
+      name: '收入',
+      points: [
+        { x: 1, y: 120 },
+        { x: 2, y: -40 },
+        { x: 3, y: 60 },
+      ],
+    },
+  ],
+};
+
+describe('散点图 option 构建', () => {
+  it('系列类型为 scatter、id 稳定，数据项为 [x, y] 数值对', () => {
+    const option = buildScatterOption(scatterTwoSeries, { chart: 'scatter' });
+    expect(seriesOf(option).map((series) => [series.id, series.type])).toEqual([
+      ['revenue', 'scatter'],
+      ['cost', 'scatter'],
+    ]);
+    expect(seriesOf(option)[0]?.data).toEqual([
+      [1, 120],
+      [2, 180],
+      [3, null],
+      [4, 200],
+    ]);
+  });
+
+  it('双数值轴：x / y 均为 value 轴，不设置类目边界间距', () => {
+    const option = buildScatterOption(scatterTwoSeries, { chart: 'scatter' });
+    expect(axisOf(option, 'xAxis').type).toBe('value');
+    expect(axisOf(option, 'yAxis').type).toBe('value');
+    // 散点图没有类目轴，不得沿用柱状图的 boundaryGap: true
+    expect(axisOf(option, 'xAxis').boundaryGap).toBeUndefined();
+  });
+
+  it('空数据返回空系列、无图例，不产生 NaN', () => {
+    const option = buildScatterOption({ series: [] }, { chart: 'scatter' });
+    expect(seriesOf(option)).toEqual([]);
+    expect(JSON.stringify(option)).not.toContain('NaN');
+    expect((option as { legend?: unknown }).legend).toBeUndefined();
+  });
+
+  it('缺失值保留为 null 而不是 0，该点不渲染', () => {
+    const option = buildScatterOption(scatterTwoSeries, { chart: 'scatter' });
+    // “x=3” 的 y 缺失：数据项保持 [3, null]，ECharts 不渲染该符号
+    expect(seriesOf(option)[0]?.data?.[2]).toEqual([3, null]);
+    expect(JSON.stringify(seriesOf(option)[0]?.data)).toContain('[3,null]');
+    expect(JSON.stringify(option)).not.toContain('null,0');
+  });
+
+  it('负值原样进入数据项，由数值轴渲染零轴以下', () => {
+    const option = buildScatterOption(scatterWithNegative, { chart: 'scatter' });
+    expect(seriesOf(option)[0]?.data).toEqual([
+      [1, 120],
+      [2, -40],
+      [3, 60],
+    ]);
+    // 负值不得被 clamp 成 0，也不得取绝对值
+    expect(JSON.stringify(seriesOf(option)[0]?.data)).toContain('[2,-40]');
+    expect(axisOf(option, 'yAxis').type).toBe('value');
+  });
+
+  it('非数值 x 抛 ChartDataError，path 指向出错点', () => {
+    const invalid: ChartData = {
+      series: [{ id: 'a', name: '甲', points: [{ x: '周一', y: 1 }] }],
+    };
+    expect(() => buildScatterOption(invalid, { chart: 'scatter' })).toThrow(ChartDataError);
+    try {
+      buildScatterOption(invalid, { chart: 'scatter' });
+      expect.unreachable('应当抛出 ChartDataError');
+    } catch (error) {
+      expect((error as ChartDataError).path).toBe('series[0].points[0].x');
+    }
+  });
+
+  it('单位与缺失值格式化：y 轴与 tooltip 同一规则，x 轴不带单位', () => {
+    const unit = { suffix: '万元', decimals: 1 };
+    const option = buildScatterOption(scatterWithNegative, { chart: 'scatter', unit });
+    const xAxis = axisOf(option, 'xAxis') as { axisLabel: { formatter: (value: number) => string } };
+    const yAxis = axisOf(option, 'yAxis') as { axisLabel: { formatter: (value: number) => string } };
+    // unit 描述被度量的数值（y 轴口径，与折线 / 柱状一致）；x 轴只做千分位分组
+    expect(yAxis.axisLabel.formatter(-40)).toBe('-40.0万元');
+    expect(yAxis.axisLabel.formatter(-40)).toBe(formatValue(-40, unit));
+    expect(xAxis.axisLabel.formatter(1234)).toBe('1,234');
+    const tooltip = (option as { tooltip: { formatter: (params: unknown) => string } }).tooltip;
+    expect(tooltip.formatter({ seriesName: '收入', value: [1, 120] })).toBe('收入: (1, 120.0万元)');
+    expect(tooltip.formatter({ seriesName: '收入', value: [2, null] })).toBe('收入: (2, -)');
+  });
+
+  it('多系列才渲染图例，单系列不渲染', () => {
+    const multi = buildScatterOption(scatterTwoSeries, { chart: 'scatter' });
+    expect((multi as { legend?: unknown }).legend).toBeDefined();
+    const single = buildScatterOption(scatterWithNegative, { chart: 'scatter' });
+    expect((single as { legend?: unknown }).legend).toBeUndefined();
+  });
+
+  it('optionOverrides 对散点图合并 grid / tooltip / legend / xAxis / yAxis / title', () => {
+    const base = buildScatterOption(scatterTwoSeries, { chart: 'scatter', theme: 'dark' });
+    const patched = buildScatterOption(
+      scatterTwoSeries,
+      { chart: 'scatter', theme: 'dark' },
+      {
+        grid: { top: 8 },
+        tooltip: { trigger: 'item' },
+        legend: { orient: 'vertical' },
+        xAxis: { min: 0 },
+        yAxis: { max: 300 },
+        title: { text: '散点' },
+        color: ['#ff0000'],
+        renderer: 'svg',
+      } as unknown as SupportedOptionOverrides,
+    );
+    expect(patched.grid).toMatchObject({ top: 8, containLabel: true });
+    expect(patched.tooltip).toMatchObject({ trigger: 'item' });
+    expect(patched.legend).toMatchObject({ orient: 'vertical' });
+    expect((patched as { xAxis?: { min?: number } }).xAxis).toMatchObject({ min: 0 });
+    expect((patched as { yAxis?: { max?: number } }).yAxis).toMatchObject({ max: 300 });
+    expect((patched as { title?: { text?: string } }).title).toEqual({ text: '散点' });
+    // 调色板来自主题，overrides 无法注入；渲染器不属于 option
+    expect(patched.color).toEqual(base.color);
+    expect('renderer' in patched).toBe(false);
+  });
+
+  it('散点图与折线 / 柱状共用同一套数据规范化规则', () => {
+    const invalid: ChartData = {
+      series: [
+        { id: 'a', name: '甲', points: [{ x: 1, y: 1 }] },
+        { id: 'a', name: '甲 again', points: [] },
+      ],
+    };
+    expect(() => buildScatterOption(invalid, { chart: 'scatter' })).toThrow(ChartDataError);
+    expect(() =>
+      buildScatterOption({ series: [{ id: 'a', name: '甲', points: [{ x: 1, y: Number.NaN }] }] }, { chart: 'scatter' }),
+    ).toThrow(ChartDataError);
+    // 规范化不修改入参
+    const snapshot = JSON.stringify(scatterTwoSeries);
+    buildScatterOption(scatterTwoSeries, { chart: 'scatter' });
+    expect(JSON.stringify(scatterTwoSeries)).toBe(snapshot);
+  });
+
+  it('无 DOM 环境（SSR 导入）下构建 option 不访问浏览器全局', () => {
+    expect(typeof window).toBe('undefined');
+    const option = buildScatterOption(scatterTwoSeries, {
+      chart: 'scatter',
+      theme: 'dark',
+      renderer: 'svg',
+    });
+    expect(seriesOf(option)).toHaveLength(2);
+  });
+
+  it('坐标轴名称透传到 xAxis / yAxis', () => {
+    const option = buildScatterOption(scatterTwoSeries, {
+      chart: 'scatter',
+      xAxisName: '投入',
+      yAxisName: '收入',
+    });
+    expect(axisOf(option, 'xAxis').name).toBe('投入');
+    expect(axisOf(option, 'yAxis').name).toBe('收入');
+  });
+
+  it('散点图配置类型不接受折线 / 柱状 / 饼图专属字段', () => {
+    // 编译期约束的类型层断言：ScatterChartConfig 只有坐标轴名称两个专属字段
+    const scatter: ScatterChartConfig = {
+      chart: 'scatter',
+      xAxisName: '投入',
+      yAxisName: '收入',
+      unit: { suffix: '万元' },
+    };
+    expect(scatter.chart).toBe('scatter');
+    const option = buildScatterOption(scatterTwoSeries, scatter);
+    expect(seriesOf(option).map((series) => series.type)).toEqual(['scatter', 'scatter']);
+  });
+
+  it('同一数据重复构建得到等价 option', () => {
+    const first = buildScatterOption(scatterTwoSeries, { chart: 'scatter', unit: { suffix: '%' } });
+    const second = buildScatterOption(scatterTwoSeries, { chart: 'scatter', unit: { suffix: '%' } });
     expect(serializable(first)).toEqual(serializable(second));
   });
 });
