@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vue 饼图 / 环形图示例</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 24px; color: #263044; }
+      #app { width: 760px; }
+      .toolbar { display: flex; gap: 8px; margin-bottom: 16px; }
+      .toolbar button { padding: 6px 12px; border: 1px solid #cbd5e1; border-radius: 6px; background: #fff; cursor: pointer; }
+      .toolbar button.active { border-color: #3b82f6; color: #1d4ed8; }
+      .chart-frame { width: 720px; height: 360px; border: 1px solid #e2e8f0; }
+      .clicks pre { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 6px; }
+      footer pre { color: #64748b; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script type="module" src="/src/pie-main.ts"></script>
+  </body>
+</html>

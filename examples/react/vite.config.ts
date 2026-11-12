@@ -8,6 +8,7 @@ export default defineConfig({
       input: {
         index: 'index.html',
         bar: 'bar.html',
+        pie: 'pie.html',
       },
     },
   },
