@@ -86,10 +86,14 @@ function chartInstance(selector: string) {
   return host ? getInstanceByDom(host) : null;
 }
 
-/** 数据项数值：折线 / 柱状为裸数值，饼图为 { name, value }。 */
+/** 数据项数值：折线 / 柱状为裸数值，饼图为 { name, value }，散点图为 [x, y] 数值对（取 y）。 */
 function rawValue(item: unknown): number | null {
   if (typeof item === 'number') {
     return item;
+  }
+  if (Array.isArray(item)) {
+    // 散点图数据项 [x, y]：取 y；y 缺失（null）保持缺失，禁止写成 0
+    return typeof item[1] === 'number' ? item[1] : null;
   }
   if (item && typeof item === 'object' && 'value' in item) {
     const value = (item as { value?: unknown }).value;
@@ -236,15 +240,17 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
         return null;
       }
       const series = (instance.getOption().series as { data?: unknown[] }[] | undefined) ?? [];
-      const value = rawValue(series[seriesIndex]?.data?.[dataIndex]);
+      const item = series[seriesIndex]?.data?.[dataIndex];
+      const value = rawValue(item);
       if (value === null) {
         return null;
       }
-      // 直角坐标系图表（折线 / 柱状）：按类目与数值换算像素
+      // 直角坐标系图表（折线 / 柱状 / 散点）：按类目或数值换算像素
       const categories =
         (instance.getOption().xAxis as { data?: unknown[] }[] | undefined)?.[0]?.data ?? [];
-      const category = categories[dataIndex];
-      const x = instance.convertToPixel({ xAxisIndex: 0 }, category as string);
+      // 散点图数据项自带 x 坐标（[x, y]）；折线 / 柱状按类目轴取 x
+      const xSource = Array.isArray(item) ? item[0] : categories[dataIndex];
+      const x = instance.convertToPixel({ xAxisIndex: 0 }, xSource as number);
       const y = instance.convertToPixel({ yAxisIndex: 0 }, value);
       const rect = host.getBoundingClientRect();
       if (
