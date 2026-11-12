@@ -2,6 +2,27 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.6] - 2026-11-13
+
+### Added
+
+- 排行榜（ranking，T09 第五批「组合场景」）：图表类型联合新增 `'ranking'`、`RankingChartConfig` / `RankingChartOption` / `RankingEntry` / `RankingDirection`，以及 `buildRankingOption` option 构建与 `computeRanking` 纯函数。
+- 排行榜语义：单系列横向条形，默认按数值降序（`direction: 'asc'` 反向）；并列（数值相同）共享名次，采用竞赛排名 1,2,2,4，并列项之间保持原始输入顺序；缺失值（null）不进入排行也不占用名次；`limit` 取前 N 名且名次在截断前计算；负值原样参与排行；名次写进类目轴标签（`1. 条目`）；统计行展示条目总数，被截断时说明取前几名；空数据显示「暂无数据」、无系列、不产生 NaN。
+- 占比（proportion，T09 第五批「组合场景」）：图表类型联合新增 `'proportion'`、`ProportionChartConfig` / `ProportionChartOption` / `ProportionShare`，以及 `buildProportionOption` option 构建与 `computeProportionShares` 纯函数。
+- 占比语义：单系列横向条形，条目顺序保持输入顺序（占比场景不排序，需要排序时用排行榜）；占比 = 值 / 全部条目非缺失值之和，缺失值不参与分母；总量为零（全零或全缺失）时展示「暂无数据」、无系列、不产出 `NaN%`；负值没有占比语义抛 `ChartDataError`；总量行展示参与占比的合计值；不在组件内猜业务指标口径。
+- 共享数据工具 `sumDefinedValues`（非缺失值之和）与单系列 / 条目名称唯一性守卫 `assertSingleSeries` / `assertUniqueNames`：多系列与同名条目在类目轴场景下没有定义，明确抛 `ChartDataError` 而不是静默丢弃或互相覆盖。
+
+### Changed
+
+- `createChartController` 的配置联合新增 `RankingChartConfig` 与 `ProportionChartConfig`；排行榜与占比按需注册 `BarChart` + 网格 / 提示 / `Graphic` 组件 + 指定渲染器（单系列不需要图例），不注册其他图表模块。
+- `ChartType` 联合新增 `'ranking'` 与 `'proportion'`；`buildChartOption` / `chartTypeOf` 增加对应分发分支，既有图表行为不变。
+- `pieTotal` 改为复用 `sumDefinedValues`，计算口径不变（缺失值不补 0、不进入分母）。
+- 趋势卡片的 graphic 槽位辅助逻辑提取到 `charts/scene-slots.ts`（`textSlot` / `hiddenSlot` / `EMPTY_DISPLAY` / `mutedColor`），供排行榜与占比复用；槽位 id、`ignore` 纪律与渲染结果不变。
+
+### Fixed
+
+- 排行榜与占比的数值摘要同样使用固定顺序的稳定 graphic 槽位（`ranking-title` / `ranking-meta` / `ranking-empty` 与 `proportion-title` / `proportion-total` / `proportion-empty`），未使用的槽位以 `ignore: true` 隐藏、可见槽位显式 `ignore: false`，避免状态切换时残留上一次的摘要文本。
+
 ## [0.0.5] - 2026-11-12
 
 ### Added

@@ -2,6 +2,17 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.6] - 2026-11-13
+
+### Added
+
+- `prepareReleaseBundle` 支持排行榜（ranking）与占比（proportion）组件：`ComponentName` 增加 `'ranking'` / `'proportion'`，默认 `components` 覆盖 line / bar / pie / scatter / trend-card / ranking / proportion 七项，为每个组件生成确定截图、CheckReportV1 报告、API 元数据与文档 Markdown，共 14 个变体（T09 第五批）。SDK 0.0.6 导出 `./ranking` 与 `./proportion` 子路径后，平台逐导出覆盖校验会以 `ARTIFACT_MISMATCH` 拒绝未声明这两个子路径的 Bundle。
+
+### Changed
+
+- `COMPONENT_ENTRY_HTML` 与 `COMPONENT_EXPORT` 两张查表补 ranking / proportion 两项（`Ranking`「排行榜」/ `Proportion`「占比」，入口分别为 `ranking.html` / `proportion.html`）。
+- `captureExample` 的容器尺寸探测选择器链补 `.charts-ranking` 与 `.charts-proportion`。
+
 ## [0.0.5] - 2026-11-13
 
 ### Added

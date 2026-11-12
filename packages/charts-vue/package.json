@@ -1,6 +1,6 @@
 {
   "name": "@company/charts-vue",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "private": false,
   "type": "module",
   "files": [
@@ -35,6 +35,14 @@
     "./trend-card": {
       "types": "./dist/trend-card.d.ts",
       "import": "./dist/trend-card.js"
+    },
+    "./ranking": {
+      "types": "./dist/ranking.d.ts",
+      "import": "./dist/ranking.js"
+    },
+    "./proportion": {
+      "types": "./dist/proportion.d.ts",
+      "import": "./dist/proportion.js"
     },
     "./style.css": "./dist/style.css"
   },
