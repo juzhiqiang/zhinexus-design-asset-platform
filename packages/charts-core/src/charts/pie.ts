@@ -1,4 +1,4 @@
-import { ChartDataError, normalizeChartData } from '../data.js';
+import { ChartDataError, normalizeChartData, sumDefinedValues } from '../data.js';
 import { formatPercent, formatValue } from '../format.js';
 import { PIE_OVERRIDE_KEYS, applySupportedOverrides } from './option-overrides.js';
 import { resolveTheme } from '../theme.js';
@@ -82,15 +82,7 @@ export function buildPieOption(
 
 /** 饼图总量：全部系列非缺失值之和；缺失值不补 0，也不进入分母。 */
 export function pieTotal(data: ChartData): number {
-  let total = 0;
-  for (const series of data.series) {
-    for (const point of series.points) {
-      if (point.y !== null) {
-        total += point.y;
-      }
-    }
-  }
-  return total;
+  return data.series.reduce((total, series) => total + sumDefinedValues(series), 0);
 }
 
 /** 负值拒绝：饼图角度没有负值语义，path 指向出错点，便于调用方定位。 */

@@ -1,6 +1,8 @@
 import { buildBarOption } from './bar.js';
 import { buildLineOption } from './line.js';
 import { buildPieOption } from './pie.js';
+import { buildProportionOption } from './proportion.js';
+import { buildRankingOption } from './ranking.js';
 import { buildScatterOption } from './scatter.js';
 import { buildTrendCardOption } from './trend-card.js';
 import type {
@@ -13,6 +15,10 @@ import type {
   LineChartOption,
   PieChartConfig,
   PieChartOption,
+  ProportionChartConfig,
+  ProportionChartOption,
+  RankingChartConfig,
+  RankingChartOption,
   ScatterChartConfig,
   ScatterChartOption,
   SupportedOptionOverrides,
@@ -22,7 +28,7 @@ import type {
 
 /**
  * 解析配置的图表类型：缺省按折线图处理（兼容 T02/T03 既有调用方）。
- * 柱状图、饼图、散点图与趋势卡片配置的 `chart` 为必填判别字段，因此不会误判。
+ * 柱状图、饼图、散点图、趋势卡片、排行榜与占比配置的 `chart` 为必填判别字段，因此不会误判。
  */
 export function chartTypeOf(config: AnyChartConfig | undefined): ChartType {
   if (config?.chart === 'bar') {
@@ -36,6 +42,12 @@ export function chartTypeOf(config: AnyChartConfig | undefined): ChartType {
   }
   if (config?.chart === 'trend-card') {
     return 'trend-card';
+  }
+  if (config?.chart === 'ranking') {
+    return 'ranking';
+  }
+  if (config?.chart === 'proportion') {
+    return 'proportion';
   }
   return 'line';
 }
@@ -71,19 +83,45 @@ export function buildChartOption(
   config: TrendCardConfig,
   optionOverrides?: SupportedOptionOverrides,
 ): TrendCardOption;
+export function buildChartOption(
+  chart: 'ranking',
+  data: ChartData,
+  config: RankingChartConfig,
+  optionOverrides?: SupportedOptionOverrides,
+): RankingChartOption;
+export function buildChartOption(
+  chart: 'proportion',
+  data: ChartData,
+  config: ProportionChartConfig,
+  optionOverrides?: SupportedOptionOverrides,
+): ProportionChartOption;
 /** 类型未收窄时（如控制器按运行期联合分发）返回 option 联合。 */
 export function buildChartOption(
   chart: ChartType,
   data: ChartData,
   config: AnyChartConfig,
   optionOverrides?: SupportedOptionOverrides,
-): LineChartOption | BarChartOption | PieChartOption | ScatterChartOption | TrendCardOption;
+):
+  | LineChartOption
+  | BarChartOption
+  | PieChartOption
+  | ScatterChartOption
+  | TrendCardOption
+  | RankingChartOption
+  | ProportionChartOption;
 export function buildChartOption(
   chart: ChartType,
   data: ChartData,
   config: AnyChartConfig,
   optionOverrides?: SupportedOptionOverrides,
-): LineChartOption | BarChartOption | PieChartOption | ScatterChartOption | TrendCardOption {
+):
+  | LineChartOption
+  | BarChartOption
+  | PieChartOption
+  | ScatterChartOption
+  | TrendCardOption
+  | RankingChartOption
+  | ProportionChartOption {
   if (chart === 'bar') {
     return buildBarOption(data, config as BarChartConfig, optionOverrides);
   }
@@ -95,6 +133,12 @@ export function buildChartOption(
   }
   if (chart === 'trend-card') {
     return buildTrendCardOption(data, config as TrendCardConfig, optionOverrides);
+  }
+  if (chart === 'ranking') {
+    return buildRankingOption(data, config as RankingChartConfig, optionOverrides);
+  }
+  if (chart === 'proportion') {
+    return buildProportionOption(data, config as ProportionChartConfig, optionOverrides);
   }
   return buildLineOption(data, config as LineChartConfig, optionOverrides);
 }

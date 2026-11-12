@@ -91,3 +91,45 @@ export function alignSeriesValues(
 function categoryKey(x: string | number): string {
   return `${typeof x}:${String(x)}`;
 }
+
+/** 非缺失值之和：缺失值（null）不补 0，也不进入分母。 */
+export function sumDefinedValues(series: ChartSeries): number {
+  let total = 0;
+  for (const point of series.points) {
+    if (point.y !== null) {
+      total += point.y;
+    }
+  }
+  return total;
+}
+
+/**
+ * 单系列场景守卫：排行榜与占比的语义是「一组条目」，多系列没有定义，
+ * 因此明确失败，而不是静默丢弃后续系列让调用方误以为已全部参与。
+ */
+export function assertSingleSeries(data: ChartData, scene: string): void {
+  if (data.series.length > 1) {
+    throw new ChartDataError(
+      `${scene}只接受单系列输入（每个条目对应一个数据点，多系列没有定义）`,
+      'series[1]',
+    );
+  }
+}
+
+/**
+ * 条目名称唯一性守卫：类目轴上重复名称会落在同一个类目位，导致条目互相覆盖。
+ * 并列指的是「数值相同」，名称仍必须可区分。
+ */
+export function assertUniqueNames(series: ChartSeries, seriesPath: string): void {
+  const seen = new Set<string>();
+  series.points.forEach((point, index) => {
+    const key = categoryKey(point.x);
+    if (seen.has(key)) {
+      throw new ChartDataError(
+        `条目名称重复: ${String(point.x)}（类目轴上同名条目会互相覆盖）`,
+        `${seriesPath}.points[${index}].x`,
+      );
+    }
+    seen.add(key);
+  });
+}
