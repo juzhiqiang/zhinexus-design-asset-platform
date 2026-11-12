@@ -5,7 +5,7 @@ import { PlatformError } from '../errors.js';
 
 export type ReleaseLease = {
   id: string; subject: string; manifest: ReleaseManifestV1; upload_session_id: string;
-  fencing_token: string; stage: PublishingCheckpoint; attempt: number; retry_count: number;
+  fencing_token: string; stage: PublishingCheckpoint; attempt: number; retry_count: number; request_id?: string;
 };
 const delays = [5, 15, 45, 120, 300];
 export class ReleaseLeases {
@@ -31,6 +31,7 @@ export class ReleaseLeases {
         lease_until=clock_timestamp()+($2::double precision * interval '1 millisecond'),next_attempt_at=NULL,
         updated_at=clock_timestamp() FROM candidate c WHERE j.id=c.id RETURNING j.*`, [jobId ?? null, this.leaseMs]);
       const lease = result.rows[0];
+      if (lease) lease.request_id = (await sql.query("SELECT request_id FROM audit_events WHERE event='RELEASE_CREATED' AND target_id=$1 ORDER BY created_at LIMIT 1", [lease.id])).rows[0]?.request_id;
       if (lease) await audit(sql, lease.subject, 'RELEASE_CLAIMED', lease.id, { attempt: lease.attempt, fencingToken: lease.fencing_token });
       return lease;
     });

@@ -10,6 +10,7 @@ import { dependenciesOf, orderPackages, type RegistryClient } from './registry-c
 import { requireCheckpoint } from './state-machine.js';
 import { ReleaseTags } from './tags.js';
 import { compareVersions } from './version-order.js';
+import { PlatformEvents } from '../observability/events.js';
 
 class MissingArtifacts extends PlatformError {
   constructor(readonly paths: string[]) { super('UPLOAD_INCOMPLETE'); }
@@ -18,13 +19,14 @@ export class ReleaseWorker {
   readonly leases: ReleaseLeases;
   readonly artifacts: ReleaseArtifacts;
   readonly tags: ReleaseTags;
-  constructor(private readonly db: Database, store: ArtifactStore, private readonly registry: RegistryClient, leaseMs = 60_000) {
+  constructor(private readonly db: Database, store: ArtifactStore, private readonly registry: RegistryClient, leaseMs = 60_000, readonly events = new PlatformEvents()) {
     this.leases = new ReleaseLeases(db, leaseMs);
     this.artifacts = new ReleaseArtifacts(db, store, this.leases);
     this.tags = new ReleaseTags(db, registry);
   }
   async runOnce(jobId?: string): Promise<boolean> {
     const lease = await this.leases.claim(jobId); if (!lease) return false;
+    this.events.emit({ event: 'RELEASE_CLAIMED', taskId: lease.id, requestId: lease.request_id, stage: lease.stage, attempt: lease.attempt });
     let stopped = false; let renewal: Promise<void> | undefined; let timer: ReturnType<typeof setTimeout> | undefined;
     let renewalFailed = false;
     const schedule = () => { timer = setTimeout(() => {
@@ -34,6 +36,8 @@ export class ReleaseWorker {
     try {
       await this.advanceRelease(lease, () => { if (renewalFailed) throw new PlatformError('LEASE_LOST'); });
     } catch (error) {
+      this.events.emit({ event: 'RELEASE_FAILED', taskId: lease.id, requestId: lease.request_id, stage: lease.stage, attempt: lease.attempt,
+        code: error instanceof PlatformError ? error.code : 'INFRA_UNAVAILABLE' });
       if (!(error instanceof PlatformError && error.code === 'LEASE_LOST')) {
         try { await this.leases.fail(lease, error instanceof PlatformError ? error.code : 'INFRA_UNAVAILABLE', error instanceof MissingArtifacts ? error.paths : []); }
         catch (failure) { if (!(failure instanceof PlatformError && failure.code === 'LEASE_LOST')) throw failure; }
@@ -44,6 +48,8 @@ export class ReleaseWorker {
   async advanceRelease(lease: ReleaseLease, checkHeartbeat: () => void = () => {}): Promise<void> {
     while (true) {
       checkHeartbeat(); await this.leases.assert(lease);
+      const stage = requireCheckpoint(lease.stage); const started = performance.now(); let outcome: 'success'|'failure' = 'failure';
+      try {
       switch (requireCheckpoint(lease.stage)) {
         case 'FINALIZE_OBJECTS':
           await this.artifacts.finalize(lease);
@@ -69,7 +75,14 @@ export class ReleaseWorker {
         case 'READY_TX':
           // A prior successful availability check may precede a process outage.
           await this.available(lease); checkHeartbeat();
-          await this.ready(lease); return;
+          await this.ready(lease); outcome = 'success'; return;
+      }
+      outcome = 'success';
+      } finally {
+        const detail = { stage, attempt: lease.attempt, outcome, durationMs: performance.now() - started };
+        this.events.emit({ event: 'RELEASE_STAGE', taskId: lease.id, requestId: lease.request_id, ...detail });
+        // Best effort telemetry; stdout remains available if PostgreSQL is unavailable.
+        await audit(this.db, lease.subject, 'RELEASE_STAGE', lease.id, detail, lease.request_id).catch(() => {});
       }
     }
   }
