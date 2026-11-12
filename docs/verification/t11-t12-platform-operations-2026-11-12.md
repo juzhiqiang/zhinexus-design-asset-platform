@@ -83,3 +83,9 @@ fresh-context reviewer只读审查 `617e967..f4f355b`，发现1项Important：�
 - 修复后的部署静态验证通过；缺外部环境的environment模式按预期退出1。无延期审查问题；不重复派审查代理，以RED→GREEN及整套回归验证修复。
 
 新生产拓扑若与本次严格部署检查不一致，需同步审查并修改检查器；不能用静态检查通过替代身份/TLS/镜像内容的目标环境验收。
+
+## 最终合并待办（并行工作区占用）
+
+升版后 `build:services` 与bootstrap/deployment/backup入口9项测试通过。尝试切换main时，Git报告该分支已被 `D:/project/zhinexus-design-asset-platform` 占用。检查确认B工作区还有暂存及持续变化的未暂存内容；为保留其工作，未使用强制检出、stash、reset或底层ref修改绕过Git。
+
+T07已合并的main仍为 `617e967`；C功能代码和验证记录均在 `feat/t11-t12-platform-operations` 提交完成。最终合并需待B保存进度并释放main，或其工作区干净且无冲突时按原授权执行；如果main新增B提交，必须检查真实合并树并补相关回归。此次没有push。主分支合并步骤暂未勾选完成。
