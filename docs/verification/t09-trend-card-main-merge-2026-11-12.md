@@ -6,25 +6,21 @@
 
 ## 1. 合并前的冲突预检
 
-合并在独立 worktree `feat/t09-trend-merge`（建于 outputs scratch 目录）中进行，未触碰主工作树。合并时 `main` 已从分支基线 `3bbf687` 前进到 `9fe210f`（T04 完整发布材料与 T06 注册表适配发布闭环已合入），因此重新做了冲突预检：
+合并在独立 worktree 中进行，未触碰主工作树。**合并前 main 又前进了一次**：分支基线是 `3bbf687`，第一次预检时 main 在 `9fe210f`（T04 / T06 已合入），真正合并前 main 已到 `89d2511`（T07 画廊前端 UI 与隔离预览交互已合入）。两次都重新做了冲突预检：
 
-- `merge-base(main, feat/t09-trend)` = `3bbf687`。
+- `merge-base(main, feat/t09-trend)` = `3bbf687`（两次相同）。
 - `git diff --name-only 3bbf687 main` 与 `git diff --name-only 3bbf687 feat/t09-trend` 求交集，得 **2 个文件**：`tests/consumers/vue/vite.config.ts` 与 `tests/consumers/react/vite.config.ts`。
 - 逐文件比对两侧 diff：main 侧只在配置对象顶部加 `base: './'`，T09 侧只在 `rollupOptions.input` 里加 `'trend-card': 'trend-card.html'`，**两块改动不相交**，判定可三方干净合并。
 - 两侧均无删除文件（`--diff-filter=D` 为空），因此源码同步可以用 tar 覆盖而不必清理旧文件。
+- T07 的 14 个文件与分支改动**零交集**，因此第二次合并同样无冲突。
 
 ## 2. 合并执行与结果核对
 
-```
-git worktree add -b feat/t09-trend-merge <scratch> main
-git merge --no-ff feat/t09-trend -m "merge: 合并 T09 第四批趋势卡片与四类图表交接材料到 main"
-```
+第一次合并在 worktree 分支 `feat/t09-trend-merge` 上完成，产出合并提交 `a925248`（父 `9fe210f` + `928eac1`），零冲突。随后 main 前进到 `89d2511`，为避免在历史里留下第二个合并节点，改在 worktree 分支 `feat/t09-trend-main` 上把 `feat/t09-trend-merge` 合入新 main，得到**最终合并提交 `8439a8d`**（父 `89d2511` + `3d34325`）。两次合并均按既有纪律做了三项核对：
 
-合并提交 `a925248`，父提交 `9fe210f`（合并前 main）与 `928eac1`（分支尖端），**零冲突、零未合并路径**。按既有纪律做了三项核对：
-
-- **非空核对**（防历史空合并事故）：`git diff --name-only 9fe210f a925248` 得 **52 个文件**，非空。
+- **非空核对**（防历史空合并事故）：`git diff --name-only 89d2511 8439a8d` 得 **58 个文件**，非空。
 - **双侧改动都在位**：两个消费者 `vite.config.ts` 中 `base: './'`（main 侧）与 `'trend-card': 'trend-card.html'`（T09 侧）同时存在。
-- **对方交付未被回退**：T04/T06 的 `packages/component-cli/src/local/manifest.ts`、`tests/unit/release-bundle.test.ts`、`tests/integration/cli-bundle.test.ts` 均在位，`ComponentName` 已由 B 扩展到 `'line' | 'bar' | 'pie' | 'scatter'`。
+- **对方交付未被回退**：T04/T06 的 `packages/component-cli/src/local/manifest.ts`、`tests/unit/release-bundle.test.ts`、`tests/integration/cli-bundle.test.ts` 与 T07 的 `apps/gallery/app/lib/catalog.ts`、`CatalogViewer.tsx`、`tests/browser/gallery-rendering.spec.ts` 均在位；三个 SDK 包版本均为 0.0.5。
 
 ## 3. 合并结果上的全图验证
 
@@ -81,6 +77,26 @@ ARTIFACT_MISMATCH: npm runtime component subpath has no declared implementation
 
 唯一剩余失败仍是第 3.1 节的 infra 依赖，与代码无关。按既有顺序约束，`test:browser` 会清空 `test-results/`，因此先跑浏览器测试、再单独跑消费者 vitest 文件以恢复打包体积基线。
 
+## 4.1 component-cli 版本与 CHANGELOG
+
+`component-cli` 从 0.0.4 升至 0.0.5（0.x 兼容变更按规则升 PATCH），新增 `CHANGELOG.md` 的 `[0.0.5]` 条目。锁文件不受影响：`pnpm-lock.yaml` 对 workspace importer 只记录依赖、不记录自身版本，`pnpm install --frozen-lockfile` 实测通过。
+
+## 4.2 最终提交上的全图验证
+
+main 前进到 `89d2511` 后重新合并，并在最终提交上重跑全图（该提交含 T07 画廊改动，因此浏览器计数比分支期多 3 项）：
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | 锁文件与 `package.json` 一致，无变化 |
+| `pnpm exec tsx scripts/verify-workspace.ts` | Workspace verified: 10 members, no cycles, four publishable shells, safe service graph |
+| `pnpm build` | 10 tasks successful |
+| `pnpm typecheck` | 14 tasks successful + 根 `tsc -p tsconfig.json --noEmit` 通过 |
+| `pnpm test` | 24 passed / **1 failed** / 1 skipped，**538 passed** / 4 skipped |
+| `pnpm test:browser` | **89 passed** |
+| `packed-consumer-frameworks` + `packed-consumer` | 9 + 1 = 10 passed |
+
+三个 SDK 包 tarball 摘要与第 5 节表格完全一致，未因 `component-cli` 升版变化。唯一失败仍为第 3.1 节的 infra 依赖。
+
 ## 5. 候选 tarball 摘要复核（含一处勘误）
 
 三个 SDK 包的 `package.json` 与 `CHANGELOG.md` 在分支与合并结果间 blob 完全一致，因此重新打包核对：
@@ -97,7 +113,14 @@ ARTIFACT_MISMATCH: npm runtime component subpath has no declared implementation
 
 ## 6. 合并后状态与未覆盖边界
 
-- **`main` 尚未快进**：合并提交 `a925248` 与修复提交 `70138d2` 都在 `feat/t09-trend-merge` 分支上。合并前主工作树停在别人的分支且带有未提交改动，因此全程未在主工作树执行任何 git 操作；主工作树恢复干净并停在 `main` 后，需要由仓库负责人在主工作树执行 `git merge --ff-only feat/t09-trend-merge` 完成快进。
+- **`main` 尚未快进**：最终合并提交 `8439a8d` 在 worktree 分支 `feat/t09-trend-main` 上（其第二父提交链为 `a925248` → `93f31c6` → `70138d2` → `3d34325`，即分支期成果 + 缺陷修复 + 验证记录）。全程未在主工作树执行任何 git 操作——两次动手前主工作树分别停在别人的分支且带有未提交改动、以及带有未提交的 `apps/gallery/app/globals.css`，因此按 `AGENTS.md` 未代为快进。需要由仓库负责人在主工作树执行：
+
+  ```
+  git merge --ff-only feat/t09-trend-main
+  ```
+
+  主工作树当前有未提交改动，执行前请先确认其状态；快进后 `feat/t09-trend`、`feat/t09-trend-merge`、`feat/t09-trend-main` 三个分支与两个 scratch worktree 均可清理（提交已进 main 历史）。
 - `tests/platform/**` 被 `vitest.config.ts` 排除在 `pnpm test` 之外，只在 `test:infra` 就绪后由 `test:platform` 运行；本次对 `tests/platform/http-support.ts` 的改动（`grant` seed trend-card）**未能在本环境实测**，需在 infra 就绪后复跑 `test:platform` 确认。
+- `tests/integration/cli-release.test.ts` 同样受 infra 限制，本次只做了组件清单与变体数的机械同步，其在 infra 就绪后的通过情况待验。
 - Windows 开发机原生确认（`.\scripts\verify.ps1`）仍未执行；趋势卡片与散点图的原生复验清单分别见 [T09 第四批](t09-trend-card-windows-native.md) 与 [T09 第三批](t09-scatter-windows-native.md)。
 - T09 后续批次（ranking / proportion）按同一模式扩展；新增图表子路径时的固定动作（SDK 子路径 + CLI 两张查表 + 三处测试清单）已记入 [图表组件与材料交接清单第 7 节](t09-chart-component-handover.md)。
