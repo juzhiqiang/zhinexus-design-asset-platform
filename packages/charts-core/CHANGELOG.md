@@ -2,6 +2,19 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.3] - 2026-11-12
+
+### Added
+
+- 饼图 / 环形图：图表类型联合新增 `'pie'`、`PieChartConfig` 与 `PieChartOption`，以及 `buildPieOption` option 构建（T09 第二批）。
+- `pieTotal` 饼图总量计算（缺失值不补 0、不进入分母）与 `formatPercent` 占比格式化（固定 1 位小数；总量不可算或值缺失时返回 `null`，不产出 `NaN%`）。
+- 饼图语义：一个系列对应一圈，多系列为同心嵌套环且外环在前；缺失值保持 `null` 且该扇形不渲染；负值没有占比语义，抛 `ChartDataError`；空数据返回空系列、无图例、不抛错；`donut` 只从内侧预留外半径 50% 的内孔；tooltip 与标签共用同一占比口径；多系列才渲染图例。
+- `optionOverrides` 对饼图只深层合并 `tooltip` / `legend` / `title`（无坐标轴，`grid` / `xAxis` / `yAxis` 合并不生效）。
+
+### Changed
+
+- `createChartController` 的配置联合新增 `PieChartConfig`；饼图按需注册 `PieChart` + 提示 / 图例 / 标题组件，不注册坐标轴组件。
+
 ## [0.0.2] - 2026-11-12
 
 ### Added
