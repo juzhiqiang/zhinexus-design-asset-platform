@@ -1,4 +1,7 @@
 export type {
+  AnyChartConfig,
+  BarChartConfig,
+  BarChartOption,
   ChartComponentOption,
   ChartConfig,
   ChartController,
@@ -6,6 +9,7 @@ export type {
   ChartEvent,
   ChartPoint,
   ChartSeries,
+  ChartType,
   LineChartConfig,
   LineChartOption,
   PointClickListener,
@@ -19,6 +23,7 @@ export { ChartDataError, alignSeriesValues, collectCategories, normalizeChartDat
 export { MISSING_VALUE_DISPLAY, formatValue } from './format.js';
 export { darkTheme, lightTheme, resolveTheme } from './theme.js';
 export type { ChartTheme } from './theme.js';
+export { buildBarOption } from './charts/bar.js';
 export { buildLineOption } from './charts/line.js';
 export { createChartController } from './controller.js';
 

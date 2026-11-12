@@ -1,5 +1,6 @@
 import type { ComposeOption, EChartsType } from 'echarts/core.js';
 import type {
+  BarSeriesOption,
   GridComponentOption,
   LegendComponentOption,
   LineSeriesOption,
@@ -17,6 +18,12 @@ export type Renderer = 'canvas' | 'svg';
 
 /** 主题：内置 light / dark。 */
 export type ThemeName = 'light' | 'dark';
+
+/**
+ * 图表类型联合（T09 起按图表扩展）：决定 option 构建与按需模块注册。
+ * 控制器与框架层按该联合分发，不引入 `any` 或任意对象配置。
+ */
+export type ChartType = 'line' | 'bar';
 
 /** 单个数据点。y 为 null 表示缺失值，共享核心禁止将其转换为 0。 */
 export type ChartPoint = { x: string | number; y: number | null };
@@ -57,6 +64,8 @@ export type ChartConfig = {
 
 /** 折线图配置：基础配置 + 折线特有语义。 */
 export type LineChartConfig = ChartConfig & {
+  /** 图表类型标识；缺省视为 'line'，兼容 T02/T03 既有调用方。 */
+  chart?: 'line';
   smooth?: boolean;
   /** 是否填充面积。 */
   area?: boolean;
@@ -65,6 +74,19 @@ export type LineChartConfig = ChartConfig & {
   xAxisName?: string;
   yAxisName?: string;
 };
+
+/** 柱状图配置：基础配置 + 柱状特有语义。 */
+export type BarChartConfig = ChartConfig & {
+  /** 图表类型标识：必填判别字段，柱状图不接受折线图专属配置。 */
+  chart: 'bar';
+  /** 堆叠分组 id：相同 stack 的系列叠加；缺省为分组柱状。 */
+  stack?: string;
+  xAxisName?: string;
+  yAxisName?: string;
+};
+
+/** 控制器入口接受的图表配置联合。 */
+export type AnyChartConfig = LineChartConfig | BarChartConfig;
 
 /**
  * 受支持的 option 覆盖字段：仅这些顶层组件配置可深层合并。
@@ -90,7 +112,13 @@ export type ChartComponentOption =
 /** 折线图 option 类型：按入口注册的系列与组件联合。 */
 export type LineChartOption = ComposeOption<LineSeriesOption | ChartComponentOption>;
 
-/** 图表控制器：双框架适配层共用的实例生命周期与事件入口。 */
+/** 柱状图 option 类型：按入口注册的系列与组件联合。 */
+export type BarChartOption = ComposeOption<BarSeriesOption | ChartComponentOption>;
+
+/**
+ * 图表控制器：双框架适配层共用的实例生命周期与事件入口。
+ * 图表类型由创建时传入的配置联合（`AnyChartConfig`）决定，更新不改变类型。
+ */
 export type ChartController = {
   /** 数据更新；series 按稳定 id 以 replaceMerge 合并，删除系列不残留。 */
   update(data: ChartData, optionOverrides?: SupportedOptionOverrides): void;

@@ -21,6 +21,8 @@ export type ExampleTestHook = {
   getClicks(): ChartEvent[];
   clearClicks(): void;
   remount(): void;
+  /** 当前实例的系列数值快照：用于断言缺失值保持 null、负值不被裁剪。 */
+  seriesData(): (number | null)[][];
 };
 
 export type ExampleRuntimeOptions = {
@@ -29,6 +31,14 @@ export type ExampleRuntimeOptions = {
   applyStateData: (name: string) => void;
   whenRendered: () => Promise<void>;
   renderer: Renderer;
+  /** 图表容器选择器；同一页面存在多个图表时区分宿主，缺省 `.charts-line`。 */
+  hostSelector?: string;
+};
+
+export type ExampleTestHookOptions = {
+  getClicks: () => ChartEvent[];
+  clearClicks: () => void;
+  hostSelector?: string;
 };
 
 declare global {
@@ -41,6 +51,7 @@ declare global {
 
 const READY_TIMEOUT_MS = 10_000;
 const INITIAL_SNAPSHOT = '__initial__';
+const DEFAULT_HOST_SELECTOR = '.charts-line';
 
 let collectorInstalled = false;
 const pageErrors: string[] = [];
@@ -59,17 +70,17 @@ export function installPageErrorCollector(): void {
   });
 }
 
-function chartHost(): HTMLElement | null {
-  return document.querySelector<HTMLElement>('.charts-line');
+function chartHost(selector: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(selector);
 }
 
-function chartInstance() {
-  const host = chartHost();
+function chartInstance(selector: string) {
+  const host = chartHost(selector);
   return host ? getInstanceByDom(host) : null;
 }
 
-function seriesSnapshot(): string {
-  const instance = chartInstance();
+function seriesSnapshot(selector: string): string {
+  const instance = chartInstance(selector);
   if (!instance) {
     return 'no-instance';
   }
@@ -77,8 +88,8 @@ function seriesSnapshot(): string {
   return JSON.stringify(series.map((item) => [item.id ?? '', item.data ?? []]));
 }
 
-function seriesIds(): string[] {
-  const instance = chartInstance();
+function seriesIds(selector: string): string[] {
+  const instance = chartInstance(selector);
   if (!instance) {
     return [];
   }
@@ -86,21 +97,33 @@ function seriesIds(): string[] {
   return series.map((item) => item.id ?? '');
 }
 
+function seriesData(selector: string): (number | null)[][] {
+  const instance = chartInstance(selector);
+  if (!instance) {
+    return [];
+  }
+  const series = (instance.getOption().series as { data?: unknown[] }[] | undefined) ?? [];
+  return series.map((item) =>
+    (item.data ?? []).map((value) => (typeof value === 'number' ? value : null)),
+  );
+}
+
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 export function createExampleRuntime(options: ExampleRuntimeOptions): { example: ComponentExample } {
+  const hostSelector = options.hostSelector ?? DEFAULT_HOST_SELECTOR;
   let currentState = options.states[0] ?? 'default';
   let readiness: Promise<void> = Promise.resolve();
 
   async function arm(previousSnapshot: string): Promise<void> {
     await document.fonts.ready;
     const deadline = Date.now() + READY_TIMEOUT_MS;
-    let snapshot = seriesSnapshot();
+    let snapshot = seriesSnapshot(hostSelector);
     while (snapshot === previousSnapshot && Date.now() < deadline) {
       await wait(16);
-      snapshot = seriesSnapshot();
+      snapshot = seriesSnapshot(hostSelector);
     }
     if (snapshot === previousSnapshot) {
       throw new Error(`示例状态 ${currentState} 未在超时内应用到图表`);
@@ -111,12 +134,12 @@ export function createExampleRuntime(options: ExampleRuntimeOptions): { example:
   readiness = arm(INITIAL_SNAPSHOT);
 
   function collectChecks(): CheckResult[] {
-    const host = chartHost();
-    const instance = chartInstance();
+    const host = chartHost(hostSelector);
+    const instance = chartInstance(hostSelector);
     const canvases = host ? host.querySelectorAll('canvas').length : 0;
     const svgs = host ? host.querySelectorAll('svg').length : 0;
     const expected = options.expectedSeriesIds[currentState] ?? [];
-    const actual = seriesIds();
+    const actual = seriesIds(hostSelector);
     const rendererMatched =
       options.renderer === 'canvas' ? canvases === 1 && svgs === 0 : svgs === 1 && canvases === 0;
     return [
@@ -154,7 +177,7 @@ export function createExampleRuntime(options: ExampleRuntimeOptions): { example:
       if (!options.states.includes(name)) {
         throw new Error(`未知示例状态: ${name}`);
       }
-      const previousSnapshot = seriesSnapshot();
+      const previousSnapshot = seriesSnapshot(hostSelector);
       currentState = name;
       options.applyStateData(name);
       readiness = arm(previousSnapshot);
@@ -166,15 +189,13 @@ export function createExampleRuntime(options: ExampleRuntimeOptions): { example:
   return { example };
 }
 
-/** 测试钩子：数据点像素坐标、点击载荷记录与重新挂载。 */
-export function createExampleTestHook(options: {
-  getClicks: () => ChartEvent[];
-  clearClicks: () => void;
-}): ExampleTestHook {
+/** 测试钩子：数据点像素坐标、点击载荷记录、系列数值快照与重新挂载。 */
+export function createExampleTestHook(options: ExampleTestHookOptions): ExampleTestHook {
+  const hostSelector = options.hostSelector ?? DEFAULT_HOST_SELECTOR;
   return {
     pointClientPosition(seriesIndex: number, dataIndex: number): { x: number; y: number } | null {
-      const host = chartHost();
-      const instance = chartInstance();
+      const host = chartHost(hostSelector);
+      const instance = chartInstance(hostSelector);
       if (!host || !instance) {
         return null;
       }
@@ -196,6 +217,7 @@ export function createExampleTestHook(options: {
     },
     getClicks: options.getClicks,
     clearClicks: options.clearClicks,
+    seriesData: () => seriesData(hostSelector),
     remount: () => {
       window.__EXAMPLE_REMOUNT__?.();
     },

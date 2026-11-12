@@ -56,4 +56,4 @@ execFileSync(
 // 3. 样式入口
 await mkdir(path.join(packageRoot, 'dist'), { recursive: true });
 await copyFile(path.join(packageRoot, 'src/style.css'), path.join(packageRoot, 'dist/style.css'));
-console.log('charts-vue 构建完成：index / line / style.css → dist');
+console.log('charts-vue 构建完成：index / line / bar / style.css → dist');

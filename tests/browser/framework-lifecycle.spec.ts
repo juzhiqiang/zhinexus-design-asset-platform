@@ -13,6 +13,7 @@ type ExampleTestHook = {
   getClicks(): ChartEvent[];
   clearClicks(): void;
   remount(): void;
+  seriesData(): (number | null)[][];
 };
 
 declare global {
