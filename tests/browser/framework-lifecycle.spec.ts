@@ -18,6 +18,8 @@ type ExampleTestHook = {
   seriesRadius(seriesIndex: number): [string, string] | null;
   /** 扇形在画布上的实际内外半径（像素），证明实心饼图内半径为 0。 */
   sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
+  /** 趋势卡片数值摘要槽位文本（[标题, 当前值, meta]）；ignore 槽位为 null。 */
+  summarySlots(): (string | null)[];
 };
 
 declare global {
