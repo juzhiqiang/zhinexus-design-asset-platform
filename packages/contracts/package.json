@@ -9,6 +9,7 @@
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "schemas:generate": "pnpm build && tsx scripts/generate-schemas.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.build.json --watch"
   },

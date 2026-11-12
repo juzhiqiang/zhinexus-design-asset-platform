@@ -7,7 +7,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // Run through scripts/pnpm.ps1 so Node, pnpm and PATH use the isolated toolchain.
-const root = fileURLToPath(new URL('../', import.meta.url));
+const root = fileURLToPath(new URL('../../', import.meta.url));
 const { packageManager } = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 const pnpm = join(root, `.tools/pnpm-native-${packageManager.split('@')[1]}/package/pnpm.exe`);
 const originalOrigin = process.env.NEXT_PUBLIC_SITE_URL;

@@ -106,11 +106,12 @@ src/schemas.ts 和 src/api.ts 的结构定义生成 schemas/*.schema.json（2020
 
 ```powershell
 .\scripts\pnpm.ps1 --filter @company/contracts build
-.\scripts\pnpm.ps1 exec tsx scripts/generate-contract-schemas.ts --check
 .\scripts\pnpm.ps1 exec tsx tests/fixtures/releases/g1/generate.ts --check
 .\scripts\pnpm.ps1 exec vitest run tests/contracts
 ```
 
-修改先补失败测试，构建后去掉 --check 重生 schema/fixtures，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/g1-contracts-2026-11-12.md、docs/superpowers/plans/2026-11-12-g1-review-g2-access.md。
+普通契约测试同时检查提交的 Schema 内容与格式是否和运行时定义精确一致。需要重新生成时，在仓库根运行 `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate`；命令先构建本包，再运行 `packages/contracts/scripts/generate-schemas.ts`。生成脚本不再承担检查模式。
+
+修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/g1-contracts-2026-11-12.md、docs/superpowers/plans/2026-11-12-g1-review-g2-access.md。
 
 V1 评审通过后冻结字段/错误码；兼容可选字段明确同步调用方，不兼容修改升级 schemaVersion 并保留旧版解析策略。本包 private=true，版本仍 0.0.0；本次无对外业务端点/组件/CLI 功能发布，不触发公开包或平台升版。CLI 将来使用本包须内联运行时代码，不保留私有运行时依赖，并验证干净消费者。

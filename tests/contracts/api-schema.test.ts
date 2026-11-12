@@ -28,8 +28,8 @@ describe('G1 API and generated JSON Schema', () => {
   });
   it('generates every committed schema from the runtime definitions without drift', () => {
     for (const [name, schema] of Object.entries({ ...contracts.CONTRACT_SCHEMAS, ...contracts.API_SCHEMAS })) {
-      const parsed = JSON.parse(readFileSync(new URL(`../../packages/contracts/schemas/${name}.schema.json`, import.meta.url), 'utf8'));
-      expect(parsed).toEqual(schema);
+      const json = readFileSync(new URL(`../../packages/contracts/schemas/${name}.schema.json`, import.meta.url), 'utf8');
+      expect(json, `${name}: regenerate with pnpm --filter @company/contracts schemas:generate`).toBe(`${JSON.stringify(schema, null, 2)}\n`);
     }
   });
 });

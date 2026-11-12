@@ -77,7 +77,7 @@
 - Windows 本机优先使用 `.\scripts\pnpm.ps1 <command>` 执行工作区命令，确保使用 `.tools` 中固定版本的 Node `26.13.0`、pnpm `12.18.0` 及本地 Playwright 浏览器目录。
 - 开发过程中运行当前任务对应的窄范围测试（如 `.\scripts\pnpm.ps1 verify:workspace`、指定 Vitest 测试文件或单包构建）。
 - 根 `typecheck` 与 `test` 均先执行 `build:services`（生成 Nest 服务编译产物与声明文件）；运行 `test:browser` 前必须先完成 `build` 并关闭占用 `5173–5175` 端口的开发服务。
-- 声明任务完成前，运行该任务列出的全部验证命令（基础工程检查可运行 `.\scripts\verify.ps1`；修改引导脚本须额外运行 `.\scripts\verify-bootstrap.ps1`）。
+- 声明任务完成前，运行该任务列出的全部验证命令（基础工程检查可运行 `.\scripts\verify.ps1`；修改引导脚本须额外运行 `.\scripts\verify.ps1 -Bootstrap`）。
 - 不得基于假设、Turbo 缓存命中或部分输出报告成功；必须在验证记录或任务文档中记录实际通过结果。如果必需的外部检查（如 G2 的 PostgreSQL / Verdaccio / MinIO / OIDC）无法运行，记录阻塞原因，并保持对应任务状态为未完成。
 
 ## 文档与规则维护

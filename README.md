@@ -18,9 +18,20 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19
 .\scripts\pnpm.ps1 dev
 ```
 
-浏览器测试消费构建后的 `dist`，运行前先 build，并关闭占用 5173–5175 端口的开发服务。浏览器安装后可用 `.\scripts\verify.ps1` 顺序重跑全部基础检查。`dev` 同时启动 10 个开发任务，Ctrl+C 停止；Windows 上若停在 shutting down，再按一次 Ctrl+C 结束子任务。其他操作系统可以自行安装同一版本工具链，但尚不在本次验证范围内。
+浏览器测试消费构建后的 `dist`，运行前先 build，并关闭占用 5173–5176 端口的开发服务（5176 用于 React StrictMode 开发态测试）。浏览器安装后可用 `.\scripts\verify.ps1` 顺序重跑全部基础检查。`dev` 同时启动 10 个开发任务，Ctrl+C 停止；Windows 上若停在 shutting down，再按一次 Ctrl+C 结束子任务。其他操作系统可以自行安装同一版本工具链，但尚不在本次验证范围内。
 
-安装脚本支持 Windows 自带的 PowerShell 5.1 非交互执行。修改工具链或下载逻辑后，运行 `.\scripts\verify-bootstrap.ps1`：它会在独立临时目录中真实下载、校验并探测固定版本，再验证缓存重跑，结束后仅清理该测试目录。此检查需要联网和额外下载，不包含在日常 `verify.ps1` 中。
+安装脚本支持 Windows 自带的 PowerShell 5.1 非交互执行。修改工具链或下载逻辑后，运行 `.\scripts\verify.ps1 -Bootstrap`：此模式只在独立临时目录中真实下载、校验并探测固定版本，再验证缓存重跑，结束后仅清理该测试目录。此检查需要联网和额外下载，不执行日常安装、构建和测试。
+
+日常 `verify.ps1` 依次执行冻结安装、工作区检查、构建、类型检查、单元/HTTP 测试和浏览器测试；服务构建已由 typecheck/test 的前置步骤覆盖。专项入口按需执行：
+
+| 命令（仓库根目录） | 用途 |
+| --- | --- |
+| `.\scripts\verify.ps1 -Bootstrap` | 工具链首次下载与缓存重跑 |
+| `.\scripts\pnpm.ps1 test:gallery-cache` | 画廊域名切换与 HTTP sitemap 回归，脚本位于 tests/integration |
+| `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate` | 先构建 contracts，再重新生成 JSON Schema；普通 test 检查内容与格式一致性 |
+| `.\scripts\pnpm.ps1 versions:resolve` | 刷新官方候选版本报告 |
+
+根 scripts 仅保留工具链安装/调用、统一验证、工作区检查和版本发现。入口迁移与验证见 [脚本整理记录](docs/verification/scripts-maintenance-2026-11-12.md)。
 
 | 入口 | 地址 / 用途 |
 | --- | --- |
@@ -62,7 +73,7 @@ infra                    基础设施待办与责任边界
 
 pnpm 12 的配置放在 `pnpm-workspace.yaml`，包含官方 registry、严格 peer/engine、精确版本及仅允许 esbuild 的安装脚本。`.npmrc` 仅保留 npm 通用配置。所有人使用锁文件安装；新增依赖由 C 收口，不以脚本启动前隐式安装代替冻结安装检查。
 
-build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 Turbo 输出缓存，避免恢复输出时残留旧域名的 Next 运行时 route-cache。可通过 `.\scripts\pnpm.ps1 exec node scripts/verify-gallery-cache.mjs` 验证 A→B→A 域名切换与当前配置的实际 HTTP sitemap。test、浏览器和 component 命令直接执行。未来消费者、截图、发布、基线接受同样不得缓存。`versions:resolve` 只刷新官方候选发现记录，不更改版本、不证明兼容。
+build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 Turbo 输出缓存，避免恢复输出时残留旧域名的 Next 运行时 route-cache。可通过 `.\scripts\pnpm.ps1 test:gallery-cache` 验证 A→B→A 域名切换与当前配置的实际 HTTP sitemap。test、浏览器和 component 命令直接执行。未来消费者、截图、发布、基线接受同样不得缓存。`versions:resolve` 只刷新官方候选发现记录，不更改版本、不证明兼容。
 
 ## 开发与分工文档
 

@@ -267,6 +267,8 @@ flowchart LR
 
 ### T01：锁定基线、Monorepo/Turbo 工程骨架与公共协议（5–7 人日）
 
+2026-11-12 工程维护：统一工具链专项入口、归位画廊缓存回归和契约生成脚本，见 [脚本整理子计划](2026-11-12-simplify-project-scripts.md)。仅调整开发验证流程，不改变 T01/G1/G2 验收状态；历史验证命令保持原记录，新入口与实测结果写入独立验证记录。
+
 2026-11-12 G1 执行补充：C 的 V1 校验、JSON Schema、错误码、示例接口、API 消息与 fixtures 见 [子计划](2026-11-12-g1-contracts-platform.md)；候选补充字段与边界见 packages/contracts/README.md。A/B 实际评审目标提前至 **2026-11-13**，回执与 G2 责任/计划日期见 [交接清单](2026-11-12-g1-review-g2-access.md)。人工评审、G2 实测和完整 T01 仍未完成，不因契约测试通过勾选整个任务。
 
 **Files:** 创建第 1 节根配置，包含 `turbo.json`、`pnpm-workspace.yaml`、根/成员 `package.json` 和 `.gitignore`；`scripts/resolve-versions.ts`、`scripts/verify-workspace.ts`、`scripts/test-infra.ts`；`packages/contracts/src/{release-manifest,examples,reports,index}.ts`；`infra/compose.yaml`、`infra/verdaccio/config.yaml`、`infra/minio/Dockerfile`；`tests/contracts/release-manifest.test.ts`；`docs/versions.lock.json`、`docs/verification/turbo-baseline.md`。

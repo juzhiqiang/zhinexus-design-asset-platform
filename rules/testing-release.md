@@ -9,7 +9,9 @@ Windows 本机统一通过 `.\scripts\pnpm.ps1 <command>` 运行检查，使用 
   - `@company/contracts`、核心状态机、摘要计算、环境键计算与错误分类优先使用 Vitest 单元测试，同时覆盖合法样例与反例 fixtures（缺图、错框架、错摘要、伪造 `'local-automatic'` 来源、路径穿越等）。
   - NestJS 服务测试必须加载 `dist/` 真实编译产物，验证依赖注入、控制器到服务链路及真实 HTTP 响应，不得只验证 mock 被调用。
 - **浏览器与双框架渲染测试（`test:browser`）**：先执行 `.\scripts\pnpm.ps1 build` 并释放 `5173–5175` 端口，再运行 `.\scripts\pnpm.ps1 test:browser`，验证 React 画廊（`5173`）、Vue 示例（`5174`）、React 示例（`5175`）及双框架组件在零尺寸、`ResizeObserver`、`StrictMode`、`KeepAlive`、系列删减和卸载清理下的真实行为。
-- **引导脚本验证（`verify-bootstrap.ps1`）**：修改 `scripts/bootstrap.ps1`、`scripts/pnpm.ps1`、`.node-version` 或 `packageManager` 后，必须运行 `.\scripts\verify-bootstrap.ps1`，在独立临时目录中验证首次下载、哈希校验、版本探测和缓存重跑。
+- **引导脚本验证（`verify.ps1 -Bootstrap`）**：修改 `scripts/bootstrap.ps1`、`scripts/pnpm.ps1`、`.node-version` 或 `packageManager` 后，必须运行 `.\scripts\verify.ps1 -Bootstrap`，在独立临时目录中验证首次下载、哈希校验、版本探测和缓存重跑；该模式不执行日常全套检查。
+- **画廊缓存专项回归（`test:gallery-cache`）**：运行 `.\scripts\pnpm.ps1 test:gallery-cache`，执行 `tests/integration/gallery-cache.mjs` 的四轮真实构建与 HTTP sitemap 检查；不纳入普通 Vitest 或 Turbo 测试缓存。
+- **生成契约文件**：运行 `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate`，先构建 contracts 再生成 JSON Schema；`tests/contracts/api-schema.test.ts` 在普通 test 中检查内容和格式精确一致性。
 
 ## 外部消费者与环境验收
 

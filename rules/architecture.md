@@ -15,7 +15,7 @@
 - `examples/vue/`（`@company/example-vue`，`private: true`，端口 `5174`）与 `examples/react/`（`@company/example-react`，`private: true`，端口 `5175`）：双框架工作区示例入口，消费共享确定性数据（`examples/fixtures/`）并实现统一的示例就绪协议。
 - `tests/`：契约测试、单元测试、服务 HTTP 集成测试、Playwright 浏览器测试及工作区外消费者模板（`tests/consumers/` 不作为 workspace 成员）。
 - `infra/`：PostgreSQL、Verdaccio、MinIO、OIDC 与预览域名的容器编排与基础设施验证配置。
-- `scripts/`：本地固定工具链引导（`bootstrap.ps1`、`pnpm.ps1`）、工作区边界检查（`verify-workspace.ts`）、官方版本探测（`resolve-versions.mjs`）及验证脚本（`verify.ps1`、`verify-bootstrap.ps1`）。
+- `scripts/`：本地固定工具链引导（`bootstrap.ps1`、`pnpm.ps1`）、工作区边界检查（`verify-workspace.ts`）、官方版本探测（`resolve-versions.mjs`）及统一验证入口（`verify.ps1`，含独立 `-Bootstrap` 模式）。画廊缓存回归归属 `tests/integration/gallery-cache.mjs`，契约生成归属 `packages/contracts/scripts/generate-schemas.ts`。
 
 ## 依赖方向
 
