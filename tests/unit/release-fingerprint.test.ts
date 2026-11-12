@@ -84,7 +84,11 @@ describe('T04: digest computation and release fingerprint', () => {
       });
 
       expect(frozen.packageName).toBe('@company/charts-core');
-      expect(frozen.version).toBe('0.0.1');
+      // 版本号唯一事实来源是 packages/charts-core/package.json，测试不硬编码
+      const coreVersion = JSON.parse(
+        fs.readFileSync(path.join(corePkgDir, 'package.json'), 'utf8'),
+      ).version as string;
+      expect(frozen.version).toBe(coreVersion);
       expect(frozen.sha256).toMatch(/^[a-f0-9]{64}$/);
       expect(frozen.bytes).toBeGreaterThan(0);
       expect(fs.existsSync(frozen.tarballPath)).toBe(true);

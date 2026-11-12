@@ -54,7 +54,11 @@ describe('T03: outside-workspace clean consumer verification', () => {
         fs.readFileSync(path.join(installedPkgDir, 'package.json'), 'utf8'),
       );
       expect(installedPkgJson.name).toBe('@company/charts-core');
-      expect(installedPkgJson.version).toBe('0.0.1');
+      // 版本号唯一事实来源是 packages/charts-core/package.json，测试不硬编码
+      const coreVersion = JSON.parse(
+        fs.readFileSync(path.join(corePkgDir, 'package.json'), 'utf8'),
+      ).version as string;
+      expect(installedPkgJson.version).toBe(coreVersion);
       expect(installedPkgJson.dependencies).toBeUndefined();
 
       // 4. 验证类型声明与公开导出
