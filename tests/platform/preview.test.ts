@@ -107,5 +107,8 @@ describe('T07 durable preview grants and static gateway', () => {
     await h.db.query("DELETE FROM disabled_subjects WHERE subject='alice'");
     await h.db.query("DELETE FROM component_permissions WHERE subject='alice'");
     expect((await resource('/preview/line-vue/index.html', session.cookie)).status).toBe(404);
+    const denied = (await h.db.query("SELECT target_id,data FROM audit_events WHERE event='PREVIEW_DENIED' ORDER BY id DESC LIMIT 1")).rows[0];
+    expect(denied).toMatchObject({ target_id: id, data: {} });
+    expect(JSON.stringify(denied)).not.toContain(session.cookie.split('=')[1]);
   });
 });

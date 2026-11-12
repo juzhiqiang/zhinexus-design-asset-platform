@@ -20,6 +20,8 @@ GRANT SELECT ON components, component_permissions, disabled_subjects, variants,
   preview_grants, preview_sessions TO preview_reader;
 GRANT UPDATE (redeemed_at) ON preview_grants TO preview_reader;
 GRANT INSERT ON preview_sessions TO preview_reader;
+GRANT INSERT ON audit_events TO preview_reader;
+GRANT USAGE ON SEQUENCE audit_events_id_seq TO preview_reader;
 GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,text) TO preview_reader;
 ```
 

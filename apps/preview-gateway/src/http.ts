@@ -1,10 +1,12 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
+import { randomUUID } from 'node:crypto';
 import { PreviewRuntime } from './auth.js';
 import { PreviewDenied, resourcePath, sessionToken } from './path-policy.js';
 
 export function previewHandler(runtime: PreviewRuntime) {
   return async (request: IncomingMessage, response: ServerResponse, next: () => void): Promise<void> => {
     if (request.url === '/healthz') { next(); return; }
+    const requestId = randomUUID(); response.setHeader('X-Request-Id', requestId);
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('X-Content-Type-Options', 'nosniff');
@@ -26,7 +28,8 @@ export function previewHandler(runtime: PreviewRuntime) {
       const result = await runtime.resource(path, sessionToken(request.headers.cookie), request.headers.host);
       response.statusCode = 200; response.setHeader('Content-Type', result.mime); response.setHeader('Content-Length', result.bytes.length);
       response.end(request.method === 'HEAD' ? undefined : result.bytes);
-    } catch {
+    } catch (error) {
+      await runtime.recordFailure(request.headers.host, requestId, error instanceof PreviewDenied);
       response.statusCode = 404; response.setHeader('Content-Type', 'text/plain; charset=utf-8'); response.end('Preview unavailable');
     }
   };

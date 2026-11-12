@@ -67,4 +67,12 @@ export class PreviewRuntime {
     return { bytes, mime };
   }
   async onApplicationShutdown(): Promise<void> { this.storage?.close(); await this.pool?.end(); }
+  async recordFailure(host: string | undefined, requestId: string, denied: boolean): Promise<void> {
+    if (!this.pool) return;
+    let target = 'preview';
+    const id = /^r-([a-f0-9-]{36})\./.exec(host ?? '')?.[1];
+    try { if (id) { this.origin(id, host); target = id; } } catch { /* Never log an untrusted Host. */ }
+    await this.pool.query('INSERT INTO audit_events(event,target_id,request_id,data) VALUES ($1,$2,$3,$4)',
+      [denied ? 'PREVIEW_DENIED' : 'PREVIEW_UNAVAILABLE', target, requestId, '{}']).catch(() => {});
+  }
 }
