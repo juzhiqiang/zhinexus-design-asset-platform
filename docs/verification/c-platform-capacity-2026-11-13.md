@@ -47,6 +47,38 @@ Windows x64 10.0.26200，AMD Ryzen 9 7900X，24逻辑核、33,397,465,088字节�
 
 完整platform/browser、命令入口、独立审查、版本及合并后结果完成后在下方追加。不把未结束或历史输出报告为通过。
 
+### 本轮完整回归（版本0.0.5）
+
+| 实际命令 | 结果 |
+| --- | --- |
+| `scripts/pnpm.ps1 install --frozen-lockfile` | 初始与升版后均通过，无锁文件变化 |
+| `scripts/pnpm.ps1 verify:workspace` | 通过，10成员、安全服务依赖闭包 |
+| `scripts/pnpm.ps1 test:infra --no-restart` | PG/S3/Registry真实读写、精确安装、不可变与局部恢复通过；共享G2未重启 |
+| `scripts/pnpm.ps1 exec turbo run build --force` | 10/10，0缓存；21.91秒 |
+| `scripts/pnpm.ps1 exec turbo run typecheck --force` | 14/14，0缓存；10.713秒 |
+| `scripts/pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')` | 修正harness key类型后通过，覆盖新增scripts/tests |
+| `scripts/pnpm.ps1 rehearse:capacity` | 3项通过；20.25秒；新runId `c3f88f40-e22d-47ed-a52a-44c6de4a0805`，目录p95 72.40ms、协议发布p95 498.37ms |
+| `scripts/pnpm.ps1 test:platform` | 26文件/86项通过，184.70秒；含当前SDK、网页交接、容量与隔离备份恢复 |
+| `scripts/pnpm.ps1 test:browser` | 89项通过，29.2秒，在platform完成后执行 |
+| `scripts/pnpm.ps1 test` | 31文件/552项通过，124.55秒；在browser完成后执行 |
+| `scripts/pnpm.ps1 verify:deployment` | 模板静态检查通过；environmentValidated=false、productionAcceptance=false |
+
+无行为修复的既有Node DEP0190警告保留；本轮未修改B的CLI进程启动实现。原架构SHA-256仍为 `E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723`。
+
+聚焦提交：`c7e65dd`执行范围、`1e45608`网页后端交接、`720f6db`容量工具与当前SDK验收、`463a805`仅根平台0.0.5及CHANGELOG。API0.0.4、网关0.0.2、SDK/CLI0.0.5保持各包独立版本。
+
+### 独立审查与修复
+
+独立只读审查 `eb1d054..720f6db`：无Critical，1项Important为测试harness只关闭S3 client却未移除本次UUID临时bucket；100MiB预演会积累对象与未完成multipart。新增真实S3回归先观察close后HeadBucket仍200而失败；修复后HeadBucket404，另一测试bucket的哨兵对象仍可读。清理仅使用harness创建时捕获的精确bucket，先中止该bucket未完成multipart，再分批删除对象并删除bucket；不枚举其他bucket、不修改生产store或删除npm版本。关闭API、S3、DB各阶段通过finally释放。
+
+修复后cleanup/capacity/web三个文件9项通过（18.69秒）、根tsc通过；修复后的整套回归另行追加。
+
+修复提交 `cf50ba2`：再次执行 `scripts/pnpm.ps1 test:platform`，27文件87项通过（184.69秒）；随后执行 `scripts/pnpm.ps1 test`，31文件552项通过（132.07秒）。两条命令均正常退出，无失败；浏览器89项在本轮完整回归中已通过，本次仅修改测试资源清理，未重复运行浏览器。
+
+审查另有1项Minor暂缓：容量runner失败时summary只保留passed=false，尚未细分spawn/timeout/缺文件原因，且读报告失败会丢弃已读的部分报告；命令仍非零失败关闭，完整测试输出须保留用于定位。后续可增强诊断，不将失败结果判为通过。
+
+对审查未判定部分的裁决：生产身份/域名/试点/SLA继续按外部门槛开放，错误地据本机结果上线会低估目标环境风险；版本与最终文档由C核对（root0.0.5、其余包不变），判断错误会造成交付版本歧义；重型测试由C亲自执行并保存结果，不以审查未重跑代替通过，漏跑会使结论失去实测依据。
+
 ## 保持开放的外部门槛
 
 公司OIDC/PKCE、生产独立域/TLS/Cookie策略、生产镜像与最小权限、T08真实页面、T10兼容回退、真实Vue/React业务试点和生产等量备份RPO/RTO仍未验收。C本轮完成不等于G2/M2/T11/T12整体完成。

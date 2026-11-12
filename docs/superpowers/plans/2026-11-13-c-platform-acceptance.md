@@ -23,10 +23,10 @@
 
 Files: 新增 `docs/verification/c-platform-capacity-2026-11-13.md`，后续更新 `docs/release-acceptance.md`。
 
-- [ ] frozen install、verify:workspace、test:infra --no-restart。
-- [ ] 无缓存build、无缓存typecheck、根tsc、普通test（含真实SDK全量CLI release）。
-- [ ] test:platform、随后test:browser；记录真实结果及新发现。
-- [ ] 聚焦提交原生集成证据，不改历史记录。
+- [x] frozen install、verify:workspace、test:infra --no-restart。
+- [x] 无缓存build、无缓存typecheck、根tsc、普通test（含真实SDK全量CLI release）。
+- [x] test:platform、随后test:browser；记录真实结果及新发现。
+- [x] 聚焦提交原生集成证据，不改历史记录。
 
 ## Task 2：T07/T08 后端交接验收
 
@@ -34,9 +34,9 @@ Files: 新增 `tests/platform/web-handover.test.ts`；复用 `http-support.ts`�
 
 Consumes: `platformHarness`、`workerHarness`、`upload`、`release`、`ReleaseWorker`；真实 `POST /v1/uploads`、`POST /v1/releases` 与精确releaseId目录接口。
 
-- [ ] 加入真实HTTP验收：web手动来源、重启/幂等、逐实现缺图/错框架拒绝、精确详情/材料/报告、公私切换。
-- [ ] 若既有行为已符合则保留通过的验收测试；发现缺陷先观察失败再修复。
-- [ ] 运行本文件与相关平台回归、记录 B 可用接口和未覆盖的页面行为，聚焦提交。
+- [x] 加入真实HTTP验收：web手动来源、重启/幂等、逐实现缺图/错框架拒绝、精确详情/材料/报告、公私切换。
+- [x] 若既有行为已符合则保留通过的验收测试；发现缺陷先观察失败再修复。
+- [x] 运行本文件与相关平台回归、记录 B 可用接口和未覆盖的页面行为，聚焦提交。
 
 ## Task 3：容量与100MiB分片恢复
 
@@ -44,16 +44,16 @@ Files: `scripts/capacity-metrics.ts`、`scripts/rehearse-capacity.ts`、`tests/u
 
 Produces: `rehearse:capacity` 本机命令；独立run目录中的catalog/upload/release报告和summary，失败退出非零。
 
-- [ ] 先对统计函数写失败测试：nearest-rank、失败计入分母、非法/空样本拒绝；再实现。
-- [ ] 真实HTTP量测200组件/400实现、20并发、200请求，p95初始目标500ms；逐响应核对数量/框架/分页。
-- [ ] 真实S3 multipart累计100MiB；中断一个PUT，重启API，沿用会话/URL/已确认ETag补传；冻结摘要一致，完成可幂等重放。
-- [ ] 5次合成协议包真实发布，量测PENDING→READY阶段，初始p95目标30s；不含本地构建/截图/上传，不代替生产SLA。
-- [ ] runner隔离每次报告，记录硬件、网络、样本与限制；测试失败或报告缺失均失败关闭。
-- [ ] 更新README/operations/验收清单，运行完整验证；对外新增运维命令按规则独立升级根版本和CHANGELOG。
+- [x] 先对统计函数写失败测试：nearest-rank、失败计入分母、非法/空样本拒绝；再实现。
+- [x] 真实HTTP量测200组件/400实现、20并发、200请求，p95初始目标500ms；逐响应核对数量/框架/分页。
+- [x] 真实S3 multipart累计100MiB；中断一个PUT，重启API，沿用会话/URL/已确认ETag补传；冻结摘要一致，完成可幂等重放。
+- [x] 5次合成协议包真实发布，量测PENDING→READY阶段，初始p95目标30s；不含本地构建/截图/上传，不代替生产SLA。
+- [x] runner隔离每次报告，记录硬件、网络、样本与限制；测试失败或报告缺失均失败关闭。
+- [x] 更新README/operations/验收清单，运行完整验证；对外新增运维命令按规则独立升级根版本和CHANGELOG。
 
 ## Task 4：审查、合并及分支删除
 
-- [ ] 独立审查本轮diff；重要问题RED→GREEN后全套回归。
-- [ ] 检查main是否前进、主工作区暂存和已有修改；若有新提交先验证组合树。
+- [x] 独立审查本轮diff；重要问题RED→GREEN后全套回归。
+- [x] 检查main是否前进、主工作区暂存和已有修改；若有新提交先验证组合树。
 - [ ] 按已获授权合并main，复验合并结果，当前worktree脱离本次分支后用 `git branch -d` 删除该分支。
 - [ ] 报告提交、结果、外部门槛；不删除原有分支或其他worktree。
