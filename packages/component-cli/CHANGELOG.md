@@ -2,6 +2,17 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.5] - 2026-11-13
+
+### Added
+
+- `prepareReleaseBundle` 支持趋势卡片（trend-card）组件：`ComponentName` 增加 `'trend-card'`，默认 `components` 覆盖 line / bar / pie / scatter / trend-card 五项，为每个组件生成确定截图、CheckReportV1 报告、API 元数据与文档 Markdown，共 10 个变体。此前 SDK 0.0.5 导出 `./trend-card` 子路径后，平台逐导出覆盖校验会以 `ARTIFACT_MISMATCH` 拒绝未声明该子路径的 Bundle（T09 第四批）。
+
+### Changed
+
+- 入口文件名、命名导出与中文描述由嵌套三元改为查表 `COMPONENT_ENTRY_HTML` / `COMPONENT_EXPORT`；新增图表时只需扩展两张表。
+- `captureExample` 的容器尺寸探测选择器链补 `.charts-trend-card`。
+
 ## [0.0.4] - 2026-11-12
 
 ### Added

@@ -30,7 +30,29 @@ import type { ExampleRef, ScreenshotRef } from '../contracts/examples.js';
 import type { CheckReportV1, CompatibilityRecord } from '../contracts/reports.js';
 import { findRepoRoot } from '../commands/check.js';
 
-export type ComponentName = 'line' | 'bar' | 'pie' | 'scatter';
+export type ComponentName = 'line' | 'bar' | 'pie' | 'scatter' | 'trend-card';
+
+/**
+ * 消费者页面入口文件名。`line` 用 `index.html`，其余组件用 `<component>.html`；
+ * 新增组件时必须同步 `tests/consumers/{vue,react}` 下的同名页面（由 SDK 侧交付），
+ * 否则该组件的静态预览会回落到空占位页。
+ */
+const COMPONENT_ENTRY_HTML: Record<ComponentName, string> = {
+  line: 'index.html',
+  bar: 'bar.html',
+  pie: 'pie.html',
+  scatter: 'scatter.html',
+  'trend-card': 'trend-card.html',
+};
+
+/** 组件在框架包中的命名导出与中文描述，用于生成 api / docs 材料。 */
+const COMPONENT_EXPORT: Record<ComponentName, { exportName: string; exportDesc: string }> = {
+  line: { exportName: 'LineChart', exportDesc: '折线图' },
+  bar: { exportName: 'BarChart', exportDesc: '柱状图' },
+  pie: { exportName: 'PieChart', exportDesc: '饼图' },
+  scatter: { exportName: 'ScatterChart', exportDesc: '散点图' },
+  'trend-card': { exportName: 'TrendCard', exportDesc: '趋势卡片' },
+};
 
 export type PrepareReleaseBundleOptions = {
   repoRoot?: string;
@@ -124,7 +146,7 @@ export async function prepareReleaseBundle(
 ): Promise<PrepareReleaseBundleResult> {
   const repoRoot = options.repoRoot ?? findRepoRoot();
   const bundleDir = path.resolve(options.bundleDir);
-  const components = options.components ?? ['line', 'bar', 'pie', 'scatter'];
+  const components = options.components ?? ['line', 'bar', 'pie', 'scatter', 'trend-card'];
   const frameworks = options.frameworks ?? ['vue', 'react'];
   const timeoutMs = options.timeoutMs ?? 30_000;
   const stagingDir =
@@ -318,14 +340,7 @@ export async function prepareReleaseBundle(
       for (const component of components) {
         const variantId = `${component}-${framework}`;
         const exampleId = `example-${variantId}-default`;
-        const entryHtml =
-          component === 'line'
-            ? 'index.html'
-            : component === 'bar'
-              ? 'bar.html'
-              : component === 'pie'
-                ? 'pie.html'
-                : 'scatter.html';
+        const entryHtml = COMPONENT_ENTRY_HTML[component];
         const url = `http://127.0.0.1:${port}/${entryHtml}`;
 
         // 复制并组织变体独立静态预览资源
@@ -460,22 +475,7 @@ export async function prepareReleaseBundle(
       const packageName = framework === 'vue' ? '@company/charts-vue' : '@company/charts-react';
       const pkg = packagesMap.get(packageName)!;
       const exportPath = `./${component}`;
-      const exportName =
-        component === 'line'
-          ? 'LineChart'
-          : component === 'bar'
-            ? 'BarChart'
-            : component === 'pie'
-              ? 'PieChart'
-              : 'ScatterChart';
-      const exportDesc =
-        component === 'line'
-          ? '折线图'
-          : component === 'bar'
-            ? '柱状图'
-            : component === 'pie'
-              ? '饼图'
-              : '散点图';
+      const { exportName, exportDesc } = COMPONENT_EXPORT[component];
 
       // 4.1 独立静态预览产物引用
       const variantPreviewArtifacts = variantPreviewMap.get(variantId) ?? [];

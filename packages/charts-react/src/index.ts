@@ -2,12 +2,22 @@ export { LineChart } from './LineChart.js';
 export { BarChart } from './BarChart.js';
 export { PieChart } from './PieChart.js';
 export { ScatterChart } from './ScatterChart.js';
-export { sameBarConfig, sameChartConfig, sameLineConfig, samePieConfig, sameScatterConfig, useChart } from './useChart.js';
+export { TrendCard } from './TrendCard.js';
+export {
+  sameBarConfig,
+  sameChartConfig,
+  sameLineConfig,
+  samePieConfig,
+  sameScatterConfig,
+  sameTrendCardConfig,
+  useChart,
+} from './useChart.js';
 export type { UseChartOptions, UseChartResult } from './useChart.js';
 export type { BarChartHandle, BarChartProps } from './bar-chart.types.js';
 export type { LineChartHandle, LineChartProps } from './line-chart.types.js';
 export type { PieChartHandle, PieChartProps } from './pie-chart.types.js';
 export type { ScatterChartHandle, ScatterChartProps } from './scatter-chart.types.js';
+export type { TrendCardHandle, TrendCardProps } from './trend-card-chart.types.js';
 export type {
   AnyChartConfig,
   BarChartConfig,
@@ -24,6 +34,7 @@ export type {
   ScatterChartConfig,
   SupportedOptionOverrides,
   ThemeName,
+  TrendCardConfig,
   UnitSpec,
   Unsubscribe,
 } from '@company/charts-core';

@@ -1,6 +1,7 @@
 import type { ComposeOption, EChartsType } from 'echarts/core.js';
 import type {
   BarSeriesOption,
+  GraphicComponentOption,
   GridComponentOption,
   LegendComponentOption,
   LineSeriesOption,
@@ -25,7 +26,7 @@ export type ThemeName = 'light' | 'dark';
  * 图表类型联合（T09 起按图表扩展）：决定 option 构建与按需模块注册。
  * 控制器与框架层按该联合分发，不引入 `any` 或任意对象配置。
  */
-export type ChartType = 'line' | 'bar' | 'pie' | 'scatter';
+export type ChartType = 'line' | 'bar' | 'pie' | 'scatter' | 'trend-card';
 
 /** 单个数据点。y 为 null 表示缺失值，共享核心禁止将其转换为 0。 */
 export type ChartPoint = { x: string | number; y: number | null };
@@ -88,7 +89,12 @@ export type BarChartConfig = ChartConfig & {
 };
 
 /** 控制器入口接受的图表配置联合。 */
-export type AnyChartConfig = LineChartConfig | BarChartConfig | PieChartConfig | ScatterChartConfig;
+export type AnyChartConfig =
+  | LineChartConfig
+  | BarChartConfig
+  | PieChartConfig
+  | ScatterChartConfig
+  | TrendCardConfig;
 
 /**
  * 饼图 / 环形图配置：基础配置 + 饼图特有语义。
@@ -115,6 +121,37 @@ export type ScatterChartConfig = ChartConfig & {
   xAxisName?: string;
   /** y 数值轴名称。 */
   yAxisName?: string;
+};
+
+/**
+ * 趋势卡片配置（T09 组合场景）：基础配置 + 趋势卡片特有语义。
+ * `points[].x` 为类目轴坐标（时间 / 期间），`points[].y` 为数值；
+ * 「当前值」取第一个系列最后一个非缺失值，「前期值」来自 `previousValue`。
+ */
+export type TrendCardConfig = ChartConfig & {
+  /** 图表类型标识：必填判别字段，趋势卡片不接受折线 / 柱状 / 饼图 / 散点专属配置。 */
+  chart: 'trend-card';
+  /** 卡片标题（指标名），如「近 7 日活跃用户」；缺省不显示标题。 */
+  title?: string;
+  /** 前期值（上一周期对比基线）；undefined / null 时只展示当前值，不计算变化。 */
+  previousValue?: number | null;
+};
+
+/**
+ * 趋势卡片数值摘要：当前值 / 前期值 / 变化量 / 变化率与方向。
+ * 由 `computeTrendSummary` 纯函数计算，供 option 构建与调用方断言共用。
+ */
+export type TrendSummary = {
+  /** 当前值：第一个系列最后一个非缺失值；无可用值为 null。 */
+  current: number | null;
+  /** 前期值：来自 config.previousValue，缺失归一为 null。 */
+  previous: number | null;
+  /** 变化量：current - previous；任一不可算时为 null。 */
+  delta: number | null;
+  /** 变化率（百分比数值）：delta / |previous| * 100；previous 为 0 或不可算时为 null。 */
+  deltaPercent: number | null;
+  /** 方向：delta 为正 up、为负 down、为 0 flat、不可算 none。 */
+  direction: 'up' | 'down' | 'flat' | 'none';
 };
 
 /**
@@ -149,6 +186,14 @@ export type PieChartOption = ComposeOption<PieSeriesOption | ChartComponentOptio
 
 /** 散点图 option 类型：按入口注册的系列与组件联合（双数值轴）。 */
 export type ScatterChartOption = ComposeOption<ScatterSeriesOption | ChartComponentOption>;
+
+/**
+ * 趋势卡片 option 类型：折线 sparkline 系列 + 坐标轴类组件 + graphic 数值摘要。
+ * graphic 由数据驱动，不通过 optionOverrides 覆盖。
+ */
+export type TrendCardOption = ComposeOption<
+  LineSeriesOption | ChartComponentOption | GraphicComponentOption
+>;
 
 /**
  * 图表控制器：双框架适配层共用的实例生命周期与事件入口。

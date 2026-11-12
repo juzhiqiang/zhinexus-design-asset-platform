@@ -14,6 +14,10 @@ const VUE_SCATTER = 'http://127.0.0.1:5174/scatter.html';
 const REACT_SCATTER = 'http://127.0.0.1:5175/scatter.html';
 const REACT_SCATTER_DEV = 'http://127.0.0.1:5176/scatter.html';
 
+const VUE_TREND_CARD = 'http://127.0.0.1:5174/trend-card.html';
+const REACT_TREND_CARD = 'http://127.0.0.1:5175/trend-card.html';
+const REACT_TREND_CARD_DEV = 'http://127.0.0.1:5176/trend-card.html';
+
 type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
 
 type ExampleTestHook = {
@@ -29,6 +33,8 @@ type ExampleTestHook = {
    * 实心饼图必须由渲染几何证明内半径为 0。
    */
   sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
+  /** 趋势卡片数值摘要槽位文本（[标题, 当前值, meta]）；ignore 槽位为 null。 */
+  summarySlots(): (string | null)[];
 };
 
 declare global {
@@ -733,5 +739,189 @@ test('vue_pie_remount_leaves_single_instance', async ({ page }) => {
   await clickFirstSlice(page);
   expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
   await assertChecksPass(page, VUE_PIE);
+  expect(pageErrors).toEqual([]);
+});
+
+/**
+ * 点击趋势卡片 sparkline 数据点：类目轴折线系列，`pointClientPosition` 按类目取 x、
+ * 按数值取 y，返回符号中心（showSymbol 保证可命中），无需额外偏移。
+ */
+async function clickFirstTrendPoint(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const hook = window.__COMPONENT_EXAMPLE_TEST__;
+    if (!hook) {
+      return false;
+    }
+    const position = hook.pointClientPosition(0, 0);
+    return position != null && position.x > 0 && position.y > 0;
+  });
+  const position = await page.evaluate(() =>
+    window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0),
+  );
+  expect(position).not.toBeNull();
+  await page.mouse.click(position!.x, position!.y);
+}
+
+for (const url of [VUE_TREND_CARD, REACT_TREND_CARD]) {
+  test(`trend-card_empty_data_shows_no_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+
+    await runState(page, 'empty');
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`trend-card_missing_values_stay_missing: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'missing');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toHaveLength(1);
+    // 缺失值必须是 null，任何位置都不允许被写成 0
+    expect(data[0]).toEqual([120, null, 180, 200]);
+    expect(JSON.stringify(data)).not.toContain(',0,');
+    await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`trend-card_single_point_renders_one_symbol: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'single');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toEqual([[200]]);
+    // 单点仍有像素坐标（sparkline 符号可点击）
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0)),
+    ).not.toBeNull();
+    await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`trend-card_update_reflects_new_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([120, 150, 180, 200]);
+
+    // default → updated：数据更新，sparkline 反映新序列，仍为单系列单画布
+    await runState(page, 'updated');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([210, 190, 230, 240]);
+
+    // updated → down：再次更新，系列数与画布不变
+    await runState(page, 'down');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
+    ).toEqual([200, 180, 150, 120]);
+    await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`trend-card_empty_state_clears_previous_summary: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // default：标题 / 当前值 / meta 三个槽位都有可见文本
+    const initial = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(initial).toEqual(['近 7 日活跃用户', '200', expect.stringContaining('前期')]);
+
+    // empty：当前值槽显示「暂无数据」，meta 槽必须被清空，
+    // 不得残留上一次状态（如 down）的「▼ 40」摘要
+    await runState(page, 'empty');
+    const slots = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(slots[1]).toBe('暂无数据');
+    expect(slots[2]).toBeNull();
+    expect(JSON.stringify(slots)).not.toContain('前期');
+
+    // down：meta 槽重新出现并带下降箭头
+    await runState(page, 'down');
+    const down = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(down[1]).toBe('120');
+    expect(down[2]).toContain('▼');
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`trend-card_click_payload_is_consistent: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // 单点状态：符号孤立，点击坐标稳定命中
+    await runState(page, 'single');
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+
+    await clickFirstTrendPoint(page);
+
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    // sparkline 为折线系列，载荷为 [类目, 值]，与折线 / 柱状同构
+    expect(clicks[0]).toEqual({
+      seriesId: 'active',
+      dataIndex: 0,
+      value: ['周一', 200],
+      nativeType: 'click',
+    });
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('trend-card_click_payload_matches_in_both_frameworks', async ({ page }) => {
+  const payloads: ChartEvent[] = [];
+  for (const url of [VUE_TREND_CARD, REACT_TREND_CARD]) {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'single');
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+    await clickFirstTrendPoint(page);
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    payloads.push(clicks[0]!);
+    expect(pageErrors, `${url} 页面错误`).toEqual([]);
+  }
+  // 两个框架对同一数据点产生完全等价的事件载荷
+  expect(payloads[0]).toEqual(payloads[1]);
+  expect(payloads[0]).toEqual({
+    seriesId: 'active',
+    dataIndex: 0,
+    value: ['周一', 200],
+    nativeType: 'click',
+  });
+});
+
+test('react_trend-card_strictmode_cleans_and_remounts', async ({ page }) => {
+  const pageErrors = await openExample(page, REACT_TREND_CARD_DEV);
+
+  await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+  await assertChecksPass(page, REACT_TREND_CARD_DEV);
+
+  // 卸载后重新挂载：清理彻底，不残留实例、画布或重复监听
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+
+  // 重新挂载后回到单点状态，点击只产生一次事件
+  await runState(page, 'single');
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstTrendPoint(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test('vue_trend-card_remount_leaves_single_instance', async ({ page }) => {
+  const pageErrors = await openExample(page, VUE_TREND_CARD);
+  await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+
+  await runState(page, 'single');
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstTrendPoint(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  await assertChecksPass(page, VUE_TREND_CARD);
   expect(pageErrors).toEqual([]);
 });
