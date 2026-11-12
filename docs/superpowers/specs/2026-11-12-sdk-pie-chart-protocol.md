@@ -60,12 +60,14 @@
 
 ## 4. 示例与消费者
 
-- 共享 fixture：`examples/fixtures/pie.json`，状态 `default` / `empty` / `missing` / `zero-total` / `nested` / `updated`，每状态带 `expectedSeriesIds`；两框架示例读取同一文件，数据与点击载荷完全一致。
-- 示例页：`examples/vue/pie.html`（`src/pie-main.ts` + `src/PieApp.vue`）与 `examples/react/pie.html`（`src/pie-main.tsx` + `src/PieApp.tsx`）；示例固定使用 `donut: true`（环形图），实心饼图半径规则由单元测试断言。
-- 就绪协议不变（`ready` / `states` / `runState` / `getChecks`，自检 `single-instance` / `no-page-error` / `series-match` / `renderer-match`）。
+- 共享 fixture：`examples/fixtures/pie.json`，每状态带 `expectedSeriesIds` 与 `donut`。环形图族 `default` / `empty` / `missing` / `zero-total` / `nested` / `updated`（`donut: true`）与实心饼图族 `solid` / `solid-empty` / `solid-missing` / `solid-zero-total` / `solid-nested`（`donut: false`）数据一一对应，只差内半径；两框架示例读取同一文件，数据与点击载荷完全一致。
+- 示例页：`examples/vue/pie.html`（`src/pie-main.ts` + `src/PieApp.vue`）与 `examples/react/pie.html`（`src/pie-main.tsx` + `src/PieApp.tsx`）；`donut` 由状态自带（缺省 `true`），示例同时覆盖环形图与实心饼图，`donut` 变化触发控制器重建。
+- 就绪协议不变（`ready` / `states` / `runState` / `getChecks`，自检 `single-instance` / `no-page-error` / `series-match` / `renderer-match`）。系列快照需包含 `radius`：`donut` 切换只改半径不改数据，漏掉它会让实心 / 环形之间的状态切换永远等不到变化而超时。
 - 测试钩子增强（两框架 `src/example/runtime.ts` 同步修改，服务测试也服务消费者）：
   - `seriesData()` 兼容饼图数据项（`{name, value}` 取 `value`），缺失仍为 `null`；
-  - `pointClientPosition(seriesIndex, dataIndex)` 泛化：有坐标轴时走 `convertToPixel`（折线 / 柱状），无坐标轴时回退到扇形几何中心（饼图 / 环形图），页面代码无需按图表类型分叉。
+  - `pointClientPosition(seriesIndex, dataIndex)` 泛化：有坐标轴时走 `convertToPixel`（折线 / 柱状），无坐标轴时回退到扇形几何中心（饼图 / 环形图），页面代码无需按图表类型分叉；
+  - `seriesRadius(seriesIndex)` 返回 option 里的内外半径（百分比字符串）；
+  - `sectorRadii(seriesIndex, dataIndex)` 返回扇形在画布上的实际内外半径（像素）——option 里的半径只是声明值，实心饼图必须由渲染几何证明内半径为 0。
 - 消费者模板新增饼图页面（`tests/consumers/{vue,react}/pie.html` 与对应入口），`tests/integration/packed-consumer-frameworks.test.ts` 覆盖 `./pie` 的 Node 导入、多页构建、真实渲染与点击载荷。
 - `vite.config.ts`（两示例 + 两消费者 + `charts-vue` 库入口）显式登记 `pie` 入口。
 
@@ -73,11 +75,12 @@
 
 1. 无新增依赖、无锁文件变化（饼图复用既有 ECharts 按需模块）。
 2. `packages/contracts` 的 `ExampleRef.requiredStates` 若需覆盖饼图示例状态，按本文第 4 节的状态集合补充；当前 fixtures 未引用饼图状态。
-3. B 的 CLI 截图流程以 `ready` → `runState(state)` → `getChecks()` 驱动；饼图状态名与折线 / 柱状图一致（`empty` / `missing` 等），只有 `zero-total` 与 `nested` 是饼图新增状态名，manifest 状态定义如需覆盖饼图示例须补充这两个名字。
+3. B 的 CLI 截图流程以 `ready` → `runState(state)` → `getChecks()` 驱动；饼图状态名与折线 / 柱状图一致（`empty` / `missing` 等），`zero-total` / `nested` 与 `solid-*` 五个名字是饼图新增状态名，manifest 状态定义如需覆盖饼图示例须补充这些名字。
 
 ## 6. 已知边界与后续
 
 - 饼图暂不提供 `roseType`（南丁格尔玫瑰）、`minAngle`、自定义内半径与环形间距配置；需要时通过 `optionOverrides` 或后续批次以兼容方式新增（升 PATCH / MINOR 按规则评估）。
+- 实心饼图（`donut` 缺省或 `false`）的渲染已由浏览器矩阵覆盖（半径、扇形几何、嵌套环、缺失值、零总量、空数据与点击载荷）；尚未覆盖的是「空数据 + 控制器重建」这一组合：zrender 在没有可绘制内容时不创建画布，此时 `single-instance` 与 `renderer-match` 两项自检会失败。示例测试因此先经 `solid` 再切 `solid-empty`，让最后一步不发生重建，与环形图空数据用例同一口径。若要让自检容忍空数据，需改 `collectChecks` 的判定（把「恰好一个绘制面」放宽为「至多一个」），那会同时改变 B 的 CLI 所依赖的协议语义，须先对齐再动。
 - 饼图不接受负值（见 2.1）；若后续要展示盈亏构成等含负值场景，应在 core 增加显式的正值化或正负分栏语义，不得静默取绝对值。
 - 散点 / 场景组件按同一模式扩展：core 增加图表入口与模块注册、框架包增加组件与子路径、fixtures 与示例同步、`component-matrix` 与消费者验收补充。
 - `pointClientPosition` 的扇形几何回退依赖 zrender 显示列表（`type === 'sector'` 的 `shape.cx/cy/r0/r/startAngle/endAngle`）与系列顺序，属测试钩子内部实现，不进契约；若 ECharts 升级后该结构变化，T10 兼容矩阵会暴露。
