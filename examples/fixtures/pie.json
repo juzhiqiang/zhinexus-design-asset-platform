@@ -1,0 +1,99 @@
+{
+  "component": "pie",
+  "description": "双框架示例共用确定性数据与状态定义；examples/vue 与 examples/react 必须保持完全一致，截图与点击载荷才能等价。一个系列对应一圈（一环），多状态覆盖空数据、缺失值、零总量、嵌套环与更新。",
+  "states": {
+    "default": {
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 120 },
+              { "x": "直投", "y": 80 },
+              { "x": "自然", "y": null },
+              { "x": "合作", "y": 100 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    },
+    "empty": {
+      "data": { "series": [] },
+      "expectedSeriesIds": []
+    },
+    "missing": {
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 120 },
+              { "x": "直投", "y": null },
+              { "x": "自然", "y": 60 },
+              { "x": "合作", "y": 100 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    },
+    "zero-total": {
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 0 },
+              { "x": "直投", "y": 0 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    },
+    "nested": {
+      "data": {
+        "series": [
+          {
+            "id": "outer",
+            "name": "外环",
+            "points": [
+              { "x": "甲", "y": 120 },
+              { "x": "乙", "y": 80 }
+            ]
+          },
+          {
+            "id": "inner",
+            "name": "内环",
+            "points": [
+              { "x": "A", "y": 30 },
+              { "x": "B", "y": 70 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["outer", "inner"]
+    },
+    "updated": {
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 200 },
+              { "x": "直投", "y": 150 },
+              { "x": "自然", "y": 100 },
+              { "x": "合作", "y": 50 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    }
+  }
+}

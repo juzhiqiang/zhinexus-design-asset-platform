@@ -33,3 +33,18 @@ function groupThousands(fixed: string): string {
   const result = `${grouped}${decimalPart}`;
   return negative ? `-${result}` : result;
 }
+
+/** 占比小数位：固定值，不依赖运行 locale，保证截图可复现。 */
+const PERCENT_DECIMALS = 1;
+
+/**
+ * 占比格式化：`value / total` 转百分比字符串（固定 1 位小数）。
+ * 总量不可算（`total <= 0`）或值缺失时返回 `null`，由调用方省略占比展示，
+ * 禁止产出 `NaN%` 之类的无意义文本。
+ */
+export function formatPercent(value: number | null, total: number): string | null {
+  if (value === null || !(total > 0)) {
+    return null;
+  }
+  return `${((value / total) * 100).toFixed(PERCENT_DECIMALS)}%`;
+}

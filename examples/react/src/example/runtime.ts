@@ -23,6 +23,8 @@ export type ExampleTestHook = {
   remount(): void;
   /** 当前实例的系列数值快照：用于断言缺失值保持 null、负值不被裁剪。 */
   seriesData(): (number | null)[][];
+  /** 饼图 / 环形图的内外半径（百分比字符串），用于断言 donut 只改变内半径。 */
+  seriesRadius(seriesIndex: number): [string, string] | null;
 };
 
 export type ExampleRuntimeOptions = {
@@ -79,6 +81,18 @@ function chartInstance(selector: string) {
   return host ? getInstanceByDom(host) : null;
 }
 
+/** 数据项数值：折线 / 柱状为裸数值，饼图为 { name, value }。 */
+function rawValue(item: unknown): number | null {
+  if (typeof item === 'number') {
+    return item;
+  }
+  if (item && typeof item === 'object' && 'value' in item) {
+    const value = (item as { value?: unknown }).value;
+    return typeof value === 'number' ? value : null;
+  }
+  return null;
+}
+
 function seriesSnapshot(selector: string): string {
   const instance = chartInstance(selector);
   if (!instance) {
@@ -103,9 +117,17 @@ function seriesData(selector: string): (number | null)[][] {
     return [];
   }
   const series = (instance.getOption().series as { data?: unknown[] }[] | undefined) ?? [];
-  return series.map((item) =>
-    (item.data ?? []).map((value) => (typeof value === 'number' ? value : null)),
-  );
+  return series.map((item) => (item.data ?? []).map((value) => rawValue(value)));
+}
+
+function seriesRadius(selector: string, seriesIndex: number): [string, string] | null {
+  const instance = chartInstance(selector);
+  const series = (instance?.getOption().series as { radius?: unknown }[] | undefined) ?? [];
+  const radius = series[seriesIndex]?.radius;
+  if (Array.isArray(radius) && radius.length === 2) {
+    return [String(radius[0]), String(radius[1])];
+  }
+  return null;
 }
 
 function wait(milliseconds: number): Promise<void> {
@@ -200,26 +222,86 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
         return null;
       }
       const series = (instance.getOption().series as { data?: unknown[] }[] | undefined) ?? [];
-      const point = series[seriesIndex]?.data?.[dataIndex];
-      if (point === null || point === undefined) {
+      const value = rawValue(series[seriesIndex]?.data?.[dataIndex]);
+      if (value === null) {
         return null;
       }
+      // 直角坐标系图表（折线 / 柱状）：按类目与数值换算像素
       const categories =
         (instance.getOption().xAxis as { data?: unknown[] }[] | undefined)?.[0]?.data ?? [];
       const category = categories[dataIndex];
       const x = instance.convertToPixel({ xAxisIndex: 0 }, category as string);
-      const y = instance.convertToPixel({ yAxisIndex: 0 }, point as number);
-      if (typeof x !== 'number' || typeof y !== 'number' || Number.isNaN(x) || Number.isNaN(y)) {
-        return null;
-      }
+      const y = instance.convertToPixel({ yAxisIndex: 0 }, value);
       const rect = host.getBoundingClientRect();
-      return { x: rect.left + x, y: rect.top + y };
+      if (
+        typeof x === 'number' &&
+        typeof y === 'number' &&
+        !Number.isNaN(x) &&
+        !Number.isNaN(y)
+      ) {
+        return { x: rect.left + x, y: rect.top + y };
+      }
+      // 饼图 / 环形图：没有坐标轴，取扇形内外半径中点与角度中点
+      const center = sectorCenter(instance, seriesIndex, dataIndex);
+      return center ? { x: rect.left + center.x, y: rect.top + center.y } : null;
     },
     getClicks: options.getClicks,
     clearClicks: options.clearClicks,
     seriesData: () => seriesData(hostSelector),
+    seriesRadius: (seriesIndex: number) => seriesRadius(hostSelector, seriesIndex),
     remount: () => {
       window.__EXAMPLE_REMOUNT__?.();
     },
+  };
+}
+
+/**
+ * 扇形几何中心（画布局部坐标）：zrender 显示列表中的 sector 元素按系列顺序、
+ * 系列内按数据序排列，按各系列数据长度顺序切片定位。缺失值扇形的起止角度为
+ * null（不渲染），此时返回 null。
+ * zrender 的 Displayable 未把 shape 收窄为具体形状，这里按测试需要显式描述结构。
+ */
+type SectorShape = {
+  cx: number;
+  cy: number;
+  r0: number;
+  r: number;
+  startAngle: number | null;
+  endAngle: number | null;
+};
+
+type SectorLike = { type: string; shape?: Partial<SectorShape> };
+
+function sectorCenter(
+  instance: NonNullable<ReturnType<typeof chartInstance>>,
+  seriesIndex: number,
+  dataIndex: number,
+): { x: number; y: number } | null {
+  const displayList = instance.getZr().storage.getDisplayList(false) as unknown as SectorLike[];
+  const sectors = displayList.filter(
+    (element) => element.type === 'sector' && element.shape != null,
+  );
+  const series = (instance.getOption().series as { data?: unknown[] }[] | undefined) ?? [];
+  let offset = 0;
+  for (let index = 0; index < seriesIndex; index += 1) {
+    offset += (series[index]?.data ?? []).length;
+  }
+  const shape = sectors[offset + dataIndex]?.shape;
+  if (
+    !shape ||
+    typeof shape.startAngle !== 'number' ||
+    typeof shape.endAngle !== 'number' ||
+    typeof shape.cx !== 'number' ||
+    typeof shape.cy !== 'number' ||
+    typeof shape.r0 !== 'number' ||
+    typeof shape.r !== 'number'
+  ) {
+    return null;
+  }
+  const midAngle = (shape.startAngle + shape.endAngle) / 2;
+  const midRadius = (shape.r0 + shape.r) / 2;
+  return {
+    x: shape.cx + midRadius * Math.cos(midAngle),
+    y: shape.cy + midRadius * Math.sin(midAngle),
   };
 }

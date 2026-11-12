@@ -1,6 +1,6 @@
 {
   "name": "@company/charts-vue",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "private": false,
   "type": "module",
   "files": [
@@ -23,6 +23,10 @@
     "./bar": {
       "types": "./dist/bar.d.ts",
       "import": "./dist/bar.js"
+    },
+    "./pie": {
+      "types": "./dist/pie.d.ts",
+      "import": "./dist/pie.js"
     },
     "./style.css": "./dist/style.css"
   },
