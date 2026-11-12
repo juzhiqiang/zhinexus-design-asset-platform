@@ -206,7 +206,7 @@ describe('工作区外消费者安装', () => {
         await readFile(path.join(dir, 'node_modules', '@company/charts-core', 'package.json'), 'utf8'),
       ) as { version: string };
       expect(core.version).toBe(await packageVersion('charts-core'));
-      for (const entry of ['dist/line.js', 'dist/style.css', 'dist/index.js', 'dist/pie.js', 'dist/scatter.js']) {
+      for (const entry of ['dist/line.js', 'dist/style.css', 'dist/index.js', 'dist/pie.js', 'dist/scatter.js', 'dist/trend-card.js']) {
         expect(existsSync(path.join(dir, 'node_modules', `@company/charts-${framework}`, entry)), `${framework} ${entry}`).toBe(true);
       }
     }
@@ -227,6 +227,7 @@ describe('工作区外消费者安装', () => {
           `const bar = await import('@company/charts-${framework}/bar');`,
           `const pie = await import('@company/charts-${framework}/pie');`,
           `const scatter = await import('@company/charts-${framework}/scatter');`,
+          `const trendCard = await import('@company/charts-${framework}/trend-card');`,
           `const entryUrl = new URL(import.meta.resolve('@company/charts-${framework}'));`,
           `const entryDir = path.dirname(fileURLToPath(entryUrl));`,
           `if (!existsSync(path.join(entryDir, 'style.css'))) throw new Error('missing dist/style.css');`,
@@ -240,6 +241,8 @@ describe('工作区外消费者安装', () => {
           `if (typeof pie.useChart !== 'function') throw new Error('missing useChart export from ./pie');`,
           `if (typeof scatter.ScatterChart === 'undefined') throw new Error('missing ./scatter entry');`,
           `if (typeof scatter.useChart !== 'function') throw new Error('missing useChart export from ./scatter');`,
+          `if (typeof trendCard.TrendCard === 'undefined') throw new Error('missing ./trend-card entry');`,
+          `if (typeof trendCard.useChart !== 'function') throw new Error('missing useChart export from ./trend-card');`,
           `console.log(JSON.stringify({ windowDefined: typeof window !== 'undefined', documentDefined: typeof document !== 'undefined' }));`,
         ].join('\n'),
       );
@@ -312,8 +315,8 @@ describe('消费者构建与真实渲染', () => {
       const result = run('npm', ['run', 'build'], dir, true);
       expect(result.status, `${framework} 构建失败:\n${result.stdout}\n${result.stderr}`).toBe(0);
       const distDir = path.join(dir, 'dist');
-      // 多页入口：line / bar / pie / scatter 四个页面都必须构建成功（各子路径可解析）
-      for (const entry of ['index.html', 'bar.html', 'pie.html', 'scatter.html']) {
+      // 多页入口：line / bar / pie / scatter / trend-card 五个页面都必须构建成功（各子路径可解析）
+      for (const entry of ['index.html', 'bar.html', 'pie.html', 'scatter.html', 'trend-card.html']) {
         expect(existsSync(path.join(distDir, entry)), `${framework} ${entry}`).toBe(true);
       }
       const assetsDir = path.join(distDir, 'assets');
@@ -364,11 +367,13 @@ describe('消费者构建与真实渲染', () => {
           const entries = [
             // 折线图点击数据点符号本身；柱状图需落在柱体内部（顶边向下偏移）；
             // 饼图 / 环形图取扇形几何中心，落在扇形内部；
-            // 散点图按 [x, y] 数值对换算符号中心，无需偏移
+            // 散点图按 [x, y] 数值对换算符号中心，无需偏移；
+            // 趋势卡片 sparkline 为类目轴折线系列，按类目取 x，无需偏移
             { path: 'index.html', host: '.charts-line', offsetY: 0 },
             { path: 'bar.html', host: '.charts-bar', offsetY: 8 },
             { path: 'pie.html', host: '.charts-pie', offsetY: 0 },
             { path: 'scatter.html', host: '.charts-scatter', offsetY: 0 },
+            { path: 'trend-card.html', host: '.charts-trend-card', offsetY: 0 },
           ];
           for (const entry of entries) {
             await page.goto(`http://127.0.0.1:${port}/${entry.path}`);
@@ -383,13 +388,16 @@ describe('消费者构建与真实渲染', () => {
             await page.mouse.click(position!.x, position!.y + entry.offsetY);
             const clicks = await page.evaluate(() => window.__CONSUMER_TEST__!.getClicks());
             // 折线与柱状共用「收入 / 周一 / 120」，饼图为「占比 / 搜索 / 120」，
-            // 散点图为「收入 / (1, 120)」：四个入口的点击载荷都必须与 core 的共享语义一致
+            // 散点图为「收入 / (1, 120)」，趋势卡片为「活跃用户 / 周一 / 120」：
+            // 五个入口的点击载荷都必须与 core 的共享语义一致
             const expected =
               entry.path === 'pie.html'
                 ? [{ seriesId: 'share', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' }]
                 : entry.path === 'scatter.html'
                   ? [{ seriesId: 'revenue', dataIndex: 0, value: [1, 120], nativeType: 'click' }]
-                  : [{ seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' }];
+                  : entry.path === 'trend-card.html'
+                    ? [{ seriesId: 'active', dataIndex: 0, value: ['周一', 120], nativeType: 'click' }]
+                    : [{ seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' }];
             expect(clicks, `${framework} ${entry.path}`).toEqual(expected);
             expect(await page.locator(`${entry.host} canvas`).count(), framework).toBe(1);
           }
