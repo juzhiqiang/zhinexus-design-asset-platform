@@ -145,3 +145,5 @@ T13–T14（二期档案检索、设计稿匹配）为 28–42 开发人日，�
 2026-11-12 T07交接：C的目录/详情/报告/材料及静态预览网关已在feat/t07-catalog-preview完成本地验证。B应先保存当前feat/t04-t06-release-registry的未提交改动，再同步main已完成的T06，保留CLI工作并复用C的worker/registry-client；画廊按目录variantReleaseId接入，不能用含歧义的包版本别名拼接材料。C没有覆盖B工作区。A继续T09场景组件；B补当前SDK0.0.4八实现材料及画廊，C后续配合真实OIDC/独立域验收。接口及完整证据见 [T07 C验证](../../verification/t07-catalog-preview-2026-11-12.md)。
 
 2026-11-12 C进展：T07已合main，继续交付T11观测/故障预演和T12隔离恢复/部署准备。A继续SDK与真实项目，B继续当前SDK完整冻结材料和CLI/画廊联调；C没有修改A/B业务代码。完整T11/T12验收依赖保持原定义。
+
+2026-11-13 下一轮分工落地：A补T09 ranking/proportion，目标7组件14实现；B先收口T07真实目录/鉴权/预览，再做T08逐实现手动上传；C按 [执行计划](2026-11-13-c-platform-acceptance.md) 补当前十实现的Windows/真实三存储验收、网页后端交接和本地容量/100MiB分片恢复。C本轮不接管B页面或A组件；contracts、根命令与锁文件继续C统一收口。当前本机证据和剩余外部门槛见 [新增记录](../../verification/c-platform-capacity-2026-11-13.md)，本地预演不标记完整T11/T12通过。
