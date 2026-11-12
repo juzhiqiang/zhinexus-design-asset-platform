@@ -11,6 +11,8 @@ export type CaptureOptions = {
   url: string;
   states: string[];
   outputDir: string;
+  baseDir?: string;
+  logicalDir?: string;
   framework: Framework;
   frameworkVersion?: string;
   echartsVersion?: string;
@@ -101,6 +103,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
     const dimensions = await page.evaluate(() => {
       const el =
         document.querySelector('.charts-line') ||
+        document.querySelector('.charts-bar') ||
         document.querySelector('.chart-frame') ||
         document.querySelector('#chart') ||
         document.querySelector('#app');
@@ -148,7 +151,13 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
 
       await page.screenshot({ path: shotPath, type: 'png' });
 
-      const artifact = await createArtifactRef(shotPath, path.relative(options.outputDir, shotPath));
+      const logicalPath = options.baseDir
+        ? path.relative(options.baseDir, shotPath).replace(/\\/g, '/')
+        : options.logicalDir
+          ? `${options.logicalDir.replace(/\/+$/, '')}/${shotFileName}`
+          : path.relative(options.outputDir, shotPath).replace(/\\/g, '/');
+
+      const artifact = await createArtifactRef(shotPath, logicalPath);
       screenshots.push({
         id: `shot-${stateName}-${artifact.sha256.slice(0, 8)}`,
         variantId: options.variantId,

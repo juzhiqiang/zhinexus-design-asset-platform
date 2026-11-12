@@ -3,6 +3,7 @@ import { computeBufferSha256 } from './digest.js';
 import type { EnvironmentV1 } from '../contracts/reports.js';
 import type { Renderer } from '../contracts/examples.js';
 import type { Framework } from '../contracts/release-manifest.js';
+import { environmentProjection, canonicalJson } from '../contracts/digests.js';
 
 export type DetectEnvironmentOptions = {
   os?: string;
@@ -60,25 +61,11 @@ export function detectEnvironment(options: DetectEnvironmentOptions): Environmen
 
 /**
  * 计算确定性环境签名 key：返回 64 位小写 SHA-256 十六进制字符串。
+ * 遵循 contracts 规范：排除被测对象 (frameworkVersion, echartsVersion)，保留固定系统/视口特征。
  */
 export function computeEnvironmentKey(env: EnvironmentV1): string {
-  // 按固定键顺序序列化确保跨平台一致
-  const canonical = JSON.stringify({
-    arch: env.arch,
-    browserRevision: env.browserRevision,
-    browserVersion: env.browserVersion,
-    deviceScaleFactor: env.deviceScaleFactor,
-    echartsVersion: env.echartsVersion,
-    fontDigest: env.fontDigest,
-    frameworkVersion: env.frameworkVersion,
-    height: env.height,
-    locale: env.locale,
-    os: env.os,
-    renderer: env.renderer,
-    theme: env.theme,
-    timezone: env.timezone,
-    width: env.width,
-  });
+  const projection = environmentProjection(env);
+  const canonical = canonicalJson(projection);
   return computeBufferSha256(canonical);
 }
 

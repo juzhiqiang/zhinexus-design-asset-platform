@@ -12,6 +12,7 @@ export * from './local/consumer.js';
 export * from './local/environment.js';
 export * from './local/report.js';
 export * from './local/capture.js';
+export * from './local/manifest.js';
 export * from './commands/check.js';
 
 const isDirectRun =
