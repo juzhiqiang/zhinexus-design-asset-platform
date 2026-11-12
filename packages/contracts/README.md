@@ -86,6 +86,8 @@ ApiMessages 与 validateApiMessage(name,input,{reports?}) 覆盖以下 V1 消息
 
 本次补充约定：parts 为 {path,partNumber,etag}（非分片可空数组）；无错误的 job 省略 lastError；首次基线省略 expectedRevision，更新须由 API 检查已有 revision；目录分页为 page/pageSize/total。subject 不在请求体，未知字段拒绝。grant URL 只校验 HTTP(S) 结构，独立域/授权/撤销归 T07。补充字段仍待评审，不擅自实施业务端点。
 
+T05 接入补充（2026-11-12）：releaseJobResponse 可选 baselineCandidates 给出服务端 screenshotId、冻结材料 sourceScreenshotId 与 variantId/exampleId/environmentKey。客户端 report/screenshot ID 只在单份 Bundle 内唯一，不能直接作数据库全局主键。基线操作优先使用候选服务端 ID，旧引用歧义返回 CONFLICT；不修改冻结 manifest 或报告。完整接口实现与认证边界见 [API 接入](../../apps/api/README.md)。
+
 ## 稳定错误码
 
 | code | 含义 |

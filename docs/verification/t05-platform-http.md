@@ -28,6 +28,8 @@
 
 上述 pnpm 命令均经固定工具链 `scripts/pnpm.ps1` 执行。PostgreSQL 使用随机独立测试数据库，结束后只删除该数据库；MinIO 使用随机测试 bucket。测试凭证读取忽略目录，不进入记录。
 
+依赖：API 新增 pg 8.23.1、jose 6.2.17、AWS S3 client/presigner 3.1167.0、tar-stream 3.2.2、pngjs 7.0.0、jpeg-js 0.4.4，均固定精确版本；presigner 3.1167.0 与已有 S3 客户端配套，pnpm 的 minimumReleaseAgeExclude 仅新增该精确版本例外，未关闭全局依赖年龄策略。
+
 ## 仍需执行 / 外部边界
 
 本文件的首轮结果不代表整仓验收或最终审查完成。分片 HTTP/并发 fencing、实际 SDK 冻结产物穿过 API、完整无缓存验证和独立整分支审查将在后续追加记录。
@@ -37,5 +39,11 @@
 - 追加 11 MiB 真 MinIO 分片上传 HTTP：缺片、错 ETag、重复片均为 409，正确完成后冻结字节一致；同 subject 的另一客户端不能完成原会话。
 - 通过测试层暂停实际 S3 read、在独立数据库推进租约过期，真实 HTTP 验证活动租约冲突、新 fence 完成后旧请求返回 LEASE_LOST；最终状态/对象键不变，审计只登记一次。
 - `pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/uploads.test.ts`：5/5 通过；根 `tsc --noEmit` 通过。故障注入仅在测试层，无运行时绕过开关。
+
+### 实际 SDK 材料接入
+
+同步 main 的 9c355ca（B 的完整 Bundle 生成入口）后，先直接构建 charts-core/vue/react 与 API，再执行 `pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/real-artifacts.test.ts`，1/1 通过（13.67 秒）。通过 CLI 在工作区外干净消费者实际安装同一候选包、驱动本地 Chromium 截图，3 份包、4 个实现完整提交到真实 Nest/PG/MinIO，全部文件在磁盘/manifest/冻结对象之间摘要一致；登记 4 个 PENDING 实现，无 Ready。
+
+首份机器证据保存在忽略目录 `test-results/t05-real-c6baa495-5268-4975-8356-216fc7ae3464/evidence.json`，含包/图片摘要与时间，无凭证。fixture JWT 使用真实 RSA 签名，不能替代公司 OIDC。B 的 preview HTML 仍为占位，未宣称在线预览可用。SDK 截图后未重新 pack。
 
 目前没有公司 OIDC 或独立预览域，真实登录/PKCE/撤权、G2 与完整 T05 外部身份验收保持未完成；签名测试不替代该证据。T06 的三存储发布、Ready 与 T07 预览授权也未宣称完成。
