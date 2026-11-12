@@ -1,6 +1,7 @@
 import { use } from 'echarts/core.js';
 import { BarChart, LineChart, PieChart, ScatterChart } from 'echarts/charts.js';
 import {
+  GraphicComponent,
   GridComponent,
   LegendComponent,
   TitleComponent,
@@ -15,7 +16,8 @@ import type { ChartType, Renderer } from '../types.js';
  *
  * 组件集合按图表类型收窄：折线与柱状需要坐标轴网格（柱状另含图例），
  * 饼图 / 环形图没有坐标轴，只注册提示、图例与标题；散点图是双数值轴图表，
- * 与柱状图一样注册网格、提示与图例，另注册标题组件供 optionOverrides 的 `title` 字段使用。
+ * 与柱状图一样注册网格、提示与图例，另注册标题组件供 optionOverrides 的 `title` 字段使用；
+ * 趋势卡片是类目轴 sparkline + graphic 数值摘要，注册折线、网格、提示、图例与 graphic 组件。
  */
 export function ensureChartModules(chart: ChartType, renderer: Renderer): void {
   const charts =
@@ -25,14 +27,18 @@ export function ensureChartModules(chart: ChartType, renderer: Renderer): void {
         ? [PieChart]
         : chart === 'scatter'
           ? [ScatterChart]
-          : [LineChart];
+          : chart === 'trend-card'
+            ? [LineChart]
+            : [LineChart];
   const components =
     chart === 'pie'
       ? [TooltipComponent, LegendComponent, TitleComponent]
       : chart === 'scatter'
         ? [GridComponent, TooltipComponent, LegendComponent, TitleComponent]
-        : chart === 'bar'
-          ? [GridComponent, TooltipComponent, LegendComponent]
-          : [GridComponent, TooltipComponent];
+        : chart === 'trend-card'
+          ? [GridComponent, TooltipComponent, LegendComponent, GraphicComponent]
+          : chart === 'bar'
+            ? [GridComponent, TooltipComponent, LegendComponent]
+            : [GridComponent, TooltipComponent];
   use([...charts, ...components, renderer === 'svg' ? SVGRenderer : CanvasRenderer]);
 }
