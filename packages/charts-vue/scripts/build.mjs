@@ -16,7 +16,12 @@ const packageRoot = fileURLToPath(new URL('../', import.meta.url));
 await rm(path.join(packageRoot, 'dist'), { recursive: true, force: true });
 
 function packageDirectory(name) {
-  const entry = require.resolve(name);
+  let entry;
+  try {
+    entry = require.resolve(`${name}/package.json`);
+  } catch {
+    entry = require.resolve(name);
+  }
   let directory = path.dirname(entry);
   while (directory !== path.dirname(directory) && !existsSync(path.join(directory, 'package.json'))) {
     directory = path.dirname(directory);

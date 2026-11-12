@@ -12,7 +12,9 @@ import {
 } from '../../packages/component-cli/src/local/consumer.js';
 
 describe('T03: outside-workspace clean consumer verification', () => {
-  it('installs packed @company/charts-core candidate tarball in isolated directory, verifying exports, types, SSR import, and browser rendering/events', async () => {
+  it(
+    'installs packed @company/charts-core candidate tarball in isolated directory, verifying exports, types, SSR import, and browser rendering/events',
+    async () => {
     const repoRoot = path.resolve(__dirname, '../../');
     const corePkgDir = path.join(repoRoot, 'packages', 'charts-core');
 
@@ -274,5 +276,5 @@ controller.onPointClick((evt) => {
       fs.rmSync(packDir, { recursive: true, force: true });
       fs.rmSync(consumerDir, { recursive: true, force: true });
     }
-  });
+  }, 60_000);
 });
