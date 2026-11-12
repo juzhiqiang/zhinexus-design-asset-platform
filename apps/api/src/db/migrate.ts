@@ -6,7 +6,7 @@ import { Database } from './database.js';
 
 const tables = ['baseline_heads', 'baseline_revisions', 'screenshots', 'check_reports', 'variant_releases', 'package_releases', 'release_jobs', 'upload_files', 'upload_sessions', 'variants', 'component_permissions', 'package_permissions', 'audit_events', 'components'] as const;
 export async function migrateRegistry(db: Database): Promise<void> {
-  const migrations = await Promise.all(['001_registry.sql', '002_package_permissions.sql'].map(async (file, i) => {
+  const migrations = await Promise.all(['001_registry.sql', '002_package_permissions.sql', '003_evidence_references.sql'].map(async (file, i) => {
     const sql = await readFile(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     return { version: i + 1, sql, digest: createHash('sha256').update(sql.replaceAll('\r\n', '\n')).digest('hex') };
   }));

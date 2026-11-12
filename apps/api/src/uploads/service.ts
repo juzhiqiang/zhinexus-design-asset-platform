@@ -38,9 +38,12 @@ export class UploadService {
     return { uploadSessionId: sessionId, files: planned.map(({ file, plan }) => ({ path: file.path, ...plan })) };
   }
   private async owned(sessionId: string, context: RequestContext): Promise<Session> {
-    const result = await this.db.query<Session>('SELECT * FROM upload_sessions WHERE id=$1 AND subject=$2 AND client_id=$3 AND channel=$4', [uuid(sessionId), context.principal.subject, context.principal.clientId, context.principal.channel]);
-    if (!result.rowCount) throw new PlatformError('NOT_FOUND');
-    return result.rows[0]!;
+    const session = (await this.db.query<Session>('SELECT * FROM upload_sessions WHERE id=$1', [uuid(sessionId)])).rows[0];
+    if (!session) throw new PlatformError('NOT_FOUND');
+    if (session.subject !== context.principal.subject || session.client_id !== context.principal.clientId || session.channel !== context.principal.channel) {
+      throw new PlatformError('NOT_FOUND', [], true);
+    }
+    return session;
   }
   private files(sessionId: string) { return this.db.query<UploadFile>('SELECT * FROM upload_files WHERE session_id=$1 ORDER BY path', [sessionId]); }
   async complete(sessionId: string, input: unknown, context: RequestContext): Promise<ApiMessages['completeUploadResponse']> {

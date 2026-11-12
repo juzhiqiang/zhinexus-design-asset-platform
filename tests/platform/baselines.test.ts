@@ -14,7 +14,7 @@ describe('T05 baseline and deprecation HTTP', () => {
       const body = { variantId: variant.variantId, exampleId: shot.exampleId, environmentKey: shot.environmentKey, screenshotId: shot.id, reason: '接受经过本地验证的候选图' };
       expect((await h.request('/v1/baselines', body, await h.token('alice', ['publisher'], 'cli'))).status).toBe(403);
       expect((await h.request('/v1/baselines', body, await h.token('mallory', ['maintainer'], 'cli'))).status).toBe(403);
-      expect((await h.request('/v1/baselines', { ...body, screenshotId: fixture.manifest.variants[1]!.screenshots[0]!.id }, cli)).status).toBe(400);
+      expect((await h.request('/v1/baselines', { ...body, screenshotId: fixture.manifest.variants[1]!.screenshots[0]!.id }, cli)).status).toBe(404);
       expect((await h.request('/v1/baselines', { ...body, environmentKey: 'a'.repeat(64) }, cli)).status).toBe(400);
       const first = await h.request('/v1/baselines', body, cli);
       expect(first.status).toBe(201); const { revisionId } = await first.json();

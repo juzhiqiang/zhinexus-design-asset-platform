@@ -43,7 +43,8 @@ export class Platform {
       if (!this.db || !this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
       return await operation({ principal, requestId }, this.uploads, this.db);
     } catch (error) {
-      const code = error instanceof Error && 'code' in error ? error.code : undefined;
+      const code = error instanceof PlatformError && error.authorizationDenied ? 'FORBIDDEN'
+        : error instanceof Error && 'code' in error ? error.code : undefined;
       if (code === 'UNAUTHENTICATED' || code === 'FORBIDDEN') {
         await this.db?.query('SELECT 1').then(() => audit(this.db!, principal?.subject, 'AUTH_DENIED', action, { code }, requestId)).catch(() => {});
       }

@@ -25,7 +25,7 @@ describe('T05 persistent release HTTP', () => {
       expect((await h.db.query('SELECT count(*) FROM variant_releases')).rows[0]!.count).toBe('3');
       await h.restart();
       const status = await h.request(`/v1/releases/${jobId}`, undefined, token, 'GET');
-      expect(await status.json()).toEqual({ state: 'PENDING', stage: 'PENDING', attempt: 0, missingArtifacts: [], pollAfterMs: 2000 });
+      expect(await status.json()).toEqual({ state: 'PENDING', stage: 'PENDING', attempt: 0, missingArtifacts: [], pollAfterMs: 2000, baselineCandidates: [] });
       expect((await h.request(`/v1/releases/${jobId}`, undefined, await h.token('mallory'), 'GET')).status).toBe(404);
       expect((await h.request(`/v1/releases/${jobId}/retry`, {}, token)).status).toBe(409);
       const another = await upload(h, fixture, token);

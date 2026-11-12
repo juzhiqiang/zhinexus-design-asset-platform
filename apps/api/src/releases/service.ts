@@ -56,10 +56,15 @@ export class ReleaseService {
         await client.query('INSERT INTO variant_releases(id,variant_id,package_release_id,metadata) VALUES ($1,$2,$3,$4)', [id, variant.variantId, packageIds.get(JSON.stringify([variant.packageName, variant.packageVersion])), JSON.stringify(variant)]);
         variantIds.set(variant.variantId, id);
       }
-      for (const report of Object.values(reports)) await client.query('INSERT INTO check_reports(id,job_id,variant_id,content) VALUES ($1,$2,$3,$4)', [report.id, jobId, report.variantId, JSON.stringify(report)]);
+      const reportIds = new Map<string, string>();
+      for (const report of Object.values(reports)) {
+        const id = randomUUID();
+        await client.query('INSERT INTO check_reports(id,job_id,client_ref,variant_id,content) VALUES ($1,$2,$3,$4,$5)', [id, jobId, report.id, report.variantId, JSON.stringify(report)]);
+        reportIds.set(report.id, id);
+      }
       for (const variant of manifest.variants) for (const shot of variant.screenshots) {
-        await client.query('INSERT INTO screenshots(id,variant_release_id,example_id,environment_key,source,report_id,object_key,sha256,metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)',
-          [shot.id, variantIds.get(variant.variantId), shot.exampleId, shot.environmentKey, shot.source, shot.reportId ?? null, frozen.keys.get(shot.image.path), shot.image.sha256, JSON.stringify(shot)]);
+        await client.query('INSERT INTO screenshots(id,job_id,client_ref,variant_release_id,example_id,environment_key,source,report_id,object_key,sha256,metadata) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)',
+          [randomUUID(), jobId, shot.id, variantIds.get(variant.variantId), shot.exampleId, shot.environmentKey, shot.source, shot.reportId ? reportIds.get(shot.reportId) : null, frozen.keys.get(shot.image.path), shot.image.sha256, JSON.stringify(shot)]);
       }
       await audit(client, context.principal.subject, 'RELEASE_CREATED', jobId, { state: 'PENDING', manifestDigest: digest }, context.requestId);
       return { jobId, state: 'PENDING' };
@@ -70,12 +75,12 @@ export class ReleaseService {
     const job = result.rows[0];
     if (!job) throw new PlatformError('NOT_FOUND');
     if (job.subject !== context.principal.subject) {
-      if (!context.principal.roles.includes('maintainer')) throw new PlatformError('NOT_FOUND');
+      if (!context.principal.roles.includes('maintainer')) throw new PlatformError('NOT_FOUND', [], true);
       try {
         await requireComponents(sql, context.principal.subject, job.manifest.variants.map(variant => variant.componentId), true);
         await requirePackages(sql, context.principal.subject, job.manifest.packages.map(pkg => pkg.name));
       } catch (error) {
-        if (error instanceof PlatformError && error.code === 'FORBIDDEN') throw new PlatformError('NOT_FOUND');
+        if (error instanceof PlatformError && error.code === 'FORBIDDEN') throw new PlatformError('NOT_FOUND', [], true);
         throw error;
       }
     }
@@ -83,7 +88,11 @@ export class ReleaseService {
   }
   async get(jobId: string, context: RequestContext): Promise<ApiMessages['releaseJobResponse']> {
     const job = await this.readable(this.db, jobId, context);
-    return { state: job.state, stage: job.stage, attempt: job.attempt, ...(job.last_error ? { lastError: job.last_error } : {}), missingArtifacts: [], pollAfterMs: 2000 };
+    const candidates = await this.db.query(`SELECT s.id AS "screenshotId",s.client_ref AS "sourceScreenshotId",vr.variant_id AS "variantId",s.example_id AS "exampleId",s.environment_key AS "environmentKey"
+      FROM screenshots s JOIN variant_releases vr ON vr.id=s.variant_release_id
+      WHERE s.job_id=$1 AND s.source='local-automatic' AND s.environment_key<>'unknown-manual' ORDER BY s.client_ref`, [job.id]);
+    const baselineCandidates = candidates.rows as NonNullable<ApiMessages['releaseJobResponse']['baselineCandidates']>;
+    return { state: job.state, stage: job.stage, attempt: job.attempt, ...(job.last_error ? { lastError: job.last_error } : {}), missingArtifacts: [], pollAfterMs: 2000, baselineCandidates };
   }
   async retry(jobId: string, context: RequestContext): Promise<ApiMessages['retryReleaseResponse']> {
     return this.db.transaction(async client => {

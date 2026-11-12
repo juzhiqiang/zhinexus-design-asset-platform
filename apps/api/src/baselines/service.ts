@@ -15,12 +15,22 @@ export class BaselineService {
       const variant = (await client.query('SELECT component_id FROM variants WHERE id=$1', [value.variantId])).rows[0];
       if (!variant) throw new PlatformError('NOT_FOUND');
       await requireComponents(client, context.principal.subject, [variant.component_id], true);
-      const result = await client.query(`SELECT s.*,vr.variant_id,pr.sha256 AS package_sha256,r.content AS report
+      const select = `SELECT s.*,vr.variant_id,pr.sha256 AS package_sha256,r.content AS report
         FROM screenshots s JOIN variant_releases vr ON vr.id=s.variant_release_id
         JOIN package_releases pr ON pr.id=vr.package_release_id
-        LEFT JOIN check_reports r ON r.id=s.report_id
-        WHERE s.id=$1`, [value.screenshotId]);
-      const shot = result.rows[0];
+        LEFT JOIN check_reports r ON r.id=s.report_id`;
+      const serverId = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i.test(value.screenshotId) ? value.screenshotId : null;
+      let shot = (await client.query(`${select} WHERE s.id=$1`, [serverId])).rows[0];
+      if (!shot) {
+        // Legacy references may only resolve inside this authorized variant/example.
+        const references = (await client.query(`${select} WHERE s.client_ref=$1 AND vr.variant_id=$2 AND s.example_id=$3`,
+          [value.screenshotId, value.variantId, value.exampleId])).rows;
+        const matching = references.filter(row => row.environment_key === value.environmentKey);
+        if (matching.length > 1) throw new PlatformError('CONFLICT');
+        shot = matching[0];
+        if (!shot && references.some(row => row.source !== 'local-automatic' || row.environment_key === 'unknown-manual')) throw new PlatformError('SOURCE_FORBIDDEN');
+        if (!shot && references.length) throw new PlatformError('SCREENSHOT_VARIANT_MISMATCH');
+      }
       if (!shot) throw new PlatformError('NOT_FOUND');
       if (shot.source !== 'local-automatic' || shot.environment_key === 'unknown-manual') throw new PlatformError('SOURCE_FORBIDDEN');
       if (shot.variant_id !== value.variantId || shot.example_id !== value.exampleId || shot.environment_key !== value.environmentKey) throw new PlatformError('SCREENSHOT_VARIANT_MISMATCH');
@@ -28,7 +38,7 @@ export class BaselineService {
       if (!report.ok || !report.value.checks.length || report.value.checks.some(check => check.status !== 'passed') ||
         report.value.baselineResult === 'INCOMPATIBLE' || report.value.variantId !== value.variantId || report.value.exampleId !== value.exampleId ||
         report.value.packageSha256 !== shot.package_sha256 || await environmentKey(report.value.environment) !== value.environmentKey ||
-        !report.value.screenshots.some(screenshot => screenshot.id === value.screenshotId && screenshot.image.sha256 === shot.sha256 &&
+        !report.value.screenshots.some(screenshot => screenshot.id === shot.client_ref && screenshot.image.sha256 === shot.sha256 &&
           screenshot.variantId === value.variantId && screenshot.exampleId === value.exampleId && screenshot.source === 'local-automatic' && screenshot.environmentKey === value.environmentKey)) throw new PlatformError('REPORT_MISMATCH');
       const key = [value.variantId, value.exampleId, value.environmentKey];
       await client.query('INSERT INTO baseline_heads(variant_id,example_id,environment_key) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', key);
@@ -36,9 +46,9 @@ export class BaselineService {
       if (head.revision_id !== (value.expectedRevision ?? null)) throw new PlatformError('CONFLICT');
       const revisionId = randomUUID();
       await client.query('INSERT INTO baseline_revisions(id,variant_id,example_id,environment_key,screenshot_id,parent_revision,reason,subject) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
-        [revisionId, ...key, value.screenshotId, head.revision_id, value.reason.trim(), context.principal.subject]);
+        [revisionId, ...key, shot.id, head.revision_id, value.reason.trim(), context.principal.subject]);
       await client.query('UPDATE baseline_heads SET revision_id=$4 WHERE variant_id=$1 AND example_id=$2 AND environment_key=$3', [...key, revisionId]);
-      await audit(client, context.principal.subject, 'BASELINE_ACCEPTED', revisionId, { variantId: value.variantId, screenshotId: value.screenshotId, reason: value.reason.trim(), parentRevision: head.revision_id }, context.requestId);
+      await audit(client, context.principal.subject, 'BASELINE_ACCEPTED', revisionId, { variantId: value.variantId, screenshotId: shot.id, reason: value.reason.trim(), parentRevision: head.revision_id }, context.requestId);
       return { revisionId };
     });
   }
