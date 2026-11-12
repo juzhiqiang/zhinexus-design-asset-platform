@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { Client } from 'pg';
 
-export function localCredentials(): { postgresPassword: string; minioUser: string; minioPassword: string } {
+export function localCredentials(): { postgresPassword: string; minioUser: string; minioPassword: string; publisherPassword: string; readerPassword: string } {
   try { return JSON.parse(readFileSync(fileURLToPath(new URL('../../.tools/g2-local/credentials.json', import.meta.url)), 'utf8')); }
   catch { throw new Error('Run infra:up before test:platform; real storage is required'); }
 }

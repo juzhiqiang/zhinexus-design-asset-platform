@@ -2,6 +2,14 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.4] - 2026-11-12
+
+### Added
+
+- 补齐六实现完整发布材料：`prepareReleaseBundle` 全面支持 line、bar、pie 三组件在 Vue 与 React 双框架下的 6 份确定性截图、CheckReportV1 报告、规范化 API 元数据及文档 Markdown（T04）。
+- 隔离消费者真实静态预览构建：在工作区外干净消费者安装冻结产物后调用 Vite 构建真实静态资源，生成自包含的 `bundle/preview/${variantId}` 页面供沙箱 iframe 隔离运行，纳入材料文件清单（T04）。
+- 客户端发布全链路与状态断点恢复命令：新增 `component release`、`component status`、`component resume` 命令入口；实现基于 `.release-session.json` 的本地会话持久化与状态机跟踪，支持大文件切片上传、摘要核验、发布提交、轮询等待与断点恢复（T04/T06）。
+
 ## [0.0.3] - 2026-11-12
 
 ### Added

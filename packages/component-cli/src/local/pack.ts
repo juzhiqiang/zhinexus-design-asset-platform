@@ -88,6 +88,7 @@ export async function packPackage(options: PackOptions): Promise<PackResult> {
         shell: isCmd && process.platform === 'win32',
         env: {
           ...process.env,
+          SOURCE_DATE_EPOCH: process.env.SOURCE_DATE_EPOCH || '1700000000',
         },
       },
     );

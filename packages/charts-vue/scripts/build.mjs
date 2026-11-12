@@ -1,4 +1,4 @@
-import { copyFile, mkdir, rm } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
@@ -53,7 +53,8 @@ execFileSync(
   { cwd: packageRoot, stdio: 'inherit', env: { ...process.env, NODE_ENV: 'production' } },
 );
 
-// 3. 样式入口
+// 3. 样式入口（确保 LF 换行）
 await mkdir(path.join(packageRoot, 'dist'), { recursive: true });
-await copyFile(path.join(packageRoot, 'src/style.css'), path.join(packageRoot, 'dist/style.css'));
+const css = await readFile(path.join(packageRoot, 'src/style.css'), 'utf8');
+await writeFile(path.join(packageRoot, 'dist/style.css'), css.replace(/\r\n/g, '\n'), 'utf8');
 console.log('charts-vue 构建完成：index / line / bar / pie / scatter / style.css → dist');

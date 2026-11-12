@@ -7,8 +7,8 @@ describe('bootstrap entry points', () => {
   it('reports the supplied CLI version', async () => {
     expect(await runCli(['--version'], '0.0.0')).toEqual({ exitCode: 0, stdout: '0.0.0\n', stderr: '' });
   });
-  it('does not pretend release or future commands are implemented', async () => {
-    for (const command of ['release', 'init', 'dev', 'integrate', '--unknown']) {
+  it('does not pretend future commands are implemented', async () => {
+    for (const command of ['init', 'dev', 'integrate', '--unknown']) {
       const result = await runCli([command], '0.0.0');
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain('尚未实现');
