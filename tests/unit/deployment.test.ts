@@ -9,7 +9,8 @@ it('accepts the reviewed template but rejects floating images, exposed storage a
   expect(validateDeployment(template)).toEqual([]);
   for (const change of [(x:any)=>x.services.api.image='api:latest', (x:any)=>x.services.postgres.ports=['5432:5432'],
     (x:any)=>x.services.api.environment.PLATFORM_DATABASE_URL='postgres://secret', (x:any)=>x.services.worker.command=['npm','install'],
-    (x:any)=>x.services.api.read_only=false]) {
+    (x:any)=>x.services.api.read_only=false, (x:any)=>x.services.api.user='0:0', (x:any)=>x.services.api.volumes=['/tmp:/app'],
+    (x:any)=>x.services.api.tmpfs=['/app'], (x:any)=>x.services.postgres.networks=['edge']]) {
     const invalid = structuredClone(template); change(invalid); expect(validateDeployment(invalid).length).toBeGreaterThan(0);
   }
   expect(validateDeployment(template,{}).length).toBeGreaterThan(0);

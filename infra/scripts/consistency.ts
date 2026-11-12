@@ -26,7 +26,16 @@ export async function checkConsistency(db: Database, store: ArtifactStore, regis
     for (const file of manifest.files) if (!rows.some(r => r.job_id === job.id && r.path === file.path && r.sha256 === file.sha256 && Number(r.bytes) === file.bytes)) fail();
     const registered = (await db.query('SELECT * FROM package_releases WHERE job_id=$1',[job.id])).rows;
     const implementations = (await db.query('SELECT v.* FROM variant_releases v JOIN package_releases p ON p.id=v.package_release_id WHERE p.job_id=$1',[job.id])).rows;
+    const savedReports = (await db.query('SELECT * FROM check_reports WHERE job_id=$1',[job.id])).rows;
+    const screenshots = (await db.query('SELECT * FROM screenshots WHERE job_id=$1',[job.id])).rows;
     if (registered.length !== manifest.packages.length || implementations.length !== manifest.variants.length) fail();
+    if (savedReports.length !== Object.keys(reports).length || screenshots.length !== manifest.variants.reduce((sum,v)=>sum+v.screenshots.length,0)) fail();
+    const reportIds = new Map<string,string>();
+    for (const report of Object.values(reports)) {
+      const saved = savedReports.find(r=>r.client_ref===report.id && r.variant_id===report.variantId);
+      if (!saved || await manifestDigest(saved.content) !== await manifestDigest(report)) fail();
+      reportIds.set(report.id,saved!.id);
+    }
     for (const pkg of manifest.packages) {
       const row = registered.find(p => p.name===pkg.name && p.version===pkg.version && p.sha256===pkg.tarball.sha256 && p.state==='READY');
       if (!row || await manifestDigest(row.metadata) !== await manifestDigest(pkg)) fail();
@@ -34,6 +43,14 @@ export async function checkConsistency(db: Database, store: ArtifactStore, regis
       for (const variant of manifest.variants.filter(v=>v.packageName===pkg.name && v.packageVersion===pkg.version)) {
         const rowV = implementations.find(v=>v.variant_id===variant.variantId && v.package_release_id===row!.id && ['Ready','DEPRECATED'].includes(v.availability));
         if (!rowV || await manifestDigest(rowV.metadata) !== await manifestDigest(variant)) fail();
+        for (const shot of variant.screenshots) {
+          const saved = screenshots.find(s=>s.client_ref===shot.id && s.variant_release_id===rowV!.id);
+          const object = rows.find(r=>r.job_id===job.id && r.path===shot.image.path);
+          if (!saved || !object || saved.object_key!==object.object_key || saved.sha256!==shot.image.sha256 ||
+            saved.example_id!==shot.exampleId || saved.environment_key!==shot.environmentKey || saved.source!==shot.source ||
+            saved.report_id!==(shot.reportId ? reportIds.get(shot.reportId) : null) ||
+            await manifestDigest(saved.metadata)!==await manifestDigest(shot)) fail();
+        }
         variants++;
       }
     }

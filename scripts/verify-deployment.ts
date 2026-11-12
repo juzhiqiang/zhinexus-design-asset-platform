@@ -8,6 +8,8 @@ import { retentionPolicy } from '../apps/api/dist/operations/retention.js';
 const pinned = (value: unknown) => typeof value==='string' && /^(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}$/.test(value);
 const parameter = (value: unknown) => typeof value==='string' && /^\$\{[A-Z][A-Z0-9_]*:\?[^}]+\}$/.test(value);
 const commands: Record<string,string[]> = {api:['node','dist/server.js'],worker:['node','dist/releases/runner.js'],'preview-gateway':['node','dist/server.js']};
+const networks: Record<string,string[]> = {api:['backend','edge','egress'],worker:['backend','edge','egress'],
+  'preview-gateway':['backend','edge','egress'],postgres:['backend'],verdaccio:['backend','edge'],minio:['backend','edge']};
 export function validateDeployment(input: unknown, env?: Record<string,string|undefined>): string[] {
   const errors: string[] = []; const config = input as {services?:Record<string,any>;networks?:Record<string,any>};
   if (!config?.services) return ['services are required'];
@@ -17,7 +19,10 @@ export function validateDeployment(input: unknown, env?: Record<string,string|un
     if (!pinned(s.image) && !(parameter(s.image) && /_IMAGE:/.test(s.image))) errors.push(`${name}: immutable image required`);
     if (s.ports?.length || s.privileged || s.network_mode==='host' || s.build || s.entrypoint) errors.push(`${name}: unsafe exposure or execution`);
     if (name in commands && (s.read_only!==true || !s.cap_drop?.includes('ALL') || !s.security_opt?.includes('no-new-privileges:true') ||
+      s.user!=='1000:1000' || s.volumes?.length || s.devices?.length || JSON.stringify(s.tmpfs)!==JSON.stringify(['/tmp:size=64m']) ||
       JSON.stringify(s.command)!==JSON.stringify(commands[name]))) errors.push(`${name}: unsafe runtime`);
+    const assigned = Array.isArray(s.networks) ? s.networks : Object.keys(s.networks??{});
+    if (JSON.stringify([...assigned].sort())!==JSON.stringify([...(networks[name]??[])].sort())) errors.push(`${name}: unexpected network access`);
     for (const [key,value] of Object.entries(s.environment??{})) {
       if (/(?:DATABASE_URL|SECRET_KEY|ACCESS_KEY|TOKEN)$/.test(key) && !parameter(value)) errors.push(`${name}: credential must be injected`);
     }
