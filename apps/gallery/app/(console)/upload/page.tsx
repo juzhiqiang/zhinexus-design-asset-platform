@@ -502,11 +502,11 @@ export default function WebUploadConsole() {
               type="button"
               className="filter-btn"
               onClick={() => {
-                // 构造开发测试用模拟 Token (alice: publisher + maintainer, channel: web)
+                // 构造开发测试用模拟 Token (web-developer-alice: publisher + maintainer, channel: web)
                 const mockHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
                 const mockPayload = btoa(
                   JSON.stringify({
-                    sub: 'alice',
+                    sub: 'web-developer-alice',
                     roles: ['publisher', 'maintainer'],
                     azp: 'web',
                     client_id: 'web',
@@ -518,7 +518,7 @@ export default function WebUploadConsole() {
                 if (s) setSession(s);
               }}
             >
-              使用测试开发者身份 (alice)
+              一键模拟开发者登录
             </button>
           </div>
 
@@ -536,9 +536,9 @@ export default function WebUploadConsole() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
           <p className="eyebrow">Zhinexus 组件资产平台 · 发布控制台</p>
-          <h1>网页手动提交 (Web Manual Release)</h1>
+          <h1>资产发布工作区 (Manual Release)</h1>
           <p className="lead">
-            当前身份: <strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code>
+            当前登录身份：<strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code>
           </p>
         </div>
         <button type="button" className="filter-btn" onClick={handleLogout}>
@@ -550,7 +550,7 @@ export default function WebUploadConsole() {
       <section className="spec-table-container" style={{ marginBottom: '32px' }} aria-label="逐实现截图关联检查">
         <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>待发布组件实现与截图关联清单 (逐实现必检)</h2>
+            <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>逐实现截图关联与必检清单</h2>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
               每个待发布逻辑组件的每个框架实现（Vue / React）至少关联一张有效截图；来源强制固定为 manual-upload。
             </p>
@@ -564,6 +564,7 @@ export default function WebUploadConsole() {
         {!validation.ok && (
           <div
             id="missing-screenshots-alert"
+            className="blocker-alert"
             style={{
               padding: '16px',
               background: '#fef2f2',
@@ -572,11 +573,11 @@ export default function WebUploadConsole() {
               fontSize: '14px',
             }}
           >
-            <strong>提交阻断 (SCREENSHOT_REQUIRED / 框架错配):</strong>
+            <strong>阻断发布：存在未关联有效截图的组件实现 (SCREENSHOT_REQUIRED / 框架错配):</strong>
             <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
               {validation.issues.map((issue, idx) => (
                 <li key={idx} style={{ marginBottom: '4px' }}>
-                  {issue.message}
+                  <strong>[{issue.code}]</strong> {issue.message}
                 </li>
               ))}
             </ul>
@@ -598,7 +599,7 @@ export default function WebUploadConsole() {
               const hasShot = v.screenshots && v.screenshots.length > 0;
               const isMissing = validation.missingVariantIds.includes(v.variantId);
               return (
-                <tr key={v.variantId}>
+                <tr key={v.variantId} className="variant-shot-card">
                   <td>
                     <strong>{v.componentId}</strong> ({v.exportName})
                   </td>
@@ -628,6 +629,7 @@ export default function WebUploadConsole() {
                         <button
                           type="button"
                           className="filter-btn"
+                          data-remove-shot={v.variantId}
                           style={{ padding: '2px 8px', fontSize: '11px', color: '#dc2626' }}
                           onClick={() => handleRemoveScreenshot(v.variantId)}
                         >
@@ -639,17 +641,18 @@ export default function WebUploadConsole() {
                           style={{ padding: '2px 8px', fontSize: '11px' }}
                           onClick={() => handleMismatchScreenshot(v.variantId)}
                         >
-                          模拟错配
+                          模拟框架错配测试
                         </button>
                       </div>
                     ) : (
                       <button
                         type="button"
                         className="filter-btn active"
+                        data-restore-shot={v.variantId}
                         style={{ padding: '2px 8px', fontSize: '11px' }}
                         onClick={() => handleAddScreenshot(v.variantId)}
                       >
-                        上传/补齐截图
+                        补齐默认截图
                       </button>
                     )}
                   </td>
@@ -670,7 +673,7 @@ export default function WebUploadConsole() {
           disabled={!validation.ok || isSubmitting}
           onClick={handleSubmitRelease}
         >
-          {isSubmitting ? '发布作业提交中...' : '提交网页发布 (Manual Release)'}
+          {isSubmitting ? '发布作业提交中...' : '确认并提交发布'}
         </button>
 
         {!validation.ok && (

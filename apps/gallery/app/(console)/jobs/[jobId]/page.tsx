@@ -93,7 +93,8 @@ export default function JobDetailPage({
 
       <header style={{ marginBottom: '28px' }}>
         <p className="eyebrow">发布作业状态机</p>
-        <h1>作业详情: <span style={{ fontFamily: 'monospace', fontSize: '24px' }}>{jobId}</span></h1>
+        <h1>发布作业流水线状态跟踪</h1>
+        <p className="lead">作业编号：<span style={{ fontFamily: 'monospace', fontSize: '18px' }}>{jobId}</span></p>
       </header>
 
       {error && (
@@ -112,6 +113,7 @@ export default function JobDetailPage({
             return (
               <div
                 key={st}
+                className="pipeline-step"
                 style={{
                   flex: 1,
                   minWidth: '130px',
