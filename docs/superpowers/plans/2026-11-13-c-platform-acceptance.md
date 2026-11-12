@@ -55,5 +55,7 @@ Produces: `rehearse:capacity` 本机命令；独立run目录中的catalog/upload
 
 - [x] 独立审查本轮diff；重要问题RED→GREEN后全套回归。
 - [x] 检查main是否前进、主工作区暂存和已有修改；若有新提交先验证组合树。
-- [ ] 按已获授权合并main，复验合并结果，当前worktree脱离本次分支后用 `git branch -d` 删除该分支。
-- [ ] 报告提交、结果、外部门槛；不删除原有分支或其他worktree。
+- [x] 按已获授权合并main，复验合并结果，当前worktree脱离本次分支后用 `git branch -d` 删除该分支。
+- [x] 报告提交、结果、外部门槛；不删除原有分支或其他worktree。
+
+合并提交 `e70a77f` 的代码树与验收分支一致；合并后普通测试552项、verify:workspace及根tsc通过。本次分支已安全删除，当前C工作区保留在main，B工作区保持自身功能分支。完整证据见本轮验证记录；未push，外部门槛继续开放。
