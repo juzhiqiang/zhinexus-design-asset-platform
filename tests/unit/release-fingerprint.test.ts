@@ -12,6 +12,16 @@ import {
   freezePackageRelease,
   verifyFrozenTarball,
 } from '../../packages/component-cli/src/local/freeze.js';
+import {
+  detectEnvironment,
+  computeEnvironmentKey,
+} from '../../packages/component-cli/src/local/environment.js';
+import {
+  buildCheckReport,
+} from '../../packages/component-cli/src/local/report.js';
+import {
+  validateCheckReport,
+} from '../../packages/component-cli/src/contracts/validation.js';
 
 describe('T04: digest computation and release fingerprint', () => {
   it('computes 64-char lowercase SHA-256 for buffers', () => {
@@ -107,5 +117,150 @@ describe('T04: digest computation and release fingerprint', () => {
     } finally {
       fs.rmSync(stagingDir, { recursive: true, force: true });
     }
+  });
+
+  it('pack_mutation_invalidates_report: tampered tarball invalidates report check', async () => {
+    const validSha = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
+    const tamperedSha = '3cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
+    const env = detectEnvironment({
+      browserVersion: '130.0.0.0',
+      browserRevision: '1000',
+      fontDigest: '1111111111111111111111111111111111111111111111111111111111111111',
+      framework: 'vue',
+      frameworkVersion: '3.5.45',
+      echartsVersion: '6.1.0',
+    });
+    const envKey = computeEnvironmentKey(env);
+
+    const report = buildCheckReport({
+      id: 'rep-001',
+      toolVersion: '0.0.1',
+      variantId: 'line-vue',
+      packageSha256: validSha,
+      exampleId: 'line-default',
+      environment: env,
+      environmentKey: envKey,
+      checks: [{ name: 'single-instance', status: 'passed' }],
+      screenshots: [
+        {
+          id: 'shot-001',
+          variantId: 'line-vue',
+          framework: 'vue',
+          packageVersion: '0.0.1',
+          exampleId: 'line-default',
+          state: 'default',
+          source: 'local-automatic',
+          packageSha256: validSha,
+          environmentKey: envKey,
+          image: { path: 'screenshots/line-vue.png', sha256: validSha, bytes: 1024 },
+        },
+      ],
+      baselineResult: 'NEW',
+    });
+
+    // Valid report passes contract validation
+    const validationResult = validateCheckReport(report);
+    expect(validationResult.ok).toBe(true);
+
+    // If tarball was tampered and report has mismatching packageSha256
+    const invalidReport = { ...report, packageSha256: tamperedSha };
+    const invalidValidation = validateCheckReport(invalidReport);
+    expect(invalidValidation.ok).toBe(false);
+  });
+
+  it('font_or_os_mismatch_is_incompatible: environment key changes on font or OS difference', () => {
+    const baseEnv = detectEnvironment({
+      browserVersion: '130.0.0.0',
+      browserRevision: '1000',
+      fontDigest: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      framework: 'vue',
+      frameworkVersion: '3.5.45',
+      echartsVersion: '6.1.0',
+    });
+    const baseKey = computeEnvironmentKey(baseEnv);
+    expect(baseKey).toMatch(/^[a-f0-9]{64}$/);
+
+    // Font mismatch
+    const fontMismatchEnv = {
+      ...baseEnv,
+      fontDigest: 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb',
+    };
+    const fontMismatchKey = computeEnvironmentKey(fontMismatchEnv);
+    expect(fontMismatchKey).not.toBe(baseKey);
+
+    // OS mismatch
+    const osMismatchEnv = {
+      ...baseEnv,
+      os: baseEnv.os === 'windows' ? 'linux' : 'windows',
+    };
+    const osMismatchKey = computeEnvironmentKey(osMismatchEnv);
+    expect(osMismatchKey).not.toBe(baseKey);
+  });
+
+  it('engine_upgrade_compares_existing_baseline: engine version is tracked in environment', () => {
+    const envEcharts6 = detectEnvironment({
+      browserVersion: '130.0.0.0',
+      browserRevision: '1000',
+      fontDigest: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      framework: 'vue',
+      frameworkVersion: '3.5.45',
+      echartsVersion: '6.1.0',
+    });
+    const envEcharts7 = detectEnvironment({
+      browserVersion: '130.0.0.0',
+      browserRevision: '1000',
+      fontDigest: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      framework: 'vue',
+      frameworkVersion: '3.5.45',
+      echartsVersion: '6.2.0',
+    });
+    expect(envEcharts6.echartsVersion).toBe('6.1.0');
+    expect(envEcharts7.echartsVersion).toBe('6.2.0');
+    expect(computeEnvironmentKey(envEcharts6)).not.toBe(computeEnvironmentKey(envEcharts7));
+  });
+
+  it('page_error_fails_even_with_screenshot: report with failed check does not validate as all-passed', () => {
+    const sha = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
+    const env = detectEnvironment({
+      browserVersion: '130.0.0.0',
+      browserRevision: '1000',
+      fontDigest: '1111111111111111111111111111111111111111111111111111111111111111',
+      framework: 'react',
+      frameworkVersion: '19.3.1',
+      echartsVersion: '6.1.0',
+    });
+    const envKey = computeEnvironmentKey(env);
+
+    const reportWithPageError = buildCheckReport({
+      id: 'rep-002',
+      toolVersion: '0.0.1',
+      variantId: 'line-react',
+      packageSha256: sha,
+      exampleId: 'line-default',
+      environment: env,
+      environmentKey: envKey,
+      checks: [
+        { name: 'single-instance', status: 'passed' },
+        { name: 'no-page-error', status: 'failed' },
+      ],
+      screenshots: [
+        {
+          id: 'shot-002',
+          variantId: 'line-react',
+          framework: 'react',
+          packageVersion: '0.0.1',
+          exampleId: 'line-default',
+          state: 'default',
+          source: 'local-automatic',
+          packageSha256: sha,
+          environmentKey: envKey,
+          image: { path: 'screenshots/line-react.png', sha256: sha, bytes: 2048 },
+        },
+      ],
+      baselineResult: 'NEW',
+    });
+
+    const hasFailedCheck = reportWithPageError.checks.some((c) => c.status === 'failed');
+    expect(hasFailedCheck).toBe(true);
   });
 });

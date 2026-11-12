@@ -2,6 +2,15 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.2] - 2026-11-12
+
+### Added
+
+- `component check` 本地验证命令：支持 `--framework vue|react|all` 与 `--staging-dir`，完整执行打包、冻结、干净消费者隔离安装、本地服务启动、Playwright 就绪协议驱动截图与报告生成闭环（T04）。
+- 环境指纹探测与签名 (`detectEnvironment`, `computeEnvironmentKey`)：归一化收集 OS、架构、浏览器版本、字体签名、区域与视图配置，生成 64 位 SHA-256 环境签名（T04）。
+- 确定性截图捕获 (`captureExample`)：通过 `ready` → `runState` → `getChecks` 协议驱动，等待字体、有效容器尺寸和 ECharts 渲染完成；任何页面运行错误（`pageerror`）或就绪超时均阻断退出（T04）。
+- 契约内联与 CheckReportV1 报告生成 (`buildCheckReport`, `validateCheckReport`)：首轮记录 NEW 基线结果，关联同一冻结 tarball SHA-256，所有契约校验完全内联于构建产物，无私有运行时依赖（T04）。
+
 ## [0.0.1] - 2026-11-12
 
 ### Added
