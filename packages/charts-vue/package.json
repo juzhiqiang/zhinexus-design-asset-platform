@@ -32,6 +32,10 @@
       "types": "./dist/scatter.d.ts",
       "import": "./dist/scatter.js"
     },
+    "./trend-card": {
+      "types": "./dist/trend-card.d.ts",
+      "import": "./dist/trend-card.js"
+    },
     "./style.css": "./dist/style.css"
   },
   "types": "./dist/index.d.ts",
