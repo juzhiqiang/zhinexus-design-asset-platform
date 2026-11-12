@@ -4,6 +4,7 @@ import type {
   GridComponentOption,
   LegendComponentOption,
   LineSeriesOption,
+  PieSeriesOption,
   TitleComponentOption,
   TooltipComponentOption,
   XAXisComponentOption,
@@ -23,7 +24,7 @@ export type ThemeName = 'light' | 'dark';
  * 图表类型联合（T09 起按图表扩展）：决定 option 构建与按需模块注册。
  * 控制器与框架层按该联合分发，不引入 `any` 或任意对象配置。
  */
-export type ChartType = 'line' | 'bar';
+export type ChartType = 'line' | 'bar' | 'pie';
 
 /** 单个数据点。y 为 null 表示缺失值，共享核心禁止将其转换为 0。 */
 export type ChartPoint = { x: string | number; y: number | null };
@@ -86,7 +87,21 @@ export type BarChartConfig = ChartConfig & {
 };
 
 /** 控制器入口接受的图表配置联合。 */
-export type AnyChartConfig = LineChartConfig | BarChartConfig;
+export type AnyChartConfig = LineChartConfig | BarChartConfig | PieChartConfig;
+
+/**
+ * 饼图 / 环形图配置：基础配置 + 饼图特有语义。
+ * `points[].x` 为扇形名称，`points[].y` 为数值；一个系列对应一圈（一环）。
+ */
+export type PieChartConfig = ChartConfig & {
+  /** 图表类型标识：必填判别字段，饼图不接受折线 / 柱状专属配置。 */
+  chart: 'pie';
+  /**
+   * 环形图开关：只改变内半径语义（从内侧预留外半径的 50% 作为内孔），
+   * 不影响数据、角度顺序、图例规则与占比口径。缺省为实心饼图。
+   */
+  donut?: boolean;
+};
 
 /**
  * 受支持的 option 覆盖字段：仅这些顶层组件配置可深层合并。
@@ -114,6 +129,9 @@ export type LineChartOption = ComposeOption<LineSeriesOption | ChartComponentOpt
 
 /** 柱状图 option 类型：按入口注册的系列与组件联合。 */
 export type BarChartOption = ComposeOption<BarSeriesOption | ChartComponentOption>;
+
+/** 饼图 / 环形图 option 类型：按入口注册的系列与组件联合（无坐标轴组件）。 */
+export type PieChartOption = ComposeOption<PieSeriesOption | ChartComponentOption>;
 
 /**
  * 图表控制器：双框架适配层共用的实例生命周期与事件入口。

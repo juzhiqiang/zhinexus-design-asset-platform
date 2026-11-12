@@ -12,6 +12,8 @@ export type {
   ChartType,
   LineChartConfig,
   LineChartOption,
+  PieChartConfig,
+  PieChartOption,
   PointClickListener,
   Renderer,
   SupportedOptionOverrides,
@@ -20,11 +22,12 @@ export type {
   Unsubscribe,
 } from './types.js';
 export { ChartDataError, alignSeriesValues, collectCategories, normalizeChartData } from './data.js';
-export { MISSING_VALUE_DISPLAY, formatValue } from './format.js';
+export { MISSING_VALUE_DISPLAY, formatPercent, formatValue } from './format.js';
 export { darkTheme, lightTheme, resolveTheme } from './theme.js';
 export type { ChartTheme } from './theme.js';
 export { buildBarOption } from './charts/bar.js';
 export { buildLineOption } from './charts/line.js';
+export { buildPieOption, pieTotal } from './charts/pie.js';
 export { createChartController } from './controller.js';
 
 import { version } from 'echarts/core.js';

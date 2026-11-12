@@ -6,6 +6,10 @@ const REACT_BAR = 'http://127.0.0.1:5175/bar.html';
 // StrictMode 的 Effect 双调用只发生在开发态，预览产物无法覆盖
 const REACT_BAR_DEV = 'http://127.0.0.1:5176/bar.html';
 
+const VUE_PIE = 'http://127.0.0.1:5174/pie.html';
+const REACT_PIE = 'http://127.0.0.1:5175/pie.html';
+const REACT_PIE_DEV = 'http://127.0.0.1:5176/pie.html';
+
 type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
 
 type ExampleTestHook = {
@@ -14,6 +18,8 @@ type ExampleTestHook = {
   clearClicks(): void;
   remount(): void;
   seriesData(): (number | null)[][];
+  /** 饼图 / 环形图的内外半径（百分比字符串），用于断言 donut 只改变内半径。 */
+  seriesRadius(seriesIndex: number): [string, string] | null;
 };
 
 declare global {
@@ -78,6 +84,26 @@ async function assertChecksPass(page: Page, url: string): Promise<void> {
   for (const name of ['single-instance', 'no-page-error', 'series-match', 'renderer-match']) {
     expect((await checkByName(page, name))?.status, `${url} ${name}`).toBe('passed');
   }
+}
+
+/**
+ * 点击饼图扇形：`pointClientPosition` 对无坐标轴图表回退到扇形几何中心
+ * （环带中点角度 + 内外半径中点），坐标落在扇形内部，无需额外偏移。
+ */
+async function clickFirstSlice(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const hook = window.__COMPONENT_EXAMPLE_TEST__;
+    if (!hook) {
+      return false;
+    }
+    const position = hook.pointClientPosition(0, 0);
+    return position != null && position.x > 0 && position.y > 0;
+  });
+  const position = await page.evaluate(() =>
+    window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0),
+  );
+  expect(position).not.toBeNull();
+  await page.mouse.click(position!.x, position!.y);
 }
 
 for (const url of [VUE_BAR, REACT_BAR]) {
@@ -228,5 +254,159 @@ test('vue_bar_remount_leaves_single_instance', async ({ page }) => {
   await clickFirstBar(page);
   expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
   await assertChecksPass(page, VUE_BAR);
+  expect(pageErrors).toEqual([]);
+});
+
+for (const url of [VUE_PIE, REACT_PIE]) {
+  test(`pie_empty_data_renders_no_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+
+    await runState(page, 'empty');
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_missing_values_stay_missing: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'missing');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toHaveLength(1);
+    // 缺失值必须是 null，任何位置都不允许被写成 0
+    expect(data[0]).toContain(null);
+    expect(data[0]).not.toContain(0);
+    expect(JSON.stringify(data)).not.toContain(',0,');
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_zero_total_never_produces_nan: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'zero-total');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toEqual([[0, 0]]);
+    // 总量为零时占比不可算，任何序列化结果都不得出现 NaN
+    expect(JSON.stringify(data)).not.toContain('NaN');
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_nested_rings_and_update_remove_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).length,
+    ).toBe(1);
+
+    // 1 → 2 环：嵌套环按稳定 id 合并
+    await runState(page, 'nested');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).length,
+    ).toBe(2);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+
+    // 2 → 1 环：replaceMerge 删除系列，不残留旧环，也不产生第二个画布
+    await runState(page, 'updated');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).length,
+    ).toBe(1);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_click_payload_is_consistent: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+
+    await clickFirstSlice(page);
+
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    expect(clicks[0]).toEqual({
+      seriesId: 'share',
+      dataIndex: 0,
+      value: ['搜索', 120],
+      nativeType: 'click',
+    });
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_donut_inner_radius_is_applied: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // 示例固定使用环形图：内半径必须大于 0，且由外半径的 50% 预留
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(0)),
+    ).toEqual(['35%', '70%']);
+
+    // 嵌套环在内孔之外均分带宽，donut 只改变内半径
+    await runState(page, 'nested');
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(0)),
+    ).toEqual(['52.5%', '70%']);
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(1)),
+    ).toEqual(['35%', '52.5%']);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('pie_click_payload_matches_in_both_frameworks', async ({ page }) => {
+  const payloads: ChartEvent[] = [];
+  for (const url of [VUE_PIE, REACT_PIE]) {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+    await clickFirstSlice(page);
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    payloads.push(clicks[0]!);
+    expect(pageErrors, `${url} 页面错误`).toEqual([]);
+  }
+  // 两个框架对同一扇形产生完全等价的事件载荷
+  expect(payloads[0]).toEqual(payloads[1]);
+  expect(payloads[0]).toEqual({
+    seriesId: 'share',
+    dataIndex: 0,
+    value: ['搜索', 120],
+    nativeType: 'click',
+  });
+});
+
+test('react_pie_strictmode_cleans_and_remounts', async ({ page }) => {
+  const pageErrors = await openExample(page, REACT_PIE_DEV);
+
+  await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+  await assertChecksPass(page, REACT_PIE_DEV);
+
+  // 卸载后重新挂载：清理彻底，不残留实例、画布或重复监听
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+
+  // 重新挂载后点击只产生一次事件
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstSlice(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test('vue_pie_remount_leaves_single_instance', async ({ page }) => {
+  const pageErrors = await openExample(page, VUE_PIE);
+  await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstSlice(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  await assertChecksPass(page, VUE_PIE);
   expect(pageErrors).toEqual([]);
 });
