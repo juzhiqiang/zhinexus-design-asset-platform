@@ -14,6 +14,8 @@ type ExampleTestHook = {
   clearClicks(): void;
   remount(): void;
   seriesData(): (number | null)[][];
+  /** 饼图 / 环形图的内外半径（百分比字符串），用于断言 donut 只改变内半径。 */
+  seriesRadius(seriesIndex: number): [string, string] | null;
 };
 
 declare global {
