@@ -77,7 +77,13 @@
 
 ### 5.1 候选包（0.0.5，`feat/t09-trend` 分支）
 
-候选 tarball 由 `pnpm pack` 冻结（Linux 复现环境，Node `26.13.0` / pnpm `12.18.0`），摘要在验证记录中给出，供 B 的材料生成接入与核对；**B 应在自己的工作树重新冻结并以新摘要贯穿自己的链路**。0.0.4 → 0.0.5 为兼容变更（0.x 阶段按规则升 PATCH），无新增依赖、锁文件不变（`workspace:*` 协议）。
+候选 tarball 由 `pnpm pack` 冻结（Linux 复现环境，Node `26.13.0` / pnpm `12.18.0`），摘要如下，供 B 的材料生成接入与核对；**B 应在自己的工作树重新冻结并以新摘要贯穿自己的链路**。
+
+| 包 | 版本 | 字节 | SHA-256 |
+| --- | --- | --- | --- |
+| `@company/charts-core` | 0.0.5 | 30,260 | `cfc198d43b0114527ecd99ff4418497d5b0253fbcf4179e0ba5fe1da6a27393c` |
+| `@company/charts-vue` | 0.0.5 | 5,696 | `2d13a7ed0249442233337b5545b386276b572de89608fcb18f82dd9259f33bef` |
+| `@company/charts-react` | 0.0.5 | 10,296 | `40ead94a8820f1e96de22e620a4d1650949ab2e108b0f6939baf3b412ad8c7f1` |0.0.4 → 0.0.5 为兼容变更（0.x 阶段按规则升 PATCH），无新增依赖、锁文件不变（`workspace:*` 协议）。
 
 ### 5.2 B：CLI 发布材料生成实现清单
 
@@ -100,3 +106,30 @@
 - sparkline 恒开启，不提供开关；卡片标题、单位、主题 / 渲染器、动画均沿用 `ChartConfig` 与既有语义。
 - 数值摘要布局基于固定卡片高度的像素定位，示例使用固定高度保证截图可复现；宿主自行缩放容器时 graphic 文本位置随图表尺寸百分比/像素锚定，不保证任意高度下的像素级一致。
 - ranking / proportion 按同一模式扩展：core 增加场景入口与模块注册、框架包增加组件与子路径、fixtures 与示例同步、消费者与矩阵测试补充。排名需明确排序方向与并列处理；比例需在总量为零时显示「暂无数据」并不输出 NaN。
+
+## 7. 使用说明
+
+按需加载（推荐，只打入趋势卡片所需模块）：
+
+```ts
+import { TrendCard } from '@company/charts-vue/trend-card';
+// 或 import { TrendCard } from '@company/charts-react/trend-card';
+
+<TrendCard
+  data={{ series: [{ id: 'active', name: '活跃用户', points: [
+    { x: '周一', y: 120 }, { x: '周二', y: 150 }, { x: '周三', y: 180 }, { x: '周四', y: 200 },
+  ] }] }}
+  config={{ chart: 'trend-card', title: '近 7 日活跃用户', previousValue: 160, unit: { suffix: '人' } }}
+  onPointClick={(event) => console.log(event)}   // React；Vue 用 @point-click
+/>
+```
+
+要点：
+
+- `data` 复用 `ChartData`，`x` 为类目轴（时间 / 期间），`y` 为数值；缺失值（`null`）不补 0，也不参与「当前值」取末。
+- 「当前值」= 第一个系列最后一个非缺失值；「前期值」= `config.previousValue`。省略 `previousValue` 时只展示当前值，不展示变化。
+- 容器需要明确宽高（宿主 CSS 或 `config.width/height`）；数值摘要按固定卡片高度布局，示例使用 `360×180`。
+- 空数据 / 更新 / 销毁与其它图表一致：`data` 变化按稳定 series id 以 `replaceMerge` 增量更新；卸载时控制器 `dispose()` 幂等释放实例、监听与 `ResizeObserver`；零宽高容器等待 `ResizeObserver` 获得有效尺寸后再初始化。
+- SSR 安全：模块顶层不访问 `window` / `document`，SSR 宿主仅安全导入，图表实例只在客户端挂载后创建（与既有图表同一 `useChart` 实现）。
+- 点击 sparkline 数据点的载荷为 `[类目, 值]`（如 `{ seriesId: 'active', dataIndex: 3, value: ['周四', 200], nativeType: 'click' }`），与折线 / 柱状同构。
+
