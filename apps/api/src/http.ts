@@ -21,15 +21,15 @@ export class PlatformController {
   }
   @Post('releases') @HttpCode(202)
   createRelease(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Headers('idempotency-key') key: string | undefined, @Req() request: Request) {
-    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads).create(body, key, context));
+    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads, this.platform.store, this.platform.registry).create(body, key, context));
   }
   @Get('releases/:id')
   getRelease(@Param('id') id: string, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
-    return this.platform.run(auth, 'read', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads).get(id, context));
+    return this.platform.run(auth, 'read', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads, this.platform.store, this.platform.registry).get(id, context));
   }
   @Post('releases/:id/retry') @HttpCode(202)
   retryRelease(@Param('id') id: string, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
-    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads).retry(id, context));
+    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads, this.platform.store, this.platform.registry).retry(id, context));
   }
   @Post('uploads')
   createUpload(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {

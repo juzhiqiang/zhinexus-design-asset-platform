@@ -3,12 +3,20 @@ import { manifestDigest, validateApiMessage, type ApiMessages, type CheckReportV
 import type { Database } from '../db/database.js';
 import { audit, requireComponents, requirePackages, uuid, type RequestContext, type Sql } from '../db/access.js';
 import type { UploadService } from '../uploads/service.js';
+import type { ArtifactStore } from '../storage/artifact-store.js';
 import { validatePlatformBundle } from '../uploads/validator.js';
 import { PlatformError } from '../errors.js';
+import type { RegistryClient } from './registry-client.js';
+import { advanceRelease } from './worker.js';
 
 type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null };
 export class ReleaseService {
-  constructor(private readonly db: Database, private readonly uploads: UploadService) {}
+  constructor(
+    private readonly db: Database,
+    private readonly uploads: UploadService,
+    private readonly store?: ArtifactStore,
+    private readonly registry?: RegistryClient,
+  ) {}
   async create(input: unknown, key: string | undefined, context: RequestContext): Promise<ApiMessages['createReleaseResponse']> {
     if (!key || !/^[A-Za-z0-9._:-]{1,256}$/.test(key)) throw new PlatformError('INVALID_SCHEMA');
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).sort().join(',') !== 'manifest,uploadSessionId' ||
@@ -25,7 +33,7 @@ export class ReleaseService {
     const digest = await manifestDigest(manifest);
     if (digest !== frozen.session.manifest_digest) throw new PlatformError('DIGEST_MISMATCH');
     const requestDigest = await manifestDigest(validated.value);
-    return this.db.transaction(async client => {
+    const result = await this.db.transaction<ApiMessages['createReleaseResponse']>(async client => {
       await requireComponents(client, context.principal.subject, manifest.variants.map(variant => variant.componentId));
       await requirePackages(client, context.principal.subject, manifest.packages.map(pkg => pkg.name));
       // Serialize matching keys across API processes, with the unique constraint as the final guard.
@@ -69,6 +77,12 @@ export class ReleaseService {
       await audit(client, context.principal.subject, 'RELEASE_CREATED', jobId, { state: 'PENDING', manifestDigest: digest }, context.requestId);
       return { jobId, state: 'PENDING' };
     });
+    if (this.registry && this.store) {
+      setImmediate(() => {
+        advanceRelease(result.jobId, this.db, this.store!, this.registry!, context).catch(() => {});
+      });
+    }
+    return result;
   }
   private async readable(sql: Sql, jobId: string, context: RequestContext, lock = false): Promise<Job> {
     const result = await sql.query<Job>(`SELECT * FROM release_jobs WHERE id=$1${lock ? ' FOR UPDATE' : ''}`, [uuid(jobId)]);
@@ -87,7 +101,11 @@ export class ReleaseService {
     return job;
   }
   async get(jobId: string, context: RequestContext): Promise<ApiMessages['releaseJobResponse']> {
-    const job = await this.readable(this.db, jobId, context);
+    let job = await this.readable(this.db, jobId, context);
+    if ((job.state === 'PENDING' || job.state === 'PUBLISHING') && this.registry && this.store) {
+      await advanceRelease(jobId, this.db, this.store, this.registry, context).catch(() => {});
+      job = await this.readable(this.db, jobId, context);
+    }
     const candidates = await this.db.query(`SELECT s.id AS "screenshotId",s.client_ref AS "sourceScreenshotId",vr.variant_id AS "variantId",s.example_id AS "exampleId",s.environment_key AS "environmentKey"
       FROM screenshots s JOIN variant_releases vr ON vr.id=s.variant_release_id
       WHERE s.job_id=$1 AND s.source='local-automatic' AND s.environment_key<>'unknown-manual' ORDER BY s.client_ref`, [job.id]);
@@ -95,14 +113,20 @@ export class ReleaseService {
     return { state: job.state, stage: job.stage, attempt: job.attempt, ...(job.last_error ? { lastError: job.last_error } : {}), missingArtifacts: [], pollAfterMs: 2000, baselineCandidates };
   }
   async retry(jobId: string, context: RequestContext): Promise<ApiMessages['retryReleaseResponse']> {
-    return this.db.transaction(async client => {
+    const result = await this.db.transaction<ApiMessages['createReleaseResponse']>(async client => {
       const job = await this.readable(client, jobId, context, true);
       await requireComponents(client, context.principal.subject, job.manifest.variants.map(variant => variant.componentId));
       await requirePackages(client, context.principal.subject, job.manifest.packages.map(pkg => pkg.name));
       if (job.state !== 'RETRY_WAIT' || job.lease_until && job.lease_until.getTime() > Date.now()) throw new PlatformError('CONFLICT');
       await client.query("UPDATE release_jobs SET state='PENDING',fencing_token=fencing_token+1,lease_until=NULL,updated_at=now() WHERE id=$1", [jobId]);
       await audit(client, context.principal.subject, 'RELEASE_RETRIED', jobId, { state: 'PENDING' }, context.requestId);
-      return { jobId, state: 'PENDING' };
+      return { jobId, state: 'PENDING' as const };
     });
+    if (this.registry && this.store) {
+      setImmediate(() => {
+        advanceRelease(result.jobId, this.db, this.store!, this.registry!, context).catch(() => {});
+      });
+    }
+    return result;
   }
 }

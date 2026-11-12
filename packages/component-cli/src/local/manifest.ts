@@ -30,7 +30,7 @@ import type { ExampleRef, ScreenshotRef } from '../contracts/examples.js';
 import type { CheckReportV1, CompatibilityRecord } from '../contracts/reports.js';
 import { findRepoRoot } from '../commands/check.js';
 
-export type ComponentName = 'line' | 'bar';
+export type ComponentName = 'line' | 'bar' | 'pie';
 
 export type PrepareReleaseBundleOptions = {
   repoRoot?: string;
@@ -124,7 +124,7 @@ export async function prepareReleaseBundle(
 ): Promise<PrepareReleaseBundleResult> {
   const repoRoot = options.repoRoot ?? findRepoRoot();
   const bundleDir = path.resolve(options.bundleDir);
-  const components = options.components ?? ['line', 'bar'];
+  const components = options.components ?? ['line', 'bar', 'pie'];
   const frameworks = options.frameworks ?? ['vue', 'react'];
   const timeoutMs = options.timeoutMs ?? 30_000;
   const stagingDir =
@@ -217,11 +217,13 @@ export async function prepareReleaseBundle(
     });
   }
 
-  // 3. 在干净消费者中驱动双框架、折线与柱状双组件的实际渲染与截图
+  // 3. 在干净消费者中驱动双框架、六个组件实现的实际渲染与截图
   const reportsRecord: Record<string, CheckReportV1> = {};
   const reportArtifacts: ArtifactRef[] = [];
   const variantScreenshots: Record<string, ScreenshotRef[]> = {};
   const variantReports: Record<string, CheckReportV1> = {};
+  const variantPreviewMap = new Map<string, ArtifactRef[]>();
+  const extraArtifacts: ArtifactRef[] = [];
 
   for (const framework of frameworks) {
     let viteServer: ViteDevServer | null = null;
@@ -280,6 +282,25 @@ export async function prepareReleaseBundle(
         );
       }
 
+      // 构建干净消费者真实静态预览产物
+      const buildResult = child_process.spawnSync(
+        isWin ? 'npm.cmd' : 'npm',
+        ['run', 'build'],
+        {
+          cwd: consumerDir,
+          encoding: 'utf8',
+          shell: isWin,
+          env: { ...process.env },
+          maxBuffer: 32 * 1024 * 1024,
+        },
+      );
+
+      if (buildResult.status !== 0) {
+        throw new Error(
+          `CONSUMER_BUILD_FAILED: ${framework} 消费者构建静态预览失败 (code ${buildResult.status}): ${buildResult.stderr || buildResult.stdout}`,
+        );
+      }
+
       // 启动消费者服务
       viteServer = await createServer({
         root: consumerDir,
@@ -297,8 +318,56 @@ export async function prepareReleaseBundle(
       for (const component of components) {
         const variantId = `${component}-${framework}`;
         const exampleId = `example-${variantId}-default`;
-        const entryHtml = component === 'line' ? 'index.html' : 'bar.html';
+        const entryHtml = component === 'line' ? 'index.html' : component === 'bar' ? 'bar.html' : 'pie.html';
         const url = `http://127.0.0.1:${port}/${entryHtml}`;
+
+        // 复制并组织变体独立静态预览资源
+        const previewRelDir = `preview/${variantId}`;
+        const previewDir = path.join(bundleDir, previewRelDir);
+        await fs.promises.mkdir(previewDir, { recursive: true });
+
+        const srcHtmlPath = path.join(consumerDir, 'dist', entryHtml);
+        const destHtmlPath = path.join(previewDir, 'index.html');
+        if (fs.existsSync(srcHtmlPath)) {
+          await fs.promises.copyFile(srcHtmlPath, destHtmlPath);
+        } else {
+          await fs.promises.writeFile(
+            destHtmlPath,
+            `<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8" /><title>Preview: ${variantId}</title></head><body><div id="app"></div></body></html>\n`,
+            'utf8',
+          );
+        }
+
+        const srcAssetsDir = path.join(consumerDir, 'dist', 'assets');
+        const destAssetsDir = path.join(previewDir, 'assets');
+        if (fs.existsSync(srcAssetsDir)) {
+          await fs.promises.mkdir(destAssetsDir, { recursive: true });
+          const assetFiles = await fs.promises.readdir(srcAssetsDir);
+          for (const assetFile of assetFiles) {
+            await fs.promises.copyFile(
+              path.join(srcAssetsDir, assetFile),
+              path.join(destAssetsDir, assetFile),
+            );
+          }
+        }
+
+        const variantPreviewArtifacts: ArtifactRef[] = [];
+        async function collectPreviewArtifacts(dir: string, baseSubDir: string): Promise<void> {
+          const entries = await fs.promises.readdir(dir, { withFileTypes: true });
+          for (const entry of entries) {
+            const fullPath = path.join(dir, entry.name);
+            const logicalPath = `${baseSubDir}/${entry.name}`;
+            if (entry.isDirectory()) {
+              await collectPreviewArtifacts(fullPath, logicalPath);
+            } else if (entry.isFile()) {
+              const artifact = await createArtifactRef(fullPath, logicalPath);
+              variantPreviewArtifacts.push(artifact);
+              extraArtifacts.push(artifact);
+            }
+          }
+        }
+        await collectPreviewArtifacts(previewDir, previewRelDir);
+        variantPreviewMap.set(variantId, variantPreviewArtifacts);
 
         const screenshotsDir = path.join(bundleDir, 'screenshots');
         const captureResult: CaptureResult = await captureExample({
@@ -373,7 +442,6 @@ export async function prepareReleaseBundle(
 
   // 4. 生成 preview, api, docs 文件并创建 ArtifactRef
   const variants: VariantRef[] = [];
-  const extraArtifacts: ArtifactRef[] = [];
 
   for (const component of components) {
     const fixturePath = path.join(repoRoot, 'examples', 'fixtures', `${component}.json`);
@@ -385,33 +453,14 @@ export async function prepareReleaseBundle(
       const packageName = framework === 'vue' ? '@company/charts-vue' : '@company/charts-react';
       const pkg = packagesMap.get(packageName)!;
       const exportPath = `./${component}`;
-      const exportName = component === 'line' ? 'LineChart' : 'BarChart';
+      const exportName =
+        component === 'line' ? 'LineChart' : component === 'bar' ? 'BarChart' : 'PieChart';
+      const exportDesc =
+        component === 'line' ? '折线图' : component === 'bar' ? '柱状图' : '饼图';
 
-      // 4.1 Preview Entry
-      const previewRelDir = `preview/${variantId}`;
-      const previewDir = path.join(bundleDir, previewRelDir);
-      await fs.promises.mkdir(previewDir, { recursive: true });
-      const previewEntryPath = path.join(previewDir, 'index.html');
-      const previewContent = `<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Preview: ${variantId}</title>
-</head>
-<body>
-  <div id="app" style="width: 800px; height: 400px;"></div>
-  <script type="module">
-    console.log("Component Preview: ${variantId}");
-  </script>
-</body>
-</html>\n`;
-      await fs.promises.writeFile(previewEntryPath, previewContent, 'utf8');
-      const previewArtifact = await createArtifactRef(
-        previewEntryPath,
-        `${previewRelDir}/index.html`,
-      );
-      extraArtifacts.push(previewArtifact);
+      // 4.1 独立静态预览产物引用
+      const variantPreviewArtifacts = variantPreviewMap.get(variantId) ?? [];
+      const previewEntryPath = `preview/${variantId}/index.html`;
 
       // 4.2 API 规范
       const apiRelPath = `api/${variantId}.json`;
@@ -437,15 +486,15 @@ export async function prepareReleaseBundle(
       // 4.3 Docs 说明
       const docRelPath = `docs/${variantId}.md`;
       const docFullPath = path.join(bundleDir, docRelPath);
-      const docContent = `# ${exportName} (${framework.toUpperCase()})\n\n${component === 'line' ? '折线图' : '柱状图'}组件。\n\n## 导出路径\n\`\`\`ts\nimport { ${exportName} } from '${packageName}${exportPath.replace(/^\./, '')}';\n\`\`\`\n`;
+      const docContent = `# ${exportName} (${framework.toUpperCase()})\n\n${exportDesc}组件。\n\n## 导出路径\n\`\`\`ts\nimport { ${exportName} } from '${packageName}${exportPath.replace(/^\./, '')}';\n\`\`\`\n`;
       await fs.promises.writeFile(docFullPath, docContent, 'utf8');
       const docArtifact = await createArtifactRef(docFullPath, docRelPath);
       extraArtifacts.push(docArtifact);
 
       const exampleRef: ExampleRef = {
         id: `example-${variantId}-default`,
-        previewEntry: previewArtifact.path,
-        previewFiles: [previewArtifact],
+        previewEntry: previewEntryPath,
+        previewFiles: variantPreviewArtifacts,
         fixtureDigest: fixtureSha256,
         renderer: 'canvas',
         theme: 'light',

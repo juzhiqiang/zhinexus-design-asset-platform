@@ -6,8 +6,15 @@ import { audit, type RequestContext } from './db/access.js';
 import { ArtifactStore, type StorageConfig } from './storage/artifact-store.js';
 import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
+import { RegistryClient, type RegistryConfig } from './releases/registry-client.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey };
+export type PlatformOptions = {
+  databaseUrl?: string;
+  storage?: StorageConfig;
+  oidc?: OidcConfig;
+  keyResolver?: JWTVerifyGetKey;
+  registry?: RegistryConfig;
+};
 export function environmentOptions(): PlatformOptions {
   const env = process.env;
   const result: PlatformOptions = {};
@@ -21,6 +28,13 @@ export function environmentOptions(): PlatformOptions {
     webClientIds: (env.PLATFORM_OIDC_WEB_CLIENT_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
     cliClientIds: (env.PLATFORM_OIDC_CLI_CLIENT_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
   };
+  if (env.PLATFORM_REGISTRY_URL) result.registry = {
+    registryUrl: env.PLATFORM_REGISTRY_URL,
+    publisherUser: env.PLATFORM_REGISTRY_PUBLISHER_USER,
+    publisherPassword: env.PLATFORM_REGISTRY_PUBLISHER_PASSWORD,
+    readerUser: env.PLATFORM_REGISTRY_READER_USER,
+    readerPassword: env.PLATFORM_REGISTRY_READER_PASSWORD,
+  };
   return result;
 }
 export class Platform {
@@ -28,11 +42,13 @@ export class Platform {
   readonly db?: Database;
   readonly store?: ArtifactStore;
   readonly uploads?: UploadService;
+  readonly registry?: RegistryClient;
   constructor(options: PlatformOptions) {
     this.verifier = new OidcVerifier(options.oidc, options.keyResolver);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store);
+    if (options.registry) this.registry = new RegistryClient(options.registry);
   }
   async run<T>(authorization: string | undefined, action: 'read'|'upload'|'baseline'|'deprecate', requestId: string,
     operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {

@@ -10,16 +10,17 @@ import {
 import { validateReleaseBundle } from '../../packages/component-cli/src/contracts/bundle.js';
 import { computeFileSha256 } from '../../packages/component-cli/src/local/digest.js';
 import { runCli } from '../../packages/component-cli/src/cli.js';
+import { validatePlatformBundle } from '../../apps/api/src/uploads/validator.js';
 
 describe('T04: prepare release bundle and end-to-end frozen materials verification', () => {
   it(
-    'generates a real, frozen release bundle covering line and bar components in vue and react',
+    'generates a real, frozen release bundle covering line, bar and pie in vue and react, with real static previews',
     async () => {
       const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-release-bundle-'));
       try {
         const result = await prepareReleaseBundle({
           bundleDir,
-          components: ['line', 'bar'],
+          components: ['line', 'bar', 'pie'],
           frameworks: ['vue', 'react'],
           timeoutMs: 30_000,
         });
@@ -43,12 +44,19 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           expect(fs.statSync(tarballDiskPath).size).toBe(pkg.tarball.bytes);
         }
 
-        // 2. 验证变体覆盖：共 4 个变体（line-vue, line-react, bar-vue, bar-react）
+        // 2. 验证变体覆盖：共 6 个变体（line/bar/pie × vue/react）
         const variantIds = result.manifest.variants.map((v) => v.variantId);
         expect(variantIds).toEqual(
-          expect.arrayContaining(['line-vue', 'line-react', 'bar-vue', 'bar-react']),
+          expect.arrayContaining([
+            'line-vue',
+            'line-react',
+            'bar-vue',
+            'bar-react',
+            'pie-vue',
+            'pie-react',
+          ]),
         );
-        expect(result.manifest.variants.length).toBe(4);
+        expect(result.manifest.variants.length).toBe(6);
 
         for (const variant of result.manifest.variants) {
           // 必需状态 default 必须有自动截图证据
@@ -76,10 +84,28 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           // API 与 Docs 真实存在
           expect(fs.existsSync(path.join(bundleDir, variant.api.path))).toBe(true);
           expect(fs.existsSync(path.join(bundleDir, variant.docs.path))).toBe(true);
+
+          // 真实静态预览文件验证
+          expect(variant.examples.length).toBeGreaterThanOrEqual(1);
+          const example = variant.examples[0]!;
+          expect(example.previewEntry).toBe(`preview/${variant.variantId}/index.html`);
+          const previewHtmlDisk = path.join(bundleDir, example.previewEntry);
+          expect(fs.existsSync(previewHtmlDisk)).toBe(true);
+          const previewHtmlContent = fs.readFileSync(previewHtmlDisk, 'utf8');
+          expect(previewHtmlContent).toContain('<html');
+          expect(previewHtmlContent).toContain('id="app"');
+
+          // previewFiles 必须包含 index.html 及相关静态产物
+          expect(example.previewFiles.length).toBeGreaterThanOrEqual(1);
+          const previewEntryRef = example.previewFiles.find((f) => f.path === example.previewEntry);
+          expect(previewEntryRef).toBeDefined();
+          for (const previewFile of example.previewFiles) {
+            expect(fs.existsSync(path.join(bundleDir, previewFile.path))).toBe(true);
+          }
         }
 
         // 3. 验证完整报告清单
-        expect(result.manifest.reports.length).toBe(4);
+        expect(result.manifest.reports.length).toBe(6);
         for (const repRef of result.manifest.reports) {
           const repDiskPath = path.join(bundleDir, repRef.path);
           expect(fs.existsSync(repDiskPath)).toBe(true);
@@ -88,7 +114,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
         }
 
         // 4. 验证完整文件清单 files
-        expect(result.manifest.files.length).toBeGreaterThanOrEqual(15);
+        expect(result.manifest.files.length).toBeGreaterThanOrEqual(20);
         for (const fileRef of result.manifest.files) {
           const diskPath = path.join(bundleDir, fileRef.path);
           expect(fs.existsSync(diskPath), `文件遗漏: ${fileRef.path}`).toBe(true);
@@ -101,10 +127,13 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
         const verifyResult = await verifyReleaseBundle(bundleDir);
         expect(verifyResult.ok).toBe(true);
 
-        // 6. 故障注入与防篡改验证
+        // 6. 验证 T05 validatePlatformBundle 完全接受该 6 变体真实 Bundle
         const { manifest, filesMap } = await loadReleaseBundle(bundleDir);
+        const platformResult = await validatePlatformBundle(manifest, filesMap, 'cli');
+        expect(platformResult.ok, platformResult.ok ? undefined : JSON.stringify(platformResult.issues)).toBe(true);
 
-        // 6.1 缺图必须失败 (SCREENSHOT_REQUIRED)
+        // 7. 故障注入与防篡改验证
+        // 7.1 缺图必须失败 (SCREENSHOT_REQUIRED)
         const tamperedNoScreenshot = structuredClone(manifest);
         tamperedNoScreenshot.variants[0]!.screenshots = [];
         const checkNoScreenshot = await validateReleaseBundle(tamperedNoScreenshot, filesMap);
@@ -113,7 +142,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           expect(checkNoScreenshot.issues.some((i) => i.code === 'SCREENSHOT_REQUIRED')).toBe(true);
         }
 
-        // 6.2 错配框架必须失败 (SCREENSHOT_VARIANT_MISMATCH)
+        // 7.2 错配框架必须失败 (SCREENSHOT_VARIANT_MISMATCH)
         const tamperedMismatchFramework = structuredClone(manifest);
         const reactVariant = tamperedMismatchFramework.variants.find((v) => v.framework === 'react')!;
         const vueShot = tamperedMismatchFramework.variants.find((v) => v.framework === 'vue')!.screenshots[0]!;
@@ -124,7 +153,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           expect(checkMismatch.issues.some((i) => i.code === 'SCREENSHOT_VARIANT_MISMATCH')).toBe(true);
         }
 
-        // 6.3 篡改 tarball 字节必须失败 (DIGEST_MISMATCH)
+        // 7.3 篡改 tarball 字节必须失败 (DIGEST_MISMATCH)
         const tamperedFiles = new Map(filesMap);
         const coreTarballPath = manifest.packages.find((p) => p.name === '@company/charts-core')!.tarball.path;
         const originalBytes = tamperedFiles.get(coreTarballPath)!;
@@ -138,7 +167,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           expect(checkTarballTampered.issues.some((i) => i.code === 'DIGEST_MISMATCH')).toBe(true);
         }
 
-        // 6.4 清单外意外文件必须失败 (UNEXPECTED_FILE)
+        // 7.4 清单外意外文件必须失败 (UNEXPECTED_FILE)
         const unexpectedFiles = new Map(filesMap);
         unexpectedFiles.set('unlisted-malicious-file.sh', new TextEncoder().encode('echo pwn'));
         const checkUnexpected = await validateReleaseBundle(manifest, unexpectedFiles);
@@ -147,7 +176,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           expect(checkUnexpected.issues.some((i) => i.code === 'UNEXPECTED_FILE')).toBe(true);
         }
 
-        // 6.5 清单内文件丢失必须失败 (FILE_REQUIRED)
+        // 7.5 清单内文件丢失必须失败 (FILE_REQUIRED)
         const missingFiles = new Map(filesMap);
         missingFiles.delete(manifest.files[0]!.path);
         const checkMissing = await validateReleaseBundle(manifest, missingFiles);
@@ -159,7 +188,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
         fs.rmSync(bundleDir, { recursive: true, force: true });
       }
     },
-    240_000,
+    300_000,
   );
 
   it('rejects unknown arguments in CLI prepare-release with exit code 1', async () => {

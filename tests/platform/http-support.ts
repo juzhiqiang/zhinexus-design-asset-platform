@@ -9,7 +9,7 @@ import { migrateRegistry } from '../../apps/api/dist/db/migrate.js';
 import { ArtifactStore } from '../../apps/api/dist/storage/artifact-store.js';
 import { isolatedDatabase, localCredentials } from './support.js';
 
-export async function platformHarness() {
+export async function platformHarness(optionsConfig: { enableRegistry?: boolean } = {}) {
   const isolated = await isolatedDatabase();
   const db = new Database(isolated.url);
   await migrateRegistry(db);
@@ -21,7 +21,16 @@ export async function platformHarness() {
   const keys = await generateKeyPair('RS256');
   const jwk = { ...await exportJWK(keys.publicKey), kid: 'test-key', alg: 'RS256', use: 'sig' };
   const oidc = { issuer: 'https://issuer.t05.test', audience: 'platform-api', jwksUri: 'https://issuer.t05.test/jwks', webClientIds: ['web'], cliClientIds: ['cli'] };
-  const options = { databaseUrl: isolated.url, storage, oidc, keyResolver: createLocalJWKSet({ keys: [jwk] }) };
+  const registry = optionsConfig.enableRegistry
+    ? {
+        registryUrl: 'http://127.0.0.1:14873',
+        publisherUser: 'g2publisher',
+        publisherPassword: credentials.publisherPassword,
+        readerUser: 'g2reader',
+        readerPassword: credentials.readerPassword,
+      }
+    : undefined;
+  const options = { databaseUrl: isolated.url, storage, oidc, keyResolver: createLocalJWKSet({ keys: [jwk] }), ...(registry ? { registry } : {}) };
   let app = await buildServer(options);
   await app.listen(0, '127.0.0.1');
   let origin = await app.getUrl();
@@ -29,7 +38,7 @@ export async function platformHarness() {
     .setProtectedHeader({ alg: 'RS256', kid: 'test-key' }).setIssuer(oidc.issuer).setAudience(oidc.audience)
     .setSubject(subject).setIssuedAt().setExpirationTime('5m').sign(keys.privateKey);
   return {
-    db, store, token, platform: () => app.get(Platform),
+    db, store, token, origin: () => origin, platform: () => app.get(Platform),
     request: (path: string, body: unknown, auth?: string, method = 'POST', extra: Record<string, string> = {}) => fetch(`${origin}${path}`, {
       method, headers: { 'content-type': 'application/json', ...(auth ? { authorization: `Bearer ${auth}` } : {}), ...extra },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(30_000),
@@ -40,7 +49,7 @@ export async function platformHarness() {
 }
 type Harness = Awaited<ReturnType<typeof platformHarness>>;
 export async function grant(h: Harness, subject = 'alice', maintain = false) {
-  for (const id of ['line', 'bar']) {
+  for (const id of ['line', 'bar', 'pie']) {
     await h.db.query('INSERT INTO components(id) VALUES ($1) ON CONFLICT DO NOTHING', [id]);
     await h.db.query('INSERT INTO component_permissions(subject,component_id,can_publish,can_maintain) VALUES ($1,$2,true,$3) ON CONFLICT(subject,component_id) DO UPDATE SET can_maintain=$3', [subject, id, maintain]);
   }
