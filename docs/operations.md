@@ -39,6 +39,18 @@ Postgres建立API、预览、迁移三个身份；预览最小权限参考网关
 
 共享G2使用 `test:infra --no-restart`；默认旧test:infra会重启G2。无重启模式明确报告未覆盖该项，重启持久性由独立备份演练覆盖。不要在B联调时运行默认重启探针。
 
+## 本地容量与上传恢复预演
+
+先确认 `infra:up` 已就绪，再运行 `.\scripts\pnpm.ps1 rehearse:capacity`。不要与其他构建、截图或负载测试并行，以免影响计时。该命令只在开发者电脑执行，先构建服务，再以真实 Nest HTTP、PostgreSQL、MinIO 和 Verdaccio 测量：
+
+- 隔离数据库中的200个合成目录组件、400个实现；20并发、10轮、200请求，混合双框架/单框架与分页查询，每个响应都核对实际数量、排序和框架。目录规模seed不代表发布了400个SDK实现。
+- 40+40+20MiB三个静态二进制文件，总量100MiB、20个分片。保留已完成分片及ETag，中断一次PUT并重启API，沿用原会话/未过期URL补传，完成后逐个检查冻结摘要和幂等性。50MiB单文件限制不变；本次不覆盖签名URL过期后的刷新。
+- 五次唯一协议样本从PENDING到READY；每次2包/3实现，不含构建、截图、上传、tag后处理或真实业务执行。样本少，不能据此承诺生产延迟分布。
+
+目录p95初始目标500ms，发布p95初始目标30s。使用nearest-rank，包含失败请求耗时；有失败或超阈值测试即失败。每次创建新的 `.tools/operations/capacity/<runId>/`，保存catalog/upload/release及summary JSON；测试失败、超时或缺报告均非零退出，不沿用上次结果。报告记录硬件、Node、回环网络、样本数和失败数，不含token、签名URL或DB连接串。
+
+本机Windows / Docker Desktop预演不覆盖公司OIDC、生产独立域、业务项目、等量灾备RPO/RTO或生产SLA。网页后端交接测试为 `tests/platform/web-handover.test.ts`：持久化原幂等键、手动来源、缺图/框架错配拒绝、精确releaseId材料与公开撤回。B仍须完成真实页面、会话鉴权和浏览器上传流程。
+
 ## 保留与回退
 
 `PLATFORM_UPLOAD_RETENTION_HOURS`默认24（1–720）；`PLATFORM_FAILED_RETENTION_DAYS`默认30（1–3650）。新上传会话按配置设到期时间；已有会话保持创建时的期限。签名URL仍15分钟，到期需要原有重传流程，未增加刷新接口。

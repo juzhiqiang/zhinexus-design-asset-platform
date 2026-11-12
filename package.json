@@ -1,7 +1,7 @@
 {
   "name": "zhinexus-design-asset-platform",
   "private": true,
-  "version": "0.0.4",
+  "version": "0.0.5",
   "type": "module",
   "packageManager": "pnpm@12.18.0",
   "engines": {
@@ -24,6 +24,7 @@
     "ops:retention": "node apps/api/dist/operations/retention.js",
     "rehearse:backup": "pnpm build:services && tsx scripts/rehearse-backup.ts",
     "rehearse:recovery": "pnpm build:services && tsx scripts/rehearse-recovery.ts",
+    "rehearse:capacity": "pnpm build:services && tsx scripts/rehearse-capacity.ts",
     "infra:check-access": "tsx infra/scripts/access.ts",
     "verify:workspace": "tsx scripts/verify-workspace.ts",
     "versions:resolve": "node scripts/resolve-versions.mjs",
