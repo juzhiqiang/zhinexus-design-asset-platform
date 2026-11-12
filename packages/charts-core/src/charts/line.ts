@@ -1,5 +1,6 @@
 import { alignSeriesValues, collectCategories, normalizeChartData } from '../data.js';
 import { formatValue } from '../format.js';
+import { applySupportedOverrides } from './option-overrides.js';
 import { resolveTheme } from '../theme.js';
 import type {
   ChartData,
@@ -7,8 +8,6 @@ import type {
   LineChartOption,
   SupportedOptionOverrides,
 } from '../types.js';
-
-const OVERRIDE_KEYS = ['grid', 'tooltip', 'legend', 'xAxis', 'yAxis', 'title'] as const;
 
 /**
  * 构建折线图 option：数据 → 共享类目轴 + 按 id 稳定的系列。
@@ -59,39 +58,4 @@ export function buildLineOption(
     })),
   };
   return applySupportedOverrides(base, optionOverrides);
-}
-
-function applySupportedOverrides(
-  base: LineChartOption,
-  overrides?: SupportedOptionOverrides,
-): LineChartOption {
-  if (!overrides) {
-    return base;
-  }
-  const merged: Record<string, unknown> = { ...base };
-  for (const key of OVERRIDE_KEYS) {
-    const patch = overrides[key];
-    if (patch === undefined) {
-      continue;
-    }
-    merged[key] = deepMerge(base[key], patch);
-  }
-  return merged as LineChartOption;
-}
-
-function deepMerge(base: unknown, patch: unknown): unknown {
-  if (!isPlainObject(base) || !isPlainObject(patch)) {
-    return patch;
-  }
-  const result: Record<string, unknown> = { ...base };
-  for (const [key, value] of Object.entries(patch)) {
-    if (value !== undefined) {
-      result[key] = deepMerge(result[key], value);
-    }
-  }
-  return result;
-}
-
-function isPlainObject(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }

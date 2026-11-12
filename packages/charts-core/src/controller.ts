@@ -1,12 +1,12 @@
-import { buildLineOption } from './charts/line.js';
+import { buildChartOption, chartTypeOf } from './charts/index.js';
 import { normalizeChartData } from './data.js';
 import { disposeChartInstance, initChartInstance } from './engine/adapter.js';
-import { ensureLineModules } from './engine/modules.js';
+import { ensureChartModules } from './engine/modules.js';
 import type {
+  AnyChartConfig,
   ChartController,
   ChartData,
   ChartEvent,
-  LineChartConfig,
   PointClickListener,
   Renderer,
   SupportedOptionOverrides,
@@ -16,7 +16,7 @@ import type {
 import type { EChartsType, SetOptionOpts } from 'echarts/core.js';
 
 /**
- * 创建图表控制器（T02 折线图入口）。
+ * 创建图表控制器（T02 折线图入口，T09 起按配置联合支持柱状图）。
  *
  * 生命周期约定（架构 §6 / rules/platform.md）：
  * - 挂载时检测容器尺寸：零宽高或隐藏容器等待 ResizeObserver 获得有效尺寸后再初始化；
@@ -25,8 +25,11 @@ import type { EChartsType, SetOptionOpts } from 'echarts/core.js';
  * - dispose 幂等，解除监听、断开观察器并销毁实例；
  * - SSR 宿主仅可安全导入，实例只在客户端挂载后创建。
  */
-export function createChartController(host: HTMLElement, config: LineChartConfig = {}): ChartController {
-  let currentConfig: LineChartConfig = { ...config };
+export function createChartController(
+  host: HTMLElement,
+  config: AnyChartConfig = {},
+): ChartController {
+  let currentConfig: AnyChartConfig = { ...config };
   let currentData: ChartData = { series: [] };
   let currentOverrides: SupportedOptionOverrides | undefined;
   let instance: EChartsType | null = null;
@@ -56,7 +59,7 @@ export function createChartController(host: HTMLElement, config: LineChartConfig
       return;
     }
     const renderer: Renderer = currentConfig.renderer ?? 'canvas';
-    ensureLineModules(renderer);
+    ensureChartModules(chartTypeOf(currentConfig), renderer);
     lastWidth = width;
     lastHeight = height;
     instance = initChartInstance(host, renderer, {
@@ -76,7 +79,11 @@ export function createChartController(host: HTMLElement, config: LineChartConfig
     pendingRender = new Promise<void>((resolve) => {
       renderWaiters.push(resolve);
     });
-    instance.setOption(buildLineOption(currentData, currentConfig, currentOverrides), setOptionOpts);
+    const chart = chartTypeOf(currentConfig);
+    instance.setOption(
+      buildChartOption(chart, currentData, currentConfig, currentOverrides),
+      setOptionOpts,
+    );
   }
 
   function bindChartEvents(chart: EChartsType): void {
