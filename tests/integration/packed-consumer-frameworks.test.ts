@@ -224,6 +224,7 @@ describe('工作区外消费者安装', () => {
           `import { fileURLToPath } from 'node:url';`,
           `const root = await import('@company/charts-${framework}');`,
           `const line = await import('@company/charts-${framework}/line');`,
+          `const bar = await import('@company/charts-${framework}/bar');`,
           `const entryUrl = new URL(import.meta.resolve('@company/charts-${framework}'));`,
           `const entryDir = path.dirname(fileURLToPath(entryUrl));`,
           `if (!existsSync(path.join(entryDir, 'style.css'))) throw new Error('missing dist/style.css');`,
@@ -231,6 +232,8 @@ describe('工作区外消费者安装', () => {
           `if (typeof component !== 'object' && typeof component !== 'function') throw new Error('missing LineChart export');`,
           `if (typeof root.useChart !== 'function') throw new Error('missing useChart export');`,
           `if (typeof line.LineChart === 'undefined') throw new Error('missing ./line entry');`,
+          `if (typeof bar.BarChart === 'undefined') throw new Error('missing ./bar entry');`,
+          `if (typeof bar.useChart !== 'function') throw new Error('missing useChart export from ./bar');`,
           `console.log(JSON.stringify({ windowDefined: typeof window !== 'undefined', documentDefined: typeof document !== 'undefined' }));`,
         ].join('\n'),
       );
@@ -297,28 +300,39 @@ describe('消费者类型检查', () => {
 });
 
 describe('消费者构建与真实渲染', () => {
-  it('构建通过，line 产物不含其他图表模块与跨包源码路径', async () => {
+  it('构建通过，line/bar 产物不含其他图表模块与跨包源码路径', async () => {
     for (const framework of ['vue', 'react'] as const) {
       const dir = consumers.get(framework)!;
       const result = run('npm', ['run', 'build'], dir, true);
       expect(result.status, `${framework} 构建失败:\n${result.stdout}\n${result.stderr}`).toBe(0);
-      const assetsDir = path.join(dir, 'dist', 'assets');
+      const distDir = path.join(dir, 'dist');
+      // 多页入口：line 与 bar 两个页面都必须构建成功（./bar 子路径可解析）
+      for (const entry of ['index.html', 'bar.html']) {
+        expect(existsSync(path.join(distDir, entry)), `${framework} ${entry}`).toBe(true);
+      }
+      const assetsDir = path.join(distDir, 'assets');
       const assets = await readdir(assetsDir);
-      const jsName = assets.find((asset) => asset.endsWith('.js'));
+      const jsNames = assets.filter((asset) => asset.endsWith('.js'));
+      expect(jsNames.length, `${framework} 应有 JS 产物`).toBeGreaterThan(0);
       const cssName = assets.find((asset) => asset.endsWith('.css'));
-      expect(jsName, framework).toBeDefined();
-      const bundle = await readFile(path.join(assetsDir, jsName!), 'utf8');
+      let bundle = '';
+      let jsBytes = 0;
+      for (const name of jsNames) {
+        const content = await readFile(path.join(assetsDir, name));
+        bundle += content.toString('utf8');
+        jsBytes += Buffer.byteLength(content);
+      }
       expect(bundle, `${framework} 不得包含工作区源码路径`).not.toContain('packages/charts-core/src');
       expect(bundle, `${framework} 不得包含工作区源码路径`).not.toContain(`packages/charts-${framework}/src`);
-      // 未按需注册的图表类型不得进入 line 产物
+      // 未按需注册的图表类型不得进入产物
       for (const marker of ['FunnelView', 'GaugeView', 'MapView', 'EffectScatter', 'BoxplotView', 'SankeyView']) {
         expect(bundle, `${framework} 出现未注册图表 ${marker}`).not.toContain(marker);
       }
       const cssBytes = cssName ? (await readFile(path.join(assetsDir, cssName))).length : 0;
-      bundleBaseline.push({ framework, jsBytes: Buffer.byteLength(bundle), cssBytes });
+      bundleBaseline.push({ framework, jsBytes, cssBytes });
       // 体积护栏为初始校准值（实测见 docs/verification/t03-adapters.md 与 test-results 基线），
       // 用于捕获意外全量引入 ECharts 或其他图表模块的回归，不作为发布指标
-      expect(Buffer.byteLength(bundle), `${framework} 产物体积超出基线`).toBeLessThan(1024 * 1024);
+      expect(jsBytes, `${framework} 产物体积超出基线`).toBeLessThan(1024 * 1024);
     }
     // 打包体积基线落盘（gitignored），供验证记录引用
     await mkdir(path.join(repoRoot, 'test-results'), { recursive: true });
@@ -341,18 +355,28 @@ describe('消费者构建与真实渲染', () => {
         const pageErrors: string[] = [];
         page.on('pageerror', (error) => pageErrors.push(error.message));
         try {
-          await page.goto(`http://127.0.0.1:${port}/`);
-          await page.waitForFunction(() => document.querySelector('.charts-line canvas') !== null);
-          const position = await page.evaluate(() =>
-            window.__CONSUMER_TEST__!.pointClientPosition(0, 0),
-          );
-          expect(position, `${framework} 数据点坐标`).not.toBeNull();
-          await page.mouse.click(position!.x, position!.y);
-          const clicks = await page.evaluate(() => window.__CONSUMER_TEST__!.getClicks());
-          expect(clicks, framework).toEqual([
-            { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
-          ]);
-          expect(await page.locator('.charts-line canvas').count(), framework).toBe(1);
+          const entries = [
+            { path: 'index.html', host: '.charts-line' },
+            { path: 'bar.html', host: '.charts-bar' },
+          ];
+          for (const entry of entries) {
+            await page.goto(`http://127.0.0.1:${port}/${entry.path}`);
+            await page.waitForFunction(
+              (host) => document.querySelector(`${host} canvas`) !== null,
+              entry.host,
+            );
+            const position = await page.evaluate(() =>
+              window.__CONSUMER_TEST__!.pointClientPosition(0, 0),
+            );
+            expect(position, `${framework} ${entry.path} 数据点坐标`).not.toBeNull();
+            // 柱条顶边向下偏移，保证点击落在柱体内部
+            await page.mouse.click(position!.x, position!.y + 8);
+            const clicks = await page.evaluate(() => window.__CONSUMER_TEST__!.getClicks());
+            expect(clicks, `${framework} ${entry.path}`).toEqual([
+              { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+            ]);
+            expect(await page.locator(`${entry.host} canvas`).count(), framework).toBe(1);
+          }
           expect(pageErrors, framework).toEqual([]);
         } finally {
           await page.close();

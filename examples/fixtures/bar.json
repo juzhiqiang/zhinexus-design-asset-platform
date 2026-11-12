@@ -1,0 +1,125 @@
+{
+  "component": "bar",
+  "description": "双框架示例共用确定性数据与状态定义；examples/vue 与 examples/react 必须保持完全一致，截图与点击载荷才能等价。",
+  "states": {
+    "default": {
+      "data": {
+        "series": [
+          {
+            "id": "revenue",
+            "name": "收入",
+            "points": [
+              { "x": "周一", "y": 120 },
+              { "x": "周二", "y": 180 },
+              { "x": "周三", "y": 90 },
+              { "x": "周四", "y": 150 }
+            ]
+          },
+          {
+            "id": "cost",
+            "name": "成本",
+            "points": [
+              { "x": "周一", "y": 40 },
+              { "x": "周二", "y": 55 },
+              { "x": "周三", "y": 30 },
+              { "x": "周四", "y": 60 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["revenue", "cost"]
+    },
+    "empty": {
+      "data": { "series": [] },
+      "expectedSeriesIds": []
+    },
+    "missing": {
+      "data": {
+        "series": [
+          {
+            "id": "revenue",
+            "name": "收入",
+            "points": [
+              { "x": "周一", "y": null },
+              { "x": "周二", "y": 55 },
+              { "x": "周三", "y": null },
+              { "x": "周四", "y": 60 }
+            ]
+          },
+          {
+            "id": "cost",
+            "name": "成本",
+            "points": [
+              { "x": "周一", "y": 40 },
+              { "x": "周二", "y": null },
+              { "x": "周三", "y": 80 },
+              { "x": "周四", "y": null }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["revenue", "cost"]
+    },
+    "negative": {
+      "data": {
+        "series": [
+          {
+            "id": "revenue",
+            "name": "收入",
+            "points": [
+              { "x": "周一", "y": 120 },
+              { "x": "周二", "y": -40 },
+              { "x": "周三", "y": 60 },
+              { "x": "周四", "y": null }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["revenue"]
+    },
+    "single": {
+      "data": {
+        "series": [
+          {
+            "id": "revenue",
+            "name": "收入",
+            "points": [
+              { "x": "周一", "y": 120 },
+              { "x": "周二", "y": 180 },
+              { "x": "周三", "y": 90 },
+              { "x": "周四", "y": 150 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["revenue"]
+    },
+    "updated": {
+      "data": {
+        "series": [
+          {
+            "id": "revenue",
+            "name": "收入",
+            "points": [
+              { "x": "周一", "y": 260 },
+              { "x": "周二", "y": 240 },
+              { "x": "周三", "y": 300 },
+              { "x": "周四", "y": 280 }
+            ]
+          },
+          {
+            "id": "cost",
+            "name": "成本",
+            "points": [
+              { "x": "周一", "y": 90 },
+              { "x": "周二", "y": 85 },
+              { "x": "周三", "y": 95 },
+              { "x": "周四", "y": 88 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["revenue", "cost"]
+    }
+  }
+}
