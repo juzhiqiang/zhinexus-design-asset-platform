@@ -150,6 +150,51 @@
       "type": "integer",
       "minimum": 1,
       "maximum": 9007199254740991
+    },
+    "baselineCandidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "screenshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "sourceScreenshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "variantId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "exampleId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "environmentKey": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "screenshotId",
+          "sourceScreenshotId",
+          "variantId",
+          "exampleId",
+          "environmentKey"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
     }
   },
   "required": [

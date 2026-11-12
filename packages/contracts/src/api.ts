@@ -19,7 +19,7 @@ export type ApiMessages = {
   completeUploadResponse: { status: 'complete'; verifiedFiles: ArtifactRef[] };
   createReleaseRequest: { uploadSessionId: string; manifest: ReleaseManifestV1 };
   createReleaseResponse: { jobId: string; state: ReleaseState };
-  releaseJobResponse: { state: ReleaseState; stage: ReleaseState | PublishingCheckpoint; attempt: number; lastError?: ApiError; missingArtifacts: string[]; pollAfterMs: number };
+  releaseJobResponse: { state: ReleaseState; stage: ReleaseState | PublishingCheckpoint; attempt: number; lastError?: ApiError; missingArtifacts: string[]; pollAfterMs: number; baselineCandidates?: { screenshotId: string; sourceScreenshotId: string; variantId: string; exampleId: string; environmentKey: string }[] };
   retryReleaseResponse: { jobId: string; state: ReleaseState };
   componentsQuery: { framework?: Framework; category?: string; query?: string; page?: number; pageSize?: number };
   componentsResponse: { items: { componentId: string; variants: PublicVariantSummary[] }[]; page: number; pageSize: number; total: number };
@@ -44,7 +44,7 @@ const schemas: Record<keyof ApiMessages, Schema> = {
   completeUploadResponse: object({ status: { type: 'string', const: 'complete' }, verifiedFiles: array(artifactSchema, 1) }),
   createReleaseRequest: object({ uploadSessionId: identifier, manifest: manifestSchema }),
   createReleaseResponse: release,
-  releaseJobResponse: object({ state: choice(...RELEASE_STATES), stage: choice(...RELEASE_STATES, ...PUBLISHING_CHECKPOINTS), attempt: integer(), lastError: error, missingArtifacts: array(artifactPath), pollAfterMs: integer(1) }, ['lastError']),
+  releaseJobResponse: object({ state: choice(...RELEASE_STATES), stage: choice(...RELEASE_STATES, ...PUBLISHING_CHECKPOINTS), attempt: integer(), lastError: error, missingArtifacts: array(artifactPath), pollAfterMs: integer(1), baselineCandidates: array(object({ screenshotId: identifier, sourceScreenshotId: identifier, variantId: identifier, exampleId: identifier, environmentKey: hash })) }, ['lastError', 'baselineCandidates']),
   retryReleaseResponse: release,
   componentsQuery: object({ framework: choice('vue', 'react'), category: text, query: text, page: integer(1), pageSize: integer(1, 100) }, ['framework', 'category', 'query', 'page', 'pageSize']),
   componentsResponse: object({ items: array(object({ componentId: identifier, variants: array(object({ variantReleaseId: identifier, variantId: identifier, framework: choice('vue', 'react'), packageName: packageSchema.properties!.name!, packageVersion: packageSchema.properties!.version! }), 1) })), page: integer(1), pageSize: integer(1, 100), total: integer() }),
