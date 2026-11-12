@@ -5,9 +5,13 @@ import {
   buildBarOption,
   buildLineOption,
   buildPieOption,
+  buildProportionOption,
+  buildRankingOption,
   buildScatterOption,
   buildTrendCardOption,
   collectCategories,
+  computeProportionShares,
+  computeRanking,
   computeTrendSummary,
   formatPercent,
   formatValue,
@@ -18,6 +22,8 @@ import type {
   ChartData,
   ChartSeries,
   PieChartConfig,
+  ProportionChartConfig,
+  RankingChartConfig,
   ScatterChartConfig,
   SupportedOptionOverrides,
   TrendCardConfig,
@@ -983,5 +989,455 @@ describe('趋势卡片 option 构建', () => {
     expect(trend.chart).toBe('trend-card');
     const option = buildTrendCardOption(trendData, trend);
     expect(seriesOf(option).map((series) => series.type)).toEqual(['line']);
+  });
+});
+
+/** 排行榜单系列：含并列（柱状图 / 饼图同为 180）、缺失值与负值候选。 */
+const rankingPrimary: ChartSeries = {
+  id: 'hot',
+  name: '热度',
+  points: [
+    { x: '折线图', y: 120 },
+    { x: '柱状图', y: 180 },
+    { x: '饼图', y: 180 },
+    { x: '散点图', y: 90 },
+    { x: '趋势卡片', y: 60 },
+    { x: '占比', y: null },
+  ],
+};
+
+/** 排行榜带负值：负值原样参与排行，降序时排在最后。 */
+const rankingNegative: ChartSeries = {
+  id: 'delta',
+  name: '增量',
+  points: [
+    { x: '甲', y: 30 },
+    { x: '乙', y: -20 },
+    { x: '丙', y: 10 },
+  ],
+};
+
+const rankingData: ChartData = { series: [rankingPrimary] };
+
+describe('computeRanking 排序与并列语义', () => {
+  it('默认降序，并列项共享名次（竞赛排名 1,2,2,4）', () => {
+    const entries = computeRanking(rankingPrimary);
+    expect(entries.map((entry) => [entry.name, entry.value, entry.rank])).toEqual([
+      ['柱状图', 180, 1],
+      ['饼图', 180, 1],
+      ['折线图', 120, 3],
+      ['散点图', 90, 4],
+      ['趋势卡片', 60, 5],
+    ]);
+  });
+
+  it('并列项之间保持原始输入顺序，不引入字典序', () => {
+    const entries = computeRanking(rankingPrimary);
+    // 输入中柱状图在饼图之前，并列时该顺序必须保留
+    expect(entries[0]?.name).toBe('柱状图');
+    expect(entries[1]?.name).toBe('饼图');
+    expect(entries.map((entry) => entry.sourceIndex)).toEqual([1, 2, 0, 3, 4]);
+  });
+
+  it('direction 为 asc 时反向排序，并列规则不变', () => {
+    const entries = computeRanking(rankingPrimary, { direction: 'asc' });
+    expect(entries.map((entry) => [entry.name, entry.rank])).toEqual([
+      ['趋势卡片', 1],
+      ['散点图', 2],
+      ['折线图', 3],
+      ['柱状图', 4],
+      ['饼图', 4],
+    ]);
+  });
+
+  it('limit 取前 N 名，且名次在截断前计算', () => {
+    const entries = computeRanking(rankingPrimary, { limit: 3 });
+    expect(entries.map((entry) => [entry.name, entry.rank])).toEqual([
+      ['柱状图', 1],
+      ['饼图', 1],
+      ['折线图', 3],
+    ]);
+  });
+
+  it('limit 仅在正整数时生效，其余取值不截断', () => {
+    for (const limit of [undefined, 0, -1, Number.NaN]) {
+      const entries = computeRanking(rankingPrimary, { limit });
+      expect(entries, `limit=${String(limit)}`).toHaveLength(5);
+    }
+    // 小数向下取整：2.7 视为取前 2 名
+    expect(computeRanking(rankingPrimary, { limit: 2.7 })).toHaveLength(2);
+  });
+
+  it('缺失值不进入排行，也不占用名次', () => {
+    const entries = computeRanking(rankingPrimary);
+    expect(entries.some((entry) => entry.value === null)).toBe(false);
+    expect(entries.map((entry) => entry.name)).not.toContain('占比');
+  });
+
+  it('负值原样参与排行，降序时排在最后', () => {
+    const entries = computeRanking(rankingNegative);
+    expect(entries.map((entry) => [entry.name, entry.value, entry.rank])).toEqual([
+      ['甲', 30, 1],
+      ['丙', 10, 2],
+      ['乙', -20, 3],
+    ]);
+  });
+
+  it('空系列与 undefined 返回空数组', () => {
+    expect(computeRanking(undefined)).toEqual([]);
+    expect(computeRanking({ id: 'a', name: '甲', points: [] })).toEqual([]);
+    expect(computeRanking({ id: 'a', name: '甲', points: [{ x: '甲', y: null }] })).toEqual([]);
+  });
+});
+
+describe('排行榜 option 构建', () => {
+  it('系列类型为 bar、单系列，数据为 { name, value } 且顺序即排序结果', () => {
+    const option = buildRankingOption(rankingData, { chart: 'ranking' });
+    expect(seriesOf(option).map((series) => [series.id, series.type])).toEqual([['hot', 'bar']]);
+    const data = seriesOf(option)[0]?.data as { name: unknown; value: unknown }[];
+    expect(data).toEqual([
+      { name: '柱状图', value: 180 },
+      { name: '饼图', value: 180 },
+      { name: '折线图', value: 120 },
+      { name: '散点图', value: 90 },
+      { name: '趋势卡片', value: 60 },
+    ]);
+  });
+
+  it('x 轴为数值轴、y 轴为类目轴且 inverse（榜首在上）', () => {
+    const option = buildRankingOption(rankingData, { chart: 'ranking' });
+    expect(axisOf(option, 'xAxis').type).toBe('value');
+    expect(axisOf(option, 'yAxis').type).toBe('category');
+    expect(axisOf(option, 'yAxis').inverse).toBe(true);
+    expect(axisOf(option, 'yAxis').data).toEqual(['柱状图', '饼图', '折线图', '散点图', '趋势卡片']);
+  });
+
+  it('空数据显示「暂无数据」、无系列、无 NaN', () => {
+    const option = buildRankingOption({ series: [] }, { chart: 'ranking', title: '热门组件' });
+    expect(seriesOf(option)).toEqual([]);
+    expect(JSON.stringify(option)).not.toContain('NaN');
+    const texts = graphicTexts(option);
+    expect(texts).toContain('暂无数据');
+    expect(texts.join(' ')).not.toContain('共 ');
+  });
+
+  it('统计行展示条目总数，被 limit 截断时说明取前几名', () => {
+    const full = buildRankingOption(rankingData, { chart: 'ranking' });
+    expect(graphicTexts(full)).toContain('共 5 项');
+
+    const capped = buildRankingOption(rankingData, { chart: 'ranking', limit: 3 });
+    expect(graphicTexts(capped)).toContain('共 5 项 · 取前 3 名');
+
+    // 截断不改变排序结果，只减少条目
+    const data = seriesOf(capped)[0]?.data as { name: unknown }[];
+    expect(data).toHaveLength(3);
+  });
+
+  it('标题缺省时对应槽位 ignore，而不是缺席', () => {
+    const option = buildRankingOption(rankingData, { chart: 'ranking' });
+    const byId = new Map(graphicSlots(option).map((slot) => [slot.id, slot]));
+    expect(byId.get('ranking-title')?.ignore).toBe(true);
+    expect(byId.get('ranking-meta')?.ignore).toBe(false);
+    expect(byId.get('ranking-empty')?.ignore).toBe(true);
+  });
+
+  it('graphic 使用固定顺序的稳定槽位，状态切换不残留上一次摘要', () => {
+    const full = buildRankingOption(rankingData, { chart: 'ranking', title: '热门组件' });
+    expect(graphicSlots(full).map((slot) => slot.id)).toEqual([
+      'ranking-title',
+      'ranking-meta',
+      'ranking-empty',
+    ]);
+    expect(graphicSlots(full).every((slot) => slot.ignore === false || slot.ignore === true)).toBe(
+      true,
+    );
+
+    const empty = buildRankingOption({ series: [] }, { chart: 'ranking', title: '热门组件' });
+    expect(graphicSlots(empty).map((slot) => slot.id)).toEqual([
+      'ranking-title',
+      'ranking-meta',
+      'ranking-empty',
+    ]);
+    // 空数据下统计行必须 ignore，不得残留「共 5 项」
+    const emptyById = new Map(graphicSlots(empty).map((slot) => [slot.id, slot]));
+    expect(emptyById.get('ranking-meta')?.ignore).toBe(true);
+    expect(emptyById.get('ranking-empty')?.ignore).toBe(false);
+  });
+
+  it('optionOverrides 只深层合并坐标轴类字段，graphic / 调色板 / 渲染器不可覆盖', () => {
+    const base = buildRankingOption(rankingData, { chart: 'ranking', theme: 'dark' });
+    const patched = buildRankingOption(
+      rankingData,
+      { chart: 'ranking', theme: 'dark' },
+      {
+        grid: { top: 8 },
+        tooltip: { trigger: 'item' },
+        xAxis: { data: ['x'] },
+        yAxis: { data: [1] },
+        title: { text: '榜' },
+        graphic: [{ type: 'text', style: { text: 'hack' } }],
+        color: ['#ff0000'],
+        renderer: 'svg',
+      } as unknown as SupportedOptionOverrides,
+    );
+    expect(patched.grid).toMatchObject({ top: 8 });
+    expect(patched.tooltip).toMatchObject({ trigger: 'item' });
+    expect((patched as { title?: { text?: string } }).title).toEqual({ text: '榜' });
+    // graphic 由数据驱动，optionOverrides 无法注入；调色板来自主题；渲染器不属于 option
+    expect(patched.graphic).toEqual(base.graphic);
+    expect(patched.color).toEqual(base.color);
+    expect('renderer' in patched).toBe(false);
+  });
+
+  it('多系列输入抛 ChartDataError，path 指向第二个系列', () => {
+    const multi: ChartData = { series: [rankingPrimary, { id: 'new', name: '新增', points: [] }] };
+    expect(() => buildRankingOption(multi, { chart: 'ranking' })).toThrow(ChartDataError);
+    try {
+      buildRankingOption(multi, { chart: 'ranking' });
+    } catch (error) {
+      expect((error as ChartDataError).path).toBe('series[1]');
+    }
+  });
+
+  it('同名条目抛 ChartDataError（类目轴上会互相覆盖）', () => {
+    const duplicated: ChartData = {
+      series: [{ id: 'hot', name: '热度', points: [{ x: '甲', y: 1 }, { x: '甲', y: 2 }] }],
+    };
+    expect(() => buildRankingOption(duplicated, { chart: 'ranking' })).toThrow(ChartDataError);
+    try {
+      buildRankingOption(duplicated, { chart: 'ranking' });
+    } catch (error) {
+      expect((error as ChartDataError).path).toBe('series[0].points[1].x');
+    }
+  });
+
+  it('与折线 / 柱状共用同一套数据规范化规则，且不修改入参', () => {
+    const invalid: ChartData = {
+      series: [
+        { id: 'a', name: '甲', points: [{ x: '甲', y: 1 }] },
+        { id: 'a', name: '甲 again', points: [] },
+      ],
+    };
+    expect(() => buildRankingOption(invalid, { chart: 'ranking' })).toThrow(ChartDataError);
+    const snapshot = JSON.stringify(rankingData);
+    buildRankingOption(rankingData, { chart: 'ranking' });
+    expect(JSON.stringify(rankingData)).toBe(snapshot);
+  });
+
+  it('无 DOM 环境（SSR 导入）下构建 option 不访问浏览器全局', () => {
+    expect(typeof window).toBe('undefined');
+    const option = buildRankingOption(rankingData, {
+      chart: 'ranking',
+      theme: 'dark',
+      renderer: 'svg',
+    });
+    expect(seriesOf(option)).toHaveLength(1);
+  });
+
+  it('同一数据重复构建得到等价 option', () => {
+    const config: RankingChartConfig = { chart: 'ranking', limit: 4, unit: { suffix: '次' } };
+    const first = buildRankingOption(rankingData, config);
+    const second = buildRankingOption(rankingData, config);
+    expect(serializable(first)).toEqual(serializable(second));
+  });
+
+  it('排行榜配置类型只接受排序方向、截断与标题专属字段', () => {
+    const ranking: RankingChartConfig = {
+      chart: 'ranking',
+      direction: 'desc',
+      limit: 5,
+      title: '热门组件 Top 5',
+      unit: { suffix: '次' },
+    };
+    expect(ranking.chart).toBe('ranking');
+    const option = buildRankingOption(rankingData, ranking);
+    expect(seriesOf(option).map((series) => series.type)).toEqual(['bar']);
+  });
+});
+
+/** 占比单系列：合计 300，占比可整算（120 → 40.0%），含一个缺失值。 */
+const proportionPrimary: ChartSeries = {
+  id: 'source',
+  name: '来源',
+  points: [
+    { x: '搜索', y: 120 },
+    { x: '直投', y: 80 },
+    { x: '自然', y: null },
+    { x: '合作', y: 100 },
+  ],
+};
+
+const proportionData: ChartData = { series: [proportionPrimary] };
+
+describe('computeProportionShares 占比语义', () => {
+  it('占比为值 / 非缺失值之和，缺失值不进分母', () => {
+    const shares = computeProportionShares(proportionPrimary);
+    expect(shares.map((share) => [share.name, share.share])).toEqual([
+      ['搜索', 0.4],
+      ['直投', 80 / 300],
+      ['自然', null],
+      ['合作', 100 / 300],
+    ]);
+    // 分母是 300 而不是 300 + 0：缺失值既不补 0 也不占份额
+    expect(shares.reduce((total, share) => total + (share.share ?? 0), 0)).toBeCloseTo(1, 10);
+  });
+
+  it('总量为零（全零或全缺失）时占比一律为 null', () => {
+    const zero: ChartData = {
+      series: [{ id: 's', name: '占比', points: [{ x: '甲', y: 0 }, { x: '乙', y: 0 }] }],
+    };
+    expect(computeProportionShares(zero.series[0]).map((share) => share.share)).toEqual([
+      null,
+      null,
+    ]);
+    const missing: ChartData = {
+      series: [{ id: 's', name: '占比', points: [{ x: '甲', y: null }] }],
+    };
+    expect(computeProportionShares(missing.series[0])[0]?.share).toBeNull();
+  });
+
+  it('条目顺序保持输入顺序，占比场景不排序', () => {
+    const shares = computeProportionShares(proportionPrimary);
+    expect(shares.map((share) => share.name)).toEqual(['搜索', '直投', '自然', '合作']);
+    expect(shares.map((share) => share.sourceIndex)).toEqual([0, 1, 2, 3]);
+  });
+
+  it('空系列与 undefined 返回空数组', () => {
+    expect(computeProportionShares(undefined)).toEqual([]);
+    expect(computeProportionShares({ id: 'a', name: '甲', points: [] })).toEqual([]);
+  });
+});
+
+describe('占比 option 构建', () => {
+  it('系列类型为 bar、单系列，缺失值不进入系列数据', () => {
+    const option = buildProportionOption(proportionData, { chart: 'proportion' });
+    expect(seriesOf(option).map((series) => [series.id, series.type])).toEqual([['source', 'bar']]);
+    const data = seriesOf(option)[0]?.data as { name: unknown; value: unknown }[];
+    // 「自然」为缺失值，不补 0、不出现在系列数据里
+    expect(data).toEqual([
+      { name: '搜索', value: 120 },
+      { name: '直投', value: 80 },
+      { name: '合作', value: 100 },
+    ]);
+    expect(JSON.stringify(option)).not.toContain('null,0');
+  });
+
+  it('总量为零时展示「暂无数据」、无系列、不产出 NaN%', () => {
+    const zero: ChartData = {
+      series: [{ id: 's', name: '占比', points: [{ x: '甲', y: 0 }, { x: '乙', y: 0 }] }],
+    };
+    const option = buildProportionOption(zero, { chart: 'proportion', title: '流量来源占比' });
+    expect(seriesOf(option)).toEqual([]);
+    expect(JSON.stringify(option)).not.toContain('NaN');
+    const texts = graphicTexts(option);
+    expect(texts).toContain('暂无数据');
+    expect(texts.join(' ')).not.toContain('总量');
+  });
+
+  it('总量行展示参与占比的合计值', () => {
+    const option = buildProportionOption(proportionData, { chart: 'proportion' });
+    expect(graphicTexts(option)).toContain('总量 300');
+  });
+
+  it('单位作用于总量与条末标签文本', () => {
+    const option = buildProportionOption(proportionData, {
+      chart: 'proportion',
+      unit: { suffix: '次' },
+    });
+    expect(graphicTexts(option)).toContain('总量 300次');
+  });
+
+  it('graphic 使用固定顺序的稳定槽位，总量行与空数据提示互斥', () => {
+    const option = buildProportionOption(proportionData, { chart: 'proportion', title: '占比' });
+    expect(graphicSlots(option).map((slot) => slot.id)).toEqual([
+      'proportion-title',
+      'proportion-total',
+      'proportion-empty',
+    ]);
+    const byId = new Map(graphicSlots(option).map((slot) => [slot.id, slot]));
+    expect(byId.get('proportion-total')?.ignore).toBe(false);
+    expect(byId.get('proportion-empty')?.ignore).toBe(true);
+
+    const empty = buildProportionOption({ series: [] }, { chart: 'proportion', title: '占比' });
+    const emptyById = new Map(graphicSlots(empty).map((slot) => [slot.id, slot]));
+    expect(emptyById.get('proportion-total')?.ignore).toBe(true);
+    expect(emptyById.get('proportion-empty')?.ignore).toBe(false);
+  });
+
+  it('负值抛 ChartDataError，path 指向出错点', () => {
+    const negative: ChartData = {
+      series: [{ id: 's', name: '占比', points: [{ x: '甲', y: 10 }, { x: '乙', y: -5 }] }],
+    };
+    expect(() => buildProportionOption(negative, { chart: 'proportion' })).toThrow(ChartDataError);
+    try {
+      buildProportionOption(negative, { chart: 'proportion' });
+    } catch (error) {
+      expect((error as ChartDataError).path).toBe('series[0].points[1].y');
+    }
+  });
+
+  it('多系列与同名条目都抛 ChartDataError', () => {
+    const multi: ChartData = {
+      series: [proportionPrimary, { id: 'other', name: '其他', points: [] }],
+    };
+    expect(() => buildProportionOption(multi, { chart: 'proportion' })).toThrow(ChartDataError);
+
+    const duplicated: ChartData = {
+      series: [{ id: 's', name: '占比', points: [{ x: '甲', y: 1 }, { x: '甲', y: 2 }] }],
+    };
+    expect(() => buildProportionOption(duplicated, { chart: 'proportion' })).toThrow(ChartDataError);
+  });
+
+  it('optionOverrides 只深层合并坐标轴类字段，graphic 不可覆盖', () => {
+    const base = buildProportionOption(proportionData, { chart: 'proportion', theme: 'dark' });
+    const patched = buildProportionOption(
+      proportionData,
+      { chart: 'proportion', theme: 'dark' },
+      {
+        grid: { top: 8 },
+        xAxis: { data: ['x'] },
+        graphic: [{ type: 'text', style: { text: 'hack' } }],
+      } as unknown as SupportedOptionOverrides,
+    );
+    expect(patched.grid).toMatchObject({ top: 8 });
+    expect(patched.graphic).toEqual(base.graphic);
+  });
+
+  it('与折线 / 柱状共用同一套数据规范化规则', () => {
+    const invalid: ChartData = {
+      series: [
+        { id: 'a', name: '甲', points: [{ x: '甲', y: 1 }] },
+        { id: 'a', name: '甲 again', points: [] },
+      ],
+    };
+    expect(() => buildProportionOption(invalid, { chart: 'proportion' })).toThrow(ChartDataError);
+  });
+
+  it('无 DOM 环境（SSR 导入）下构建 option 不访问浏览器全局', () => {
+    expect(typeof window).toBe('undefined');
+    const option = buildProportionOption(proportionData, {
+      chart: 'proportion',
+      theme: 'dark',
+      renderer: 'svg',
+    });
+    expect(seriesOf(option)).toHaveLength(1);
+  });
+
+  it('同一数据重复构建得到等价 option', () => {
+    const config: ProportionChartConfig = { chart: 'proportion', unit: { suffix: '次' } };
+    const first = buildProportionOption(proportionData, config);
+    const second = buildProportionOption(proportionData, config);
+    expect(serializable(first)).toEqual(serializable(second));
+  });
+
+  it('占比配置类型只接受标题专属字段', () => {
+    const proportion: ProportionChartConfig = {
+      chart: 'proportion',
+      title: '流量来源占比',
+      unit: { suffix: '次' },
+    };
+    expect(proportion.chart).toBe('proportion');
+    const option = buildProportionOption(proportionData, proportion);
+    expect(seriesOf(option).map((series) => series.type)).toEqual(['bar']);
   });
 });
