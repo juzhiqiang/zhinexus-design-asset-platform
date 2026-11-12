@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { ComponentCatalogItem, ComponentVariantMeta } from '../../../lib/types';
+import { requestPreviewGrant } from '../../../lib/catalog';
 
 export function ComponentDetailViewer({
   component,
@@ -12,15 +13,43 @@ export function ComponentDetailViewer({
   const [selectedFramework, setSelectedFramework] = useState<'vue' | 'react'>('vue');
   const [iframeKey, setIframeKey] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [grantUrl, setGrantUrl] = useState<string | null>(null);
 
   const activeVariant: ComponentVariantMeta =
     component.variants.find((v) => v.framework === selectedFramework) ||
     component.variants[0] ||
     component.defaultVariant;
 
+  // 尝试获取真实短期 preview grant
+  useEffect(() => {
+    let cancelled = false;
+    async function getGrant() {
+      if (activeVariant?.variantId) {
+        const grant = await requestPreviewGrant(activeVariant.variantId);
+        if (!cancelled && grant?.bootstrapUrl) {
+          setGrantUrl(grant.bootstrapUrl);
+        } else if (!cancelled) {
+          setGrantUrl(null);
+        }
+      }
+    }
+    getGrant();
+    return () => {
+      cancelled = true;
+    };
+  }, [activeVariant?.variantId]);
+
+  const effectivePreviewUrl = grantUrl || activeVariant.previewUrl;
+
+  // 精确版本安装命令
+  const exactInstallCmd =
+    activeVariant.framework === 'vue'
+      ? `pnpm add ${activeVariant.packageName}@${activeVariant.packageVersion} @company/charts-core@${activeVariant.packageVersion} echarts@${activeVariant.echartsVersion} vue@${activeVariant.frameworkVersion}`
+      : `pnpm add ${activeVariant.packageName}@${activeVariant.packageVersion} @company/charts-core@${activeVariant.packageVersion} echarts@${activeVariant.echartsVersion} react@${activeVariant.frameworkVersion} react-dom@${activeVariant.frameworkVersion}`;
+
   const handleCopy = () => {
-    if (activeVariant?.installCommand && typeof navigator !== 'undefined') {
-      navigator.clipboard?.writeText(activeVariant.installCommand);
+    if (typeof navigator !== 'undefined') {
+      navigator.clipboard?.writeText(exactInstallCmd);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
@@ -66,6 +95,13 @@ export function ComponentDetailViewer({
         </button>
       </div>
 
+      {/* 手动上传无自动化报告提示 */}
+      {activeVariant.reportSource === 'manual-upload' && (
+        <div style={{ padding: '12px 16px', background: '#fffbeb', border: '1px solid #fef3c7', borderRadius: '8px', color: '#92400e', marginBottom: '20px', fontSize: '13px' }}>
+          <strong>⚠️ 来源提示：</strong> 该版本为网页手动上传（manual-upload），未附带本地 Playwright 自动化验证签名，建议在本地环境安装验证后再用于生产。
+        </div>
+      )}
+
       {/* 状态看板 */}
       <section className="status-grid" aria-label="资产就绪与合规状态">
         <div className="status-card">
@@ -106,6 +142,7 @@ export function ComponentDetailViewer({
             <span className="live-indicator" title="预览服务正常"></span>
             <strong>{activeVariant.frameworkName} 沙箱交互预览</strong>
             <span className="shield-badge">独立域沙箱安全隔离 (sandbox allow-scripts allow-same-origin)</span>
+            {grantUrl && <span className="tag tag-ready" style={{ fontSize: '10px' }}>已授权 (Grant Active)</span>}
           </div>
 
           <div className="preview-actions">
@@ -118,13 +155,23 @@ export function ComponentDetailViewer({
             >
               刷新预览
             </button>
+            <a
+              href={effectivePreviewUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="preview-btn"
+              title="在独立窗口打开预览（第三方 Cookie 阻止时的降级方案）"
+              style={{ textDecoration: 'none' }}
+            >
+              独立窗口 ↗
+            </a>
           </div>
         </div>
 
         <div className="iframe-container">
           <iframe
             key={`${activeVariant.variantId}-${iframeKey}`}
-            src={activeVariant.previewUrl}
+            src={effectivePreviewUrl}
             className="preview-frame"
             sandbox="allow-scripts allow-same-origin"
             title={`${component.name} (${activeVariant.frameworkName}) 交互预览`}
@@ -135,7 +182,7 @@ export function ComponentDetailViewer({
       {/* 快速安装与导入 */}
       <section className="code-section" aria-label="快速引入代码">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-          <span className="code-header">安装依赖 (Package Installation)</span>
+          <span className="code-header">精确版本依赖安装 (Exact Version Installation)</span>
           <button
             type="button"
             className="preview-btn"
@@ -145,8 +192,14 @@ export function ComponentDetailViewer({
             {copied ? '已复制！' : '复制命令'}
           </button>
         </div>
-        <div className="code-line" style={{ color: '#38bdf8', marginBottom: '16px' }}>
-          $ {activeVariant.installCommand}
+        <div className="code-line" style={{ color: '#38bdf8', marginBottom: '12px' }}>
+          $ {exactInstallCmd}
+        </div>
+
+        <div className="code-header">私有注册表配置 (Verdaccio Registry)</div>
+        <div className="code-line" style={{ color: '#94a3b8', marginBottom: '16px', fontSize: '12px' }}>
+          # 平台包配置于私有 Verdaccio 源<br />
+          npm config set @company:registry http://127.0.0.1:14873/
         </div>
 
         <div className="code-header">ESM 模块导入 (Import)</div>
