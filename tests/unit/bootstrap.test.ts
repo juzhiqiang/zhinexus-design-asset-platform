@@ -30,7 +30,7 @@ describe('bootstrap entry points', () => {
         const missing = await fetch(`${origin}/v1/releases`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}',
         });
-        expect(missing.status).toBe(404);
+        expect(missing.status).toBe(service === 'api' ? 401 : 404);
       } finally { await server.close(); }
     });
   }
