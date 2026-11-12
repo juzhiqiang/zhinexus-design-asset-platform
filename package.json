@@ -18,6 +18,7 @@
     "infra:up": "tsx infra/scripts/local.ts up",
     "infra:stop": "tsx infra/scripts/local.ts stop",
     "test:infra": "tsx infra/scripts/check.ts",
+    "test:platform": "pnpm build:services && vitest run --config tests/platform/vitest.config.ts",
     "infra:check-access": "tsx infra/scripts/access.ts",
     "verify:workspace": "tsx scripts/verify-workspace.ts",
     "versions:resolve": "node scripts/resolve-versions.mjs",

@@ -4,13 +4,15 @@
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "scripts": {
     "build": "nest build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "nest start --watch",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "migrate": "node dist/db/migrate.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1167.0",
