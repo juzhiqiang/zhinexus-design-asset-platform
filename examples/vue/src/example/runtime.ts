@@ -217,6 +217,13 @@ export function createExampleRuntime(options: ExampleRuntimeOptions): { example:
       if (!options.states.includes(name)) {
         throw new Error(`未知示例状态: ${name}`);
       }
+      if (name === currentState) {
+        // 同一状态重复应用（如 CLI 截图流程总是先 runState('default')）：
+        // 状态到数据的映射是确定性的，重复应用不会产生新快照，直接复用当前就绪Promise，
+        // 避免 arm() 等待永不出现的变化而超时
+        await readiness;
+        return;
+      }
       const previousSnapshot = seriesSnapshot(hostSelector);
       currentState = name;
       options.applyStateData(name);
