@@ -10,6 +10,8 @@ import type {
   ChartType,
   LineChartConfig,
   PieChartConfig,
+  ProportionChartConfig,
+  RankingChartConfig,
   ScatterChartConfig,
   SupportedOptionOverrides,
   TrendCardConfig,
@@ -42,9 +44,11 @@ const CHART_CONFIG_FIELDS: Record<ChartType, readonly string[]> = {
   pie: ['donut'],
   scatter: ['xAxisName', 'yAxisName'],
   'trend-card': ['title', 'previousValue'],
+  ranking: ['direction', 'limit', 'title'],
+  proportion: ['title'],
 };
 
-/** 图表缺省配置：柱状、饼图、散点与趋势卡片必须带判别字段，折线图保持 T02 起的空配置兼容。 */
+/** 图表缺省配置：柱状、饼图、散点、趋势卡片、排行榜与占比必须带判别字段，折线图保持 T02 起的空配置兼容。 */
 function defaultConfig(chart: ChartType): AnyChartConfig {
   if (chart === 'bar') {
     return { chart: 'bar' };
@@ -57,6 +61,12 @@ function defaultConfig(chart: ChartType): AnyChartConfig {
   }
   if (chart === 'trend-card') {
     return { chart: 'trend-card' };
+  }
+  if (chart === 'ranking') {
+    return { chart: 'ranking' };
+  }
+  if (chart === 'proportion') {
+    return { chart: 'proportion' };
   }
   return {};
 }
@@ -114,6 +124,22 @@ export function sameTrendCardConfig(
   b: TrendCardConfig | undefined,
 ): boolean {
   return sameChartConfig('trend-card', a, b);
+}
+
+/** 排行榜配置等价判断（T09 第五批）。 */
+export function sameRankingConfig(
+  a: RankingChartConfig | undefined,
+  b: RankingChartConfig | undefined,
+): boolean {
+  return sameChartConfig('ranking', a, b);
+}
+
+/** 占比配置等价判断（T09 第五批）。 */
+export function sameProportionConfig(
+  a: ProportionChartConfig | undefined,
+  b: ProportionChartConfig | undefined,
+): boolean {
+  return sameChartConfig('proportion', a, b);
 }
 
 /**

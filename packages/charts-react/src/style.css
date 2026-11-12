@@ -33,3 +33,17 @@
   width: 100%;
   height: 100%;
 }
+
+.charts-ranking {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.charts-proportion {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 100%;
+}

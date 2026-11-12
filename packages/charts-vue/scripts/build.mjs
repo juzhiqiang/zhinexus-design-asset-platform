@@ -57,4 +57,4 @@ execFileSync(
 await mkdir(path.join(packageRoot, 'dist'), { recursive: true });
 const css = await readFile(path.join(packageRoot, 'src/style.css'), 'utf8');
 await writeFile(path.join(packageRoot, 'dist/style.css'), css.replace(/\r\n/g, '\n'), 'utf8');
-console.log('charts-vue 构建完成：index / line / bar / pie / scatter / style.css → dist');
+console.log('charts-vue 构建完成：index / line / bar / pie / scatter / trend-card / ranking / proportion / style.css → dist');
