@@ -4,6 +4,7 @@ import { manifestDigest, type ReleaseManifestV1 } from '@company/contracts';
 import { createValidBundle } from '../fixtures/t05-artifacts.js';
 import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
 import { buildServer } from '../../apps/api/dist/app.js';
+import { Platform } from '../../apps/api/dist/platform.js';
 import { Database } from '../../apps/api/dist/db/database.js';
 import { migrateRegistry } from '../../apps/api/dist/db/migrate.js';
 import { ArtifactStore } from '../../apps/api/dist/storage/artifact-store.js';
@@ -29,7 +30,7 @@ export async function platformHarness() {
     .setProtectedHeader({ alg: 'RS256', kid: 'test-key' }).setIssuer(oidc.issuer).setAudience(oidc.audience)
     .setSubject(subject).setIssuedAt().setExpirationTime('5m').sign(keys.privateKey);
   return {
-    db, store, token,
+    db, store, token, platform: () => app.get(Platform),
     request: (path: string, body: unknown, auth?: string, method = 'POST', extra: Record<string, string> = {}) => fetch(`${origin}${path}`, {
       method, headers: { 'content-type': 'application/json', ...(auth ? { authorization: `Bearer ${auth}` } : {}), ...extra },
       ...(body === undefined ? {} : { body: JSON.stringify(body) }), signal: AbortSignal.timeout(30_000),

@@ -32,4 +32,10 @@
 
 本文件的首轮结果不代表整仓验收或最终审查完成。分片 HTTP/并发 fencing、实际 SDK 冻结产物穿过 API、完整无缓存验证和独立整分支审查将在后续追加记录。
 
+### 分片与并发补充
+
+- 追加 11 MiB 真 MinIO 分片上传 HTTP：缺片、错 ETag、重复片均为 409，正确完成后冻结字节一致；同 subject 的另一客户端不能完成原会话。
+- 通过测试层暂停实际 S3 read、在独立数据库推进租约过期，真实 HTTP 验证活动租约冲突、新 fence 完成后旧请求返回 LEASE_LOST；最终状态/对象键不变，审计只登记一次。
+- `pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/uploads.test.ts`：5/5 通过；根 `tsc --noEmit` 通过。故障注入仅在测试层，无运行时绕过开关。
+
 目前没有公司 OIDC 或独立预览域，真实登录/PKCE/撤权、G2 与完整 T05 外部身份验收保持未完成；签名测试不替代该证据。T06 的三存储发布、Ready 与 T07 预览授权也未宣称完成。
