@@ -74,3 +74,5 @@ Remove-Item Env:G2_ACCESS_CONFIG
 退出 **0** 仅表示两项前置检查成功：OIDC discovery 的 issuer/authorization-code/PKCE S256 和公开 JWKS 结构、画廊/API/独立预览 origin 的 DNS/TLS 可达。退出 **1** 表示配置或请求失败，**2** 表示有项未配置。结果写入 `.tools/g2-local/access-result.json`，失败也会覆盖旧结果；任何情况下 `g2Ready` 都为 `false`。
 
 仍须交付：OIDC 网页/CLI 客户端注册、真实登录/回调/角色拒绝与撤销；独立域 wildcard DNS/TLS、逐发布 origin、preview-grant 和浏览器沙箱隔离。当前工具不能证明这些已完成，C 不代填 A/B 业务回执。
+
+T11/T12补充：rehearse:backup 使用独立 zhrec-UUID 容器/卷完成真实三存储备份与空目标恢复。共享G2可运行 test:infra --no-restart，报告明确省略共享重启项；默认test:infra仍会重启。配置、备份保密与未验收边界见 [operations](../docs/operations.md)。

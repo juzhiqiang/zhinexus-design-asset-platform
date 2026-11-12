@@ -7,11 +7,15 @@ import { ArtifactStore, type StorageConfig } from './storage/artifact-store.js';
 import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
 import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
+import { PlatformEvents } from './observability/events.js';
+import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy };
 export function environmentOptions(): PlatformOptions {
   const env = process.env;
   const result: PlatformOptions = {};
+  result.retention = retentionPolicy(env);
+  if (env.PLATFORM_METRICS_TOKEN) result.metricsToken = env.PLATFORM_METRICS_TOKEN;
   if (env.PLATFORM_PREVIEW_ORIGIN) result.preview = { previewOrigin: env.PLATFORM_PREVIEW_ORIGIN,
     platformOrigin: env.PLATFORM_GALLERY_ORIGIN ?? '', apiOrigin: env.PLATFORM_API_ORIGIN ?? '' };
   if (env.PLATFORM_DATABASE_URL) result.databaseUrl = env.PLATFORM_DATABASE_URL;
@@ -27,17 +31,22 @@ export function environmentOptions(): PlatformOptions {
   return result;
 }
 export class Platform {
+  readonly events: PlatformEvents;
+  readonly metricsToken?: string;
   readonly verifier: OidcVerifier;
   readonly db?: Database;
   readonly store?: ArtifactStore;
   readonly uploads?: UploadService;
   readonly preview?: PreviewConfig;
   constructor(options: PlatformOptions) {
+    this.events = options.events ?? new PlatformEvents();
+    if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
+    this.metricsToken = options.metricsToken;
     if (options.preview) this.preview = validatePreviewConfig(options.preview);
     this.verifier = new OidcVerifier(options.oidc, options.keyResolver);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
-    if (this.db && this.store) this.uploads = new UploadService(this.db, this.store);
+    if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
   }
   async run<T>(authorization: string | undefined, action: 'read'|'upload'|'baseline'|'deprecate', requestId: string,
     operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {

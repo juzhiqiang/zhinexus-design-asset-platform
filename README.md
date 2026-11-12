@@ -1,6 +1,6 @@
 # Zhinexus 组件资产平台
 
-Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状/饼图 SDK、本地冻结 Bundle 与消费者截图、T05 身份/上传/基线 API，以及 T06 持久化发布 worker。配置并启动独立 worker 后，合法 PENDING 作业可通过三存储校验进入 Ready；未启动 worker 则保留待处理状态。T07 目录/隔离预览、当前 SDK 完整 CLI 材料及公司 OIDC 验收仍待完成。
+Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状/饼图 SDK、本地冻结 Bundle 与消费者截图、T05 身份/上传/基线 API，以及 T06 持久化发布 worker。配置并启动独立 worker 后，合法 PENDING 作业可通过三存储校验进入 Ready；未启动 worker 则保留待处理状态。T07 目录/隔离预览后端已提供；当前 SDK 完整 CLI/画廊联调材料及公司 OIDC 等完整验收仍待完成。
 
 ## 开始开发（Windows x64）
 
@@ -54,7 +54,7 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 ```text
 apps/api                 NestJS 身份/上传/基线 API 与独立 T06 发布 worker
 apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
-apps/preview-gateway     NestJS 静态预览网关（目前仅 healthz）
+apps/preview-gateway     NestJS 独立域静态预览网关（短期授权、逐请求撤权与摘要核查）
 packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）
 packages/charts-core     ECharts 折线/柱状核心
 packages/charts-vue       Vue 适配 → core
@@ -95,3 +95,7 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 本轮 C 已收口可选 `ComponentExample.states` 与权威 `requiredStates` 清单，并完成本地三存储真实探针，启动方式见 [infra README](infra/README.md)，结果见 [新增验证记录](docs/verification/g2-local-infra-2026-11-12.md)。按用户确认，OIDC 与独立预览域尚未配置，G2/T01 保持开放；本地探针与合成 fixtures 不代替完整组件发布、截图或生产验收。
 
 2026-11-12 T07 C：已交付公开/用户态目录、精确releaseId详情/报告/材料、一次性preview grant和独立静态网关。本地完整回归521普通测试、62真实平台测试、71浏览器测试通过，独立审查问题已修复。接口与部署见 [API](apps/api/README.md)、[网关](apps/preview-gateway/README.md)，证据见 [T07 C验证](docs/verification/t07-catalog-preview-2026-11-12.md)。完整T07/G2/M2仍需公司OIDC、生产独立域和B的真实画廊/八实现联调。
+
+## C 平台运维交付
+
+T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标、故障演练、三存储隔离备份恢复、部署检查与保留策略。入口与边界见 [quickstart](docs/quickstart.md)、[operations](docs/operations.md)、[release-acceptance](docs/release-acceptance.md)。完整G2/M2/T11/T12仍待公司环境及真实试点验收。

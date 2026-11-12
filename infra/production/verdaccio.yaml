@@ -1,0 +1,17 @@
+storage: /verdaccio/storage
+auth:
+  htpasswd:
+    file: /run/secrets/registry_users
+    max_users: -1
+uplinks: {}
+packages:
+  '@company/*':
+    access: platform-reader platform-publisher
+    publish: platform-publisher
+    unpublish: []
+  '**':
+    access: []
+    publish: []
+    unpublish: []
+log: {type: stdout, format: json, level: warn}
+listen: 0.0.0.0:4873

@@ -185,3 +185,5 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 评估和任务拆解已形成，工程基线 G0 已完成；可行性、工作量及质量阈值仍需在 T01–T04 实施中校准。下一执行入口为 T01 的 G1 协议校验与 G2 基础设施验证，并行推进 T02 和 CLI/消费者设施。当前人员、工时与依赖安排统一见三人分工计划。
 
 2026-11-12 T05 本地开发补充：身份验证、上传冻结/分片、发布作业登记与读取、基线 CAS/废弃审计已实现；实际 SDK 三份包、双框架四个实现通过本地 CLI→Nest→PG/MinIO 校验。作业停在 PENDING，T06 发布尚未实施，公司 OIDC/PKCE/撤权与独立预览域仍缺。服务端候选 ID 与 Bundle 内引用 ID 分离，状态读取兼容增加 baselineCandidates。最终验证与限制分别维护在 [T05 验证](docs/verification/t05-platform-http.md) 和 [API 接入](apps/api/README.md)，不将本地结果当作 G2 或完整外部身份验收完成。
+
+2026-11-12：C的T11/T12本地运维准备见 docs/superpowers/plans/2026-11-12-t11-t12-platform-operations.md；独立恢复不等于生产RPO/RTO和上线完成，完整验收见 docs/release-acceptance.md。原架构文档保持不变。

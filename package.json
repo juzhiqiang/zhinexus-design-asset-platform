@@ -1,7 +1,7 @@
 {
   "name": "zhinexus-design-asset-platform",
   "private": true,
-  "version": "0.0.3",
+  "version": "0.0.4",
   "type": "module",
   "packageManager": "pnpm@12.18.0",
   "engines": {
@@ -19,6 +19,11 @@
     "infra:stop": "tsx infra/scripts/local.ts stop",
     "test:infra": "tsx infra/scripts/check.ts",
     "test:platform": "pnpm build:services && pnpm --filter @company/charts-core --filter @company/charts-vue --filter @company/charts-react build && vitest run --config tests/platform/vitest.config.ts",
+    "verify:deployment": "pnpm build:services && tsx scripts/verify-deployment.ts",
+    "verify:consistency": "pnpm build:services && tsx scripts/verify-consistency.ts",
+    "ops:retention": "node apps/api/dist/operations/retention.js",
+    "rehearse:backup": "pnpm build:services && tsx scripts/rehearse-backup.ts",
+    "rehearse:recovery": "pnpm build:services && tsx scripts/rehearse-recovery.ts",
     "infra:check-access": "tsx infra/scripts/access.ts",
     "verify:workspace": "tsx scripts/verify-workspace.ts",
     "versions:resolve": "node scripts/resolve-versions.mjs",

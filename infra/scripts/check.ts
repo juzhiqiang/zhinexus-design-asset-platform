@@ -7,6 +7,7 @@ import { Client } from 'pg';
 import { S3Client, CreateBucketCommand, PutObjectCommand } from '@aws-sdk/client-s3';
 import { readS3Object, withS3Deadline } from './s3-probe.js';
 import { compose, credentials, endpoints, imageId, localDir, npm, versions, waitForReady, withLocalLock } from './local.js';
+import { checkOptions } from './check-options.js';
 
 const sha256 = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 let stage = 'preflight';
@@ -15,6 +16,7 @@ const runDir = join(localDir, 'runs', runId);
 const report: Record<string, unknown> = { runId, startedAt: new Date().toISOString(), scope: 'local-three-storage-probes', g2Ready: false };
 
 async function main(): Promise<void> {
+  const { restart } = checkOptions(process.argv.slice(2));
   if (!existsSync(join(localDir, 'credentials.json')) || !existsSync(join(localDir, 'images.json'))) throw new Error('Run infra:up first');
   let consumerDir: string | undefined;
   const config = credentials();
@@ -127,9 +129,11 @@ async function main(): Promise<void> {
     assert.equal(installed.name, packageName);
 
     stage = 'restart';
-    console.log('Restarting only this Compose project, then verifying the same data...');
-    compose(['restart', 'postgres', 'verdaccio', 'minio']);
-    compose(['up', '-d', '--wait', '--wait-timeout', '90']);
+    if (restart) {
+      console.log('Restarting only this Compose project, then verifying the same data...');
+      compose(['restart', 'postgres', 'verdaccio', 'minio']);
+      compose(['up', '-d', '--wait', '--wait-timeout', '90']);
+    } else console.log('Shared services kept running; restart coverage belongs to the isolated backup rehearsal.');
     await waitForReady();
     await database(async client => {
       const row = (await client.query('SELECT payload, digest FROM g2_probe WHERE id=$1', [runId])).rows[0];
@@ -157,7 +161,8 @@ async function main(): Promise<void> {
     assert.equal(sha256(await readObject(`${runId}/restored.bin`)), digest);
     assert.equal(sha256(readFileSync(tarball)), tarballDigest, 'Candidate changed after verification');
     Object.assign(report, { status: 'passed', completedAt: new Date().toISOString(), packageName, packageVersion: '1.0.0', tarballSha256: tarballDigest, probeSha256: digest,
-      checks: ['postgres-write-read-unique', 'private-s3-byte-roundtrip', 'registry-exact-install', 'registry-readonly-denied', 'registry-anonymous-denied', 'package-immutable', 'three-service-restart-persistence', 'postgres-isolated-restore', 's3-isolated-restore'],
+      checks: ['postgres-write-read-unique', 'private-s3-byte-roundtrip', 'registry-exact-install', 'registry-readonly-denied', 'registry-anonymous-denied', 'package-immutable', ...(restart ? ['three-service-restart-persistence'] : []), 'postgres-isolated-restore', 's3-isolated-restore'],
+      restart: restart ? 'verified' : 'skipped-shared-environment',
       oidc: 'unconfigured', previewDomain: 'unconfigured' });
     writeFileSync(join(runDir, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
     console.log(`Local storage probes passed. Report: .tools/g2-local/runs/${runId}/report.json`);

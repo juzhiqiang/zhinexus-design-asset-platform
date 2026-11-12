@@ -50,3 +50,5 @@ GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,tex
 `scripts/pnpm.ps1 test:platform` 包含真实 PG/MinIO/HTTP 授权与本地 Playwright Chromium 攻击测试。浏览器测试使用运行时生成的自签名证书和只解析测试域到 loopback 的 CONNECT 代理，不修改全局证书信任。样本为协议与恶意 HTML fixture，不冒充 SDK 0.0.4 真正渲染材料。
 
 公司 OIDC/PKCE/撤权、生产独立注册域 wildcard DNS/TLS、目标浏览器第三方 Cookie 策略及 B 的真实画廊/八实现闭环仍需验收；不能据此标记完整 T07/G2/M2 完成。
+
+容器入口支持 PLATFORM_BIND_HOST=0.0.0.0（默认本机loopback），启动失败不输出原始异常。生产准备模板使用独立DB/S3最小权限凭证，见 [operations](../../docs/operations.md)；尚未作为生产部署验证。

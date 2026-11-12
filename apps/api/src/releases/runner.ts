@@ -20,7 +20,7 @@ export async function runWorker(once = false, jobId?: string): Promise<void> {
     // Migrations are an explicit deployment operation; never silently run DDL here.
     do {
       try { await worker.runOnce(jobId); await worker.tags.runOnce(); }
-      catch { if (once) throw new Error('Worker iteration failed'); console.error('Release worker iteration failed; retrying persisted work'); }
+      catch { worker.events.emit({ event: 'WORKER_UNAVAILABLE' }); if (once) throw new Error('Worker iteration failed'); }
       if (!once && !stopping) await delay(1000);
     } while (!once && !stopping);
   } finally { process.off('SIGTERM', stop); process.off('SIGINT', stop); store.close(); await db.close(); }

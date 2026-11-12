@@ -97,3 +97,5 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 合并最新 SDK 后的接入边界：SDK 0.0.3 新增 ./pie，而 CLI 的 Bundle 入口目前仍只生成 line/bar 材料，该输入会被 T05 正确拒绝。正向回归保留实际验证过的 0.0.2 冻结样本；当前 SDK 必须由 B 补齐 pie 的双框架材料后才能完整提交，不允许删除 API 的逐导出覆盖检查。
 
 T07 精确定位补充：同一 variant 换包名后可能存在同号版本。B 应以目录返回的 variantReleaseId 调用 `/v1/variant-releases/:releaseId` 及材料/报告子资源；旧 variantId/version 路径仅在唯一时可用，多条匹配返回 CONFLICT，不随意选择材料。当前 SDK 已到 0.0.4（line/bar/pie/scatter 八实现）；B 仍需同步已合入 T06，并提供该版本完整冻结材料和真实画廊联调证据。
+
+运维补充：会话默认24小时，可通过 PLATFORM_UPLOAD_RETENTION_HOURS 配置；新会话采用新期限，签名URL仍15分钟。独立 PLATFORM_METRICS_TOKEN 保护 /internal/metrics；API/worker输出字段白名单JSON，阶段统计持久化。配置与故障/备份命令见 [operations](../../docs/operations.md)。
