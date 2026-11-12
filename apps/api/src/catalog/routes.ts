@@ -1,7 +1,7 @@
 import { Controller, Get, Headers, Inject, Param, Query, Req, Res } from '@nestjs/common';
 import { Platform } from '../platform.js';
 import { PlatformError } from '../errors.js';
-import { CatalogService } from './service.js';
+import { CatalogService, type CatalogTarget } from './service.js';
 
 type Request = { requestId: string; originalUrl: string };
 type Response = { setHeader(name: string, value: string): void; send(bytes: Buffer): void };
@@ -23,11 +23,14 @@ export class CatalogController {
   }
   @Get(['variants/:id/releases/:version', 'me/variants/:id/releases/:version'])
   detail(@Param('id') id: string, @Param('version') version: string, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.run(auth, req, res, (service, subject) => service.detail(id, version, subject));
+    return this.run(auth, req, res, (service, subject) => service.detail({ variantId: id, version }, subject));
   }
   @Get(['variants/:id/releases/:version/artifacts', 'me/variants/:id/releases/:version/artifacts'])
   async artifact(@Param('id') id: string, @Param('version') version: string, @Query('path') path: unknown, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res() res: Response) {
-    const result = await this.run(auth, req, res, (service, subject) => service.artifact(id, version, path, subject));
+    await this.sendArtifact({ variantId: id, version }, path, auth, req, res);
+  }
+  private async sendArtifact(target: CatalogTarget, path: unknown, auth: string | undefined, req: Request, res: Response) {
+    const result = await this.run(auth, req, res, (service, subject) => service.artifact(target, path, subject));
     res.setHeader('Content-Type', result.mime);
     res.setHeader('Content-Security-Policy', "default-src 'none'; sandbox");
     res.setHeader('Referrer-Policy', 'no-referrer');
@@ -35,6 +38,18 @@ export class CatalogController {
   }
   @Get(['variants/:id/releases/:version/reports', 'me/variants/:id/releases/:version/reports'])
   reports(@Param('id') id: string, @Param('version') version: string, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    return this.run(auth, req, res, (service, subject) => service.reports(id, version, subject));
+    return this.run(auth, req, res, (service, subject) => service.reports({ variantId: id, version }, subject));
+  }
+  @Get(['variant-releases/:releaseId', 'me/variant-releases/:releaseId'])
+  exactDetail(@Param('releaseId') releaseId: string, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.run(auth, req, res, (service, subject) => service.detail({ releaseId }, subject));
+  }
+  @Get(['variant-releases/:releaseId/artifacts', 'me/variant-releases/:releaseId/artifacts'])
+  exactArtifact(@Param('releaseId') releaseId: string, @Query('path') path: unknown, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res() res: Response) {
+    return this.sendArtifact({ releaseId }, path, auth, req, res);
+  }
+  @Get(['variant-releases/:releaseId/reports', 'me/variant-releases/:releaseId/reports'])
+  exactReports(@Param('releaseId') releaseId: string, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.run(auth, req, res, (service, subject) => service.reports({ releaseId }, subject));
   }
 }

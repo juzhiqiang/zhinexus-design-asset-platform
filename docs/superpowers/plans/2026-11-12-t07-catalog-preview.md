@@ -71,3 +71,5 @@
 - [ ] 使用独立审查代理检查本分支的访问控制、预览隔离和契约；Important 修复先 RED 后 GREEN。
 - [ ] 平台/API 升 0.0.3，网关首次功能版 0.0.1，CHANGELOG 独立版本提交；不改 SDK/CLI 版本。
 - [ ] 提交验证/交接记录并报告 hash。本轮用户授权开发，没有新增 push 授权；保留功能分支供合并。
+
+审查修正：B 使用目录 variantReleaseId 的 `/v1/variant-releases/:releaseId` 及 /reports、/artifacts；旧 variantId/version 查询出现包名迁移同号时返回 CONFLICT。预览逻辑路径复用契约验证，URL仅解码一次；合法中文名和大小写扩展名可用，常见静态MIME与安全二进制fallback保持完整目录可读。Nginx配置正则须整体加引号并实际执行 nginx -t。

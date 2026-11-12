@@ -71,6 +71,7 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 | GET /v1/variants/:id/releases/:version | 精确版本公开详情；包、API、文档、截图、示例与兼容记录来自同一 variant_release；废弃详情保留标识，不在目录推荐 |
 | GET /v1/variants/:id/releases/:version/artifacts?path=... | 仅该实现的 docs/API/截图；文档为 text/plain，禁止执行 HTML；不返回预览文件或 tarball |
 | GET /v1/variants/:id/releases/:version/reports | 当前 job/variant 的完整检查记录；manual-upload 无报告时返回空数组；对应 /v1/me/ 路径支持私有访问 |
+| GET /v1/variant-releases/:releaseId | 推荐入口：直接使用目录返回的 variantReleaseId；支持 /artifacts?path=... 与 /reports，以及 /v1/me/ 私有路径 |
 | GET /v1/me/components | 已登录目录；角色与组件 ACL；不进入 SSR/ISR 共享缓存 |
 | GET /v1/me/variants/:id/releases/:version | 已登录精确详情；支持相同的 /artifacts 子路径 |
 | POST /v1/preview-grants | `{variantReleaseId}` → `{bootstrapUrl,expiresAt}`；5 分钟一次性授权，详见网关 README |
@@ -94,3 +95,5 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 真实公司 OIDC/PKCE/撤权、独立预览域和生产容量尚未验收。T06 本地恢复测试使用真实三存储，完整 SDK 发布使用历史 0.0.2 冻结样本；两类新消费者验证精确注册表安装，未重新执行该历史版本浏览器截图。CLI 当前 Bundle 的 preview HTML 为占位内容，文件可达不会据此宣称 T07 在线预览可用。
 
 合并最新 SDK 后的接入边界：SDK 0.0.3 新增 ./pie，而 CLI 的 Bundle 入口目前仍只生成 line/bar 材料，该输入会被 T05 正确拒绝。正向回归保留实际验证过的 0.0.2 冻结样本；当前 SDK 必须由 B 补齐 pie 的双框架材料后才能完整提交，不允许删除 API 的逐导出覆盖检查。
+
+T07 精确定位补充：同一 variant 换包名后可能存在同号版本。B 应以目录返回的 variantReleaseId 调用 `/v1/variant-releases/:releaseId` 及材料/报告子资源；旧 variantId/version 路径仅在唯一时可用，多条匹配返回 CONFLICT，不随意选择材料。当前 SDK 已到 0.0.4（line/bar/pie/scatter 八实现）；B 仍需同步已合入 T06，并提供该版本完整冻结材料和真实画廊联调证据。
