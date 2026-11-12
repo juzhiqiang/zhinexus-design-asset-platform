@@ -33,6 +33,8 @@ type ExampleTestHook = {
    * 实心饼图必须由渲染几何证明内半径为 0。
    */
   sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
+  /** 趋势卡片数值摘要槽位文本（[标题, 当前值, meta]）；ignore 槽位为 null。 */
+  summarySlots(): (string | null)[];
 };
 
 declare global {
@@ -819,6 +821,29 @@ for (const url of [VUE_TREND_CARD, REACT_TREND_CARD]) {
       (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData()))[0],
     ).toEqual([200, 180, 150, 120]);
     await expect(page.locator('.charts-trend-card canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`trend-card_empty_state_clears_previous_summary: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // default：标题 / 当前值 / meta 三个槽位都有可见文本
+    const initial = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(initial).toEqual(['近 7 日活跃用户', '200', expect.stringContaining('前期')]);
+
+    // empty：当前值槽显示「暂无数据」，meta 槽必须被清空，
+    // 不得残留上一次状态（如 down）的「▼ 40」摘要
+    await runState(page, 'empty');
+    const slots = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(slots[1]).toBe('暂无数据');
+    expect(slots[2]).toBeNull();
+    expect(JSON.stringify(slots)).not.toContain('前期');
+
+    // down：meta 槽重新出现并带下降箭头
+    await runState(page, 'down');
+    const down = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.summarySlots());
+    expect(down[1]).toBe('120');
+    expect(down[2]).toContain('▼');
     await assertChecksPass(page, url);
     expect(pageErrors).toEqual([]);
   });

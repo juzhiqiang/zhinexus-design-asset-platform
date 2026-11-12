@@ -738,8 +738,15 @@ const trendAllMissing: ChartSeries = {
 const trendData: ChartData = { series: [trendPrimary] };
 
 function graphicTexts(option: unknown): string[] {
-  const graphic = (option as { graphic?: { style?: { text?: string } }[] }).graphic;
-  return Array.isArray(graphic) ? graphic.map((element) => element?.style?.text ?? '') : [];
+  const graphic = (option as { graphic?: { ignore?: boolean; style?: { text?: string } }[] }).graphic;
+  // ignore 槽位不渲染，视为不可见文本
+  return Array.isArray(graphic)
+    ? graphic.filter((element) => !element?.ignore).map((element) => element?.style?.text ?? '')
+    : [];
+}
+
+function graphicSlots(option: unknown): { id: string; ignore?: boolean }[] {
+  return (option as { graphic?: { id: string; ignore?: boolean }[] }).graphic ?? [];
 }
 
 describe('computeTrendSummary 数值语义', () => {
@@ -938,6 +945,31 @@ describe('趋势卡片 option 构建', () => {
     const first = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160, unit: { suffix: '%' } });
     const second = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160, unit: { suffix: '%' } });
     expect(serializable(first)).toEqual(serializable(second));
+  });
+
+  it('graphic 使用稳定槽位与 ignore，状态切换不残留上一次数值摘要', () => {
+    const withMeta = buildTrendCardOption(trendData, {
+      chart: 'trend-card',
+      title: '指标',
+      previousValue: 160,
+    });
+    // 三个稳定槽位顺序固定
+    expect(graphicSlots(withMeta).map((slot) => slot.id)).toEqual([
+      'trend-title',
+      'trend-value',
+      'trend-meta',
+    ]);
+    // 可见槽位必须显式 ignore === false：控制器首次渲染数据为空（槽位 ignore: true），
+    // 随后 update 填数据；ECharts 按 id 合并 graphic，缺省 false 会保留上一次的 ignore: true 而不渲染
+    expect(graphicSlots(withMeta).every((slot) => slot.ignore === false)).toBe(true);
+
+    // 无前期值 / 无标题时对应槽位 ignore，而不是缺席——缺席会让 ECharts 保留上一次的文本
+    const bare = buildTrendCardOption(trendData, { chart: 'trend-card' });
+    const byId = new Map(graphicSlots(bare).map((slot) => [slot.id, slot]));
+    expect(byId.get('trend-title')?.ignore).toBe(true);
+    expect(byId.get('trend-meta')?.ignore).toBe(true);
+    // 数值槽恒定可见
+    expect(byId.get('trend-value')?.ignore).toBeFalsy();
   });
 
   it('趋势卡片配置类型只接受标题与前期值专属字段', () => {
