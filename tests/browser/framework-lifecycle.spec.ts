@@ -16,6 +16,8 @@ type ExampleTestHook = {
   seriesData(): (number | null)[][];
   /** 饼图 / 环形图的内外半径（百分比字符串），用于断言 donut 只改变内半径。 */
   seriesRadius(seriesIndex: number): [string, string] | null;
+  /** 扇形在画布上的实际内外半径（像素），证明实心饼图内半径为 0。 */
+  sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
 };
 
 declare global {
