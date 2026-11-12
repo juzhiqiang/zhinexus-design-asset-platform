@@ -7,7 +7,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.build.json --watch"
   },
