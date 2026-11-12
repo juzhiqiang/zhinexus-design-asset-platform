@@ -93,3 +93,5 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 2026-11-12：C 已补齐 G1 运行时结构/关联与冻结字节校验、错误码、示例接口、API 消息及合成 fixtures。调用与边界见 [contracts README](packages/contracts/README.md)，命令见 [G1 验证记录](docs/verification/g1-contracts-2026-11-12.md)。G1 仍待 A/B 于 **2026-11-13** 前实际评审回执；G2 五项责任和计划日期见 [评审与接入清单](docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)。
 
 本轮 C 已收口可选 `ComponentExample.states` 与权威 `requiredStates` 清单，并完成本地三存储真实探针，启动方式见 [infra README](infra/README.md)，结果见 [新增验证记录](docs/verification/g2-local-infra-2026-11-12.md)。按用户确认，OIDC 与独立预览域尚未配置，G2/T01 保持开放；本地探针与合成 fixtures 不代替完整组件发布、截图或生产验收。
+
+2026-11-12 T07 C：已交付公开/用户态目录、精确releaseId详情/报告/材料、一次性preview grant和独立静态网关。本地完整回归521普通测试、62真实平台测试、71浏览器测试通过，独立审查问题已修复。接口与部署见 [API](apps/api/README.md)、[网关](apps/preview-gateway/README.md)，证据见 [T07 C验证](docs/verification/t07-catalog-preview-2026-11-12.md)。完整T07/G2/M2仍需公司OIDC、生产独立域和B的真实画廊/八实现联调。
