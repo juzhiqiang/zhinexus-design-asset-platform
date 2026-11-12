@@ -4,20 +4,24 @@ import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Database } from './database.js';
 
-const tables = ['baseline_heads', 'baseline_revisions', 'screenshots', 'check_reports', 'variant_releases', 'package_releases', 'release_jobs', 'upload_files', 'upload_sessions', 'variants', 'component_permissions', 'audit_events', 'components'] as const;
+const tables = ['baseline_heads', 'baseline_revisions', 'screenshots', 'check_reports', 'variant_releases', 'package_releases', 'release_jobs', 'upload_files', 'upload_sessions', 'variants', 'component_permissions', 'package_permissions', 'audit_events', 'components'] as const;
 export async function migrateRegistry(db: Database): Promise<void> {
-  const sql = await readFile(new URL('../../migrations/001_registry.sql', import.meta.url), 'utf8');
-  const digest = createHash('sha256').update(sql.replaceAll('\r\n', '\n')).digest('hex');
+  const migrations = await Promise.all(['001_registry.sql', '002_package_permissions.sql'].map(async (file, i) => {
+    const sql = await readFile(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
+    return { version: i + 1, sql, digest: createHash('sha256').update(sql.replaceAll('\r\n', '\n')).digest('hex') };
+  }));
   await db.transaction(async client => {
     await client.query('SELECT pg_advisory_xact_lock(75605001)');
     await client.query('CREATE TABLE IF NOT EXISTS registry_migrations(version integer PRIMARY KEY, sha256 text NOT NULL)');
-    const prior = await client.query('SELECT sha256 FROM registry_migrations WHERE version=1');
-    if (prior.rowCount) {
-      if (prior.rows[0].sha256 !== digest) throw new Error('Migration checksum changed; do not rewrite applied migrations');
-      return;
+    for (const { version, sql, digest } of migrations) {
+      const prior = await client.query('SELECT sha256 FROM registry_migrations WHERE version=$1', [version]);
+      if (prior.rowCount) {
+        if (prior.rows[0].sha256 !== digest) throw new Error('Migration checksum changed; do not rewrite applied migrations');
+        continue;
+      }
+      await client.query(sql);
+      await client.query('INSERT INTO registry_migrations VALUES ($1,$2)', [version, digest]);
     }
-    await client.query(sql);
-    await client.query('INSERT INTO registry_migrations VALUES (1,$1)', [digest]);
   });
 }
 /** Development migration roundtrip only; refuses any registry that contains business data. */

@@ -11,9 +11,11 @@ describe('T05 real PostgreSQL migration and invariants', () => {
       await migrateRegistry(db);
       await migrateRegistry(db);
       await rollbackEmptyRegistry(db);
-      expect((await db.query("SELECT to_regclass('components') AS name")).rows[0].name).toBeNull();
+      expect((await db.query("SELECT to_regclass('components') AS name")).rows[0]!.name).toBeNull();
       await migrateRegistry(db);
       await db.query("INSERT INTO components(id) VALUES ('line')");
+      await db.query("INSERT INTO package_permissions(subject,package_name) VALUES ('test-user','@company/charts-core')");
+      await expect(db.query("INSERT INTO package_permissions(subject,package_name) VALUES ('test-user','@company/charts-core')")).rejects.toMatchObject({ code: '23505' });
       await expect(db.query("INSERT INTO components(id) VALUES ('line')")).rejects.toMatchObject({ code: '23505' });
       await expect(db.query("INSERT INTO variants(id,component_id,framework) VALUES ('ghost-vue','ghost','vue')")).rejects.toMatchObject({ code: '23503' });
       await db.query("INSERT INTO audit_events(subject,event,target_id,data) VALUES ('test-user','TEST','line','{}')");
