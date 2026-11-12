@@ -28,6 +28,10 @@
       "types": "./dist/pie.d.ts",
       "import": "./dist/pie.js"
     },
+    "./scatter": {
+      "types": "./dist/scatter.d.ts",
+      "import": "./dist/scatter.js"
+    },
     "./style.css": "./dist/style.css"
   },
   "types": "./dist/index.d.ts",

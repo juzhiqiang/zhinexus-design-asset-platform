@@ -10,6 +10,7 @@ import type {
   ChartType,
   LineChartConfig,
   PieChartConfig,
+  ScatterChartConfig,
   SupportedOptionOverrides,
   UnitSpec,
   Unsubscribe,
@@ -38,15 +39,19 @@ const CHART_CONFIG_FIELDS: Record<ChartType, readonly string[]> = {
   line: ['smooth', 'area', 'connectNulls', 'xAxisName', 'yAxisName'],
   bar: ['stack', 'xAxisName', 'yAxisName'],
   pie: ['donut'],
+  scatter: ['xAxisName', 'yAxisName'],
 };
 
-/** 图表缺省配置：柱状与饼图必须带判别字段，折线图保持 T02 起的空配置兼容。 */
+/** 图表缺省配置：柱状、饼图与散点必须带判别字段，折线图保持 T02 起的空配置兼容。 */
 function defaultConfig(chart: ChartType): AnyChartConfig {
   if (chart === 'bar') {
     return { chart: 'bar' };
   }
   if (chart === 'pie') {
     return { chart: 'pie' };
+  }
+  if (chart === 'scatter') {
+    return { chart: 'scatter' };
   }
   return {};
 }
@@ -88,6 +93,14 @@ export function sameBarConfig(a: BarChartConfig | undefined, b: BarChartConfig |
 /** 饼图 / 环形图配置等价判断（T09 第二批）。 */
 export function samePieConfig(a: PieChartConfig | undefined, b: PieChartConfig | undefined): boolean {
   return sameChartConfig('pie', a, b);
+}
+
+/** 散点图配置等价判断（T09 第三批）。 */
+export function sameScatterConfig(
+  a: ScatterChartConfig | undefined,
+  b: ScatterChartConfig | undefined,
+): boolean {
+  return sameChartConfig('scatter', a, b);
 }
 
 /**

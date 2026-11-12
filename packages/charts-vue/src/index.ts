@@ -1,11 +1,13 @@
 export { default as LineChart } from './LineChart.vue';
 export { default as BarChart } from './BarChart.vue';
 export { default as PieChart } from './PieChart.vue';
-export { sameBarConfig, sameChartConfig, sameLineConfig, samePieConfig, useChart } from './useChart.js';
+export { default as ScatterChart } from './ScatterChart.vue';
+export { sameBarConfig, sameChartConfig, sameLineConfig, samePieConfig, sameScatterConfig, useChart } from './useChart.js';
 export type { UseChartOptions, UseChartResult } from './useChart.js';
 export type { BarChartEmits, BarChartHandle, BarChartProps } from './bar-chart.types.js';
 export type { LineChartEmits, LineChartHandle, LineChartProps } from './line-chart.types.js';
 export type { PieChartEmits, PieChartHandle, PieChartProps } from './pie-chart.types.js';
+export type { ScatterChartEmits, ScatterChartHandle, ScatterChartProps } from './scatter-chart.types.js';
 export type {
   AnyChartConfig,
   BarChartConfig,
@@ -19,6 +21,7 @@ export type {
   PieChartConfig,
   PointClickListener,
   Renderer,
+  ScatterChartConfig,
   SupportedOptionOverrides,
   ThemeName,
   UnitSpec,

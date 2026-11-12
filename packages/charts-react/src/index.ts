@@ -1,11 +1,13 @@
 export { LineChart } from './LineChart.js';
 export { BarChart } from './BarChart.js';
 export { PieChart } from './PieChart.js';
-export { sameBarConfig, sameChartConfig, sameLineConfig, samePieConfig, useChart } from './useChart.js';
+export { ScatterChart } from './ScatterChart.js';
+export { sameBarConfig, sameChartConfig, sameLineConfig, samePieConfig, sameScatterConfig, useChart } from './useChart.js';
 export type { UseChartOptions, UseChartResult } from './useChart.js';
 export type { BarChartHandle, BarChartProps } from './bar-chart.types.js';
 export type { LineChartHandle, LineChartProps } from './line-chart.types.js';
 export type { PieChartHandle, PieChartProps } from './pie-chart.types.js';
+export type { ScatterChartHandle, ScatterChartProps } from './scatter-chart.types.js';
 export type {
   AnyChartConfig,
   BarChartConfig,
@@ -19,6 +21,7 @@ export type {
   PieChartConfig,
   PointClickListener,
   Renderer,
+  ScatterChartConfig,
   SupportedOptionOverrides,
   ThemeName,
   UnitSpec,
