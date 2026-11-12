@@ -429,9 +429,12 @@ for (const url of [VUE_PIE, REACT_PIE]) {
     expect(data[0]).not.toContain(0);
     expect(JSON.stringify(data)).not.toContain(',0,');
 
-    // 缺失扇形没有角度，取不到几何中心，因此点不到它
+    // 缺失扇形在显示列表里占位但没有角度：几何取得到，几何中心取不到，因此点不到它
     expect(
       await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 1)),
+    ).toEqual({ inner: 0, outer: expect.any(Number) });
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 1)),
     ).toBeNull();
     await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
     await assertChecksPass(page, url);
@@ -460,6 +463,10 @@ for (const url of [VUE_PIE, REACT_PIE]) {
 
   test(`pie_solid_empty_data_renders_no_geometry: ${url}`, async ({ page }) => {
     const pageErrors = await openExample(page, url);
+    // 经 solid 中转：空数据下 zrender 不创建画布，若从上一步环形状态直接切过来
+    // 会同时触发控制器重建，画布计数与 single-instance / renderer-match 都会失败。
+    // 这样走最后一步不发生重建，与环形图空数据用例保持同一口径。
+    await runState(page, 'solid');
     await runState(page, 'solid-empty');
 
     expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);

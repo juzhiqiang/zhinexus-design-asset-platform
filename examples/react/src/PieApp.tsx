@@ -20,18 +20,22 @@ for (const name of states) {
   expectedSeriesIds[name] = pieFixture.states[name as keyof typeof pieFixture.states].expectedSeriesIds;
 }
 
-// 示例固定使用环形图；实心饼图半径规则由单元测试断言
-const config: PieChartConfig = {
-  chart: 'pie',
-  donut: true,
-  theme: 'light',
-  renderer: 'canvas',
-  animation: false,
-};
+// 每个状态自带 donut：环形图族与实心饼图族（solid-*）只差内半径
+function configOf(name: string): PieChartConfig {
+  const donut = pieFixture.states[name as keyof typeof pieFixture.states].donut ?? true;
+  return {
+    chart: 'pie',
+    donut,
+    theme: 'light',
+    renderer: 'canvas',
+    animation: false,
+  };
+}
 
 export function PieApp() {
   const [stateName, setStateName] = useState(states[0] ?? 'default');
   const data = pieFixture.states[stateName as keyof typeof pieFixture.states].data as ChartData;
+  const config = configOf(stateName);
   const [clicks, setClicks] = useState<ChartEvent[]>([]);
   const chartRef = useRef<PieChartHandle | null>(null);
   const runtimeRef = useRef<ReturnType<typeof createExampleRuntime> | null>(null);

@@ -24,8 +24,17 @@ const stateName = ref(states[0] ?? 'default');
 const data = computed<ChartData>(
   () => pieFixture.states[stateName.value as keyof typeof pieFixture.states].data as ChartData,
 );
-// 示例固定使用环形图；实心饼图半径规则由单元测试断言
-const config: PieChartConfig = { chart: 'pie', donut: true, theme: 'light', renderer: 'canvas', animation: false };
+// 每个状态自带 donut：环形图族与实心饼图族（solid-*）只差内半径
+const donut = computed<boolean>(
+  () => pieFixture.states[stateName.value as keyof typeof pieFixture.states].donut ?? true,
+);
+const config = computed<PieChartConfig>(() => ({
+  chart: 'pie',
+  donut: donut.value,
+  theme: 'light',
+  renderer: 'canvas',
+  animation: false,
+}));
 
 const clicks = ref<ChartEvent[]>([]);
 const chartRef = ref<{ whenRendered: () => Promise<void> } | null>(null);
