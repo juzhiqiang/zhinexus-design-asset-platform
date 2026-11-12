@@ -201,7 +201,7 @@ describe('T04: digest computation and release fingerprint', () => {
     expect(osMismatchKey).not.toBe(baseKey);
   });
 
-  it('engine_upgrade_compares_existing_baseline: engine version is tracked in environment', () => {
+  it('engine_upgrade_compares_existing_baseline: engine version is tracked in environment, but environmentKey is identical to compare against existing baseline', () => {
     const envEcharts6 = detectEnvironment({
       browserVersion: '130.0.0.0',
       browserRevision: '1000',
@@ -220,7 +220,8 @@ describe('T04: digest computation and release fingerprint', () => {
     });
     expect(envEcharts6.echartsVersion).toBe('6.1.0');
     expect(envEcharts7.echartsVersion).toBe('6.2.0');
-    expect(computeEnvironmentKey(envEcharts6)).not.toBe(computeEnvironmentKey(envEcharts7));
+    // frameworkVersion 与 echartsVersion 不进入 environmentKey，因此升级后仍能与旧基线对比
+    expect(computeEnvironmentKey(envEcharts6)).toBe(computeEnvironmentKey(envEcharts7));
   });
 
   it('page_error_fails_even_with_screenshot: report with failed check does not validate as all-passed', () => {
