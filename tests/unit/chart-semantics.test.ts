@@ -6,7 +6,9 @@ import {
   buildLineOption,
   buildPieOption,
   buildScatterOption,
+  buildTrendCardOption,
   collectCategories,
+  computeTrendSummary,
   formatPercent,
   formatValue,
   normalizeChartData,
@@ -14,9 +16,11 @@ import {
 import type {
   BarChartConfig,
   ChartData,
+  ChartSeries,
   PieChartConfig,
   ScatterChartConfig,
   SupportedOptionOverrides,
+  TrendCardConfig,
 } from '../../packages/charts-core/src/index.js';
 
 const twoSeries: ChartData = {
@@ -696,5 +700,288 @@ describe('折线图 option 无回归', () => {
     const line = buildLineOption(twoSeries);
     const bar = buildBarOption(twoSeries, { chart: 'bar' });
     expect(axisOf(bar, 'xAxis').data).toEqual(axisOf(line, 'xAxis').data);
+  });
+});
+
+/** 趋势卡片主系列：类目轴，中间缺失、末点非缺失（末点即当前值）。 */
+const trendPrimary: ChartSeries = {
+  id: 'active',
+  name: '活跃用户',
+  points: [
+    { x: '周一', y: 120 },
+    { x: '周二', y: null },
+    { x: '周三', y: 180 },
+    { x: '周四', y: 200 },
+  ],
+};
+
+/** 趋势卡片末尾缺失：当前值应回退到最后一个非缺失值。 */
+const trendTrailingMissing: ChartSeries = {
+  id: 'active',
+  name: '活跃用户',
+  points: [
+    { x: '周一', y: 120 },
+    { x: '周二', y: 180 },
+    { x: '周三', y: null },
+  ],
+};
+
+const trendAllMissing: ChartSeries = {
+  id: 'active',
+  name: '活跃用户',
+  points: [
+    { x: '周一', y: null },
+    { x: '周二', y: null },
+  ],
+};
+
+const trendData: ChartData = { series: [trendPrimary] };
+
+function graphicTexts(option: unknown): string[] {
+  const graphic = (option as { graphic?: { ignore?: boolean; style?: { text?: string } }[] }).graphic;
+  // ignore 槽位不渲染，视为不可见文本
+  return Array.isArray(graphic)
+    ? graphic.filter((element) => !element?.ignore).map((element) => element?.style?.text ?? '')
+    : [];
+}
+
+function graphicSlots(option: unknown): { id: string; ignore?: boolean }[] {
+  return (option as { graphic?: { id: string; ignore?: boolean }[] }).graphic ?? [];
+}
+
+describe('computeTrendSummary 数值语义', () => {
+  it('当前值取第一个系列最后一个非缺失值，前期值来自配置', () => {
+    const summary = computeTrendSummary(trendPrimary, 160);
+    expect(summary.current).toBe(200);
+    expect(summary.previous).toBe(160);
+    expect(summary.delta).toBe(40);
+    expect(summary.deltaPercent).toBe(25);
+    expect(summary.direction).toBe('up');
+  });
+
+  it('末尾缺失时当前值回退到最后一个非缺失值', () => {
+    const summary = computeTrendSummary(trendTrailingMissing, 200);
+    expect(summary.current).toBe(180);
+    expect(summary.delta).toBe(-20);
+    expect(summary.deltaPercent).toBe(-10);
+    expect(summary.direction).toBe('down');
+  });
+
+  it('前期值缺失（undefined / null / NaN）时不计算变化', () => {
+    for (const previous of [undefined, null, Number.NaN]) {
+      const summary = computeTrendSummary(trendPrimary, previous);
+      expect(summary.current).toBe(200);
+      expect(summary.previous).toBeNull();
+      expect(summary.delta).toBeNull();
+      expect(summary.deltaPercent).toBeNull();
+      expect(summary.direction).toBe('none');
+    }
+  });
+
+  it('前期值为 0 时变化量可算、变化率不可算', () => {
+    const summary = computeTrendSummary(trendPrimary, 0);
+    expect(summary.delta).toBe(200);
+    expect(summary.deltaPercent).toBeNull();
+    expect(summary.direction).toBe('up');
+  });
+
+  it('负基线按绝对值计算变化率，方向不被反转', () => {
+    const summary = computeTrendSummary(trendPrimary, -160);
+    expect(summary.delta).toBe(360);
+    expect(summary.deltaPercent).toBe(225);
+    expect(summary.direction).toBe('up');
+  });
+
+  it('持平与无数据的方向判定', () => {
+    expect(computeTrendSummary(trendPrimary, 200).direction).toBe('flat');
+    expect(computeTrendSummary(trendAllMissing, 160).current).toBeNull();
+    expect(computeTrendSummary(trendAllMissing, 160).direction).toBe('none');
+    expect(computeTrendSummary(undefined, 160).current).toBeNull();
+  });
+});
+
+describe('趋势卡片 option 构建', () => {
+  it('系列类型为 line、id 稳定，sparkline 数据为对齐后数值', () => {
+    const option = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160 });
+    expect(seriesOf(option).map((series) => [series.id, series.type])).toEqual([['active', 'line']]);
+    expect(seriesOf(option)[0]?.data).toEqual([120, null, 180, 200]);
+  });
+
+  it('坐标轴为 category / value 且隐藏，类目轴数据完整', () => {
+    const option = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160 });
+    expect(axisOf(option, 'xAxis').type).toBe('category');
+    expect(axisOf(option, 'xAxis').data).toEqual(['周一', '周二', '周三', '周四']);
+    expect(axisOf(option, 'xAxis').show).toBe(false);
+    expect(axisOf(option, 'yAxis').type).toBe('value');
+    expect(axisOf(option, 'yAxis').show).toBe(false);
+  });
+
+  it('空数据显示「暂无数据」、无系列、无 NaN、无 meta 行', () => {
+    const option = buildTrendCardOption({ series: [] }, { chart: 'trend-card', previousValue: 160 });
+    expect(seriesOf(option)).toEqual([]);
+    expect(JSON.stringify(option)).not.toContain('NaN');
+    const texts = graphicTexts(option).join(' ');
+    expect(texts).toContain('暂无数据');
+    expect(texts).not.toContain('前期');
+  });
+
+  it('缺失值保留为 null 而不是 0', () => {
+    const option = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160 });
+    expect(seriesOf(option)[0]?.data).toEqual([120, null, 180, 200]);
+    expect(JSON.stringify(seriesOf(option)[0]?.data)).toContain('null');
+    expect(JSON.stringify(option)).not.toContain('null,0');
+  });
+
+  it('graphic 数值摘要：当前值大字段落 + meta 行含前期值与上升变化', () => {
+    const option = buildTrendCardOption(trendData, {
+      chart: 'trend-card',
+      title: '近 7 日活跃用户',
+      previousValue: 160,
+    });
+    const texts = graphicTexts(option);
+    expect(texts.join(' ')).toContain('近 7 日活跃用户');
+    // 当前值 200 作为独立大字段落
+    expect(texts).toContain('200');
+    const meta = texts.join(' ');
+    expect(meta).toContain('前期 160');
+    expect(meta).toContain('▲');
+    expect(meta).toContain('40');
+    expect(meta).toContain('25.0%');
+  });
+
+  it('下降方向 meta 行使用下降箭头', () => {
+    const option = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 260 });
+    const meta = graphicTexts(option).join(' ');
+    expect(meta).toContain('▼');
+    expect(meta).toContain('前期 260');
+  });
+
+  it('无前期值时不渲染 meta 行，但当前值仍在', () => {
+    const option = buildTrendCardOption(trendData, { chart: 'trend-card', title: '指标' });
+    const texts = graphicTexts(option);
+    expect(texts).toContain('200');
+    expect(texts.join(' ')).not.toContain('前期');
+  });
+
+  it('单位作用于当前值、前期值与变化量文本', () => {
+    const option = buildTrendCardOption(trendData, {
+      chart: 'trend-card',
+      previousValue: 160,
+      unit: { suffix: '人' },
+    });
+    const meta = graphicTexts(option).join(' ');
+    expect(graphicTexts(option)).toContain('200人');
+    expect(meta).toContain('前期 160人');
+    expect(meta).toContain('40人');
+  });
+
+  it('多系列绘成多条 sparkline 并渲染图例，当前值取第一个系列', () => {
+    const multi: ChartData = {
+      series: [
+        trendPrimary,
+        { id: 'new', name: '新增', points: [{ x: '周四', y: 30 }] },
+      ],
+    };
+    const option = buildTrendCardOption(multi, { chart: 'trend-card', previousValue: 160 });
+    expect(seriesOf(option).map((series) => series.id)).toEqual(['active', 'new']);
+    expect((option as { legend?: unknown }).legend).toBeDefined();
+    // 当前值仍来自第一个系列（200）
+    expect(graphicTexts(option)).toContain('200');
+  });
+
+  it('optionOverrides 只深层合并坐标轴类字段，graphic / 调色板 / 渲染器不可覆盖', () => {
+    const base = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160, theme: 'dark' });
+    const patched = buildTrendCardOption(
+      trendData,
+      { chart: 'trend-card', previousValue: 160, theme: 'dark' },
+      {
+        grid: { top: 8 },
+        tooltip: { trigger: 'item' },
+        legend: { orient: 'vertical' },
+        xAxis: { data: ['x'] },
+        yAxis: { data: [1] },
+        title: { text: '卡' },
+        graphic: [{ type: 'text', style: { text: 'hack' } }],
+        color: ['#ff0000'],
+        renderer: 'svg',
+      } as unknown as SupportedOptionOverrides,
+    );
+    expect(patched.grid).toMatchObject({ top: 8 });
+    expect(patched.tooltip).toMatchObject({ trigger: 'item' });
+    expect(patched.legend).toMatchObject({ orient: 'vertical' });
+    expect((patched as { title?: { text?: string } }).title).toEqual({ text: '卡' });
+    // graphic 由数据驱动，optionOverrides 无法注入；调色板来自主题；渲染器不属于 option
+    expect(patched.graphic).toEqual(base.graphic);
+    expect(patched.color).toEqual(base.color);
+    expect('renderer' in patched).toBe(false);
+  });
+
+  it('与折线 / 柱状共用同一套数据规范化规则', () => {
+    const invalid: ChartData = {
+      series: [
+        { id: 'a', name: '甲', points: [{ x: '周一', y: 1 }] },
+        { id: 'a', name: '甲 again', points: [] },
+      ],
+    };
+    expect(() => buildTrendCardOption(invalid, { chart: 'trend-card' })).toThrow(ChartDataError);
+    // 规范化不修改入参
+    const snapshot = JSON.stringify(trendData);
+    buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160 });
+    expect(JSON.stringify(trendData)).toBe(snapshot);
+  });
+
+  it('无 DOM 环境（SSR 导入）下构建 option 不访问浏览器全局', () => {
+    expect(typeof window).toBe('undefined');
+    const option = buildTrendCardOption(trendData, {
+      chart: 'trend-card',
+      previousValue: 160,
+      theme: 'dark',
+      renderer: 'svg',
+    });
+    expect(seriesOf(option)).toHaveLength(1);
+  });
+
+  it('同一数据重复构建得到等价 option', () => {
+    const first = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160, unit: { suffix: '%' } });
+    const second = buildTrendCardOption(trendData, { chart: 'trend-card', previousValue: 160, unit: { suffix: '%' } });
+    expect(serializable(first)).toEqual(serializable(second));
+  });
+
+  it('graphic 使用稳定槽位与 ignore，状态切换不残留上一次数值摘要', () => {
+    const withMeta = buildTrendCardOption(trendData, {
+      chart: 'trend-card',
+      title: '指标',
+      previousValue: 160,
+    });
+    // 三个稳定槽位顺序固定
+    expect(graphicSlots(withMeta).map((slot) => slot.id)).toEqual([
+      'trend-title',
+      'trend-value',
+      'trend-meta',
+    ]);
+    // 可见槽位必须显式 ignore === false：控制器首次渲染数据为空（槽位 ignore: true），
+    // 随后 update 填数据；ECharts 按 id 合并 graphic，缺省 false 会保留上一次的 ignore: true 而不渲染
+    expect(graphicSlots(withMeta).every((slot) => slot.ignore === false)).toBe(true);
+
+    // 无前期值 / 无标题时对应槽位 ignore，而不是缺席——缺席会让 ECharts 保留上一次的文本
+    const bare = buildTrendCardOption(trendData, { chart: 'trend-card' });
+    const byId = new Map(graphicSlots(bare).map((slot) => [slot.id, slot]));
+    expect(byId.get('trend-title')?.ignore).toBe(true);
+    expect(byId.get('trend-meta')?.ignore).toBe(true);
+    // 数值槽恒定可见
+    expect(byId.get('trend-value')?.ignore).toBeFalsy();
+  });
+
+  it('趋势卡片配置类型只接受标题与前期值专属字段', () => {
+    // 编译期约束的类型层断言：TrendCardConfig 只有 title / previousValue 两个专属字段
+    const trend: TrendCardConfig = {
+      chart: 'trend-card',
+      title: '近 7 日活跃用户',
+      previousValue: 160,
+      unit: { suffix: '人' },
+    };
+    expect(trend.chart).toBe('trend-card');
+    const option = buildTrendCardOption(trendData, trend);
+    expect(seriesOf(option).map((series) => series.type)).toEqual(['line']);
   });
 });

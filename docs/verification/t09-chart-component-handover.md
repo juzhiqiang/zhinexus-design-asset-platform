@@ -1,0 +1,104 @@
+# T09 图表组件与材料交接清单（line / bar / pie / scatter）
+
+日期：2026-11-12。负责人：A（SDK）。分支：`feat/t09-trend`（基线 main `3bbf687`，已含 T09 第一批至第三批）。本文是 T09 前四类图表（折线、柱状、饼图 / 环形、散点）的**交接清单**，供 B（CLI / 画廊 / 消费者）与 C（contracts / 平台）核对组件、状态与材料是否齐全；同时记录 B 侧 `component-cli` 的已知材料生成缺口。
+
+趋势卡片（trend-card，T09 第四批）属「组合场景」，单独见 [T09 第四批对齐件](../superpowers/specs/2026-11-12-sdk-trend-card-protocol.md) 与 [验证记录](t09-trend-card.md)；本文聚焦前四类**基础图表**，文末给出趋势卡片与后续批次的对应关系。
+
+## 1. 逻辑组件与实现矩阵
+
+| 逻辑 componentId | Vue 实现 | React 实现 | 包版本（当前） | 状态 |
+| --- | --- | --- | --- | --- |
+| `line` | `LineChart.vue` | `LineChart.tsx` | 0.0.5 | T02 / T03 已合入 |
+| `bar` | `BarChart.vue` | `BarChart.tsx` | 0.0.5 | T09 第一批已合入 |
+| `pie` | `PieChart.vue` | `PieChart.tsx` | 0.0.5 | T09 第二批已合入（含实心覆盖） |
+| `scatter` | `ScatterChart.vue` | `ScatterChart.tsx` | 0.0.5 | T09 第三批已合入 |
+| `trend-card` | `TrendCard.vue` | `TrendCard.tsx` | 0.0.5 | T09 第四批（本分支） |
+
+四类基础图表共 8 个框架实现，加趋势卡片共 10 个；`light` / `dark` × `canvas` / `svg` 为声明支持矩阵（`ChartConfig.theme` / `renderer`）。每个实现都提供 `data` / `config` / `optionOverrides` 属性与 `point-click`（Vue）/ `onPointClick`（React）事件，React 另保留 `className` / `style` / `ref`。
+
+## 2. 包导出面与子路径
+
+三个公开包（`@company/charts-core` / `@company/charts-vue` / `@company/charts-react`）当前 0.0.5：
+
+| 入口 | charts-core | charts-vue / charts-react |
+| --- | --- | --- |
+| `.` | `buildLineOption` / `buildBarOption` / `buildPieOption` / `buildScatterOption` / `buildTrendCardOption` / `computeTrendSummary` / `pieTotal` / `createChartController` / 共享类型 | `LineChart` / `BarChart` / `PieChart` / `ScatterChart` / `TrendCard` / `useChart` / `same*Config` / 组件类型 / 自 core 重新导出的共享类型 |
+| `./line` | — | 仅折线图（组件 + hook + 类型） |
+| `./bar` | — | 仅柱状图 |
+| `./pie` | — | 仅饼图 / 环形图 |
+| `./scatter` | — | 仅散点图 |
+| `./trend-card` | — | 仅趋势卡片 |
+| `./style.css` | — | `.charts-line` / `.charts-bar` / `.charts-pie` / `.charts-scatter` / `.charts-trend-card` 容器基础样式 |
+
+- 两框架包均**不**重新导出 `createChartController` 与 `build*Option`（core 入口专用）。
+- `charts-vue` 的 vite 库入口（`build.lib.entry`）已登记 `index` / `line` / `bar` / `pie` / `scatter` / `trend-card`；`charts-react` 由 `tsc` 直接产出对应 `dist/*.js`。
+
+## 3. charts-core 契约（供 contracts / 平台核对）
+
+- `ChartType = 'line' | 'bar' | 'pie' | 'scatter' | 'trend-card'`；`chartTypeOf` / `buildChartOption` 按该联合分发。
+- 配置联合 `AnyChartConfig = LineChartConfig | BarChartConfig | PieChartConfig | ScatterChartConfig | TrendCardConfig`（`createChartController` 入口）。柱状 / 饼图 / 散点 / 趋势卡片的 `chart` 为**必填判别字段**；折线图 `chart?: 'line'` 保持可选以兼容 T02/T03 既有调用方。
+- 共享数据协议 `ChartData = { series: { id, name, points: { x, y }[] }[] }`；`normalizeChartData` 校验（重复 id、非法 x/y 抛 `ChartDataError`，`null` 保留为缺失、禁止写成 0）。
+- 事件载荷 `ChartEvent = { seriesId, dataIndex, value, nativeType }`：折线 / 柱状 / 饼图 / 趋势卡片为 `[名称, 值]`，散点图为 `[x, y]` 数值对（控制器按 `params.value` 是否数组分路）。
+- `optionOverrides` 白名单：折线 / 柱状 / 散点 / 趋势卡片为 `grid` / `tooltip` / `legend` / `xAxis` / `yAxis` / `title`；饼图为 `tooltip` / `legend` / `title`（无坐标轴）。系列、主题、渲染器不可覆盖。
+
+## 4. 各图表语义速查
+
+| 图表 | 坐标轴 | 数据项形状 | 缺失值 | 负值 | 图例 | 空数据 |
+| --- | --- | --- | --- | --- | --- | --- |
+| 折线 | 类目 + 数值，`boundaryGap:false` | 数值 | `null`（不连线可配） | 透传，零轴以下 | 单系列不渲染 | 空系列、无 NaN |
+| 柱状 | 类目 + 数值，`boundaryGap:true` | 数值（`stack` 可堆叠） | `null` 不渲染柱条 | 透传，零轴以下 | 多系列才渲染 | 空系列、无 NaN |
+| 饼图 / 环形 | 无坐标轴 | `{ name, value }` | `null` 不渲染扇形、不进分母 | 抛 `ChartDataError` | 多系列（环）才渲染 | 空系列、无 NaN |
+| 散点 | 双数值轴，无 `boundaryGap` | `[x, y]` 数值对（x 必须为数值） | `[x, null]` 不渲染符号 | 透传，零轴以下 | 多系列才渲染 | 空系列、无 NaN |
+| 趋势卡片 | 类目 + 数值，均 `show:false` | 数值（sparkline） | `null` 不参与取末 | 透传 | 多系列才渲染 | 「暂无数据」、无 NaN |
+
+## 5. fixtures 与示例状态（`examples/fixtures/*.json`）
+
+两框架示例读取**同一份** fixture，数据与点击载荷完全一致，截图才能等价。
+
+| fixture | 状态集合 | `expectedSeriesIds` 覆盖 |
+| --- | --- | --- |
+| `line.json` | `default` / `empty` / `missing` / `updated`（以既有为准） | 每状态自带 |
+| `bar.json` | `default` / `empty` / `missing` / `negative` / `single` / `updated` | 每状态自带 |
+| `pie.json` | `default` / `empty` / `missing` / `zero-total` / `nested` / `updated` + `solid` / `solid-empty` / `solid-missing` / `solid-zero-total` / `solid-nested` | 每状态自带 |
+| `scatter.json` | `default` / `empty` / `missing` / `negative` / `single` / `updated` | 每状态自带 |
+| `trend-card.json` | `default` / `empty` / `missing` / `single` / `updated` / `down`；`previousValue` 固定 160 | 每状态自带 |
+
+示例页（两框架各一份，端口 5174 / 5175）：`line.html`、`bar.html`、`pie.html`、`scatter.html`、`trend-card.html`，入口分别为 `src/{line,bar,pie,scatter,trend-card}-main.{ts,tsx}` 与 `src/{Line,Bar,Pie,Scatter,TrendCard}App.{vue,tsx}`。示例统一实现就绪协议（`ready` / `states` / `runState` / `getChecks`，自检 `single-instance` / `no-page-error` / `series-match` / `renderer-match`），`runState` 重复应用当前状态幂等返回。
+
+## 6. 测试覆盖与当前计数
+
+| 层 | 文件 | 趋势卡片前 | 当前（含趋势卡片） |
+| --- | --- | --- | --- |
+| 单元 | `tests/unit/chart-semantics.test.ts` | 46 passed | 68 passed（趋势卡片 21） |
+| 单元 | `tests/unit/chart-data.test.ts` | 12 passed | 12 passed |
+| 浏览器 | `tests/browser/component-matrix.spec.ts` | 71 passed | 86 passed（趋势卡片 15） |
+| 浏览器 | `core-lifecycle` + `framework-lifecycle` | 8 passed | 8 passed |
+| 集成 | `tests/integration/packed-consumer-frameworks.test.ts` | 9 passed | 10 passed |
+| 全量 | `pnpm test` | 491 passed | 512 passed，4 skipped |
+| 全量 | `pnpm test:browser` | 71 passed | 86 passed |
+
+消费者模板（`tests/consumers/{vue,react}`，非 workspace 成员）：`index.html`（line）+ `bar.html` + `pie.html` + `scatter.html` + `trend-card.html`，各配 `src/*App.{vue,tsx}` 与 `src/*-main.{ts,tsx}`；`vite.config.ts` 的 `rollupOptions.input` 显式登记全部五个入口。
+
+## 7. B 侧材料生成缺口（记录在案，未阻塞合并）
+
+`packages/component-cli/src/local/manifest.ts` 的 `ComponentName` 仍只有 `'line' | 'bar'`，`prepareReleaseBundle` 只生成 line / bar 材料；SDK 0.0.3 起已有 `./pie`、0.0.4 起有 `./scatter`、0.0.5 起有 `./trend-card`，**平台 API 的逐导出覆盖检查会拒绝未覆盖全部导出的 Bundle**（该拒绝行为已由 T05 实测记录，不得放宽）。需要 B 至少完成：
+
+1. `manifest.ts`：`ComponentName` 扩展为 `'line' | 'bar' | 'pie' | 'scatter' | 'trend-card'`；`components` 缺省值建议改为全量（与 API 的逐导出覆盖要求对齐）。
+2. 入口文件名映射：`component === 'line' ? 'index.html' : \`${component}.html\``（bar / pie / scatter / trend-card 均已有消费者页面，由 A 交付）。
+3. `exportName` 映射补 `'PieChart'` / `'ScatterChart'` / `'TrendCard'`（可统一为按 componentId 首字母大写的映射表）。
+4. docs 文案映射补「饼图 / 环形图」「散点图」「趋势卡片」。
+5. `capture.ts` 容器尺寸探测选择器链当前为 `.charts-line` / `.charts-bar` / `.charts-pie` / `.chart-frame` / `#chart` / `#app`；散点与趋势卡片页经 `.chart-frame` 已可探测，建议补 `.charts-scatter` / `.charts-trend-card` 使探测更直接。
+6. B 侧测试同步：`tests/unit/release-bundle.test.ts`、`tests/integration/cli-bundle.test.ts` 中硬编码的组件清单需覆盖 pie / scatter / trend-card。
+7. 状态名：若 Bundle 需要覆盖示例页多于 `default` 的状态，`ExampleRef.requiredStates` 与 manifest 状态定义需补充各图表状态名（pie：`zero-total` / `nested`；scatter：`negative` / `single`；trend-card：`missing` / `single` / `down`）；当前 fixtures 未被 manifest 引用，不影响默认流程。
+8. 就绪协议驱动示例页时依赖散点批次的 `runState` 幂等修复（已在 main）；驱动消费者页面不依赖（消费者页 `runState` 为无操作）。
+
+## 8. C 侧 contracts
+
+- 无 schema 变化：`ComponentExample` / `CheckResult` / `ChartEvent` / `ExampleRef` / `ScreenshotRef` 形状均未变（散点仅取值口径为 `[x, y]`，结构不变）。
+- 若 `ExampleRef.requiredStates` 需要覆盖各示例状态，按第 5 节 fixture 的状态集合补充。
+
+## 9. 原生复验与后续批次
+
+- Windows 原生复验清单：[柱状图](t09-bar-windows-native.md)、[散点图](t09-scatter-windows-native.md)、[趋势卡片](t09-trend-card-windows-native.md)。均由 A 侧整理为可执行清单与回填模板，需用户在 Windows 开发机执行后回填；A 侧不声称 Windows 原生验证已通过。
+- 后续批次：`ranking`（需明确排序方向与并列处理）与 `proportion`（总量为零显示「暂无数据」、不输出 NaN，且不在组件内猜业务指标口径）按同一模式扩展：core 增加场景入口与模块注册、框架包增加组件与子路径、fixtures 与示例同步、消费者与矩阵测试补充。
+- 已知遗留：`README.md` 的 SDK 段落自 G0 / T02 起已过期，建议由 C 在 T09 收口时统一刷新。

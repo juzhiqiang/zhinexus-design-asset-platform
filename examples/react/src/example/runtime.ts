@@ -30,6 +30,11 @@ export type ExampleTestHook = {
    * 实心饼图必须由渲染几何证明内半径为 0。
    */
   sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
+  /**
+   * 趋势卡片数值摘要槽位文本（[标题, 当前值, meta]）。槽位固定，
+   * ignore 的槽位返回 null——用于断言状态切换不残留上一次的数值摘要。
+   */
+  summarySlots(): (string | null)[];
 };
 
 export type ExampleRuntimeOptions = {
@@ -276,6 +281,7 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
     clearClicks: options.clearClicks,
     seriesData: () => seriesData(hostSelector),
     seriesRadius: (seriesIndex: number) => seriesRadius(hostSelector, seriesIndex),
+    summarySlots: () => summarySlots(hostSelector),
     sectorRadii: (seriesIndex: number, dataIndex: number) => {
       const instance = chartInstance(hostSelector);
       if (!instance) {
@@ -351,4 +357,39 @@ function sectorCenter(
     x: shape.cx + midRadius * Math.cos(midAngle),
     y: shape.cy + midRadius * Math.sin(midAngle),
   };
+}
+
+type GraphicSlot = { id?: string; ignore?: boolean; style?: { text?: string } };
+
+/**
+ * 取出 option 中的 graphic 元素：ECharts 会把数组形式规范化为 `{ elements: [...] }`，
+ * 两种形状都要兼容。
+ */
+function graphicElements(instance: NonNullable<ReturnType<typeof chartInstance>>): GraphicSlot[] {
+  const graphic = instance.getOption().graphic as unknown;
+  if (Array.isArray(graphic)) {
+    const first = graphic[0] as { elements?: unknown } | undefined;
+    if (first && Array.isArray(first.elements)) {
+      return first.elements as GraphicSlot[];
+    }
+    return graphic as GraphicSlot[];
+  }
+  if (graphic && typeof graphic === 'object') {
+    const elements = (graphic as { elements?: unknown }).elements;
+    if (Array.isArray(elements)) {
+      return elements as GraphicSlot[];
+    }
+  }
+  return [];
+}
+
+/** 趋势卡片数值摘要槽位文本：ignore 的槽位返回 null（不渲染）。 */
+function summarySlots(selector: string): (string | null)[] {
+  const instance = chartInstance(selector);
+  if (!instance) {
+    return [];
+  }
+  return graphicElements(instance).map((element) =>
+    element?.ignore ? null : (element?.style?.text ?? null),
+  );
 }
