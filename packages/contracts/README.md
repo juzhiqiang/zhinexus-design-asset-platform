@@ -66,6 +66,8 @@ ready 在数据、fonts.ready、非零尺寸和 ECharts finished 后完成，失
 
 ## API 消息（B/C 评审）
 
+T05 补充（2026-11-12）：createUploadResponse 的每个文件可带 multipart={uploadId,partSize,parts:[{partNumber,uploadUrl,expiresAt}]}；旧单 PUT 响应不变。multipart 存在时客户端使用逐片 URL，complete 提交对应 path/partNumber/etag。UPLOAD_LIMITS 导出客户端/API 共用的初始字节、图片尺寸和分片限制；API 仍核对实际字节、聚合总量并冻结内容。来源由认证客户端身份映射，不能由 manifest.channel 升级权限。
+
 ApiMessages 与 validateApiMessage(name,input,{reports?}) 覆盖以下 V1 消息。createReleaseRequest 还执行 manifest 领域校验；其余为 wire 结构校验，不证明服务已实现或状态合法。HTTP query 由适配器先解析页码数字，不隐式转换类型。
 
 | HTTP 接口（均 /v1） | 请求 / 响应消息 |

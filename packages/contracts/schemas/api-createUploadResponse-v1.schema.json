@@ -29,6 +29,58 @@
           "expiresAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "multipart": {
+            "type": "object",
+            "properties": {
+              "uploadId": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2048,
+                "pattern": "\\S"
+              },
+              "partSize": {
+                "type": "integer",
+                "minimum": 5242880,
+                "maximum": 9007199254740991
+              },
+              "parts": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "partNumber": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "maximum": 10000
+                    },
+                    "uploadUrl": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 2048,
+                      "pattern": "^https?://[^\\s]+$"
+                    },
+                    "expiresAt": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  },
+                  "required": [
+                    "partNumber",
+                    "uploadUrl",
+                    "expiresAt"
+                  ],
+                  "additionalProperties": false
+                },
+                "minItems": 1
+              }
+            },
+            "required": [
+              "uploadId",
+              "partSize",
+              "parts"
+            ],
+            "additionalProperties": false
           }
         },
         "required": [

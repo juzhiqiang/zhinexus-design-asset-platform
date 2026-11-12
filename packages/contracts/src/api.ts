@@ -14,7 +14,7 @@ export type PublishingCheckpoint = typeof PUBLISHING_CHECKPOINTS[number];
 export type PublicVariantSummary = { variantReleaseId: string; variantId: string; framework: Framework; packageName: string; packageVersion: string };
 export type ApiMessages = {
   createUploadRequest: { manifestDigest: string; files: ArtifactRef[] };
-  createUploadResponse: { uploadSessionId: string; files: { path: string; uploadUrl: string; expiresAt: string }[] };
+  createUploadResponse: { uploadSessionId: string; files: { path: string; uploadUrl: string; expiresAt: string; multipart?: { uploadId: string; partSize: number; parts: { partNumber: number; uploadUrl: string; expiresAt: string }[] } }[] };
   completeUploadRequest: { parts: { path: string; partNumber: number; etag: string }[] };
   completeUploadResponse: { status: 'complete'; verifiedFiles: ArtifactRef[] };
   createReleaseRequest: { uploadSessionId: string; manifest: ReleaseManifestV1 };
@@ -39,7 +39,7 @@ const issue = object({ code: choice(...CONTRACT_ERROR_CODES), path: { type: 'str
 const error = object({ code: choice(...API_ERROR_CODES), message: text, details: array(issue), requestId: identifier });
 const schemas: Record<keyof ApiMessages, Schema> = {
   createUploadRequest: object({ manifestDigest: hash, files: array(artifactSchema, 1) }),
-  createUploadResponse: object({ uploadSessionId: identifier, files: array(object({ path: artifactPath, uploadUrl: url, expiresAt: timestamp }), 1) }),
+  createUploadResponse: object({ uploadSessionId: identifier, files: array(object({ path: artifactPath, uploadUrl: url, expiresAt: timestamp, multipart: object({ uploadId: text, partSize: integer(5242880), parts: array(object({ partNumber: integer(1, 10000), uploadUrl: url, expiresAt: timestamp }), 1) }) }, ['multipart']), 1) }),
   completeUploadRequest: object({ parts: array(object({ path: artifactPath, partNumber: integer(1), etag: text })) }),
   completeUploadResponse: object({ status: { type: 'string', const: 'complete' }, verifiedFiles: array(artifactSchema, 1) }),
   createReleaseRequest: object({ uploadSessionId: identifier, manifest: manifestSchema }),

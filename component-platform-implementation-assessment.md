@@ -8,6 +8,8 @@
 
 ## 1. 评估结论
 
+2026-11-12 T05 开工：用户授权新分支开发身份、上传/字节校验、持久化发布登记、基线与审计并合并本地 main。实施补充见 [T05 计划](docs/superpowers/plans/2026-11-12-t05-platform.md)：兼容 multipart 响应、共享上传限制、冻结副本避免 signed URL 后写篡改；无 OIDC 配置时业务失败关闭。代码交付与真实公司 OIDC/完整 G2/T05 外部验收分别记录。
+
 2026-11-12 C 后续范围：用户确认暂无 OIDC 与独立预览域，先实施隔离本地三存储与接入检查工具，见 [G2 本地子计划](docs/superpowers/plans/2026-11-12-g2-local-infra.md)。示例协议保留 ready/runState/getChecks，并允许可选只读 states；manifest requiredStates 仍是截图执行清单。缺外部资源不视为 G2/T01 完成。
 
 本轮本地三存储两次真实探针和停止/重启已通过，接入检查在缺 OIDC/域名时退出 2；详见 [新验证记录](docs/verification/g2-local-infra-2026-11-12.md)。设施客户端为根 devDependencies，不引入服务端组件执行或改变 10 个成员边界。业务迁移、OIDC 登录/授权、预览隔离及跨存储发布一致性仍按 T05/T06/T07 实施。

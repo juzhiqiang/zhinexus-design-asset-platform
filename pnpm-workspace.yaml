@@ -12,6 +12,7 @@ minimumReleaseAgeExclude:
   - '@aws-sdk/credential-provider-node@3.972.97'
   - tldts-core@7.4.22
   - tldts@7.4.22
+  - '@aws-sdk/s3-request-presigner@3.1167.0'
 
 registry: https://registry.npmjs.org/
 saveExact: true
