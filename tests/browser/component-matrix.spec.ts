@@ -54,10 +54,19 @@ async function checkByName(page: Page, name: string): Promise<CheckResult | unde
 /**
  * 点击柱条内部：`pointClientPosition` 返回柱条顶边像素，直接点顶边容易落在描边上，
  * 向下偏移若干像素保证落在柱体内部。单系列状态下柱条居中于类目带，坐标即柱条中心。
+ * 重新挂载后测试钩子会异步替换，先等待当前钩子报告文档内的有效坐标再点击。
  */
 const BAR_BODY_OFFSET_Y = 8;
 
 async function clickFirstBar(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const hook = window.__COMPONENT_EXAMPLE_TEST__;
+    if (!hook) {
+      return false;
+    }
+    const position = hook.pointClientPosition(0, 0);
+    return position != null && position.x > 0 && position.y > 0;
+  });
   const position = await page.evaluate(() =>
     window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0),
   );
@@ -198,6 +207,8 @@ test('react_bar_strictmode_cleans_and_remounts', async ({ page }) => {
   await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
   await expect(page.locator('.charts-bar canvas')).toHaveCount(1);
 
+  // 重新挂载后回到单系列状态（柱条居中，点击坐标稳定），点击只产生一次事件
+  await runState(page, 'single');
   await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
   await clickFirstBar(page);
   expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
@@ -212,6 +223,7 @@ test('vue_bar_remount_leaves_single_instance', async ({ page }) => {
   await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
   await expect(page.locator('.charts-bar canvas')).toHaveCount(1);
 
+  await runState(page, 'single');
   await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
   await clickFirstBar(page);
   expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);

@@ -356,8 +356,9 @@ describe('消费者构建与真实渲染', () => {
         page.on('pageerror', (error) => pageErrors.push(error.message));
         try {
           const entries = [
-            { path: 'index.html', host: '.charts-line' },
-            { path: 'bar.html', host: '.charts-bar' },
+            // 折线图点击数据点符号本身；柱状图需落在柱体内部（顶边向下偏移）
+            { path: 'index.html', host: '.charts-line', offsetY: 0 },
+            { path: 'bar.html', host: '.charts-bar', offsetY: 8 },
           ];
           for (const entry of entries) {
             await page.goto(`http://127.0.0.1:${port}/${entry.path}`);
@@ -369,8 +370,7 @@ describe('消费者构建与真实渲染', () => {
               window.__CONSUMER_TEST__!.pointClientPosition(0, 0),
             );
             expect(position, `${framework} ${entry.path} 数据点坐标`).not.toBeNull();
-            // 柱条顶边向下偏移，保证点击落在柱体内部
-            await page.mouse.click(position!.x, position!.y + 8);
+            await page.mouse.click(position!.x, position!.y + entry.offsetY);
             const clicks = await page.evaluate(() => window.__CONSUMER_TEST__!.getClicks());
             expect(clicks, `${framework} ${entry.path}`).toEqual([
               { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },

@@ -56,7 +56,8 @@ function seriesOf(option: unknown): { id: string; type: string; data: unknown[] 
 }
 
 function axisOf(option: unknown, name: 'xAxis' | 'yAxis'): Record<string, unknown> {
-  return (option as Record<string, Record<string, unknown>>)[name];
+  const axes = option as Record<string, Record<string, unknown>>;
+  return axes[name]!;
 }
 
 /** 序列化 option：formatter 为每次构建的新闭包，按可序列化结构比对构建确定性。 */
