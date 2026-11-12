@@ -2,6 +2,19 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.4] - 2026-11-12
+
+### Added
+
+- 散点图：图表类型联合新增 `'scatter'`、`ScatterChartConfig` 与 `ScatterChartOption`，以及 `buildScatterOption` option 构建（T09 第三批）。
+- 散点图语义：x / y 双数值轴，数据项为 `[x, y]` 数值对；x 必须为数值（字符串 x 抛 `ChartDataError` 且 path 指向出错点）；缺失值保持 `null` 且该符号不渲染；负值原样进入数据项并由数值轴渲染零轴以下；`unit` 只作用于 y 轴与 tooltip 口径，x 轴按无单位格式化；tooltip 以 `trigger: 'item'` 展示 `(x, y)` 数值对；多系列才渲染图例；空数据返回空系列、不抛错、不产生 NaN。
+- `optionOverrides` 对散点图深层合并 `grid` / `tooltip` / `legend` / `xAxis` / `yAxis` / `title`（系列、主题与渲染器仍不可覆盖）。
+
+### Changed
+
+- `createChartController` 的配置联合新增 `ScatterChartConfig`；散点图按需注册 `ScatterChart` + 网格 / 提示 / 图例 / 标题组件 + 指定渲染器，不注册其他图表模块。
+- 点击事件载荷兼容 `[x, y]` 数值对（散点图）：`ChartEvent.value` 为 `[x, y]`；折线 / 柱状 / 饼图的 `[名称, 值]` 载荷形状与既有行为不变。
+
 ## [0.0.3] - 2026-11-12
 
 ### Added

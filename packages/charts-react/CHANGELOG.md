@@ -2,6 +2,18 @@
 
 本文件记录 `@company/charts-react` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.4] - 2026-11-12
+
+### Added
+
+- `ScatterChart` 散点图组件（TSX）：`data` / `config` / `optionOverrides` / `onPointClick` / `className` / `style` 属性与 `ref` 句柄，载荷为 `[x, y]` 数值对且与 Vue 实现对等（T09 第三批）。
+- `./scatter` 子路径入口（按需加载）与 `.charts-scatter` 容器基础样式。
+- `sameScatterConfig` 配置等价判断；自 `@company/charts-core` 重新导出 `ScatterChartConfig` 共享类型。
+
+### Changed
+
+- `useChart` 的 `chart` 参数接受 `'scatter'`；`LineChart` / `BarChart` / `PieChart`、既有子路径与既有导出行为不变。
+
 ## [0.0.3] - 2026-11-12
 
 ### Added
