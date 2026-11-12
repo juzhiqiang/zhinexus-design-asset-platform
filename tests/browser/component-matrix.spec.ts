@@ -10,6 +10,10 @@ const VUE_PIE = 'http://127.0.0.1:5174/pie.html';
 const REACT_PIE = 'http://127.0.0.1:5175/pie.html';
 const REACT_PIE_DEV = 'http://127.0.0.1:5176/pie.html';
 
+const VUE_SCATTER = 'http://127.0.0.1:5174/scatter.html';
+const REACT_SCATTER = 'http://127.0.0.1:5175/scatter.html';
+const REACT_SCATTER_DEV = 'http://127.0.0.1:5176/scatter.html';
+
 type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
 
 type ExampleTestHook = {
@@ -538,6 +542,182 @@ test('react_pie_strictmode_cleans_and_remounts', async ({ page }) => {
   await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
   await clickFirstSlice(page);
   expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+/**
+ * 点击散点符号：`pointClientPosition` 对双数值轴图表按数据项 [x, y] 换算像素，
+ * 返回的即符号中心，无需额外偏移。
+ */
+async function clickFirstScatterPoint(page: Page): Promise<void> {
+  await page.waitForFunction(() => {
+    const hook = window.__COMPONENT_EXAMPLE_TEST__;
+    if (!hook) {
+      return false;
+    }
+    const position = hook.pointClientPosition(0, 0);
+    return position != null && position.x > 0 && position.y > 0;
+  });
+  const position = await page.evaluate(() =>
+    window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0),
+  );
+  expect(position).not.toBeNull();
+  await page.mouse.click(position!.x, position!.y);
+}
+
+for (const url of [VUE_SCATTER, REACT_SCATTER]) {
+  test(`scatter_empty_data_renders_no_series: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+
+    await runState(page, 'empty');
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`scatter_missing_values_stay_missing: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'missing');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toHaveLength(2);
+    // 缺失值必须是 null，任何位置都不允许被写成 0
+    expect(data[0]).toEqual([120, null, 150, null]);
+    expect(data[1]).toEqual([40, 60, null, 80]);
+    expect(JSON.stringify(data)).not.toContain(',0,');
+    // 缺失点没有像素坐标（不渲染符号）
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 1)),
+    ).toBeNull();
+    await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`scatter_negative_values_render_below_zero: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'negative');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data[0]).toEqual([120, -40, 60, null]);
+    expect(data[0]).toContain(-40);
+
+    // 几何断言：负值点必须画在零轴以下（屏幕坐标 y 更大）
+    const positive = await page.evaluate(() =>
+      window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0),
+    );
+    const negative = await page.evaluate(() =>
+      window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 1),
+    );
+    expect(positive).not.toBeNull();
+    expect(negative).not.toBeNull();
+    expect(negative!.y).toBeGreaterThan(positive!.y);
+
+    await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`scatter_update_removes_series_without_ghosts: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).length,
+    ).toBe(2);
+
+    // A/B → A：只剩一个系列，不残留旧系列，也不产生第二个画布
+    await runState(page, 'single');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).length,
+    ).toBe(1);
+    await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+
+    // A → A/B：replaceMerge 恢复两个系列
+    await runState(page, 'updated');
+    expect(
+      (await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).length,
+    ).toBe(2);
+    await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`scatter_click_payload_is_consistent: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // 单系列状态：符号互不重叠，点击坐标稳定命中符号中心
+    await runState(page, 'single');
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+
+    await clickFirstScatterPoint(page);
+
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    // 散点图载荷为 [x, y] 数值对，与折线 / 柱状的 [类目, 值] 显式区分
+    expect(clicks[0]).toEqual({
+      seriesId: 'revenue',
+      dataIndex: 0,
+      value: [1, 120],
+      nativeType: 'click',
+    });
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+test('scatter_click_payload_matches_in_both_frameworks', async ({ page }) => {
+  const payloads: ChartEvent[] = [];
+  for (const url of [VUE_SCATTER, REACT_SCATTER]) {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'single');
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+    await clickFirstScatterPoint(page);
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    payloads.push(clicks[0]!);
+    expect(pageErrors, `${url} 页面错误`).toEqual([]);
+  }
+  // 两个框架对同一符号产生完全等价的事件载荷
+  expect(payloads[0]).toEqual(payloads[1]);
+  expect(payloads[0]).toEqual({
+    seriesId: 'revenue',
+    dataIndex: 0,
+    value: [1, 120],
+    nativeType: 'click',
+  });
+});
+
+test('react_scatter_strictmode_cleans_and_remounts', async ({ page }) => {
+  const pageErrors = await openExample(page, REACT_SCATTER_DEV);
+
+  await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+  await assertChecksPass(page, REACT_SCATTER_DEV);
+
+  // 卸载后重新挂载：清理彻底，不残留实例、画布或重复监听
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+
+  // 重新挂载后回到单系列状态，点击只产生一次事件
+  await runState(page, 'single');
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstScatterPoint(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  expect(pageErrors).toEqual([]);
+});
+
+test('vue_scatter_remount_leaves_single_instance', async ({ page }) => {
+  const pageErrors = await openExample(page, VUE_SCATTER);
+  await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.remount());
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE__!.ready);
+  await expect(page.locator('.charts-scatter canvas')).toHaveCount(1);
+
+  await runState(page, 'single');
+  await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+  await clickFirstScatterPoint(page);
+  expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks())).toHaveLength(1);
+  await assertChecksPass(page, VUE_SCATTER);
   expect(pageErrors).toEqual([]);
 });
 
