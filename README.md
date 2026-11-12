@@ -99,3 +99,5 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 ## C 平台运维交付
 
 T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标、故障演练、三存储隔离备份恢复、部署检查与保留策略。入口与边界见 [quickstart](docs/quickstart.md)、[operations](docs/operations.md)、[release-acceptance](docs/release-acceptance.md)。完整G2/M2/T11/T12仍待公司环境及真实试点验收。
+
+2026-11-13：增加 `.\scripts\pnpm.ps1 rehearse:capacity`，在本机真实三存储上量测200组件/400实现的合成目录、20并发读取、总量100MiB分片恢复及5次协议发布。报告按runId写入 `.tools/operations/capacity/`，失败退出非零；不能替代生产容量或业务试点验收。当前SDK十实现的冻结发布、双框架精确安装与逐资源摘要检查，以及网页手动提交后端交接见 [C本轮验证](docs/verification/c-platform-capacity-2026-11-13.md)。

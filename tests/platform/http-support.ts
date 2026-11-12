@@ -55,5 +55,5 @@ export async function upload(h: Harness, fixture: { manifest: ReleaseManifestV1;
   expect(complete.status, JSON.stringify(await complete.json())).toBe(200);
   return { uploadSessionId: plan.uploadSessionId as string, manifest: fixture.manifest };
 }
-export const release = (h: Harness, body: { uploadSessionId: string; manifest: ReleaseManifestV1 }, token: string, key = randomUUID()) =>
+export const release = (h: Harness, body: { uploadSessionId: string; manifest: ReleaseManifestV1 }, token: string, key: string = randomUUID()) =>
   h.request('/v1/releases', body, token, 'POST', { 'Idempotency-Key': key });
