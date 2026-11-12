@@ -190,6 +190,9 @@ describe('review regressions for npm runtime inventory and conditions', () => {
     { '0': './dist/line.js', import: './dist/line.js' }, { import: [null, null] },
     { browser: null, import: './dist/line.js' }, { node: null, import: './dist/line.js' },
     { import: './dist/line.d.ts', default: './dist/line.js' }, { './invalid': './dist/line.js' },
+    { import: [], default: './dist/line.js' }, { import: [null], default: './dist/line.js' },
+    { import: [null, { onlyUnknownCondition: './dist/line.js' }], default: './dist/line.js' },
+    { import: [{ onlyUnknownCondition: './dist/line.js' }, null], default: './dist/line.js' },
   ])('rejects blocked, unknown, invalid or declaration-only ESM conditions %j', async lineExport => {
     const f = await createValidBundle(); replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, { exports: {
       '.': './dist/index.js', './line': lineExport, './bar': './dist/bar.js',
@@ -204,10 +207,29 @@ describe('review regressions for npm runtime inventory and conditions', () => {
     { node: './dist/line.js', browser: './dist/line.js', import: './dist/line.js' },
     { import: [{ onlyUnknownCondition: './dist/line.d.ts' }, './dist/line.js'] },
     { import: [null, './dist/line.js'] },
+    { import: [{ onlyUnknownCondition: './dist/line.js' }], default: './dist/line.js' },
   ])('accepts ordered ESM import/default resolution %j', async lineExport => {
     const f = await createValidBundle(); replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, { exports: {
       '.': './dist/index.js', './line': lineExport, './bar': './dist/bar.js',
     } }));
+    expect((await api.validatePlatformBundle(f.manifest, f.files, 'web')).ok).toBe(true);
+  });
+  it.each([
+    {}, { '.': [] }, { '.': null }, { '.': { onlyUnknownCondition: './dist/index.js' } },
+    { '.': { import: null, default: './dist/index.js' } }, { '.': { node: null, import: './dist/index.js' } },
+    { '.': { browser: null, import: './dist/index.js' } }, { './types': './dist/index.d.ts' },
+  ])('rejects a root-only core without a usable supported ESM root %j', async exports => {
+    const f = await createValidBundle(); f.manifest.variants = []; f.manifest.packages = [f.manifest.packages[0]!];
+    const pkg = f.manifest.packages[0]!; pkg.name = '@company/charts-core'; pkg.peerDependencies = { echarts: '6.1.0' };
+    replaceBundleArtifact(f, pkg.tarball.path, await packageBytes(f, 0, { exports }));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it('accepts a root-only core with ordered unknown-array fallback and no variants', async () => {
+    const f = await createValidBundle(); f.manifest.variants = []; f.manifest.packages = [f.manifest.packages[0]!];
+    const pkg = f.manifest.packages[0]!; pkg.name = '@company/charts-core'; pkg.peerDependencies = { echarts: '6.1.0' };
+    replaceBundleArtifact(f, pkg.tarball.path, await packageBytes(f, 0, { exports: { '.': {
+      import: [{ onlyUnknownCondition: './dist/index.js' }], default: './dist/index.js',
+    } } }));
     expect((await api.validatePlatformBundle(f.manifest, f.files, 'web')).ok).toBe(true);
   });
 });

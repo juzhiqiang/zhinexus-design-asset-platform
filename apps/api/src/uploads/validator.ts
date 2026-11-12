@@ -39,11 +39,13 @@ function resolveEsmTarget(value: unknown, conditions: ReadonlySet<string>): stri
   if (typeof value === 'string' || value === null) return value;
   if (Array.isArray(value)) {
     // Node skips undefined/null array alternatives; a resolved string stops fallback.
+    let fallback: null | undefined = value.length ? undefined : null;
     for (const alternative of value) {
       const resolved = resolveEsmTarget(alternative, conditions);
       if (resolved !== null && resolved !== undefined) return resolved;
+      if (resolved === null) fallback = null;
     }
-    return null;
+    return fallback;
   }
   if (record(value)) for (const [condition, target] of Object.entries(value)) {
     if (condition === 'default' || conditions.has(condition)) {
@@ -96,6 +98,10 @@ function validatePackage(pkg: PackageRef, archive: ReadonlyMap<string, Uint8Arra
     declaredTargets.set(subpath, targets(value));
   }
   const framework = pkg.name === '@company/charts-vue' ? 'vue' : pkg.name === '@company/charts-react' ? 'react' : undefined;
+  if (pkg.name === '@company/charts-core') for (const conditions of ESM_CONDITIONS) {
+    const target = resolveEsmTarget(subpaths['.'], conditions);
+    if (typeof target !== 'string' || !isJavaScript(target)) throw new ArtifactFailure('Core package root is unavailable to a supported ESM consumer');
+  }
   for (const variant of variants) {
     if (framework && variant.framework !== framework || pkg.name === '@company/charts-core') throw new ArtifactFailure('Variant framework differs from the npm package');
     if (!Object.hasOwn(subpaths, variant.exportPath)) throw new ArtifactFailure('Variant runtime export is missing from the npm package');

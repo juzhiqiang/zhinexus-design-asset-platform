@@ -80,3 +80,31 @@
 | `git diff --check` | 成功 |
 
 本轮按 C 主代理约定执行窄范围验证，未再次运行涉及消费者/浏览器的全仓测试；此前 280 项通过只属于前述初始实现时点，最终集成全套验证由主代理执行。仍未声称 JS exportName 语义、真实浏览器兼容性或并发解析容量已验证。认证调用链为每个请求重新读取服务器冻结字节，外部可变 Map 竞态由主代理在集成层控制。
+
+## 条件数组回退与 core 根入口复审返工（2026-11-12）
+
+独立 reviewer 对 `0ecef74` 复审时发现数组分支固定返回 null 会误拒绝合法外层 default；C 主代理同意一并检查该次改动引入的 core 空根入口放行。以下为独立追加证据。
+
+再次使用固定 Node 26.13.0 的纯 `import.meta.resolve` 元数据探针，每组使用独立临时包路径，无安装、无上传模块导入。实际结果：
+
+| exports 目标 | Node ESM 解析结果 |
+| --- | --- |
+| `{ import: [], default: './line.js' }` | `ERR_PACKAGE_PATH_NOT_EXPORTED` |
+| `{ import: [null], default: './line.js' }` | `ERR_PACKAGE_PATH_NOT_EXPORTED` |
+| `{ import: [{ onlyUnknownCondition: './line.js' }], default: './line.js' }` | `line.js` |
+| `{ import: [null, { onlyUnknownCondition: './line.js' }], default: './line.js' }` | `ERR_PACKAGE_PATH_NOT_EXPORTED` |
+| `{ import: [{ onlyUnknownCondition: './line.js' }, null], default: './line.js' }` | `ERR_PACKAGE_PATH_NOT_EXPORTED` |
+
+数组的 null/undefined 不能合并：非空数组全部解析 undefined 时返回 undefined，让外层继续 default；空数组或无字符串结果且曾命中 null 返回 null。新增以上 5 项回归，保留原 93 项不删改；RED 为 98 项中 1 项预期失败。将固定 null 改为记录 fallback 状态后 GREEN 为 98/98。
+
+随后新增 core 根入口的 8 个反例：空 exports、根空数组、null、未知条件、import 阻断、Node 阻断、浏览器阻断及只有静态子路径而缺少根入口。RED 为 107 项中 8 项预期失败。core 仍允许没有 variants，但其 `.` 必须在两类支持的 ESM 条件下解析为实际存在的 JavaScript 目标；根入口免建 VariantRef 不再豁免其可导入性。新增合法 unknown-array→default 的 root-only core 正例；最终 GREEN 为 107/107。
+
+本轮实际执行并通过：
+
+- `.\scripts\pnpm.ps1 --filter @company/platform-api build`。
+- `.\scripts\pnpm.ps1 exec vitest run tests/integration/upload-validation.test.ts`：107/107。
+- `.\scripts\pnpm.ps1 --filter @company/platform-api typecheck`。
+- `.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`。
+- `git diff --check`。
+
+未执行全套浏览器或消费者测试，未改变共享依赖/契约/fixture 接口；完整 T05 外部验收边界仍按前述记录保留。
