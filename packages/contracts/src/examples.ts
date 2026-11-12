@@ -5,6 +5,8 @@ export type CheckResult = { name: string; status: 'passed' | 'failed'; message?:
 /** Browser examples expose this as window.__COMPONENT_EXAMPLE__; no DOM global augmentation. */
 export type ComponentExample = {
   ready: Promise<void>;
+  /** Optional discovery only; ExampleRef.requiredStates remains the execution checklist. */
+  readonly states?: readonly string[];
   runState(name: string): Promise<void>;
   getChecks(): CheckResult[];
 };

@@ -1,5 +1,6 @@
 export type * from './release-manifest.js';
 export type * from './examples.js';
+export const COMPONENT_EXAMPLE_GLOBAL = '__COMPONENT_EXAMPLE__' as const;
 export type * from './reports.js';
 export * from './errors.js';
 export * from './validation.js';

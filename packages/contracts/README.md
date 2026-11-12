@@ -102,6 +102,8 @@ API 另有 UNAUTHENTICATED、FORBIDDEN、NOT_FOUND、UPLOAD_INCOMPLETE、LIMIT_E
 
 ## JSON Schema、fixtures 与验证
 
+示例协议收口（2026-11-12）：`COMPONENT_EXAMPLE_GLOBAL` 固定为 `__COMPONENT_EXAMPLE__`；`ComponentExample.states` 是可选只读状态名枚举，既有只提供 ready/runState/getChecks 的示例仍有效。截图必须按 `ExampleRef.requiredStates` 执行，不能因枚举缺省或遗漏而跳过必需状态；存在枚举时应预检查必需状态是否全部包含，未知状态由 runState 拒绝。每个状态等待就绪后读取 getChecks，Vue/React 分别验证。此项是 C 的兼容性收口，不代替 A/B 的实际业务回执。
+
 src/schemas.ts 和 src/api.ts 的结构定义生成 schemas/*.schema.json（2020-12）。校验器只解释本包声明的词汇，不承诺通用 JSON Schema 引擎。JSON Schema 仅结构层，跨资源关联、来源、环境键与摘要必须使用运行时校验，不能只跑通用 schema 就放行。
 
 ```powershell
