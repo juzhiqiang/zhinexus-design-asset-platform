@@ -34,16 +34,16 @@ describe('T04/T06: CLI release, status, resume, and Verdaccio registry installat
         const token = await h.token('alice', ['maintainer', 'publisher'], 'cli');
         const apiUrl = h.origin();
 
-        // 1. 生成 8 个实现的完整冻结材料 Bundle (line, bar, pie, scatter × vue, react)
+        // 1. 生成 10 个实现的完整冻结材料 Bundle (line, bar, pie, scatter, trend-card × vue, react)
         const prepareResult = await prepareReleaseBundle({
           bundleDir,
-          components: ['line', 'bar', 'pie', 'scatter'],
+          components: ['line', 'bar', 'pie', 'scatter', 'trend-card'],
           frameworks: ['vue', 'react'],
           timeoutMs: 40_000,
         });
 
         expect(prepareResult.ok, JSON.stringify(prepareResult.issues)).toBe(true);
-        expect(prepareResult.manifest.variants).toHaveLength(8);
+        expect(prepareResult.manifest.variants).toHaveLength(10);
         expect(prepareResult.manifest.packages).toHaveLength(3);
 
         // 2. 执行 CLI release 命令并在后台通过 ReleaseWorker 处理发布作业推进至 READY

@@ -2,6 +2,18 @@
 
 本文件记录 `@company/charts-vue` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.5] - 2026-11-12
+
+### Added
+
+- `TrendCard` 趋势卡片组件（SFC）：`data` / `config` / `optionOverrides` 属性与 `point-click` 事件，载荷为 `[类目, 值]` 且与 React 实现对等（T09 第四批）。
+- `./trend-card` 子路径入口（按需加载）与 `.charts-trend-card` 容器基础样式。
+- `sameTrendCardConfig` 配置等价判断；自 `@company/charts-core` 重新导出 `TrendCardConfig` 共享类型。
+
+### Changed
+
+- `useChart` 的 `chart` 参数接受 `'trend-card'`；`LineChart` / `BarChart` / `PieChart` / `ScatterChart`、既有子路径与既有导出行为不变。
+
 ## [0.0.4] - 2026-11-12
 
 ### Added

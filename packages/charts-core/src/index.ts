@@ -20,6 +20,9 @@ export type {
   ScatterChartOption,
   SupportedOptionOverrides,
   ThemeName,
+  TrendCardConfig,
+  TrendCardOption,
+  TrendSummary,
   UnitSpec,
   Unsubscribe,
 } from './types.js';
@@ -31,6 +34,7 @@ export { buildBarOption } from './charts/bar.js';
 export { buildLineOption } from './charts/line.js';
 export { buildPieOption, pieTotal } from './charts/pie.js';
 export { buildScatterOption } from './charts/scatter.js';
+export { buildTrendCardOption, computeTrendSummary } from './charts/trend-card.js';
 export { createChartController } from './controller.js';
 
 import { version } from 'echarts/core.js';

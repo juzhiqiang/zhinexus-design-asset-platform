@@ -19,6 +19,7 @@ export default defineConfig({
         bar: fileURLToPath(new URL('./src/bar.ts', import.meta.url)),
         pie: fileURLToPath(new URL('./src/pie.ts', import.meta.url)),
         scatter: fileURLToPath(new URL('./src/scatter.ts', import.meta.url)),
+        'trend-card': fileURLToPath(new URL('./src/trend-card.ts', import.meta.url)),
       },
       formats: ['es'],
       fileName: (_format, entryName) => `${entryName}.js`,

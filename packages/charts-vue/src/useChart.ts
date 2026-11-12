@@ -12,6 +12,7 @@ import type {
   PieChartConfig,
   ScatterChartConfig,
   SupportedOptionOverrides,
+  TrendCardConfig,
   UnitSpec,
   Unsubscribe,
 } from '@company/charts-core';
@@ -40,9 +41,10 @@ const CHART_CONFIG_FIELDS: Record<ChartType, readonly string[]> = {
   bar: ['stack', 'xAxisName', 'yAxisName'],
   pie: ['donut'],
   scatter: ['xAxisName', 'yAxisName'],
+  'trend-card': ['title', 'previousValue'],
 };
 
-/** 图表缺省配置：柱状、饼图与散点必须带判别字段，折线图保持 T02 起的空配置兼容。 */
+/** 图表缺省配置：柱状、饼图、散点与趋势卡片必须带判别字段，折线图保持 T02 起的空配置兼容。 */
 function defaultConfig(chart: ChartType): AnyChartConfig {
   if (chart === 'bar') {
     return { chart: 'bar' };
@@ -52,6 +54,9 @@ function defaultConfig(chart: ChartType): AnyChartConfig {
   }
   if (chart === 'scatter') {
     return { chart: 'scatter' };
+  }
+  if (chart === 'trend-card') {
+    return { chart: 'trend-card' };
   }
   return {};
 }
@@ -101,6 +106,14 @@ export function sameScatterConfig(
   b: ScatterChartConfig | undefined,
 ): boolean {
   return sameChartConfig('scatter', a, b);
+}
+
+/** 趋势卡片配置等价判断（T09 第四批）。 */
+export function sameTrendCardConfig(
+  a: TrendCardConfig | undefined,
+  b: TrendCardConfig | undefined,
+): boolean {
+  return sameChartConfig('trend-card', a, b);
 }
 
 /**

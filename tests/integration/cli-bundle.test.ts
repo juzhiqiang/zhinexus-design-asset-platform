@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
+import { fileURLToPath } from 'node:url';
 import {
   prepareReleaseBundle,
   loadReleaseBundle,
@@ -12,15 +13,37 @@ import { computeFileSha256 } from '../../packages/component-cli/src/local/digest
 import { runCli } from '../../packages/component-cli/src/cli.js';
 import { validatePlatformBundle } from '../../apps/api/src/uploads/validator.js';
 
+const repoRoot = fileURLToPath(new URL('../../', import.meta.url));
+
+/** 运行时包 exports 中解析为 JavaScript 的子路径（不含聚合根 `.` 与纯 CSS / JSON 目标）。 */
+function javaScriptSubpaths(packageDir: string): string[] {
+  const pkgJson = JSON.parse(
+    fs.readFileSync(path.join(repoRoot, 'packages', packageDir, 'package.json'), 'utf8'),
+  ) as { exports?: Record<string, unknown> };
+  const exportsField = pkgJson.exports ?? {};
+  return Object.entries(exportsField)
+    .filter(([subpath, target]) => {
+      if (subpath === '.') return false;
+      const targets =
+        typeof target === 'string'
+          ? [target]
+          : Object.values(target as Record<string, unknown>).flatMap((value) =>
+              typeof value === 'string' ? [value] : [],
+            );
+      return targets.some((value) => /\.(?:js|mjs|cjs)$/.test(value));
+    })
+    .map(([subpath]) => subpath);
+}
+
 describe('T04: prepare release bundle and end-to-end frozen materials verification', () => {
   it(
-    'generates a real, frozen release bundle covering line, bar, pie and scatter in vue and react, with real static previews',
+    'generates a real, frozen release bundle covering line, bar, pie, scatter and trend-card in vue and react, with real static previews',
     async () => {
       const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-release-bundle-'));
       try {
         const result = await prepareReleaseBundle({
           bundleDir,
-          components: ['line', 'bar', 'pie', 'scatter'],
+          components: ['line', 'bar', 'pie', 'scatter', 'trend-card'],
           frameworks: ['vue', 'react'],
           timeoutMs: 40_000,
         });
@@ -56,9 +79,26 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
             'pie-react',
             'scatter-vue',
             'scatter-react',
+            'trend-card-vue',
+            'trend-card-react',
           ]),
         );
-        expect(result.manifest.variants.length).toBe(8);
+        expect(result.manifest.variants.length).toBe(10);
+
+        // 回归护栏：平台校验要求「运行时包导出的每个 JS 子路径都有对应变体」
+        // （见 apps/api/src/uploads/validator.ts 的 ARTIFACT_MISMATCH 规则）。
+        // SDK 新增图表子路径时必须同步扩展 component-cli，否则 Bundle 会被平台拒绝——
+        // T09 第四批趋势卡片正是漏掉这一步导致本测试失败。
+        for (const packageDir of ['charts-vue', 'charts-react']) {
+          const subpaths = javaScriptSubpaths(packageDir);
+          expect(subpaths.length).toBeGreaterThan(0);
+          for (const subpath of subpaths) {
+            expect(
+              result.manifest.variants.some((variant) => variant.exportPath === subpath),
+              `@company/${packageDir} 导出的 ${subpath} 没有对应变体，平台会以 ARTIFACT_MISMATCH 拒绝 Bundle`,
+            ).toBe(true);
+          }
+        }
 
         for (const variant of result.manifest.variants) {
           // 必需状态 default 必须有自动截图证据
@@ -107,7 +147,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
         }
 
         // 3. 验证完整报告清单
-        expect(result.manifest.reports.length).toBe(8);
+        expect(result.manifest.reports.length).toBe(10);
         for (const repRef of result.manifest.reports) {
           const repDiskPath = path.join(bundleDir, repRef.path);
           expect(fs.existsSync(repDiskPath)).toBe(true);
