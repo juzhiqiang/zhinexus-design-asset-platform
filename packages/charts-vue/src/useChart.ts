@@ -9,6 +9,7 @@ import type {
   ChartEvent,
   ChartType,
   LineChartConfig,
+  PieChartConfig,
   SupportedOptionOverrides,
   UnitSpec,
   Unsubscribe,
@@ -29,19 +30,25 @@ export type UseChartResult = {
   controller: Readonly<Ref<ChartController | null>>;
   whenRendered: () => Promise<void>;
 };
-
 /** 全部图表共用的基础配置字段。 */
 const BASE_CONFIG_FIELDS = ['theme', 'renderer', 'width', 'height', 'animation'] as const;
 
-/** 按图表类型比较的专属字段：line 与 bar 的配置语义不同，不得互相比较。 */
+/** 按图表类型比较的专属字段：各图表的配置语义不同，不得互相比较。 */
 const CHART_CONFIG_FIELDS: Record<ChartType, readonly string[]> = {
   line: ['smooth', 'area', 'connectNulls', 'xAxisName', 'yAxisName'],
   bar: ['stack', 'xAxisName', 'yAxisName'],
+  pie: ['donut'],
 };
 
-/** 图表缺省配置：柱状图必须带判别字段，折线图保持 T02 起的空配置兼容。 */
+/** 图表缺省配置：柱状与饼图必须带判别字段，折线图保持 T02 起的空配置兼容。 */
 function defaultConfig(chart: ChartType): AnyChartConfig {
-  return chart === 'bar' ? { chart: 'bar' } : {};
+  if (chart === 'bar') {
+    return { chart: 'bar' };
+  }
+  if (chart === 'pie') {
+    return { chart: 'pie' };
+  }
+  return {};
 }
 
 /** 配置等价判断：避免父组件传入新对象字面量时无意义重建实例。 */
@@ -76,6 +83,11 @@ export function sameLineConfig(
 /** 柱状图配置等价判断（T09）。 */
 export function sameBarConfig(a: BarChartConfig | undefined, b: BarChartConfig | undefined): boolean {
   return sameChartConfig('bar', a, b);
+}
+
+/** 饼图 / 环形图配置等价判断（T09 第二批）。 */
+export function samePieConfig(a: PieChartConfig | undefined, b: PieChartConfig | undefined): boolean {
+  return sameChartConfig('pie', a, b);
 }
 
 /**

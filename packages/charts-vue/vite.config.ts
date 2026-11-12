@@ -17,6 +17,7 @@ export default defineConfig({
         index: fileURLToPath(new URL('./src/index.ts', import.meta.url)),
         line: fileURLToPath(new URL('./src/line.ts', import.meta.url)),
         bar: fileURLToPath(new URL('./src/bar.ts', import.meta.url)),
+        pie: fileURLToPath(new URL('./src/pie.ts', import.meta.url)),
       },
       formats: ['es'],
       fileName: (_format, entryName) => `${entryName}.js`,

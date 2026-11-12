@@ -24,6 +24,10 @@
       "types": "./dist/bar.d.ts",
       "import": "./dist/bar.js"
     },
+    "./pie": {
+      "types": "./dist/pie.d.ts",
+      "import": "./dist/pie.js"
+    },
     "./style.css": "./dist/style.css"
   },
   "types": "./dist/index.d.ts",
