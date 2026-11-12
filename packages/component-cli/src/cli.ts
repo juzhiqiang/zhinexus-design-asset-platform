@@ -1,5 +1,10 @@
 import { runCheckCommand } from './commands/check.js';
 import { prepareReleaseBundle, verifyReleaseBundle } from './local/manifest.js';
+import {
+  executeReleaseCommand,
+  executeStatusCommand,
+  executeResumeCommand,
+} from './local/release.js';
 
 export async function runCli(
   args: readonly string[],
@@ -141,6 +146,169 @@ export async function runCli(
     } else {
       stderr += `\n✖ 本地验证失败:\n${checkResult.errors.map((e) => `  - ${e}`).join('\n')}\n`;
       return { exitCode: 1, stdout, stderr };
+    }
+  }
+
+  if (command === 'release' && !rest.includes('--prepare-only')) {
+    let bundleDir = '.release-bundle';
+    let apiUrl: string | undefined;
+    let token: string | undefined;
+    let idempotencyKey: string | undefined;
+    let timeoutMs: number | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === '--bundle-dir') {
+        bundleDir = rest[++i]!;
+      } else if (arg === '--api-url') {
+        apiUrl = rest[++i];
+      } else if (arg === '--token') {
+        token = rest[++i];
+      } else if (arg === '--key' || arg === '--idempotency-key') {
+        idempotencyKey = rest[++i];
+      } else if (arg === '--timeout') {
+        timeoutMs = Number(rest[++i]);
+      } else {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `错误: 未知参数 ${arg}\n用法: component release [--bundle-dir <dir>] [--api-url <url>] [--token <jwt>] [--key <idempotencyKey>]\n`,
+        };
+      }
+    }
+
+    try {
+      const result = await executeReleaseCommand({
+        bundleDir,
+        apiUrl,
+        token,
+        idempotencyKey,
+        timeoutMs,
+      });
+
+      if (!result.ok) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `✖ 发布未成功: ${result.error ?? '未知错误'}\n  作业 ID: ${result.jobId ?? '未创建'}\n  终态: ${result.state ?? '未知'}\n`,
+        };
+      }
+
+      let stdout = `✔ 发布成功！\n`;
+      stdout += `  - 作业 ID: ${result.jobId}\n`;
+      stdout += `  - 终态: ${result.state}\n`;
+      stdout += `  - 阶段: ${result.stage}\n`;
+      return { exitCode: 0, stdout, stderr: '' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { exitCode: 1, stdout: '', stderr: `✖ 执行发布失败: ${msg}\n` };
+    }
+  }
+
+  if (command === 'status') {
+    let jobId: string | undefined;
+    let bundleDir: string | undefined;
+    let apiUrl: string | undefined;
+    let token: string | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === '--job-id') {
+        jobId = rest[++i];
+      } else if (arg === '--bundle-dir') {
+        bundleDir = rest[++i];
+      } else if (arg === '--api-url') {
+        apiUrl = rest[++i];
+      } else if (arg === '--token') {
+        token = rest[++i];
+      } else {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `错误: 未知参数 ${arg}\n用法: component status [--job-id <id>] [--bundle-dir <dir>] [--api-url <url>] [--token <jwt>]\n`,
+        };
+      }
+    }
+
+    try {
+      const result = await executeStatusCommand({
+        jobId,
+        bundleDir,
+        apiUrl,
+        token,
+      });
+
+      if (!result.ok || !result.status) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `✖ 查询发布状态失败: ${result.error ?? '未知错误'}\n`,
+        };
+      }
+
+      let stdout = `发布作业状态:\n`;
+      stdout += `  - 状态: ${result.status.state}\n`;
+      stdout += `  - 阶段: ${result.status.stage}\n`;
+      stdout += `  - 尝试次数: ${result.status.attempt}\n`;
+      if (result.status.lastError) {
+        stdout += `  - 错误信息: [${result.status.lastError.code}] ${result.status.lastError.message}\n`;
+      }
+      return { exitCode: 0, stdout, stderr: '' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { exitCode: 1, stdout: '', stderr: `✖ 查询作业失败: ${msg}\n` };
+    }
+  }
+
+  if (command === 'resume') {
+    let bundleDir = '.release-bundle';
+    let apiUrl: string | undefined;
+    let token: string | undefined;
+    let timeoutMs: number | undefined;
+
+    for (let i = 0; i < rest.length; i++) {
+      const arg = rest[i];
+      if (arg === '--bundle-dir') {
+        bundleDir = rest[++i]!;
+      } else if (arg === '--api-url') {
+        apiUrl = rest[++i];
+      } else if (arg === '--token') {
+        token = rest[++i];
+      } else if (arg === '--timeout') {
+        timeoutMs = Number(rest[++i]);
+      } else {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `错误: 未知参数 ${arg}\n用法: component resume [--bundle-dir <dir>] [--api-url <url>] [--token <jwt>]\n`,
+        };
+      }
+    }
+
+    try {
+      const result = await executeResumeCommand({
+        bundleDir,
+        apiUrl,
+        token,
+        timeoutMs,
+      });
+
+      if (!result.ok) {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `✖ 恢复发布未成功: ${result.error ?? '未知错误'}\n  作业 ID: ${result.jobId}\n  状态: ${result.state}\n`,
+        };
+      }
+
+      let stdout = `✔ 恢复发布成功！\n`;
+      stdout += `  - 作业 ID: ${result.jobId}\n`;
+      stdout += `  - 终态: ${result.state}\n`;
+      stdout += `  - 阶段: ${result.stage}\n`;
+      return { exitCode: 0, stdout, stderr: '' };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      return { exitCode: 1, stdout: '', stderr: `✖ 恢复发布失败: ${msg}\n` };
     }
   }
 
