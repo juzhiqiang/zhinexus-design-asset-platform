@@ -13,6 +13,7 @@ export * from './validation.js';
 export * from './digests.js';
 export * from './bundle.js';
 export * from './api.js';
+export * from './preview.js';
 export { CONTRACT_SCHEMAS } from './schemas.js';
 export const MANIFEST_SCHEMA_VERSION = 1 as const;
 export type BootstrapHealth = {

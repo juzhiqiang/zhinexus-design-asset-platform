@@ -16,6 +16,7 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
     const app = await NestFactory.create<NestExpressApplication>(ConfiguredModule, { logger: false, abortOnError: false, bodyParser: false });
     app.use((request: { requestId?: string }, response: { setHeader(name: string, value: string): void }, next: () => void) => {
       request.requestId = randomUUID(); response.setHeader('X-Request-Id', request.requestId);
+      response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff'); next();
     });
     app.useBodyParser('json', { limit: '8mb', strict: true });

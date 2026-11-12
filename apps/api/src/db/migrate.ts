@@ -6,7 +6,7 @@ import { Database } from './database.js';
 
 const tables = ['release_tags', 'release_outbox', 'release_artifacts', 'baseline_heads', 'baseline_revisions', 'screenshots', 'check_reports', 'variant_releases', 'package_releases', 'release_jobs', 'upload_files', 'upload_sessions', 'variants', 'component_permissions', 'package_permissions', 'audit_events', 'components'] as const;
 export async function migrateRegistry(db: Database): Promise<void> {
-  const migrations = await Promise.all(['001_registry.sql', '002_package_permissions.sql', '003_evidence_references.sql', '004_release_worker.sql', '005_catalog.sql'].map(async (file, i) => {
+  const migrations = await Promise.all(['001_registry.sql', '002_package_permissions.sql', '003_evidence_references.sql', '004_release_worker.sql', '005_catalog.sql', '006_preview.sql'].map(async (file, i) => {
     const sql = await readFile(new URL(`../../migrations/${file}`, import.meta.url), 'utf8');
     return { version: i + 1, sql, digest: createHash('sha256').update(sql.replaceAll('\r\n', '\n')).digest('hex') };
   }));
@@ -28,12 +28,14 @@ export async function migrateRegistry(db: Database): Promise<void> {
 export async function rollbackEmptyRegistry(db: Database): Promise<void> {
   await db.transaction(async client => {
     await client.query('SELECT pg_advisory_xact_lock(75605001)');
-    await client.query(`LOCK TABLE ${tables.join(',')},disabled_subjects IN ACCESS EXCLUSIVE MODE`);
+    await client.query(`LOCK TABLE ${tables.join(',')},disabled_subjects,preview_grants,preview_sessions IN ACCESS EXCLUSIVE MODE`);
+    for (const table of ['preview_grants', 'preview_sessions']) if ((await client.query(`SELECT 1 FROM ${table} LIMIT 1`)).rowCount) throw new Error('Refusing rollback of non-empty registry');
     if ((await client.query('SELECT 1 FROM disabled_subjects LIMIT 1')).rowCount) throw new Error('Refusing rollback of non-empty registry');
     for (const table of tables) {
       if ((await client.query(`SELECT 1 FROM ${table} LIMIT 1`)).rowCount) throw new Error('Refusing rollback of non-empty registry');
     }
-    await client.query('DROP FUNCTION catalog_can_read(text,text)');
+    await client.query('DROP FUNCTION preview_can_read(uuid,text),catalog_can_read(text,text)');
+    await client.query('DROP TABLE preview_sessions,preview_grants');
     await client.query(`DROP TABLE ${tables.join(',')},disabled_subjects,registry_migrations`);
     await client.query('DROP FUNCTION reject_immutable_change()');
   });

@@ -6,11 +6,16 @@ import { PlatformError } from './errors.js';
 import { Platform } from './platform.js';
 import { ReleaseService } from './releases/service.js';
 import { BaselineService } from './baselines/service.js';
+import { PreviewService } from './preview/service.js';
 
 type Request = { requestId?: string };
 @Controller('v1')
 export class PlatformController {
   constructor(@Inject(Platform) private readonly platform: Platform) {}
+  @Post('preview-grants')
+  previewGrant(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
+    return this.platform.run(auth, 'read', request.requestId!, (context, _uploads, db) => new PreviewService(db, this.platform.preview).create(body, context));
+  }
   @Post('baselines')
   createBaseline(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
     return this.platform.run(auth, 'baseline', request.requestId!, (context, _uploads, db) => new BaselineService(db).accept(body, context));
