@@ -66,11 +66,15 @@ RED 后进入 GREEN 时发现一个**实现缺陷**（见「关键行为证据�
 
 | 包 | 版本 | 字节 | SHA-256 |
 | --- | --- | --- | --- |
-| `@company/charts-core` | 0.0.5 | 30,260 | `cfc198d43b0114527ecd99ff4418497d5b0253fbcf4179e0ba5fe1da6a27393c` |
-| `@company/charts-vue` | 0.0.5 | 5,692 | `b209aac6ef7f221b6cb08d8d3ae0573af3e0cacafc069a8e640fced18d348c9d` |
-| `@company/charts-react` | 0.0.5 | 10,296 | `40ead94a8820f1e96de22e620a4d1650949ab2e108b0f6939baf3b412ad8c7f1` |
+| `@company/charts-core` | 0.0.5 | 30,254 | `eb3b615969e4f8f882505813473056544a7db30b5bb7813037f3d7e972e7a87d` |
+| `@company/charts-vue` | 0.0.5 | 5,686 | `45dac9436e0074aa885d04254652f7ac98b070a41dcbf91a510a0e53bde88856` |
+| `@company/charts-react` | 0.0.5 | 10,300 | `c95c693125db8b903471fe66f3c5fd915387e7da8aa965b502c23b2f5f58a463` |
 
-> 摘要勘误（2026-11-12 合并 main 后复核）：本表 `charts-vue` 一栏原记录为 5,696 字节 / `2d13a7ed…`。该值取自分支工作树中 `src/style.css` 带 CRLF 的**工作区文件**（旧的 `copyFile` 构建脚本原样复制，4 个 CRLF 行多出 4 字节）；而 git 中的 blob 为 560 字节纯 LF，`main` 的 T04 又把构建脚本改为强制 LF，因此**可按提交状态稳定复现的摘要是上表的 5,692 / `b209aac6…`**。`charts-core` 与 `charts-react` 两包摘要不受影响，与分支期记录一致。
+> 摘要勘误（2026-11-13 合并 main 后复核）：本表原记录为 core 30,260 / `cfc198d4…`、vue 5,696 / `2d13a7ed…`、react 10,296 / `40ead94a…`，**均为错误值**，已按上表更正。
+>
+> 错误根源：那三个值取自一次**临时手动** `pnpm pack`，而当时沙箱里的源码树是用 `tar` 从 Windows 工作树同步来的，`packages/charts-*/package.json` 带着工作树的 `0700` 文件模式（git 记录的权威模式是 `100644`，全仓库没有任何 tracked 文件是 755）。`pnpm pack` 原样保留文件模式，于是 tarball 里 `package/package.json` 一项是 0755 而非 0644——内容、大小、mtime 全部相同，仅模式位不同，摘要因此偏离。此前一度误判为 `style.css` 的 CRLF 差异，实测已排除：解包后逐文件 SHA-256 完全相同，`tarfile` 逐成员比对显示**唯一差异就是 `package/package.json` 的 mode**。
+>
+> 正确做法：候选 tarball 摘要必须用**发布链自身的方式**取——即 `packages/component-cli/src/local/pack.ts` 的 `packPackage()`（`pnpm pack --pack-destination`，并设 `SOURCE_DATE_EPOCH`），或在模式与 git 一致的树上打包。`tests/integration/packed-consumer-frameworks.test.ts` 写出的 `test-results/t03-bundle-baseline.json` 就是这套口径，本表已与之一致；同一棵提交状态重复打包 4 次摘要稳定。
 
 ## 未覆盖边界与后续
 

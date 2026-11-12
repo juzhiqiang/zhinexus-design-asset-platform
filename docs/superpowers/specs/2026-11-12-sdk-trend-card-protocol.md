@@ -81,9 +81,9 @@
 
 | 包 | 版本 | 字节 | SHA-256 |
 | --- | --- | --- | --- |
-| `@company/charts-core` | 0.0.5 | 30,260 | `cfc198d43b0114527ecd99ff4418497d5b0253fbcf4179e0ba5fe1da6a27393c` |
-| `@company/charts-vue` | 0.0.5 | 5,692 | `b209aac6ef7f221b6cb08d8d3ae0573af3e0cacafc069a8e640fced18d348c9d` |
-| `@company/charts-react` | 0.0.5 | 10,296 | `40ead94a8820f1e96de22e620a4d1650949ab2e108b0f6939baf3b412ad8c7f1` |0.0.4 → 0.0.5 为兼容变更（0.x 阶段按规则升 PATCH），无新增依赖、锁文件不变（`workspace:*` 协议）。
+| `@company/charts-core` | 0.0.5 | 30,254 | `eb3b615969e4f8f882505813473056544a7db30b5bb7813037f3d7e972e7a87d` |
+| `@company/charts-vue` | 0.0.5 | 5,686 | `45dac9436e0074aa885d04254652f7ac98b070a41dcbf91a510a0e53bde88856` |
+| `@company/charts-react` | 0.0.5 | 10,300 | `c95c693125db8b903471fe66f3c5fd915387e7da8aa965b502c23b2f5f58a463` |0.0.4 → 0.0.5 为兼容变更（0.x 阶段按规则升 PATCH），无新增依赖、锁文件不变（`workspace:*` 协议）。
 
 ### 5.2 B：CLI 发布材料生成实现清单
 

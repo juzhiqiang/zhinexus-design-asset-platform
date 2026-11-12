@@ -95,31 +95,47 @@ main 前进到 `89d2511` 后重新合并，并在最终提交上重跑全图（�
 | `pnpm test:browser` | **89 passed** |
 | `packed-consumer-frameworks` + `packed-consumer` | 9 + 1 = 10 passed |
 
-三个 SDK 包 tarball 摘要与第 5 节表格完全一致，未因 `component-cli` 升版变化。唯一失败仍为第 3.1 节的 infra 依赖。
-
-## 5. 候选 tarball 摘要复核（含一处勘误）
-
 三个 SDK 包的 `package.json` 与 `CHANGELOG.md` 在分支与合并结果间 blob 完全一致，因此重新打包核对：
 
 | 包 | 版本 | 字节 | SHA-256 |
 | --- | --- | --- | --- |
-| `@company/charts-core` | 0.0.5 | 30,260 | `cfc198d43b0114527ecd99ff4418497d5b0253fbcf4179e0ba5fe1da6a27393c` |
-| `@company/charts-vue` | 0.0.5 | 5,692 | `b209aac6ef7f221b6cb08d8d3ae0573af3e0cacafc069a8e640fced18d348c9d` |
-| `@company/charts-react` | 0.0.5 | 10,296 | `40ead94a8820f1e96de22e620a4d1650949ab2e108b0f6939baf3b412ad8c7f1` |
+| `@company/charts-core` | 0.0.5 | 30,254 | `eb3b615969e4f8f882505813473056544a7db30b5bb7813037f3d7e972e7a87d` |
+| `@company/charts-vue` | 0.0.5 | 5,686 | `45dac9436e0074aa885d04254652f7ac98b070a41dcbf91a510a0e53bde88856` |
+| `@company/charts-react` | 0.0.5 | 10,300 | `c95c693125db8b903471fe66f3c5fd915387e7da8aa965b502c23b2f5f58a463` |
 
-`charts-core` 与 `charts-react` 与分支期记录一致；`charts-vue` 差 4 字节，已定位：分支期记录的 5,696 字节取自分支工作树中 `src/style.css` 带 CRLF 的工作区文件（旧 `copyFile` 构建脚本原样复制，4 个 CRLF 行多出 4 字节），而 git 中的 blob 是 560 字节纯 LF，main 的 T04 又把构建脚本改为强制 LF。因此**可按提交状态稳定复现的摘要是 5,692 / `b209aac6…`**，[对齐件第 5.1 节](../superpowers/specs/2026-11-12-sdk-trend-card-protocol.md) 与 [分支期验证记录](t09-trend-card.md) 的表格已同步更正并加注说明。
+> 摘要勘误（2026-11-13）：本节原记录为 core 30,260 / `cfc198d4…`、vue 5,692 / `b209aac6…`、react 10,296 / `40ead94a…`，**均为错误值**，已按上表更正，与 `test-results/t03-bundle-baseline.json`（发布链自身口径）一致。
+>
+> 错误根源是**文件模式**，不是内容：那三个值取自一次临时手动 `pnpm pack`，而当时沙箱源码树由 `tar` 从 Windows 工作树同步，`packages/charts-*/package.json` 带着工作树的 `0700` 模式；git 记录的权威模式是 `100644`（全仓库无任何 tracked 文件为 755）。`pnpm pack` 原样保留模式，tarball 里 `package/package.json` 一项因此是 0755 而非 0644——内容、大小、mtime 全同，仅模式位不同。此前一度误判为 `style.css` 的 CRLF 差异，实测已排除：解包后逐文件 SHA-256 完全相同，`tarfile` 逐成员比对显示唯一差异就是该项 mode。
+>
+> 教训：候选 tarball 摘要必须用**发布链自身的方式**取（`packages/component-cli/src/local/pack.ts` 的 `packPackage()`：`pnpm pack --pack-destination` + `SOURCE_DATE_EPOCH`），或确保打包树的文件模式与 git 一致（用 `git archive` 取树而非 `tar` 同步工作树）。同一提交状态重复打包 4 次摘要稳定。
 
 打包体积护栏（护栏 1 MiB，记录于 gitignored 的 `test-results/t03-bundle-baseline.json`）：Vue 消费者 JS `685,438` 字节、React 消费者 JS `843,215` 字节，CSS 均 `128` 字节——与分支期记录一致，未因 CRLF 归一化变化。
 
-## 6. 合并后状态与未覆盖边界
+## 6. 最终合并与 main 复验（2026-11-13）
 
-- **`main` 尚未快进**：最终合并提交 `8439a8d` 在 worktree 分支 `feat/t09-trend-main` 上（其第二父提交链为 `a925248` → `93f31c6` → `70138d2` → `3d34325`，即分支期成果 + 缺陷修复 + 验证记录）。全程未在主工作树执行任何 git 操作——两次动手前主工作树分别停在别人的分支且带有未提交改动、以及带有未提交的 `apps/gallery/app/globals.css`，因此按 `AGENTS.md` 未代为快进。需要由仓库负责人在主工作树执行：
+用户于 2026-11-13 明确授权"合并回主分支"。此时 main 已再次前进到 `a207bf4`（C 合入 T11/T12 平台运维），`feat/t09-trend-main` 已无法 ff，故在主工作树重新执行三方合并。
 
-  ```
-  git merge --ff-only feat/t09-trend-main
-  ```
+合并前预检：`merge-base` = `89d2511`；main 侧 55 个文件、本侧 60 个文件，**交集为 0**；两侧均无删除文件；本侧不触碰主工作树中他人未提交的 `apps/gallery/app/globals.css`。判定可干净合并且不波及他人改动。
 
-  主工作树当前有未提交改动，执行前请先确认其状态；快进后 `feat/t09-trend`、`feat/t09-trend-merge`、`feat/t09-trend-main` 三个分支与两个 scratch worktree 均可清理（提交已进 main 历史）。
+合并提交 **`f93f1f5`**（父 `a207bf4` + `7fe4274`），零冲突。按纪律核对：`git diff --name-only a207bf4 f93f1f5` 得 **60 个文件**（非空，防空合并事故）；他人的 `apps/gallery/app/globals.css` 改动原样保留；T11/T12 的 `apps/api/src/observability/metrics.ts`、`apps/api/src/releases/leases.ts`、`infra/scripts/backup.ts`、`docs/verification/t11-t12-platform-operations-2026-11-12.md` 与 T09 的趋势卡片文件均在位；三个 SDK 包版本均为 0.0.5，`component-cli` 为 0.0.5。
+
+合并后在 main 上重跑全图（工作区仍为 10 成员、锁文件不变；取树用 `git archive` 而非 `tar`，以排除工作树文件模式差异）：
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm install --frozen-lockfile` | 锁文件一致，无变化 |
+| `pnpm exec tsx scripts/verify-workspace.ts` | Workspace verified: 10 members, no cycles, four publishable shells, safe service graph |
+| `pnpm build` | 10 tasks successful |
+| `pnpm typecheck` | 14 tasks successful + 根 `tsc` 通过 |
+| `pnpm test` | 28 passed / **1 failed** / 1 skipped，**545 passed** / 4 skipped |
+| `pnpm test:browser` | 89 passed |
+| `packed-consumer-frameworks` + `packed-consumer` | 9 + 1 = 10 passed |
+
+唯一失败仍是 `cli-release` 的 infra 依赖（第 3.1 节）。测试数由 538 增至 545、浏览器由 86 增至 89，增量来自 main 侧的 T11/T12，趋势卡片相关计数不变。三个 SDK tarball 摘要即第 5 节表格，与发布链口径一致。
+
+## 7. 未覆盖边界
+
+- `feat/t09-trend`、`feat/t09-trend-merge`、`feat/t09-trend-main` 三个分支与三个 scratch worktree（`outputs/t09-main`、`outputs/t09-merge`、`outputs/t09-trend`）在提交已进 main 后均可清理；本次未清理，交由仓库负责人确认。
 - `tests/platform/**` 被 `vitest.config.ts` 排除在 `pnpm test` 之外，只在 `test:infra` 就绪后由 `test:platform` 运行；本次对 `tests/platform/http-support.ts` 的改动（`grant` seed trend-card）**未能在本环境实测**，需在 infra 就绪后复跑 `test:platform` 确认。
 - `tests/integration/cli-release.test.ts` 同样受 infra 限制，本次只做了组件清单与变体数的机械同步，其在 infra 就绪后的通过情况待验。
 - Windows 开发机原生确认（`.\scripts\verify.ps1`）仍未执行；趋势卡片与散点图的原生复验清单分别见 [T09 第四批](t09-trend-card-windows-native.md) 与 [T09 第三批](t09-scatter-windows-native.md)。
