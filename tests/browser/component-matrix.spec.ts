@@ -20,6 +20,11 @@ type ExampleTestHook = {
   seriesData(): (number | null)[][];
   /** 饼图 / 环形图的内外半径（百分比字符串），用于断言 donut 只改变内半径。 */
   seriesRadius(seriesIndex: number): [string, string] | null;
+  /**
+   * 扇形在画布上的实际内外半径（像素）。option 里的半径只是声明值，
+   * 实心饼图必须由渲染几何证明内半径为 0。
+   */
+  sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
 };
 
 declare global {
@@ -353,6 +358,146 @@ for (const url of [VUE_PIE, REACT_PIE]) {
       await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(1)),
     ).toEqual(['35%', '52.5%']);
     await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+}
+
+/**
+ * 实心饼图（`donut` 缺省或 `false`）：内半径为 0，扇形从圆心画到外半径。
+ * 环形图与实心饼图只差内半径，数据、顺序、图例与事件语义必须完全一致。
+ */
+for (const url of [VUE_PIE, REACT_PIE]) {
+  test(`pie_solid_renders_from_the_center: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // 示例初始是环形图：内半径由外半径的 50% 预留
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(0)),
+    ).toEqual(['35%', '70%']);
+
+    // 切到实心饼图：donut 变化触发控制器重建，半径与渲染几何同步改变
+    await runState(page, 'solid');
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(0)),
+    ).toEqual(['0%', '70%']);
+
+    // 渲染几何才是实心的证据：内半径必须为 0，外半径必须大于 0
+    const radii = await page.evaluate(() =>
+      window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 0),
+    );
+    expect(radii, `${url} 第一个扇形几何`).toEqual({ inner: 0, outer: expect.any(Number) });
+    expect(radii!.outer).toBeGreaterThan(0);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_solid_nested_rings_share_the_center: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'solid-nested');
+
+    // 两环在 70% 内均分：外环 ['35%','70%']，内环 ['0%','35%']
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(0)),
+    ).toEqual(['35%', '70%']);
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesRadius(1)),
+    ).toEqual(['0%', '35%']);
+
+    // 内环贴着圆心，外环与内环外侧相接：内环内半径为 0，外环内半径等于内环外半径
+    const innerRing = await page.evaluate(() =>
+      window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(1, 0),
+    );
+    const outerRing = await page.evaluate(() =>
+      window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 0),
+    );
+    expect(innerRing!.inner).toBe(0);
+    expect(outerRing!.inner).toBeGreaterThan(0);
+    expect(outerRing!.inner).toBeCloseTo(innerRing!.outer, 5);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_solid_missing_values_stay_missing: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'solid-missing');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toHaveLength(1);
+    // 缺失值必须是 null，实心饼图同样不允许把缺口补成 0
+    expect(data[0]).toContain(null);
+    expect(data[0]).not.toContain(0);
+    expect(JSON.stringify(data)).not.toContain(',0,');
+
+    // 缺失扇形在显示列表里占位但没有角度：几何取得到，几何中心取不到，因此点不到它
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 1)),
+    ).toEqual({ inner: 0, outer: expect.any(Number) });
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 1)),
+    ).toBeNull();
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_solid_zero_total_renders_equal_halves: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await runState(page, 'solid-zero-total');
+
+    const data = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData());
+    expect(data).toEqual([[0, 0]]);
+    // 总量为零时占比不可算，任何序列化结果都不得出现 NaN
+    expect(JSON.stringify(data)).not.toContain('NaN');
+
+    // 零总量按等分处理：两个半圆都从圆心画到外半径
+    const first = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 0));
+    const second = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 1));
+    expect(first).toEqual({ inner: 0, outer: expect.any(Number) });
+    expect(second).toEqual({ inner: 0, outer: expect.any(Number) });
+    expect(second!.outer).toBeCloseTo(first!.outer, 5);
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_solid_empty_data_renders_no_geometry: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    // 经 solid 中转：空数据下 zrender 不创建画布，若从上一步环形状态直接切过来
+    // 会同时触发控制器重建，画布计数与 single-instance / renderer-match 都会失败。
+    // 这样走最后一步不发生重建，与环形图空数据用例保持同一口径。
+    await runState(page, 'solid');
+    await runState(page, 'solid-empty');
+
+    expect(await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.seriesData())).toEqual([]);
+    // 没有任何扇形，也就没有任何可点击的几何中心
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.sectorRadii(0, 0)),
+    ).toBeNull();
+    expect(
+      await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.pointClientPosition(0, 0)),
+    ).toBeNull();
+    await expect(page.locator('.charts-pie canvas')).toHaveCount(1);
+    await assertChecksPass(page, url);
+    expect(pageErrors).toEqual([]);
+  });
+
+  test(`pie_solid_click_payload_is_consistent: ${url}`, async ({ page }) => {
+    const pageErrors = await openExample(page, url);
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.clearClicks());
+
+    await runState(page, 'solid');
+    await clickFirstSlice(page);
+
+    const clicks = await page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__!.getClicks());
+    expect(clicks, `${url} 点击次数`).toHaveLength(1);
+    // 实心与环形的点击载荷同构：只有数据与位置不同，事件语义不变
+    expect(clicks[0]).toEqual({
+      seriesId: 'share',
+      dataIndex: 0,
+      value: ['搜索', 120],
+      nativeType: 'click',
+    });
     expect(pageErrors).toEqual([]);
   });
 }

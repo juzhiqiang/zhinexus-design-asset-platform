@@ -25,6 +25,11 @@ export type ExampleTestHook = {
   seriesData(): (number | null)[][];
   /** 饼图 / 环形图的内外半径（百分比字符串），用于断言 donut 只改变内半径。 */
   seriesRadius(seriesIndex: number): [string, string] | null;
+  /**
+   * 扇形在画布上的实际内外半径（像素）。option 里的半径只是声明值，
+   * 实心饼图必须由渲染几何证明内半径为 0。
+   */
+  sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
 };
 
 export type ExampleRuntimeOptions = {
@@ -93,13 +98,22 @@ function rawValue(item: unknown): number | null {
   return null;
 }
 
+/**
+ * 系列快照：就绪协议用它判断状态是否已应用到图表。
+ * 必须包含 radius——donut 切换只改半径、不改数据，漏掉它会让实心 / 环形
+ * 之间的状态切换永远等不到变化而超时。
+ */
 function seriesSnapshot(selector: string): string {
   const instance = chartInstance(selector);
   if (!instance) {
     return 'no-instance';
   }
-  const series = (instance.getOption().series as { id?: string; data?: unknown[] }[] | undefined) ?? [];
-  return JSON.stringify(series.map((item) => [item.id ?? '', item.data ?? []]));
+  const series = (instance.getOption().series as {
+    id?: string;
+    data?: unknown[];
+    radius?: unknown;
+  }[] | undefined) ?? [];
+  return JSON.stringify(series.map((item) => [item.id ?? '', item.data ?? [], item.radius ?? null]));
 }
 
 function seriesIds(selector: string): string[] {
@@ -249,6 +263,17 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
     clearClicks: options.clearClicks,
     seriesData: () => seriesData(hostSelector),
     seriesRadius: (seriesIndex: number) => seriesRadius(hostSelector, seriesIndex),
+    sectorRadii: (seriesIndex: number, dataIndex: number) => {
+      const instance = chartInstance(hostSelector);
+      if (!instance) {
+        return null;
+      }
+      const shape = sectorShape(instance, seriesIndex, dataIndex);
+      if (!shape || typeof shape.r0 !== 'number' || typeof shape.r !== 'number') {
+        return null;
+      }
+      return { inner: shape.r0, outer: shape.r };
+    },
     remount: () => {
       window.__EXAMPLE_REMOUNT__?.();
     },
@@ -256,9 +281,9 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
 }
 
 /**
- * 扇形几何中心（画布局部坐标）：zrender 显示列表中的 sector 元素按系列顺序、
- * 系列内按数据序排列，按各系列数据长度顺序切片定位。缺失值扇形的起止角度为
- * null（不渲染），此时返回 null。
+ * 指定扇形的渲染几何：zrender 显示列表中的 sector 元素按系列顺序、
+ * 系列内按数据序排列，按各系列数据长度顺序切片定位。缺失值扇形保留元素
+ * 但起止角度为 null（不渲染），此时 shape 仍可取到、角度取不到。
  * zrender 的 Displayable 未把 shape 收窄为具体形状，这里按测试需要显式描述结构。
  */
 type SectorShape = {
@@ -272,11 +297,11 @@ type SectorShape = {
 
 type SectorLike = { type: string; shape?: Partial<SectorShape> };
 
-function sectorCenter(
+function sectorShape(
   instance: NonNullable<ReturnType<typeof chartInstance>>,
   seriesIndex: number,
   dataIndex: number,
-): { x: number; y: number } | null {
+): Partial<SectorShape> | null {
   const displayList = instance.getZr().storage.getDisplayList(false) as unknown as SectorLike[];
   const sectors = displayList.filter(
     (element) => element.type === 'sector' && element.shape != null,
@@ -286,7 +311,16 @@ function sectorCenter(
   for (let index = 0; index < seriesIndex; index += 1) {
     offset += (series[index]?.data ?? []).length;
   }
-  const shape = sectors[offset + dataIndex]?.shape;
+  return sectors[offset + dataIndex]?.shape ?? null;
+}
+
+/** 扇形几何中心（画布局部坐标）：角度中点 + 内外半径中点；缺失扇形返回 null。 */
+function sectorCenter(
+  instance: NonNullable<ReturnType<typeof chartInstance>>,
+  seriesIndex: number,
+  dataIndex: number,
+): { x: number; y: number } | null {
+  const shape = sectorShape(instance, seriesIndex, dataIndex);
   if (
     !shape ||
     typeof shape.startAngle !== 'number' ||

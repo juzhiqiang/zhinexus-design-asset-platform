@@ -1,8 +1,9 @@
 {
   "component": "pie",
-  "description": "双框架示例共用确定性数据与状态定义；examples/vue 与 examples/react 必须保持完全一致，截图与点击载荷才能等价。一个系列对应一圈（一环），多状态覆盖空数据、缺失值、零总量、嵌套环与更新。",
+  "description": "双框架示例共用确定性数据与状态定义；examples/vue 与 examples/react 必须保持完全一致，截图与点击载荷才能等价。一个系列对应一圈（一环），多状态覆盖空数据、缺失值、零总量、嵌套环与更新。每个状态自带 donut：环形图族（缺省即环形）与实心饼图族（solid-*）只差内半径，其余语义完全一致。",
   "states": {
     "default": {
+      "donut": true,
       "data": {
         "series": [
           {
@@ -20,10 +21,12 @@
       "expectedSeriesIds": ["share"]
     },
     "empty": {
+      "donut": true,
       "data": { "series": [] },
       "expectedSeriesIds": []
     },
     "missing": {
+      "donut": true,
       "data": {
         "series": [
           {
@@ -41,6 +44,7 @@
       "expectedSeriesIds": ["share"]
     },
     "zero-total": {
+      "donut": true,
       "data": {
         "series": [
           {
@@ -56,6 +60,7 @@
       "expectedSeriesIds": ["share"]
     },
     "nested": {
+      "donut": true,
       "data": {
         "series": [
           {
@@ -79,6 +84,7 @@
       "expectedSeriesIds": ["outer", "inner"]
     },
     "updated": {
+      "donut": true,
       "data": {
         "series": [
           {
@@ -94,6 +100,87 @@
         ]
       },
       "expectedSeriesIds": ["share"]
+    },
+    "solid": {
+      "donut": false,
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 120 },
+              { "x": "直投", "y": 80 },
+              { "x": "自然", "y": null },
+              { "x": "合作", "y": 100 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    },
+    "solid-empty": {
+      "donut": false,
+      "data": { "series": [] },
+      "expectedSeriesIds": []
+    },
+    "solid-missing": {
+      "donut": false,
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 120 },
+              { "x": "直投", "y": null },
+              { "x": "自然", "y": 60 },
+              { "x": "合作", "y": 100 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    },
+    "solid-zero-total": {
+      "donut": false,
+      "data": {
+        "series": [
+          {
+            "id": "share",
+            "name": "占比",
+            "points": [
+              { "x": "搜索", "y": 0 },
+              { "x": "直投", "y": 0 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["share"]
+    },
+    "solid-nested": {
+      "donut": false,
+      "data": {
+        "series": [
+          {
+            "id": "outer",
+            "name": "外环",
+            "points": [
+              { "x": "甲", "y": 120 },
+              { "x": "乙", "y": 80 }
+            ]
+          },
+          {
+            "id": "inner",
+            "name": "内环",
+            "points": [
+              { "x": "A", "y": 30 },
+              { "x": "B", "y": 70 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["outer", "inner"]
     }
   }
 }

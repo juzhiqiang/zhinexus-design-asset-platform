@@ -336,6 +336,14 @@ describe('饼图 / 环形图 option 构建', () => {
     expect(radiusOf(option)).toEqual(['0%', '70%']);
   });
 
+  it('donut 显式为 false 与缺省完全等价', () => {
+    // 判据是 `donut === true`：false 不得被当成真值，也不得退化成环形
+    const omitted = buildPieOption(pieSingle, { chart: 'pie' });
+    const disabled = buildPieOption(pieSingle, { chart: 'pie', donut: false });
+    expect(radiusOf(disabled)).toEqual(['0%', '70%']);
+    expect(JSON.stringify(disabled)).toBe(JSON.stringify(omitted));
+  });
+
   it('donut 只改变内半径，数据、顺序与图例规则不变', () => {
     const solid = buildPieOption(pieSingle, { chart: 'pie' });
     const ring = buildPieOption(pieSingle, { chart: 'pie', donut: true });
