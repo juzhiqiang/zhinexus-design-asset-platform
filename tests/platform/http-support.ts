@@ -1,7 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { expect } from 'vitest';
 import { manifestDigest, type ReleaseManifestV1 } from '@company/contracts';
-import { createValidBundle } from '../fixtures/t05-artifacts.js';
 import { generateKeyPair, exportJWK, createLocalJWKSet, SignJWT } from 'jose';
 import { buildServer } from '../../apps/api/dist/app.js';
 import { Platform } from '../../apps/api/dist/platform.js';
@@ -47,7 +46,7 @@ export async function grant(h: Harness, subject = 'alice', maintain = false) {
   }
   for (const name of ['@company/charts-vue', '@company/charts-react']) await h.db.query('INSERT INTO package_permissions(subject,package_name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [subject, name]);
 }
-export async function upload(h: Harness, fixture: Awaited<ReturnType<typeof createValidBundle>>, token: string, digest?: string) {
+export async function upload(h: Harness, fixture: { manifest: ReleaseManifestV1; files: ReadonlyMap<string, Uint8Array> }, token: string, digest?: string) {
   const response = await h.request('/v1/uploads', { manifestDigest: digest ?? await manifestDigest(fixture.manifest), files: fixture.manifest.files }, token);
   expect(response.status).toBe(201);
   const plan = await response.json();
