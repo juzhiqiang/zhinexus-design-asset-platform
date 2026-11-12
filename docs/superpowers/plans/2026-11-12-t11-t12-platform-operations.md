@@ -4,7 +4,7 @@
 
 **Goal:** 提供可脱敏观测、可重复故障恢复、真实三存储隔离恢复及部署检查工具。
 
-**Architecture:** 复用 T05–T07 的 PostgreSQL 状态机和不可变产物；日志采用字段白名单，指标使用持久化数据与有界进程计数。演练通过本机隔离服务/代理注入故障；备份冻结写入，恢复到全新隔离实例，逐引用核查包与对象摘要。
+**Architecture:** 复用 T05–T07 的 PostgreSQL 状态机和不可变产物；日志采用字段白名单，指标使用持久化数据与固定枚举标签。演练通过本机隔离服务/代理注入故障；备份冻结写入，恢复到全新隔离实例，逐引用核查包与对象摘要。
 
 **Tech Stack:** 固定 Node 26.13.0 / pnpm 12.18.0、NestJS、PostgreSQL 18.6、Verdaccio 7.1.0、固定源码 MinIO、Docker Compose、Vitest。
 
@@ -34,9 +34,9 @@
 
 **Interfaces:** `PlatformEvents.emit(event)` 仅允许固定事件/错误码、UUID、stage/attempt/duration；`metrics(db)` 提供 Prometheus 文本，运维端点使用单独环境 token。worker 记录阶段耗时、失败及尝试，HTTP 使用服务端 requestId。
 
-- [ ] RED：日志注入及sink失败测试；真实HTTP指标拒绝未授权、展示持久队列、失败、缺件、索引积压；worker关联阶段与请求。
-- [ ] GREEN：实现白名单与有界指标，接入真实HTTP/worker，保留原发布协议。
-- [ ] 验证 `pnpm.ps1 build:services`、指定 unit/platform 测试、根 tsc，预期全通过；聚焦提交。
+- [x] RED：日志注入及sink失败测试；真实HTTP指标拒绝未授权、展示持久队列、失败、缺件、索引积压；worker关联阶段与请求。
+- [x] GREEN：实现白名单与有界指标，接入真实HTTP/worker，保留原发布协议。
+- [x] 验证 `pnpm.ps1 build:services`、指定 unit/platform 测试、根 tsc，预期全通过；聚焦提交。
 
 ### Task 2: 可重复故障恢复演练
 
@@ -44,9 +44,9 @@
 
 **Interfaces:** 通过固定开发机命令执行指定真实服务测试，输出非敏感结构化结果；复用 Task 1 事件/指标及 T06 ReleaseWorker。
 
-- [ ] RED：PG/MinIO/Registry断路、上传中断、worker进程终止、响应丢失、索引失败、撤权；恢复后摘要相等、登记不重复、Ready不受索引状态推断。
-- [ ] GREEN：本地故障代理/子进程运行器与脚本；恢复只用正常重试API/自然租约，不手工更新作业恢复状态。
-- [ ] 验证 `pnpm.ps1 rehearse:recovery`，预期所有故障场景通过，记录耗时与限制；聚焦提交。
+- [x] RED：PG/MinIO/Registry断路、上传中断、worker进程终止、响应丢失、索引失败、撤权；恢复后摘要相等、登记不重复、Ready不受索引状态推断。
+- [x] GREEN：本地故障代理/子进程运行器与脚本；恢复只用正常重试API/自然租约，不手工更新作业恢复状态。
+- [x] 验证 `pnpm.ps1 rehearse:recovery`，预期所有故障场景通过，记录耗时与限制；聚焦提交。
 
 ### Task 3: 三存储备份、空实例恢复和一致性验证
 
@@ -54,9 +54,9 @@
 
 **Interfaces:** 管理工具仅操作其拥有的隔离栈；备份含 PG dump、Verdaccio 卷、MinIO 卷和摘要清单；恢复验证使用真实 HTTP/S3/PG，检查 manifest、登记、截图/报告/预览与包摘要。
 
-- [ ] RED：损坏清单/非空目标/路径越界拒绝；真实 Ready 样本断言恢复后三存储一致。
-- [ ] GREEN：创建隔离源栈、真实发布、停写备份、独立目标恢复；记录数据量和实际 RTO，保留备份而非修改共享源。
-- [ ] 验证 `pnpm.ps1 rehearse:backup` 与窄范围测试，预期完整恢复和逐引用检查通过；聚焦提交。
+- [x] RED：损坏清单/非空目标/路径越界拒绝；真实 Ready 样本断言恢复后三存储一致。
+- [x] GREEN：创建隔离源栈、真实发布、停写备份、独立目标恢复；记录数据量和实际 RTO，保留备份而非修改共享源。
+- [x] 验证 `pnpm.ps1 rehearse:backup` 与窄范围测试，预期完整恢复和逐引用检查通过；聚焦提交。
 
 ### Task 4: 部署模板、保留策略与交付
 
@@ -64,10 +64,10 @@
 
 **Interfaces:** 部署检查分静态模板与显式生产配置检查；缺真实配置失败关闭。保留策略默认上传24h、失败候选30d，可配置，仅生成无已发布引用的候选报告，不自动删除。
 
-- [ ] RED：浮动镜像、凭证内联、同站预览域、公开存储端口、不安全命令和保留条件反例。
-- [ ] GREEN：固定镜像参数模板、服务配置/凭证注入、运行/迁移/回退说明和检查器。
-- [ ] 验证 frozen install、workspace、无缓存 build/typecheck、根tsc、普通/platform/browser测试、infra、deployment、恢复演练；预期全部本地检查通过，真实生产检查保持待接入。
-- [ ] 独立整分支审查并修复；平台/API（若网关行为变化则网关）PATCH版本与CHANGELOG单独提交。
+- [x] RED：浮动镜像、凭证内联、同站预览域、公开存储端口、不安全命令和保留条件反例。
+- [x] GREEN：固定镜像参数模板、服务配置/凭证注入、运行/迁移/回退说明和检查器。
+- [x] 验证 frozen install、workspace、无缓存 build/typecheck、根tsc、普通/platform/browser测试、infra、deployment、恢复演练；预期全部本地检查通过，真实生产检查保持待接入。
+- [x] 独立整分支审查并修复；平台/API（若网关行为变化则网关）PATCH版本与CHANGELOG单独提交。
 - [ ] 本地合并 main，复验合并树，记录commit和未完成外部门槛。
 
 ## 进展

@@ -1,6 +1,6 @@
 # Zhinexus 组件资产平台
 
-Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状/饼图 SDK、本地冻结 Bundle 与消费者截图、T05 身份/上传/基线 API，以及 T06 持久化发布 worker。配置并启动独立 worker 后，合法 PENDING 作业可通过三存储校验进入 Ready；未启动 worker 则保留待处理状态。T07 目录/隔离预览、当前 SDK 完整 CLI 材料及公司 OIDC 验收仍待完成。
+Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状/饼图 SDK、本地冻结 Bundle 与消费者截图、T05 身份/上传/基线 API，以及 T06 持久化发布 worker。配置并启动独立 worker 后，合法 PENDING 作业可通过三存储校验进入 Ready；未启动 worker 则保留待处理状态。T07 目录/隔离预览后端已提供；当前 SDK 完整 CLI/画廊联调材料及公司 OIDC 等完整验收仍待完成。
 
 ## 开始开发（Windows x64）
 
@@ -54,7 +54,7 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 ```text
 apps/api                 NestJS 身份/上传/基线 API 与独立 T06 发布 worker
 apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
-apps/preview-gateway     NestJS 静态预览网关（目前仅 healthz）
+apps/preview-gateway     NestJS 独立域静态预览网关（短期授权、逐请求撤权与摘要核查）
 packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）
 packages/charts-core     ECharts 折线/柱状核心
 packages/charts-vue       Vue 适配 → core
