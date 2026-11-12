@@ -6,6 +6,12 @@ packages:
 
 minimumReleaseAgeExclude:
   - vite@8.3.8
+  - '@aws-sdk/client-s3@3.1167.0'
+  - '@aws-sdk/credential-provider-ini@3.973.30'
+  - '@aws-sdk/credential-provider-login@3.972.92'
+  - '@aws-sdk/credential-provider-node@3.972.97'
+  - tldts-core@7.4.22
+  - tldts@7.4.22
 
 registry: https://registry.npmjs.org/
 saveExact: true

@@ -1,0 +1,58 @@
+name: zhinexus-g2
+services:
+  postgres:
+    image: postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+    platform: linux/amd64
+    ports: ['127.0.0.1:15432:5432']
+    environment:
+      POSTGRES_USER: zhinexus
+      POSTGRES_DB: zhinexus
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: ['postgres_data:/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U zhinexus -d zhinexus']
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  verdaccio:
+    image: verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f
+    platform: linux/amd64
+    ports: ['127.0.0.1:14873:4873']
+    volumes:
+      - verdaccio_data:/verdaccio/storage
+      - ./verdaccio/config.yaml:/verdaccio/conf/config.yaml:ro
+    secrets: [registry_users]
+    healthcheck:
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:4873/-/ping').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+  minio:
+    image: ${G2_MINIO_IMAGE:?Run infra:up to build the pinned source image}
+    pull_policy: never
+    platform: linux/amd64
+    ports: ['127.0.0.1:19000:9000']
+    environment:
+      MINIO_ROOT_USER_FILE: /run/secrets/minio_user
+      MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password
+      MINIO_BROWSER: 'off'
+    secrets: [minio_user, minio_password]
+    volumes: ['minio_data:/data']
+    read_only: true
+    tmpfs: ['/tmp']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+volumes:
+  postgres_data:
+  verdaccio_data:
+  minio_data:
+secrets:
+  postgres_password:
+    file: ../.tools/g2-local/postgres-password
+  registry_users:
+    file: ../.tools/g2-local/registry-users
+  minio_user:
+    file: ../.tools/g2-local/minio-user
+  minio_password:
+    file: ../.tools/g2-local/minio-password

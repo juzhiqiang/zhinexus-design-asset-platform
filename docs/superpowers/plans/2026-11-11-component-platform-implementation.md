@@ -269,6 +269,8 @@ flowchart LR
 
 2026-11-12 C 后续：按 [本地三存储与接入检查子计划](2026-11-12-g2-local-infra.md) 实施隔离开发设施；OIDC/独立域经用户确认暂无，工具必须如实返回未配置。示例 states 收口为可选发现信息，requiredStates 继续驱动全部必需截图，不改变既有三方法协议。
 
+本轮结果：隔离三存储已两轮通过真实写读、私有权限、冻结探针包精确安装、HTTP 409、重启持久化和独立恢复；命令位于 infra/scripts，通过根 infra:up、infra:stop、test:infra、infra:check-access 调用，不新增根 scripts 文件或 Turbo 测试缓存。详见 [新增验证记录](../../verification/g2-local-infra-2026-11-12.md)。未实施业务迁移/发布作业，完整 G2/T01 保持开放。
+
 2026-11-12 工程维护：统一工具链专项入口、归位画廊缓存回归和契约生成脚本，见 [脚本整理子计划](2026-11-12-simplify-project-scripts.md)。仅调整开发验证流程，不改变 T01/G1/G2 验收状态；历史验证命令保持原记录，新入口与实测结果写入独立验证记录。
 
 2026-11-12 G1 执行补充：C 的 V1 校验、JSON Schema、错误码、示例接口、API 消息与 fixtures 见 [子计划](2026-11-12-g1-contracts-platform.md)；候选补充字段与边界见 packages/contracts/README.md。A/B 实际评审目标提前至 **2026-11-13**，回执与 G2 责任/计划日期见 [交接清单](2026-11-12-g1-review-g2-access.md)。人工评审、G2 实测和完整 T01 仍未完成，不因契约测试通过勾选整个任务。

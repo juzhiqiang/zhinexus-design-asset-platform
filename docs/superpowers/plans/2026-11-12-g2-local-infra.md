@@ -33,9 +33,9 @@
 
 **Interfaces:** `ComponentExample.states?: readonly string[]`、`COMPONENT_EXAMPLE_GLOBAL`；既有 ready/runState/getChecks 保持不变。
 
-- [ ] 增加类型兼容测试：旧示例、只读枚举、错误成员类型；类型检查 RED 后增加可选字段/常量。
-- [ ] 文档确定 requiredStates 为权威清单、未知状态 reject、每个状态等待就绪后检查。
-- [ ] contracts 构建/类型与契约测试通过后聚焦提交。
+- [x] 增加类型兼容测试：旧示例、只读枚举、错误成员类型；类型检查 RED 后增加可选字段/常量。
+- [x] 文档确定 requiredStates 为权威清单、未知状态 reject、每个状态等待就绪后检查。
+- [x] contracts 构建/类型与契约测试通过后聚焦提交。
 
 ### Task 2：设施启动与真实验收
 
@@ -43,15 +43,17 @@
 
 **Interfaces:** `infra:up` 初始化本地随机凭证并构建固定 MinIO、启动服务；`infra:stop` 停止但保留卷；`test:infra` 执行三存储写读/权限/重启持久化与备份恢复探针，输出脱敏报告；`infra:check-access` 检查可选 OIDC/域名配置，未配置退出 2。
 
-- [ ] 接入配置/元数据反例先 RED：缺字段、HTTP/带凭证 URL、同注册域、issuer 不匹配、缺 PKCE S256。
-- [ ] 固定所有镜像/source 摘要，生成独立配置与 Compose secrets；先运行 compose config 验证模型。
-- [ ] 实现真实 PostgreSQL、npm publish/install 和 S3 探针，重启后验证同一数据；隔离备份恢复目标，不删除原数据。
-- [ ] 启动并运行 test:infra 两次，确认每次真实执行；记录镜像 ID、数据摘要和结果。
-- [ ] 缺少外部配置时实测 access 命令非零，增加可供后续接入的无秘密配置示例。
-- [ ] 全图 build/typecheck/test/browser、workspace 检查与独立审查；新增验证记录并提交。
+- [x] 接入配置/元数据反例先 RED：缺字段、HTTP/带凭证 URL、同注册域、issuer 不匹配、缺 PKCE S256。
+- [x] 固定所有镜像/source 摘要，生成独立配置与 Compose secrets；先运行 compose config 验证模型。
+- [x] 实现真实 PostgreSQL、npm publish/install 和 S3 探针，重启后验证同一数据；隔离备份恢复目标，不删除原数据。
+- [x] 启动并运行 test:infra 两次，确认每次真实执行；记录镜像 ID、数据摘要和结果。
+- [x] 缺少外部配置时实测 access 命令非零，增加可供后续接入的无秘密配置示例。
+- [x] 全图 build/typecheck/test/browser、workspace 检查与独立审查；新增验证记录并提交。
 
 ## Execution record
 
 - 起点 main 471ae8e，工作区干净；开发分支 feat/g2-local-infra。
 - 本机 Docker Engine 29.8.2 / Compose 5.5.1 可用；现有 5432、5433、9000 等属其他项目，使用 15432/14873/19000。
 - 基线 contracts 145/145 通过。用户已确认无现成 OIDC/独立预览域，本轮只交付对应接入检查工具。
+- Task 1 已提交 d18ce0e；Task 2 独立审查两项 P2（S3 超时、管理 API 注册域）均已 RED→GREEN 修复。最终独立工作树全图 build10/type14 无缓存、根198、浏览器15、设施17 测试通过，修复后真实三存储再次两轮通过；证据见 docs/verification/g2-local-infra-2026-11-12.md。
+- 共享目录被 CLI 工作切换分支后，C 在独立工作树 feat/g2-local-infra 提交，保留源目录已有修改；最终代码以 C 分支为准。不合并、不推送，完整 G1/G2/T01 状态不变。

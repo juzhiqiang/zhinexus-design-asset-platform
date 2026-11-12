@@ -8,6 +8,7 @@
   },
   "include": [
     "scripts/**/*.ts",
+    "infra/scripts/**/*.ts",
     "packages/contracts/scripts/**/*.ts",
     "tests/**/*.ts",
     "vitest.config.ts"

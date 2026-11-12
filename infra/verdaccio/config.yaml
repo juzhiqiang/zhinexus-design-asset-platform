@@ -1,0 +1,21 @@
+storage: /verdaccio/storage
+auth:
+  htpasswd:
+    file: /run/secrets/registry_users
+    max_users: -1
+uplinks: {}
+packages:
+  '@g2-probe/*':
+    access: g2reader g2publisher
+    publish: g2publisher
+    unpublish: []
+  '@company/*':
+    access: g2reader g2publisher
+    publish: g2publisher
+    unpublish: []
+  '**':
+    access: []
+    publish: []
+    unpublish: []
+log: { type: stdout, format: json, level: warn }
+listen: 0.0.0.0:4873

@@ -30,6 +30,9 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19
 | `.\scripts\pnpm.ps1 test:gallery-cache` | 画廊域名切换与 HTTP sitemap 回归，脚本位于 tests/integration |
 | `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate` | 先构建 contracts，再重新生成 JSON Schema；普通 test 检查内容与格式一致性 |
 | `.\scripts\pnpm.ps1 versions:resolve` | 刷新官方候选版本报告 |
+| `.\scripts\pnpm.ps1 infra:up` / `infra:stop` | 启停隔离本地 PostgreSQL、Verdaccio、MinIO，保留卷和凭证 |
+| `.\scripts\pnpm.ps1 test:infra` | 三存储真实写读、权限、精确安装、重启及隔离备份恢复；不缓存 |
+| `.\scripts\pnpm.ps1 infra:check-access` | OIDC/独立预览域前置检查；当前缺配置退出 2 |
 
 根 scripts 仅保留工具链安装/调用、统一验证、工作区检查和版本发现。入口迁移与验证见 [脚本整理记录](docs/verification/scripts-maintenance-2026-11-12.md)。
 
@@ -58,7 +61,7 @@ packages/component-cli  公开 CLI 包壳
 examples/vue             Vue 工作区示例 → charts-vue
 examples/react           React 工作区示例 → charts-react
 tests                    基础行为和构建入口的浏览器冒烟
-infra                    基础设施待办与责任边界
+infra                    隔离本地三存储、真实探针与 OIDC/预览域接入检查
 ```
 
 四个公开包名称沿用 `@company/*` 约定，版本为 `0.0.0`，尚不可作为业务组件发布。examples 目前通过 workspace 包 exports 消费，**不是** T03 的工作区外 tarball 验收。CLI 暂不使用 contracts 运行时代码；未来引入时须内联，避免发布私有运行时依赖。
@@ -85,4 +88,6 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 - [迁移前初始化验证](docs/verification/bootstrap.md) / [迁移前 Turbo 缓存证据](docs/verification/turbo-baseline.md)
 - [独立审查与实施决定](docs/verification/bootstrap-review.md)
 
-2026-11-12：C 已补齐 G1 运行时结构/关联与冻结字节校验、错误码、示例接口、API 消息及合成 fixtures。调用与边界见 [contracts README](packages/contracts/README.md)，命令见 [G1 验证记录](docs/verification/g1-contracts-2026-11-12.md)。G1 仍待 A/B 于 **2026-11-13** 前实际评审回执；G2 五项责任和计划日期见 [评审与接入清单](docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)。尚无真实联系人确认或接入证据，G2/T01 保持开放；合成 fixtures 不代替真实 tarball、截图或服务验收。
+2026-11-12：C 已补齐 G1 运行时结构/关联与冻结字节校验、错误码、示例接口、API 消息及合成 fixtures。调用与边界见 [contracts README](packages/contracts/README.md)，命令见 [G1 验证记录](docs/verification/g1-contracts-2026-11-12.md)。G1 仍待 A/B 于 **2026-11-13** 前实际评审回执；G2 五项责任和计划日期见 [评审与接入清单](docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)。
+
+本轮 C 已收口可选 `ComponentExample.states` 与权威 `requiredStates` 清单，并完成本地三存储真实探针，启动方式见 [infra README](infra/README.md)，结果见 [新增验证记录](docs/verification/g2-local-infra-2026-11-12.md)。按用户确认，OIDC 与独立预览域尚未配置，G2/T01 保持开放；本地探针与合成 fixtures 不代替完整组件发布、截图或生产验收。
