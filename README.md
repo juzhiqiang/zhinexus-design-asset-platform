@@ -1,6 +1,6 @@
 # Zhinexus 组件资产平台
 
-Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状 SDK、本地冻结 Bundle 与消费者截图、T05 身份验证/上传校验/发布登记/基线 API。T06 实际发布、T07 目录/隔离预览及公司 OIDC 验收仍待完成，创建作业目前停在 PENDING。
+Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状/饼图 SDK、本地冻结 Bundle 与消费者截图、T05 身份/上传/基线 API，以及 T06 持久化发布 worker。配置并启动独立 worker 后，合法 PENDING 作业可通过三存储校验进入 Ready；未启动 worker 则保留待处理状态。T07 目录/隔离预览、当前 SDK 完整 CLI 材料及公司 OIDC 验收仍待完成。
 
 ## 开始开发（Windows x64）
 
@@ -32,7 +32,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 | `.\scripts\pnpm.ps1 versions:resolve` | 刷新官方候选版本报告 |
 | `.\scripts\pnpm.ps1 infra:up` / `infra:stop` | 启停隔离本地 PostgreSQL、Verdaccio、MinIO，保留卷和凭证 |
 | `.\scripts\pnpm.ps1 test:infra` | 三存储真实写读、权限、精确安装、重启及隔离备份恢复；不缓存 |
-| `.\scripts\pnpm.ps1 test:platform` | T05 真 Nest/PG/MinIO、租约并发、基线 CAS、真实 SDK Bundle；本机执行构建和截图，不缓存 |
+| `.\scripts\pnpm.ps1 test:platform` | T05/T06 真 Nest/PG/MinIO/Verdaccio、租约并发、恢复、基线 CAS、真实 SDK 历史材料发布及精确安装；本机执行，不缓存 |
+| `.\scripts\pnpm.ps1 --filter @company/platform-api worker` | 独立发布 worker；显式迁移并注入存储/注册表服务凭证后运行，见 API 接入说明 |
 | `.\scripts\pnpm.ps1 infra:check-access` | OIDC/独立预览域前置检查；当前缺配置退出 2 |
 
 根 scripts 仅保留工具链安装/调用、统一验证、工作区检查和版本发现。入口迁移与验证见 [脚本整理记录](docs/verification/scripts-maintenance-2026-11-12.md)。
@@ -51,7 +52,7 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 ## 工作区职责
 
 ```text
-apps/api                 NestJS T05 身份、上传、发布登记、基线与审计 API
+apps/api                 NestJS 身份/上传/基线 API 与独立 T06 发布 worker
 apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
 apps/preview-gateway     NestJS 静态预览网关（目前仅 healthz）
 packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）

@@ -348,6 +348,8 @@ flowchart LR
 
 ### T06：可恢复发布任务与一致性（8–10 人日）
 
+2026-11-12 C 接续实施见 [T06 执行计划](2026-11-12-t06-release-worker.md)。复用 T05 的预登记模型；原建议 002 迁移编号已被包权限占用，新增 004_release_worker.sql。Ready、outbox 与 tag 待办原子写入；tag 独立恢复，索引消费者留在后续任务。当前 SDK 材料和外部身份/预览域不据此标为完成。
+
 **Files:** 创建 `apps/api/src/releases/{worker,state-machine,leases,registry-client,artifact-store,availability}.ts`、`index/outbox.ts`；`apps/api/migrations/002_release_jobs.sql`；`tests/integration/{release-recovery,release-concurrency,dependency-order}.test.ts`。
 
 **Interfaces:** 消费完整上传会话；`advanceRelease(jobId,leaseToken): Promise<JobSnapshot>`；`ensurePackage(ref): Promise<{status:'published'|'already-identical',integrity}>`；`checkAvailability(manifest): Promise<AvailabilityResult>`。`JobSnapshot={jobId,state,stage,attempt,lastError?}`；`AvailabilityResult={ok,missing:{kind,ref}[]}`。

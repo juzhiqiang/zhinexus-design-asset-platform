@@ -1,6 +1,6 @@
 # 平台 API 接入
 
-T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。发布作业当前为 PENDING，实际三存储发布与 Ready 由 T06 worker 完成。API 不运行 CLI，不构建、安装或执行上传组件，不启动浏览器。
+T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。T06 独立 worker 读取 PENDING 作业，固化对象、发布原 tarball、检查可达性并原子登记 Ready。API/worker 不运行 CLI，不构建、安装或执行上传组件，不启动浏览器。
 
 ## 配置
 
@@ -15,6 +15,8 @@ T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。
 | PLATFORM_OIDC_ISSUER / PLATFORM_OIDC_AUDIENCE | 精确 issuer / 管理 API audience |
 | PLATFORM_OIDC_JWKS_URI | 身份服务的 HTTPS JWKS 地址 |
 | PLATFORM_OIDC_WEB_CLIENT_IDS / PLATFORM_OIDC_CLI_CLIENT_IDS | 逗号分隔的可信客户端 ID，两个列表不能重叠 |
+| PLATFORM_REGISTRY_ORIGIN / PLATFORM_REGISTRY_TOKEN | worker 专用 Verdaccio origin 与仅服务端持有的发布 token；只对同 origin 发请求，拒绝重定向 |
+| PLATFORM_WORKER_JOB_ID | 可选；诊断时将 worker 限制为一个已存在的作业，通常不设置 |
 
 OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时间与 azp/client_id。角色读取 token 的 roles 数组（reader/publisher/maintainer）；身份服务需配置该 claim 映射。web/cli 来源根据已验证客户端确定。CLI PKCE 与网页登录由客户端实现；当前公司资源未提供，无开发后门。缺 OIDC 时业务请求 401；认证通过但缺存储配置时 503。healthz 仅表示进程存活。
 
@@ -30,6 +32,25 @@ OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时�
 ```
 
 3. 管理员按已验证 OIDC subject 预建 components、component_permissions 和 package_permissions。组件 grant 的 can_publish/can_maintain 分别控制发布/维护，npm 包发布另需 package_permissions；没有默认通配授权。维护者角色不会自动拥有所有组件。授权变更通过受控运维执行。
+
+4. 在独立进程启动 worker（可运行多个实例，全部共享同一数据库、私有 bucket 和 Verdaccio）：
+
+```powershell
+.\scripts\pnpm.ps1 --filter @company/platform-api worker
+```
+
+worker 不需要登录令牌；它只处理 API 已接受的作业。生产中由进程管理器保证重启，SIGTERM/SIGINT 等待当前轮结束；强制终止后默认 60 秒租约到期可接管，每 20 秒续租。诊断 `worker --once` 处理一轮并退出，退出 0 不等于作业 Ready，仍须查询作业状态。worker 不执行迁移，部署须先显式应用 004 及之前的迁移。
+
+## T06 发布与恢复
+
+- 检查点为 FINALIZE_OBJECTS → ENSURE_PACKAGES → REGISTER_ASSETS → CHECK_AVAILABILITY → READY_TX；复用 T05 预登记的包/实现。网络 I/O 不持有数据库行锁，所有状态回写核对租约和 fencing token。
+- 最终私有对象位于 `releases/<jobId>/<原相对路径>`，完整映射存于 release_artifacts；条件 PUT 只允许首次写，恢复时核对相同摘要。已接受作业不受原上传会话到期影响。
+- npm 先按依赖拓扑发布 core，再发布框架包；使用同一 tarball 的 npm HTTP 协议，不执行 npm 脚本。先写 candidate-<jobId> tag；已有版本必须下载真实字节核对，相同则继续，不同进入 CONFLICT。
+- Ready 前核对全部文件、预览入口、包字节和公司依赖；READY_TX 恢复时重新检查。Ready 同事务写包/实现/任务状态、审计、release_outbox 和 release_tags。报告来源、基线确认和索引状态不受 Ready 推断。
+- 默认 latest tag 在 Ready 后独立协调，目标选择最高 Ready SemVer（预发布按 SemVer 排序，Ready 不代表正式投产验收）；旧版本晚完成不会下调目标。每包使用 PostgreSQL 会话 advisory lock 串行更新，成功后每 60 秒重检实际值，失败 5 秒后再试。npm 不提供 tag CAS，超时旧请求可能晚到，重检负责恢复，存在短暂不一致窗口；不是严格线性一致。tag 和索引失败不会倒退 Ready；release_outbox 的索引消费者属于后续任务。
+- 可恢复错误进入 RETRY_WAIT，默认自动重试 5 次（5/15/45/120/300 秒 ±20% 抖动），耗尽后等待人工 retry；进程连续崩溃同样限制接管次数。人工 retry 重置自动预算，保留 attempt 总计与原检查点。
+- 同版本异摘要为 CONFLICT，确定性材料错误为 REJECTED，两者不能用 retry 绕过；修正需新版本/新材料。UPLOAD_INCOMPLETE 表示缺资源/依赖，GET 作业的 missingArtifacts 给出关联材料路径。外部错误正文和凭证不会写入作业错误。
+- 精确 npm 版本可能在 Ready 前已经可下载。实测 Verdaccio 7.1.0 在首次包只有 candidate tag 时，读取 metadata/dist-tags 会自动补出 latest（store 的 normalizePackage 逻辑）；平台发布请求仍仅写 candidate，首次包的默认安装同样不能靠 tag 隐藏。目录/推荐须按 Ready 控制；若需注册表层隐藏所有未 Ready 包，需要另立读权限/网关需求。
 
 迁移目录按顺序、事务和摘要检查执行；不得修改已应用 SQL。程序化空库回滚仅用于测试，拒绝任何有业务数据的库。部署前备份数据库，在测试环境演练向前迁移；迁移后应用回退不能假设 schema 自动回退。
 
@@ -57,6 +78,6 @@ OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时�
 
 初始限制为单包 50 MiB、单图 10 MiB、8192 像素边长、tar 展开 200 MiB/5000 文件、总材料 500 MiB；属于安全上限，不是已完成的并发容量承诺。失败/过期冻结尝试可能留下未引用对象，后续运维按引用清理，禁止按时间删除已发布资产。
 
-真实公司 OIDC/PKCE/撤权、独立预览域、T06 发布恢复和生产容量尚未验收。CLI 当前 Bundle 的 preview HTML 为占位内容，本次只验证实际 tarball/截图/报告上传；不会据此宣称 T07 在线预览可用。
+真实公司 OIDC/PKCE/撤权、独立预览域和生产容量尚未验收。T06 本地恢复测试使用真实三存储，完整 SDK 发布使用历史 0.0.2 冻结样本；两类新消费者验证精确注册表安装，未重新执行该历史版本浏览器截图。CLI 当前 Bundle 的 preview HTML 为占位内容，文件可达不会据此宣称 T07 在线预览可用。
 
 合并最新 SDK 后的接入边界：SDK 0.0.3 新增 ./pie，而 CLI 的 Bundle 入口目前仍只生成 line/bar 材料，该输入会被 T05 正确拒绝。正向回归保留实际验证过的 0.0.2 冻结样本；当前 SDK 必须由 B 补齐 pie 的双框架材料后才能完整提交，不允许删除 API 的逐导出覆盖检查。

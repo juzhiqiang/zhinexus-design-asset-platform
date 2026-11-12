@@ -1,6 +1,6 @@
 {
   "name": "@company/platform-api",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "private": true,
   "type": "module",
   "files": [
@@ -12,7 +12,8 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "nest start --watch",
     "start": "node dist/server.js",
-    "migrate": "node dist/db/migrate.js"
+    "migrate": "node dist/db/migrate.js",
+    "worker": "node dist/releases/runner.js"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "3.1167.0",
