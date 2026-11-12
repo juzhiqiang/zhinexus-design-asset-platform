@@ -1,6 +1,6 @@
 # Zhinexus 组件资产平台
 
-Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2（默认 Express 适配器）；组件侧保留 Vue/React 双框架。当前交付包含 10 个包、协议草案、健康检查、CLI help/version 与示例入口。真实目录数据、上传、发布、图表控制器、真实包消费与截图验证尚待后续任务实现。
+Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状 SDK、本地冻结 Bundle 与消费者截图、T05 身份验证/上传校验/发布登记/基线 API。T06 实际发布、T07 目录/隔离预览及公司 OIDC 验收仍待完成，创建作业目前停在 PENDING。
 
 ## 开始开发（Windows x64）
 
@@ -32,6 +32,7 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19
 | `.\scripts\pnpm.ps1 versions:resolve` | 刷新官方候选版本报告 |
 | `.\scripts\pnpm.ps1 infra:up` / `infra:stop` | 启停隔离本地 PostgreSQL、Verdaccio、MinIO，保留卷和凭证 |
 | `.\scripts\pnpm.ps1 test:infra` | 三存储真实写读、权限、精确安装、重启及隔离备份恢复；不缓存 |
+| `.\scripts\pnpm.ps1 test:platform` | T05 真 Nest/PG/MinIO、租约并发、基线 CAS、真实 SDK Bundle；本机执行构建和截图，不缓存 |
 | `.\scripts\pnpm.ps1 infra:check-access` | OIDC/独立预览域前置检查；当前缺配置退出 2 |
 
 根 scripts 仅保留工具链安装/调用、统一验证、工作区检查和版本发现。入口迁移与验证见 [脚本整理记录](docs/verification/scripts-maintenance-2026-11-12.md)。
@@ -41,7 +42,7 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19
 | 画廊 | `http://127.0.0.1:5173`，空平台入口 |
 | Vue 示例 | `http://127.0.0.1:5174`，工作区依赖冒烟 |
 | React 示例 | `http://127.0.0.1:5175`，工作区依赖冒烟 |
-| API | `http://127.0.0.1:3000/healthz`，仅存活检查 |
+| API | `http://127.0.0.1:3000/healthz` 存活；`/v1` 接口需配置 OIDC/存储与权限，见 [API 接入](apps/api/README.md) |
 | 预览网关 | `http://127.0.0.1:3001/healthz`，仅存活检查 |
 | CLI | `.\scripts\pnpm.ps1 component --help`；不支持的业务命令返回非零 |
 
@@ -50,21 +51,21 @@ Monorepo + pnpm workspace + Turborepo 工程骨架。平台画廊使用 React 19
 ## 工作区职责
 
 ```text
-apps/api                 NestJS 平台 API（目前仅 healthz）
+apps/api                 NestJS T05 身份、上传、发布登记、基线与审计 API
 apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
 apps/preview-gateway     NestJS 静态预览网关（目前仅 healthz）
 packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）
-packages/charts-core     ECharts 共享核心包壳
-packages/charts-vue       Vue 适配包壳 → core
-packages/charts-react     React 适配包壳 → core
-packages/component-cli  公开 CLI 包壳
+packages/charts-core     ECharts 折线/柱状核心
+packages/charts-vue       Vue 适配 → core
+packages/charts-react     React 适配 → core
+packages/component-cli  本地冻结、消费者检查、截图与 Bundle 生成
 examples/vue             Vue 工作区示例 → charts-vue
 examples/react           React 工作区示例 → charts-react
 tests                    基础行为和构建入口的浏览器冒烟
 infra                    隔离本地三存储、真实探针与 OIDC/预览域接入检查
 ```
 
-四个公开包名称沿用 `@company/*` 约定，版本为 `0.0.0`，尚不可作为业务组件发布。examples 目前通过 workspace 包 exports 消费，**不是** T03 的工作区外 tarball 验收。CLI 暂不使用 contracts 运行时代码；未来引入时须内联，避免发布私有运行时依赖。
+四个公开包名称沿用 `@company/*`，版本以各自 package.json 为准。examples 消费 workspace 导出；工作区外 tarball 消费与截图由独立测试验证。CLI 内联契约校验，公开包运行时不依赖私有 contracts。
 
 ## 工具链与缓存
 

@@ -1,24 +1,36 @@
 {
   "name": "@company/platform-api",
-  "version": "0.0.0",
+  "version": "0.0.1",
   "private": true,
   "type": "module",
   "files": [
-    "dist"
+    "dist",
+    "migrations"
   ],
   "scripts": {
     "build": "nest build",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "nest start --watch",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "migrate": "node dist/db/migrate.js"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1167.0",
+    "@aws-sdk/s3-request-presigner": "3.1167.0",
     "@company/contracts": "workspace:*",
     "@nestjs/common": "12.4.2",
     "@nestjs/core": "12.4.2",
     "@nestjs/platform-express": "12.4.2",
+    "@types/pg": "8.23.1",
+    "@types/pngjs": "6.0.5",
+    "@types/tar-stream": "3.1.5",
+    "jose": "6.2.17",
+    "jpeg-js": "0.4.4",
+    "pg": "8.23.1",
+    "pngjs": "7.0.0",
     "reflect-metadata": "0.2.2",
-    "rxjs": "7.8.2"
+    "rxjs": "7.8.2",
+    "tar-stream": "3.2.2"
   },
   "devDependencies": {
     "@nestjs/cli": "12.0.12",

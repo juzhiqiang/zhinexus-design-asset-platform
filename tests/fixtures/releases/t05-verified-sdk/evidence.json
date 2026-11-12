@@ -1,0 +1,78 @@
+{
+  "verifiedAt": "2026-11-12T05:01:30.536Z",
+  "state": "PENDING",
+  "variantIds": [
+    "line-vue",
+    "line-react",
+    "bar-vue",
+    "bar-react"
+  ],
+  "packages": [
+    {
+      "name": "@company/charts-core",
+      "version": "0.0.2",
+      "path": "packages/company-charts-core-0.0.2.tgz",
+      "sha256": "357735b53bfdb991fe0650a6e2fbce06c57c4a33876286a2bf437eaf8fdbbb2a",
+      "bytes": 18770
+    },
+    {
+      "name": "@company/charts-vue",
+      "version": "0.0.2",
+      "path": "packages/company-charts-vue-0.0.2.tgz",
+      "sha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+      "bytes": 4170
+    },
+    {
+      "name": "@company/charts-react",
+      "version": "0.0.2",
+      "path": "packages/company-charts-react-0.0.2.tgz",
+      "sha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+      "bytes": 7342
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "shot-default-7760b339",
+      "variantId": "line-vue",
+      "source": "local-automatic",
+      "packageSha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+      "path": "screenshots/line-vue-default.png",
+      "sha256": "7760b339accca882311a3b3625613f9d071e58874272bf87f0e109c8acad690b",
+      "bytes": 12923
+    },
+    {
+      "id": "shot-default-e765618c",
+      "variantId": "line-react",
+      "source": "local-automatic",
+      "packageSha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+      "path": "screenshots/line-react-default.png",
+      "sha256": "e765618c98fbbe975489debb4426b4db4e001d655ff9a9c11722a8fec449f906",
+      "bytes": 13506
+    },
+    {
+      "id": "shot-default-1fc18995",
+      "variantId": "bar-vue",
+      "source": "local-automatic",
+      "packageSha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+      "path": "screenshots/bar-vue-default.png",
+      "sha256": "1fc18995b9585a73744dab567f3d9f962c1335e01671dcbb82ddfcd307e70c73",
+      "bytes": 11686
+    },
+    {
+      "id": "shot-default-69439fd4",
+      "variantId": "bar-react",
+      "source": "local-automatic",
+      "packageSha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+      "path": "screenshots/bar-react-default.png",
+      "sha256": "69439fd4d39e9fbda6e9f1acaa889af21af2da193dad79b9e248509c54915b6d",
+      "bytes": 11926
+    }
+  ],
+  "fileCount": 23,
+  "frozenBytesMatch": true,
+  "limitations": [
+    "OIDC is a real signed local fixture, not company login",
+    "T06 publishing and T07 live isolated preview are not exercised",
+    "CLI preview HTML currently remains a placeholder"
+  ]
+}

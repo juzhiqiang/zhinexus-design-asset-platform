@@ -14,12 +14,12 @@ export type PublishingCheckpoint = typeof PUBLISHING_CHECKPOINTS[number];
 export type PublicVariantSummary = { variantReleaseId: string; variantId: string; framework: Framework; packageName: string; packageVersion: string };
 export type ApiMessages = {
   createUploadRequest: { manifestDigest: string; files: ArtifactRef[] };
-  createUploadResponse: { uploadSessionId: string; files: { path: string; uploadUrl: string; expiresAt: string }[] };
+  createUploadResponse: { uploadSessionId: string; files: { path: string; uploadUrl: string; expiresAt: string; multipart?: { uploadId: string; partSize: number; parts: { partNumber: number; uploadUrl: string; expiresAt: string }[] } }[] };
   completeUploadRequest: { parts: { path: string; partNumber: number; etag: string }[] };
   completeUploadResponse: { status: 'complete'; verifiedFiles: ArtifactRef[] };
   createReleaseRequest: { uploadSessionId: string; manifest: ReleaseManifestV1 };
   createReleaseResponse: { jobId: string; state: ReleaseState };
-  releaseJobResponse: { state: ReleaseState; stage: ReleaseState | PublishingCheckpoint; attempt: number; lastError?: ApiError; missingArtifacts: string[]; pollAfterMs: number };
+  releaseJobResponse: { state: ReleaseState; stage: ReleaseState | PublishingCheckpoint; attempt: number; lastError?: ApiError; missingArtifacts: string[]; pollAfterMs: number; baselineCandidates?: { screenshotId: string; sourceScreenshotId: string; variantId: string; exampleId: string; environmentKey: string }[] };
   retryReleaseResponse: { jobId: string; state: ReleaseState };
   componentsQuery: { framework?: Framework; category?: string; query?: string; page?: number; pageSize?: number };
   componentsResponse: { items: { componentId: string; variants: PublicVariantSummary[] }[]; page: number; pageSize: number; total: number };
@@ -39,12 +39,12 @@ const issue = object({ code: choice(...CONTRACT_ERROR_CODES), path: { type: 'str
 const error = object({ code: choice(...API_ERROR_CODES), message: text, details: array(issue), requestId: identifier });
 const schemas: Record<keyof ApiMessages, Schema> = {
   createUploadRequest: object({ manifestDigest: hash, files: array(artifactSchema, 1) }),
-  createUploadResponse: object({ uploadSessionId: identifier, files: array(object({ path: artifactPath, uploadUrl: url, expiresAt: timestamp }), 1) }),
+  createUploadResponse: object({ uploadSessionId: identifier, files: array(object({ path: artifactPath, uploadUrl: url, expiresAt: timestamp, multipart: object({ uploadId: text, partSize: integer(5242880), parts: array(object({ partNumber: integer(1, 10000), uploadUrl: url, expiresAt: timestamp }), 1) }) }, ['multipart']), 1) }),
   completeUploadRequest: object({ parts: array(object({ path: artifactPath, partNumber: integer(1), etag: text })) }),
   completeUploadResponse: object({ status: { type: 'string', const: 'complete' }, verifiedFiles: array(artifactSchema, 1) }),
   createReleaseRequest: object({ uploadSessionId: identifier, manifest: manifestSchema }),
   createReleaseResponse: release,
-  releaseJobResponse: object({ state: choice(...RELEASE_STATES), stage: choice(...RELEASE_STATES, ...PUBLISHING_CHECKPOINTS), attempt: integer(), lastError: error, missingArtifacts: array(artifactPath), pollAfterMs: integer(1) }, ['lastError']),
+  releaseJobResponse: object({ state: choice(...RELEASE_STATES), stage: choice(...RELEASE_STATES, ...PUBLISHING_CHECKPOINTS), attempt: integer(), lastError: error, missingArtifacts: array(artifactPath), pollAfterMs: integer(1), baselineCandidates: array(object({ screenshotId: identifier, sourceScreenshotId: identifier, variantId: identifier, exampleId: identifier, environmentKey: hash })) }, ['lastError', 'baselineCandidates']),
   retryReleaseResponse: release,
   componentsQuery: object({ framework: choice('vue', 'react'), category: text, query: text, page: integer(1), pageSize: integer(1, 100) }, ['framework', 'category', 'query', 'page', 'pageSize']),
   componentsResponse: object({ items: array(object({ componentId: identifier, variants: array(object({ variantReleaseId: identifier, variantId: identifier, framework: choice('vue', 'react'), packageName: packageSchema.properties!.name!, packageVersion: packageSchema.properties!.version! }), 1) })), page: integer(1), pageSize: integer(1, 100), total: integer() }),

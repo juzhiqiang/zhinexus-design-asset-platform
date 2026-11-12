@@ -1,0 +1,66 @@
+{
+  "id": "report-line-react",
+  "toolVersion": "0.0.1",
+  "variantId": "line-react",
+  "packageSha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+  "exampleId": "example-line-react-default",
+  "environment": {
+    "os": "windows",
+    "arch": "x64",
+    "browserVersion": "158.0.8127.18",
+    "browserRevision": "1000",
+    "fontDigest": "d4ea6d776e83d1a0ac84dc137448cd911b570c0ee9f0179003e62323dfa49ae0",
+    "locale": "zh-CN",
+    "timezone": "Asia/Shanghai",
+    "deviceScaleFactor": 1,
+    "renderer": "canvas",
+    "width": 800,
+    "height": 400,
+    "theme": "light",
+    "frameworkVersion": "19.3.1",
+    "echartsVersion": "6.1.0"
+  },
+  "checks": [
+    {
+      "name": "single-instance",
+      "status": "passed"
+    },
+    {
+      "name": "no-page-error",
+      "status": "passed"
+    },
+    {
+      "name": "valid-dimensions",
+      "status": "passed"
+    },
+    {
+      "name": "fonts-ready",
+      "status": "passed"
+    },
+    {
+      "name": "series-rendered",
+      "status": "passed"
+    }
+  ],
+  "screenshots": [
+    {
+      "id": "shot-default-e765618c",
+      "variantId": "line-react",
+      "framework": "react",
+      "packageVersion": "0.0.2",
+      "exampleId": "example-line-react-default",
+      "state": "default",
+      "source": "local-automatic",
+      "image": {
+        "path": "screenshots/line-react-default.png",
+        "sha256": "e765618c98fbbe975489debb4426b4db4e001d655ff9a9c11722a8fec449f906",
+        "bytes": 13506
+      },
+      "packageSha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+      "environmentKey": "97c9cf055322458d64e4c37da6ff181be7d98514355ffbe09665340d03225c17",
+      "reportId": "report-line-react"
+    }
+  ],
+  "baselineResult": "NEW",
+  "createdAt": "2026-11-12T05:01:28.817Z"
+}

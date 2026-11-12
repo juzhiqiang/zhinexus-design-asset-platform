@@ -1,0 +1,25 @@
+{
+  "componentId": "bar",
+  "framework": "react",
+  "exportName": "BarChart",
+  "exportPath": "./bar",
+  "props": {
+    "data": {
+      "type": "ChartData",
+      "required": true
+    },
+    "config": {
+      "type": "BarChartConfig",
+      "required": false
+    },
+    "optionOverrides": {
+      "type": "EChartsOption",
+      "required": false
+    }
+  },
+  "events": {
+    "point-click": {
+      "payload": "ChartEvent"
+    }
+  }
+}

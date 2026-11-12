@@ -332,6 +332,10 @@ flowchart LR
 
 ### T05：身份、上传与产物校验（7–9 人日）
 
+2026-11-12 C 开始实施，见 [T05 执行计划](2026-11-12-t05-platform.md)。multipart 上传响应新增兼容可选计划字段，共享限制由 contracts 导出；错误码以已冻结的 SCREENSHOT_REQUIRED/SOURCE_FORBIDDEN 为准。暂无真实 OIDC，提供失败关闭的 JWT/JWKS 接入实现和真签名测试；外部登录验收保持开放。T06 worker 单独实施，本轮创建作业停留 PENDING。
+
+本轮本地身份/上传/登记/基线开发及真实 SDK 接入结果见 [T05 HTTP 验证](../../verification/t05-platform-http.md)。报告/截图引用按 Bundle 作用域建模，服务端生成全局候选 ID，GET 作业新增兼容可选 baselineCandidates 映射。T05 本地实现与外部身份验收分别记账；缺公司 OIDC 时完整 T05 保持开放。
+
 **Files:** 创建 `apps/api/src/auth/{oidc,roles}.ts`、`uploads/{routes,service,validator}.ts`、`releases/routes.ts`、`baselines/service.ts`、`catalog/repository.ts`；`apps/api/migrations/001_registry.sql`；`tests/integration/{auth,upload-validation,baseline-authorization}.test.ts`。
 
 **Interfaces:** 消费 T01 schema；实现第 2.3 节上传/发布创建/任务读取/基线接口。角色建议 reader、publisher、maintainer；publisher 仅操作被授权组件，maintainer 可更新基线/废弃。OIDC subject 统一；CLI Authorization Code + PKCE/本机回环，token 不进入报告或 URL 日志。
