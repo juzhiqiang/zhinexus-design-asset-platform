@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { validateApiMessage, type ApiMessages, type VariantRef, type PackageRef, type ArtifactRef } from '@company/contracts';
+import { validateApiMessage, type ApiMessages, type VariantRef, type PackageRef, type ArtifactRef, type CheckReportV1 } from '@company/contracts';
 import type { Database } from '../db/database.js';
 import type { ArtifactStore } from '../storage/artifact-store.js';
 import { PlatformError } from '../errors.js';
@@ -78,5 +78,11 @@ export class CatalogService {
     if (createHash('sha256').update(bytes).digest('hex') !== found.ref.sha256) throw new PlatformError('DIGEST_MISMATCH');
     await this.find(variantId, version, subject);
     return { bytes, mime: found.mime };
+  }
+  async reports(variantId: string, version: string, subject: string | null = null): Promise<ApiMessages['variantReportsResponse']> {
+    const row = await this.find(variantId, version, subject);
+    const reports = (await this.db.query<{ content: CheckReportV1 }>('SELECT content FROM check_reports WHERE job_id=$1 AND variant_id=$2 ORDER BY client_ref', [row.job_id, row.variant_id])).rows.map(r => r.content);
+    await this.find(variantId, version, subject);
+    return { variantReleaseId: row.id, reports };
   }
 }

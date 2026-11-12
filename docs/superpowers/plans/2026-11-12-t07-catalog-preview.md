@@ -35,6 +35,8 @@
 
 **Interfaces:** 消费既有 componentsQuery/componentsResponse/variantReleaseResponse。提供 `GET /v1/components`、`GET /v1/variants/:id/releases/:version`，及 `/v1/me/` 对应端点；材料路径为同详情路径加 `/artifacts?path=`。`CatalogService` 按精确发布记录取元数据。
 
+补充：检查记录通过同详情路径 `/reports` 和新增兼容 DTO `variantReportsResponse` 读取，只匹配当前 job/variant；`packages/contracts/src/preview.ts` 统一无环境依赖的域名配置校验。005_catalog 和 006_preview 分开迁移以保持任务边界。
+
 - [ ] 写 HTTP 失败测试：未公开/未 Ready 返回空；React 筛选、分页与文本/category 筛选正确；公共带 auth 不泄漏；私有角色/ACL/停用用户拒绝；材料不能跨版本或执行 HTML。
 - [ ] 运行 `scripts/pnpm.ps1 test:platform tests/platform/catalog.test.ts`，确认预期失败。
 - [ ] 实现迁移、查询、状态投影与材料白名单读取；使用当前 baseline head 和当前 outbox，不推断验证通过。

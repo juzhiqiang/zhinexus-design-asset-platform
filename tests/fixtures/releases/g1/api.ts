@@ -16,6 +16,7 @@ export function makeApiFixtures(): Record<string, unknown> {
     componentsQuery: { framework: 'react', query: 'line', page: 1, pageSize: 20 },
     componentsResponse: { items: [{ componentId: 'line', variants: [{ variantReleaseId: 'release-synthetic', variantId: 'line-react', framework: 'react', packageName: '@company/charts-react', packageVersion: '0.0.1' }] }], page: 1, pageSize: 20, total: 1 },
     variantReleaseResponse: { variantReleaseId: 'release-synthetic', variant: manifest.variants[2], package: manifest.packages[1], availability: 'Ready', reportSource: 'manual-upload', baselineStatus: 'unconfirmed', indexStatus: 'pending' },
+    variantReportsResponse: { variantReleaseId: 'release-synthetic', reports: Object.values(makeFixture('cli').reports).slice(0, 1) },
     createBaselineRequest: { variantId: 'line-react', exampleId: 'example-line-react', environmentKey: 'a'.repeat(64), screenshotId: 'screenshot-line-react', reason: 'Synthetic baseline review', expectedRevision: 'revision-1' },
     createBaselineResponse: { revisionId: 'revision-2' },
     deprecateRequest: { reason: 'Synthetic deprecation reason' },

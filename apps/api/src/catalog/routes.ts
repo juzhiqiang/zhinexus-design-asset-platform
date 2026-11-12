@@ -33,4 +33,8 @@ export class CatalogController {
     res.setHeader('Referrer-Policy', 'no-referrer');
     res.send(Buffer.from(result.bytes));
   }
+  @Get(['variants/:id/releases/:version/reports', 'me/variants/:id/releases/:version/reports'])
+  reports(@Param('id') id: string, @Param('version') version: string, @Headers('authorization') auth: string | undefined, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    return this.run(auth, req, res, (service, subject) => service.reports(id, version, subject));
+  }
 }
