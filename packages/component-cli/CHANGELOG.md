@@ -2,6 +2,14 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.3] - 2026-11-12
+
+### Added
+
+- `component prepare-release` 与 `component release --prepare-only` 命令：支持 `--bundle-dir`、`--framework vue|react|all` 与 `--timeout`，自动化完成全流程发布材料准备与冻结 Bundle 产物生成（T04）。
+- 发布材料生成与完整文件清单组织 (`prepareReleaseBundle`)：覆盖折线（LineChart）与柱状（BarChart）双组件及其双框架实现（共 4 个变体），生成并冻结 3 个 npm 包候选 tarball、真实截图、NEW 基线报告、API 元数据、组件说明文档与隔离静态预览入口；自动组装无冗余的 `ReleaseManifestV1` 与完整文件清单（T04）。
+- Bundle 磁盘读取与契约全量自检 (`loadReleaseBundle`, `verifyReleaseBundle`)：基于不可变字节映射（`filesMap`）严格执行 `validateReleaseBundle`，对缺图（`SCREENSHOT_REQUIRED`）、错配框架（`SCREENSHOT_VARIANT_MISMATCH`）、产物篡改（`DIGEST_MISMATCH`）、清单外未登记文件（`UNEXPECTED_FILE`）及清单内文件丢失（`FILE_REQUIRED`）强制阻断（T04）。
+
 ## [0.0.2] - 2026-11-12
 
 ### Added
