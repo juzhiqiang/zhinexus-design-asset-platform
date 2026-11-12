@@ -20,6 +20,10 @@
       "types": "./dist/line.d.ts",
       "import": "./dist/line.js"
     },
+    "./bar": {
+      "types": "./dist/bar.d.ts",
+      "import": "./dist/bar.js"
+    },
     "./style.css": "./dist/style.css"
   },
   "types": "./dist/index.d.ts",
