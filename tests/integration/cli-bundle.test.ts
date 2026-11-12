@@ -14,13 +14,13 @@ import { validatePlatformBundle } from '../../apps/api/src/uploads/validator.js'
 
 describe('T04: prepare release bundle and end-to-end frozen materials verification', () => {
   it(
-    'generates a real, frozen release bundle covering line, bar, pie and scatter in vue and react, with real static previews',
+    'generates a real, frozen release bundle covering line, bar, pie, scatter and trend-card in vue and react, with real static previews',
     async () => {
       const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-release-bundle-'));
       try {
         const result = await prepareReleaseBundle({
           bundleDir,
-          components: ['line', 'bar', 'pie', 'scatter'],
+          components: ['line', 'bar', 'pie', 'scatter', 'trend-card'],
           frameworks: ['vue', 'react'],
           timeoutMs: 40_000,
         });
@@ -56,9 +56,11 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
             'pie-react',
             'scatter-vue',
             'scatter-react',
+            'trend-card-vue',
+            'trend-card-react',
           ]),
         );
-        expect(result.manifest.variants.length).toBe(8);
+        expect(result.manifest.variants.length).toBe(10);
 
         for (const variant of result.manifest.variants) {
           // 必需状态 default 必须有自动截图证据
@@ -107,7 +109,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
         }
 
         // 3. 验证完整报告清单
-        expect(result.manifest.reports.length).toBe(8);
+        expect(result.manifest.reports.length).toBe(10);
         for (const repRef of result.manifest.reports) {
           const repDiskPath = path.join(bundleDir, repRef.path);
           expect(fs.existsSync(repDiskPath)).toBe(true);
