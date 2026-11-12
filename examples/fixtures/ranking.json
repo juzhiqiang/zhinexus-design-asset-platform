@@ -1,0 +1,101 @@
+{
+  "component": "ranking",
+  "description": "双框架示例共用确定性数据与状态定义；examples/vue 与 examples/react 必须保持完全一致，截图与点击载荷才能等价。points[].x 为条目名称、points[].y 为数值；默认按数值降序排列，并列项共享名次（竞赛排名 1,2,2,4）且保持输入顺序，缺失值（null）不进入排行。limit 固定在示例 config 以覆盖「取前 N 名」路径，状态只改数据以保证空状态经 update 到达、不重建控制器。多状态覆盖空数据、缺失值、单条目、更新与并列变化。",
+  "limit": 5,
+  "states": {
+    "default": {
+      "data": {
+        "series": [
+          {
+            "id": "hot",
+            "name": "热度",
+            "points": [
+              { "x": "折线图", "y": 120 },
+              { "x": "柱状图", "y": 180 },
+              { "x": "饼图", "y": 180 },
+              { "x": "散点图", "y": 90 },
+              { "x": "趋势卡片", "y": 60 },
+              { "x": "排行榜", "y": 30 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["hot"]
+    },
+    "empty": {
+      "data": { "series": [] },
+      "expectedSeriesIds": []
+    },
+    "missing": {
+      "data": {
+        "series": [
+          {
+            "id": "hot",
+            "name": "热度",
+            "points": [
+              { "x": "折线图", "y": 120 },
+              { "x": "柱状图", "y": null },
+              { "x": "饼图", "y": 180 },
+              { "x": "散点图", "y": 90 },
+              { "x": "趋势卡片", "y": 60 },
+              { "x": "排行榜", "y": 30 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["hot"]
+    },
+    "single": {
+      "data": {
+        "series": [
+          {
+            "id": "hot",
+            "name": "热度",
+            "points": [
+              { "x": "折线图", "y": 200 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["hot"]
+    },
+    "updated": {
+      "data": {
+        "series": [
+          {
+            "id": "hot",
+            "name": "热度",
+            "points": [
+              { "x": "折线图", "y": 210 },
+              { "x": "柱状图", "y": 190 },
+              { "x": "饼图", "y": 230 },
+              { "x": "散点图", "y": 240 },
+              { "x": "趋势卡片", "y": 250 },
+              { "x": "排行榜", "y": 260 },
+              { "x": "占比", "y": 270 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["hot"]
+    },
+    "tied": {
+      "data": {
+        "series": [
+          {
+            "id": "hot",
+            "name": "热度",
+            "points": [
+              { "x": "折线图", "y": 150 },
+              { "x": "柱状图", "y": 150 },
+              { "x": "饼图", "y": 150 },
+              { "x": "散点图", "y": 90 },
+              { "x": "趋势卡片", "y": 60 }
+            ]
+          }
+        ]
+      },
+      "expectedSeriesIds": ["hot"]
+    }
+  }
+}

@@ -206,7 +206,16 @@ describe('工作区外消费者安装', () => {
         await readFile(path.join(dir, 'node_modules', '@company/charts-core', 'package.json'), 'utf8'),
       ) as { version: string };
       expect(core.version).toBe(await packageVersion('charts-core'));
-      for (const entry of ['dist/line.js', 'dist/style.css', 'dist/index.js', 'dist/pie.js', 'dist/scatter.js', 'dist/trend-card.js']) {
+      for (const entry of [
+        'dist/line.js',
+        'dist/style.css',
+        'dist/index.js',
+        'dist/pie.js',
+        'dist/scatter.js',
+        'dist/trend-card.js',
+        'dist/ranking.js',
+        'dist/proportion.js',
+      ]) {
         expect(existsSync(path.join(dir, 'node_modules', `@company/charts-${framework}`, entry)), `${framework} ${entry}`).toBe(true);
       }
     }
@@ -228,6 +237,8 @@ describe('工作区外消费者安装', () => {
           `const pie = await import('@company/charts-${framework}/pie');`,
           `const scatter = await import('@company/charts-${framework}/scatter');`,
           `const trendCard = await import('@company/charts-${framework}/trend-card');`,
+          `const ranking = await import('@company/charts-${framework}/ranking');`,
+          `const proportion = await import('@company/charts-${framework}/proportion');`,
           `const entryUrl = new URL(import.meta.resolve('@company/charts-${framework}'));`,
           `const entryDir = path.dirname(fileURLToPath(entryUrl));`,
           `if (!existsSync(path.join(entryDir, 'style.css'))) throw new Error('missing dist/style.css');`,
@@ -243,6 +254,10 @@ describe('工作区外消费者安装', () => {
           `if (typeof scatter.useChart !== 'function') throw new Error('missing useChart export from ./scatter');`,
           `if (typeof trendCard.TrendCard === 'undefined') throw new Error('missing ./trend-card entry');`,
           `if (typeof trendCard.useChart !== 'function') throw new Error('missing useChart export from ./trend-card');`,
+          `if (typeof ranking.Ranking === 'undefined') throw new Error('missing ./ranking entry');`,
+          `if (typeof ranking.useChart !== 'function') throw new Error('missing useChart export from ./ranking');`,
+          `if (typeof proportion.Proportion === 'undefined') throw new Error('missing ./proportion entry');`,
+          `if (typeof proportion.useChart !== 'function') throw new Error('missing useChart export from ./proportion');`,
           `console.log(JSON.stringify({ windowDefined: typeof window !== 'undefined', documentDefined: typeof document !== 'undefined' }));`,
         ].join('\n'),
       );
@@ -309,14 +324,22 @@ describe('消费者类型检查', () => {
 });
 
 describe('消费者构建与真实渲染', () => {
-  it('构建通过，line/bar/pie/scatter 产物不含其他图表模块与跨包源码路径', async () => {
+  it('构建通过，line/bar/pie/scatter/trend-card/ranking/proportion 产物不含其他图表模块与跨包源码路径', async () => {
     for (const framework of ['vue', 'react'] as const) {
       const dir = consumers.get(framework)!;
       const result = run('npm', ['run', 'build'], dir, true);
       expect(result.status, `${framework} 构建失败:\n${result.stdout}\n${result.stderr}`).toBe(0);
       const distDir = path.join(dir, 'dist');
-      // 多页入口：line / bar / pie / scatter / trend-card 五个页面都必须构建成功（各子路径可解析）
-      for (const entry of ['index.html', 'bar.html', 'pie.html', 'scatter.html', 'trend-card.html']) {
+      // 多页入口：折线 / 柱状 / 饼图 / 散点 / 趋势卡片 / 排行榜 / 占比 七个页面都必须构建成功（各子路径可解析）
+      for (const entry of [
+        'index.html',
+        'bar.html',
+        'pie.html',
+        'scatter.html',
+        'trend-card.html',
+        'ranking.html',
+        'proportion.html',
+      ]) {
         expect(existsSync(path.join(distDir, entry)), `${framework} ${entry}`).toBe(true);
       }
       const assetsDir = path.join(distDir, 'assets');
@@ -368,12 +391,15 @@ describe('消费者构建与真实渲染', () => {
             // 折线图点击数据点符号本身；柱状图需落在柱体内部（顶边向下偏移）；
             // 饼图 / 环形图取扇形几何中心，落在扇形内部；
             // 散点图按 [x, y] 数值对换算符号中心，无需偏移；
-            // 趋势卡片 sparkline 为类目轴折线系列，按类目取 x，无需偏移
-            { path: 'index.html', host: '.charts-line', offsetY: 0 },
-            { path: 'bar.html', host: '.charts-bar', offsetY: 8 },
-            { path: 'pie.html', host: '.charts-pie', offsetY: 0 },
-            { path: 'scatter.html', host: '.charts-scatter', offsetY: 0 },
-            { path: 'trend-card.html', host: '.charts-trend-card', offsetY: 0 },
+            // 趋势卡片 sparkline 为类目轴折线系列，按类目取 x，无需偏移；
+            // 排行榜与占比是横向条形（x 数值轴 / y 类目轴），落在条形末端后需向左偏移进入条体
+            { path: 'index.html', host: '.charts-line', offsetY: 0, offsetX: 0 },
+            { path: 'bar.html', host: '.charts-bar', offsetY: 8, offsetX: 0 },
+            { path: 'pie.html', host: '.charts-pie', offsetY: 0, offsetX: 0 },
+            { path: 'scatter.html', host: '.charts-scatter', offsetY: 0, offsetX: 0 },
+            { path: 'trend-card.html', host: '.charts-trend-card', offsetY: 0, offsetX: 0 },
+            { path: 'ranking.html', host: '.charts-ranking', offsetY: 0, offsetX: -8 },
+            { path: 'proportion.html', host: '.charts-proportion', offsetY: 0, offsetX: -8 },
           ];
           for (const entry of entries) {
             await page.goto(`http://127.0.0.1:${port}/${entry.path}`);
@@ -385,11 +411,12 @@ describe('消费者构建与真实渲染', () => {
               window.__CONSUMER_TEST__!.pointClientPosition(0, 0),
             );
             expect(position, `${framework} ${entry.path} 数据点坐标`).not.toBeNull();
-            await page.mouse.click(position!.x, position!.y + entry.offsetY);
+            await page.mouse.click(position!.x + entry.offsetX, position!.y + entry.offsetY);
             const clicks = await page.evaluate(() => window.__CONSUMER_TEST__!.getClicks());
             // 折线与柱状共用「收入 / 周一 / 120」，饼图为「占比 / 搜索 / 120」，
-            // 散点图为「收入 / (1, 120)」，趋势卡片为「活跃用户 / 周一 / 120」：
-            // 五个入口的点击载荷都必须与 core 的共享语义一致
+            // 散点图为「收入 / (1, 120)」，趋势卡片为「活跃用户 / 周一 / 120」，
+            // 排行榜与占比为「热度 / 柱状图 / 180」「来源 / 搜索 / 120」：
+            // 七个入口的点击载荷都必须与 core 的共享语义一致
             const expected =
               entry.path === 'pie.html'
                 ? [{ seriesId: 'share', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' }]
@@ -397,7 +424,11 @@ describe('消费者构建与真实渲染', () => {
                   ? [{ seriesId: 'revenue', dataIndex: 0, value: [1, 120], nativeType: 'click' }]
                   : entry.path === 'trend-card.html'
                     ? [{ seriesId: 'active', dataIndex: 0, value: ['周一', 120], nativeType: 'click' }]
-                    : [{ seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' }];
+                    : entry.path === 'ranking.html'
+                      ? [{ seriesId: 'hot', dataIndex: 0, value: ['柱状图', 180], nativeType: 'click' }]
+                      : entry.path === 'proportion.html'
+                        ? [{ seriesId: 'source', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' }]
+                        : [{ seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' }];
             expect(clicks, `${framework} ${entry.path}`).toEqual(expected);
             expect(await page.locator(`${entry.host} canvas`).count(), framework).toBe(1);
           }

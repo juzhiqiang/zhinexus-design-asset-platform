@@ -2,6 +2,19 @@
 
 本文件记录 `@company/charts-react` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.6] - 2026-11-13
+
+### Added
+
+- `Ranking` 排行榜组件（TSX）：`data` / `config` / `optionOverrides` / `onPointClick` / `className` / `style` 属性与 `ref` 句柄，载荷为 `[条目名称, 数值]` 且与 Vue 实现对等（T09 第五批）。
+- `Proportion` 占比组件（TSX）：`data` / `config` / `optionOverrides` / `onPointClick` / `className` / `style` 属性与 `ref` 句柄，载荷为 `[条目名称, 数值]` 且与 Vue 实现对等（T09 第五批）。
+- `./ranking` 与 `./proportion` 子路径入口（按需加载）与 `.charts-ranking` / `.charts-proportion` 容器基础样式。
+- `sameRankingConfig` / `sameProportionConfig` 配置等价判断；自 `@company/charts-core` 重新导出 `RankingChartConfig` / `RankingEntry` / `RankingDirection` / `ProportionChartConfig` / `ProportionShare` 共享类型。
+
+### Changed
+
+- `useChart` 的 `chart` 参数接受 `'ranking'` 与 `'proportion'`；`LineChart` / `BarChart` / `PieChart` / `ScatterChart` / `TrendCard`、既有子路径与既有导出行为不变。
+
 ## [0.0.5] - 2026-11-12
 
 ### Added

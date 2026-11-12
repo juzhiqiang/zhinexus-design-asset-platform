@@ -109,3 +109,27 @@
 - Windows 原生复验清单：[柱状图](t09-bar-windows-native.md)、[散点图](t09-scatter-windows-native.md)、[趋势卡片](t09-trend-card-windows-native.md)。均由 A 侧整理为可执行清单与回填模板，需用户在 Windows 开发机执行后回填；A 侧不声称 Windows 原生验证已通过。
 - 后续批次：`ranking`（需明确排序方向与并列处理）与 `proportion`（总量为零显示「暂无数据」、不输出 NaN，且不在组件内猜业务指标口径）按同一模式扩展：core 增加场景入口与模块注册、框架包增加组件与子路径、fixtures 与示例同步、消费者与矩阵测试补充。
 - 已知遗留：`README.md` 的 SDK 段落自 G0 / T02 起已过期，建议由 C 在 T09 收口时统一刷新。
+
+---
+
+## 10. T09 第五批补充：ranking 与 proportion（2026-11-13）
+
+> 本节是 2026-11-13 的批次补充，不改写上文各节的历史记录。上文表格中的「当前」计数以趋势卡片批次为准，本批之后的最新状态见本节与 [T09 第五批验证记录](t09-ranking-proportion.md)。
+
+本批补齐 T09 计划中最后两个组合场景，7 个逻辑组件、14 个框架实现全部齐套：
+
+| 逻辑 componentId | Vue 实现 | React 实现 | 包版本 | 状态 |
+| --- | --- | --- | --- | --- |
+| `line` / `bar` / `pie` / `scatter` / `trend-card` | 见上文第 1 节 | 见上文第 1 节 | 0.0.6 | 已合入 main |
+| `ranking` | `RankingChart.vue` | `RankingChart.tsx` | 0.0.6 | T09 第五批 |
+| `proportion` | `ProportionChart.vue` | `ProportionChart.tsx` | 0.0.6 | T09 第五批 |
+
+- 组件文件名是 `RankingChart.*` / `ProportionChart.*` 而不是 `Ranking.*` / `Proportion.*`：入口文件 `ranking.ts` / `proportion.ts` 与 `Ranking.tsx` 的产物名在大小写不敏感文件系统（Windows NTFS）上会碰撞，TypeScript 直接报 `TS5056`。导出名仍为 `Ranking` / `Proportion`，与 componentId 一致。
+- 两个场景都是**单系列横向条形 + graphic 数值摘要**：`ensureChartModules` 注册 `BarChart` + 网格 / 提示 / `Graphic`（单系列不注册图例）。
+- 排序方向与并列规则、占比口径、单系列与名称唯一性守卫、graphic 槽位纪律，见 [T09 第五批对齐件](../superpowers/specs/2026-11-13-sdk-ranking-proportion-protocol.md)。
+- fixtures：`ranking.json`（`default` / `empty` / `missing` / `single` / `updated` / `tied`，`limit` 固定 5）、`proportion.json`（`default` / `empty` / `zero-total` / `missing` / `single` / `updated`）。示例页与消费者页各新增 `ranking.html` / `proportion.html`，vite `rollupOptions.input` 登记全部七个入口。
+- 计数更新：单元 `chart-semantics.test.ts` 68 → 105 passed；浏览器 `component-matrix.spec.ts` 86 → 117 passed（全量 `test:browser`）；`packed-consumer-frameworks.test.ts` 仍为 9 项但覆盖扩展到 7 组件 14 实现；`cli-bundle` 覆盖 10 → 14 变体。
+- **写 fixture 的新约束**：占比的 `zero-total` 与 `empty` 渲染结果完全相同（都无系列、都显示「暂无数据」），系列快照不变化会让示例就绪探针 `arm()` 超时，这两个状态必须各自从 `default` 单独进入。
+- Windows 原生复验清单：[排行榜与占比](t09-ranking-proportion-windows-native.md)。
+- B 侧材料缺口已由 A 侧代 B 同批补齐（`manifest.ts` 两张查表与默认 `components`、`capture.ts` 选择器、三处测试清单），B 可复核；这是 T09 第二批以来第三次因新增子路径而需要同步扩展 `component-cli`。
+- 已知遗留（仍未处理）：`README.md` 的 SDK 段落自 G0 / T02 起已过期，建议由 C 在 T09 收口时统一刷新。

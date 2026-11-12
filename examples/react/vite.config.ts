@@ -11,6 +11,8 @@ export default defineConfig({
         pie: 'pie.html',
         scatter: 'scatter.html',
         'trend-card': 'trend-card.html',
+        ranking: 'ranking.html',
+        proportion: 'proportion.html',
       },
     },
   },

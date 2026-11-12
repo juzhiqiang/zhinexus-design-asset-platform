@@ -26,7 +26,14 @@ export type ThemeName = 'light' | 'dark';
  * 图表类型联合（T09 起按图表扩展）：决定 option 构建与按需模块注册。
  * 控制器与框架层按该联合分发，不引入 `any` 或任意对象配置。
  */
-export type ChartType = 'line' | 'bar' | 'pie' | 'scatter' | 'trend-card';
+export type ChartType =
+  | 'line'
+  | 'bar'
+  | 'pie'
+  | 'scatter'
+  | 'trend-card'
+  | 'ranking'
+  | 'proportion';
 
 /** 单个数据点。y 为 null 表示缺失值，共享核心禁止将其转换为 0。 */
 export type ChartPoint = { x: string | number; y: number | null };
@@ -94,7 +101,9 @@ export type AnyChartConfig =
   | BarChartConfig
   | PieChartConfig
   | ScatterChartConfig
-  | TrendCardConfig;
+  | TrendCardConfig
+  | RankingChartConfig
+  | ProportionChartConfig;
 
 /**
  * 饼图 / 环形图配置：基础配置 + 饼图特有语义。
@@ -193,6 +202,81 @@ export type ScatterChartOption = ComposeOption<ScatterSeriesOption | ChartCompon
  */
 export type TrendCardOption = ComposeOption<
   LineSeriesOption | ChartComponentOption | GraphicComponentOption
+>;
+
+/** 排行榜排序方向：`desc` 数值大者在前（缺省），`asc` 反向。 */
+export type RankingDirection = 'desc' | 'asc';
+
+/**
+ * 排行榜配置（T09 第五批组合场景）：基础配置 + 排行榜特有语义。
+ * `points[].x` 为条目名称，`points[].y` 为数值；只接受单系列。
+ */
+export type RankingChartConfig = ChartConfig & {
+  /** 图表类型标识：必填判别字段，排行榜不接受其他图表专属配置。 */
+  chart: 'ranking';
+  /** 排序方向；缺省 `desc`（数值大者在前）。 */
+  direction?: RankingDirection;
+  /** 取前 N 名；仅正整数生效，其余取值不截断。名次在截断前计算。 */
+  limit?: number;
+  /** 榜单标题（如「热门组件 Top 5」）；缺省不显示标题。 */
+  title?: string;
+};
+
+/**
+ * 排行榜条目：名次 + 名称 + 数值 + 输入序号。
+ * 由 `computeRanking` 纯函数计算，供 option 构建与调用方断言共用。
+ */
+export type RankingEntry = {
+  /** 名次：1 起；并列项共享名次（竞赛排名 1,2,2,4）。 */
+  rank: number;
+  /** 条目名称（原始 `points[].x`）。 */
+  name: string | number;
+  /** 条目数值；缺失值（null）不进入排行。 */
+  value: number;
+  /** 该条目在输入中的原始序号，用于并列时保持稳定顺序。 */
+  sourceIndex: number;
+};
+
+/**
+ * 占比配置（T09 第五批组合场景）：基础配置 + 占比特有语义。
+ * `points[].x` 为条目名称，`points[].y` 为数值；只接受单系列。
+ */
+export type ProportionChartConfig = ChartConfig & {
+  /** 图表类型标识：必填判别字段，占比不接受其他图表专属配置。 */
+  chart: 'proportion';
+  /** 图表标题（如「流量来源占比」）；缺省不显示标题。 */
+  title?: string;
+};
+
+/**
+ * 占比条目：名称 + 数值 + 占总量的比例 + 输入序号。
+ * 由 `computeProportionShares` 纯函数计算，供 option 构建与调用方断言共用。
+ */
+export type ProportionShare = {
+  /** 条目名称（原始 `points[].x`）。 */
+  name: string | number;
+  /** 条目数值；缺失值（null）不参与占比。 */
+  value: number | null;
+  /** 占总量的比例（0–1）；总量不可算（`total <= 0`）时为 null。 */
+  share: number | null;
+  /** 该条目在输入中的原始序号，便于调用方回查。 */
+  sourceIndex: number;
+};
+
+/**
+ * 排行榜 option 类型：横向条形系列 + 坐标轴类组件 + graphic 摘要（名次在类目轴标签上）。
+ * graphic 由数据驱动，不通过 optionOverrides 覆盖。
+ */
+export type RankingChartOption = ComposeOption<
+  BarSeriesOption | ChartComponentOption | GraphicComponentOption
+>;
+
+/**
+ * 占比 option 类型：横向条形系列 + 坐标轴类组件 + graphic 摘要（数值与百分比在条末标签上）。
+ * graphic 由数据驱动，不通过 optionOverrides 覆盖。
+ */
+export type ProportionChartOption = ComposeOption<
+  BarSeriesOption | ChartComponentOption | GraphicComponentOption
 >;
 
 /**

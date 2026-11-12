@@ -3,11 +3,15 @@ export { default as BarChart } from './BarChart.vue';
 export { default as PieChart } from './PieChart.vue';
 export { default as ScatterChart } from './ScatterChart.vue';
 export { default as TrendCard } from './TrendCard.vue';
+export { default as Ranking } from './RankingChart.vue';
+export { default as Proportion } from './ProportionChart.vue';
 export {
   sameBarConfig,
   sameChartConfig,
   sameLineConfig,
   samePieConfig,
+  sameProportionConfig,
+  sameRankingConfig,
   sameScatterConfig,
   sameTrendCardConfig,
   useChart,
@@ -16,6 +20,8 @@ export type { UseChartOptions, UseChartResult } from './useChart.js';
 export type { BarChartEmits, BarChartHandle, BarChartProps } from './bar-chart.types.js';
 export type { LineChartEmits, LineChartHandle, LineChartProps } from './line-chart.types.js';
 export type { PieChartEmits, PieChartHandle, PieChartProps } from './pie-chart.types.js';
+export type { ProportionEmits, ProportionHandle, ProportionProps } from './proportion-chart.types.js';
+export type { RankingEmits, RankingHandle, RankingProps } from './ranking-chart.types.js';
 export type { ScatterChartEmits, ScatterChartHandle, ScatterChartProps } from './scatter-chart.types.js';
 export type { TrendCardEmits, TrendCardHandle, TrendCardProps } from './trend-card-chart.types.js';
 export type {
@@ -30,6 +36,13 @@ export type {
   LineChartConfig,
   PieChartConfig,
   PointClickListener,
+  ProportionChartConfig,
+  ProportionChartOption,
+  ProportionShare,
+  RankingChartConfig,
+  RankingChartOption,
+  RankingDirection,
+  RankingEntry,
   Renderer,
   ScatterChartConfig,
   SupportedOptionOverrides,

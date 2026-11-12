@@ -35,6 +35,11 @@ export type ExampleTestHook = {
    * ignore 的槽位返回 null——用于断言状态切换不残留上一次的数值摘要。
    */
   summarySlots(): (string | null)[];
+  /**
+   * 类目轴标签文本（已应用 axisLabel.formatter）。排行榜把名次写进类目轴标签，
+   * 用它在浏览器层断言「1,2,2,4」竞赛排名，而不是只断言数据顺序。
+   */
+  categoryLabels(): string[];
 };
 
 export type ExampleRuntimeOptions = {
@@ -153,6 +158,38 @@ function seriesRadius(selector: string, seriesIndex: number): [string, string] |
   return null;
 }
 
+/** 单个坐标轴组件（option 中坐标轴为数组，缺省无坐标轴如饼图）。 */
+function axisOf(
+  instance: NonNullable<ReturnType<typeof chartInstance>>,
+  name: 'xAxis' | 'yAxis',
+): { type?: string; data?: unknown[]; axisLabel?: { formatter?: unknown } } | undefined {
+  const axis = (instance.getOption() as Record<string, unknown>)[name];
+  return Array.isArray(axis)
+    ? (axis[0] as { type?: string; data?: unknown[]; axisLabel?: { formatter?: unknown } })
+    : undefined;
+}
+
+/** 横向条形判别：x 轴为数值轴且 y 轴为类目轴（排行榜 / 占比）。 */
+function isHorizontalBars(instance: NonNullable<ReturnType<typeof chartInstance>>): boolean {
+  return axisOf(instance, 'xAxis')?.type === 'value' && axisOf(instance, 'yAxis')?.type === 'category';
+}
+
+/**
+ * 类目轴标签文本：优先应用 axisLabel.formatter（排行榜在这里拼名次），
+ * 没有 formatter（如占比）时返回原始类目名。无坐标轴返回空数组。
+ */
+function categoryLabels(selector: string): string[] {
+  const instance = chartInstance(selector);
+  const axis = instance ? axisOf(instance, 'yAxis') : undefined;
+  const data = axis?.data ?? [];
+  const formatter = axis?.axisLabel?.formatter;
+  return data.map((value, index) =>
+    typeof formatter === 'function'
+      ? String((formatter as (value: unknown, index: number) => unknown)(value, index))
+      : String(value),
+  );
+}
+
 function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
@@ -257,13 +294,22 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
       if (value === null) {
         return null;
       }
-      // 直角坐标系图表（折线 / 柱状 / 散点）：按类目或数值换算像素
-      const categories =
-        (instance.getOption().xAxis as { data?: unknown[] }[] | undefined)?.[0]?.data ?? [];
+      // 直角坐标系图表（折线 / 柱状 / 散点）按坐标轴换算像素；
+      // 横向条形（排行榜 / 占比）x 轴为数值轴、y 轴为类目轴，两个方向的来源与纵向相反
+      const horizontal = isHorizontalBars(instance);
+      const xAxis = axisOf(instance, 'xAxis');
+      const yAxis = axisOf(instance, 'yAxis');
       // 散点图数据项自带 x 坐标（[x, y]）；折线 / 柱状按类目轴取 x
-      const xSource = Array.isArray(item) ? item[0] : categories[dataIndex];
-      const x = instance.convertToPixel({ xAxisIndex: 0 }, xSource as number);
-      const y = instance.convertToPixel({ yAxisIndex: 0 }, value);
+      const xSource = Array.isArray(item) ? item[0] : xAxis?.data?.[dataIndex];
+      const ySource = yAxis?.data?.[dataIndex];
+      const x = instance.convertToPixel(
+        { xAxisIndex: 0 },
+        (horizontal ? value : xSource) as number,
+      );
+      const y = instance.convertToPixel(
+        { yAxisIndex: 0 },
+        (horizontal ? ySource : value) as number,
+      );
       const rect = host.getBoundingClientRect();
       if (
         typeof x === 'number' &&
@@ -282,6 +328,7 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
     seriesData: () => seriesData(hostSelector),
     seriesRadius: (seriesIndex: number) => seriesRadius(hostSelector, seriesIndex),
     summarySlots: () => summarySlots(hostSelector),
+    categoryLabels: () => categoryLabels(hostSelector),
     sectorRadii: (seriesIndex: number, dataIndex: number) => {
       const instance = chartInstance(hostSelector);
       if (!instance) {

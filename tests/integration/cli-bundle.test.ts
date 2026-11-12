@@ -37,13 +37,21 @@ function javaScriptSubpaths(packageDir: string): string[] {
 
 describe('T04: prepare release bundle and end-to-end frozen materials verification', () => {
   it(
-    'generates a real, frozen release bundle covering line, bar, pie, scatter and trend-card in vue and react, with real static previews',
+    'generates a real, frozen release bundle covering line, bar, pie, scatter, trend-card, ranking and proportion in vue and react, with real static previews',
     async () => {
       const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-release-bundle-'));
       try {
         const result = await prepareReleaseBundle({
           bundleDir,
-          components: ['line', 'bar', 'pie', 'scatter', 'trend-card'],
+          components: [
+            'line',
+            'bar',
+            'pie',
+            'scatter',
+            'trend-card',
+            'ranking',
+            'proportion',
+          ],
           frameworks: ['vue', 'react'],
           timeoutMs: 40_000,
         });
@@ -67,7 +75,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
           expect(fs.statSync(tarballDiskPath).size).toBe(pkg.tarball.bytes);
         }
 
-        // 2. 验证变体覆盖：共 8 个变体（line/bar/pie/scatter × vue/react）
+        // 2. 验证变体覆盖：共 14 个变体（7 组件 × vue/react）
         const variantIds = result.manifest.variants.map((v) => v.variantId);
         expect(variantIds).toEqual(
           expect.arrayContaining([
@@ -81,9 +89,13 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
             'scatter-react',
             'trend-card-vue',
             'trend-card-react',
+            'ranking-vue',
+            'ranking-react',
+            'proportion-vue',
+            'proportion-react',
           ]),
         );
-        expect(result.manifest.variants.length).toBe(10);
+        expect(result.manifest.variants.length).toBe(14);
 
         // 回归护栏：平台校验要求「运行时包导出的每个 JS 子路径都有对应变体」
         // （见 apps/api/src/uploads/validator.ts 的 ARTIFACT_MISMATCH 规则）。
@@ -147,7 +159,7 @@ describe('T04: prepare release bundle and end-to-end frozen materials verificati
         }
 
         // 3. 验证完整报告清单
-        expect(result.manifest.reports.length).toBe(10);
+        expect(result.manifest.reports.length).toBe(14);
         for (const repRef of result.manifest.reports) {
           const repDiskPath = path.join(bundleDir, repRef.path);
           expect(fs.existsSync(repDiskPath)).toBe(true);

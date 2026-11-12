@@ -68,7 +68,7 @@ export async function platformHarness(overrides: Record<string, unknown> = {}) {
 }
 type Harness = Awaited<ReturnType<typeof platformHarness>>;
 export async function grant(h: Harness, subject = 'alice', maintain = false) {
-  for (const id of ['line', 'bar', 'pie', 'scatter', 'trend-card']) {
+  for (const id of ['line', 'bar', 'pie', 'scatter', 'trend-card', 'ranking', 'proportion']) {
     await h.db.query('INSERT INTO components(id) VALUES ($1) ON CONFLICT DO NOTHING', [id]);
     await h.db.query('INSERT INTO component_permissions(subject,component_id,can_publish,can_maintain) VALUES ($1,$2,true,$3) ON CONFLICT(subject,component_id) DO UPDATE SET can_maintain=$3', [subject, id, maintain]);
   }

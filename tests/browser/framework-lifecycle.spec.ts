@@ -20,6 +20,8 @@ type ExampleTestHook = {
   sectorRadii(seriesIndex: number, dataIndex: number): { inner: number; outer: number } | null;
   /** 趋势卡片数值摘要槽位文本（[标题, 当前值, meta]）；ignore 槽位为 null。 */
   summarySlots(): (string | null)[];
+  /** 类目轴标签文本（已应用 axisLabel.formatter）：断言排行榜名次标签。 */
+  categoryLabels(): string[];
 };
 
 declare global {
