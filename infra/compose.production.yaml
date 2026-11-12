@@ -1,0 +1,100 @@
+# Preparation template. Supply reviewed immutable service images and private environment/secrets.
+# TLS ingress joins the external edge network; no raw service/storage ports are published here.
+name: zhinexus-platform
+x-service: &service
+  restart: unless-stopped
+  read_only: true
+  init: true
+  user: '1000:1000'
+  tmpfs: ['/tmp:size=64m']
+  cap_drop: [ALL]
+  security_opt: ['no-new-privileges:true']
+  networks: [backend, edge, egress]
+  logging: {driver: json-file, options: {max-size: '10m', max-file: '5'}}
+x-api-env: &api-env
+  PLATFORM_BIND_HOST: '0.0.0.0'
+  PLATFORM_DATABASE_URL: ${PLATFORM_DATABASE_URL:?Inject the API database credential}
+  PLATFORM_S3_ENDPOINT: ${PLATFORM_S3_ENDPOINT:?HTTPS object ingress required}
+  PLATFORM_S3_BUCKET: ${PLATFORM_S3_BUCKET:?Private bucket required}
+  PLATFORM_S3_REGION: ${PLATFORM_S3_REGION:-us-east-1}
+  PLATFORM_S3_ACCESS_KEY: ${PLATFORM_S3_ACCESS_KEY:?Inject API storage identity}
+  PLATFORM_S3_SECRET_KEY: ${PLATFORM_S3_SECRET_KEY:?Inject API storage credential}
+  PLATFORM_OIDC_ISSUER: ${PLATFORM_OIDC_ISSUER:?Company OIDC issuer required}
+  PLATFORM_OIDC_AUDIENCE: ${PLATFORM_OIDC_AUDIENCE:?Audience required}
+  PLATFORM_OIDC_JWKS_URI: ${PLATFORM_OIDC_JWKS_URI:?HTTPS JWKS required}
+  PLATFORM_OIDC_WEB_CLIENT_IDS: ${PLATFORM_OIDC_WEB_CLIENT_IDS:?Web clients required}
+  PLATFORM_OIDC_CLI_CLIENT_IDS: ${PLATFORM_OIDC_CLI_CLIENT_IDS:?CLI clients required}
+  PLATFORM_GALLERY_ORIGIN: ${PLATFORM_GALLERY_ORIGIN:?HTTPS gallery origin required}
+  PLATFORM_API_ORIGIN: ${PLATFORM_API_ORIGIN:?HTTPS API origin required}
+  PLATFORM_PREVIEW_ORIGIN: ${PLATFORM_PREVIEW_ORIGIN:?Independent registered domain required}
+  PLATFORM_UPLOAD_RETENTION_HOURS: ${PLATFORM_UPLOAD_RETENTION_HOURS:-24}
+  PLATFORM_FAILED_RETENTION_DAYS: ${PLATFORM_FAILED_RETENTION_DAYS:-30}
+services:
+  api:
+    <<: *service
+    image: ${PLATFORM_API_IMAGE:?Digest-pinned API image required}
+    command: ['node', 'dist/server.js']
+    environment:
+      <<: *api-env
+      PLATFORM_METRICS_TOKEN: ${PLATFORM_METRICS_TOKEN:?Inject a separate metrics credential}
+  worker:
+    <<: *service
+    image: ${PLATFORM_API_IMAGE:?Digest-pinned API image required}
+    command: ['node', 'dist/releases/runner.js']
+    environment:
+      <<: *api-env
+      PLATFORM_REGISTRY_ORIGIN: ${PLATFORM_REGISTRY_ORIGIN:?HTTPS registry ingress required}
+      PLATFORM_REGISTRY_TOKEN: ${PLATFORM_REGISTRY_TOKEN:?Service-only publishing credential}
+  preview-gateway:
+    <<: *service
+    image: ${PLATFORM_PREVIEW_IMAGE:?Digest-pinned preview image required}
+    command: ['node', 'dist/server.js']
+    environment:
+      PLATFORM_BIND_HOST: '0.0.0.0'
+      PLATFORM_DATABASE_URL: ${PREVIEW_DATABASE_URL:?Limited preview database identity required}
+      PLATFORM_S3_ENDPOINT: ${PLATFORM_S3_ENDPOINT:?HTTPS object ingress required}
+      PLATFORM_S3_BUCKET: ${PLATFORM_S3_BUCKET:?Private bucket required}
+      PLATFORM_S3_REGION: ${PLATFORM_S3_REGION:-us-east-1}
+      PLATFORM_S3_ACCESS_KEY: ${PREVIEW_S3_ACCESS_KEY:?Read-only object identity required}
+      PLATFORM_S3_SECRET_KEY: ${PREVIEW_S3_SECRET_KEY:?Read-only object credential required}
+      PLATFORM_GALLERY_ORIGIN: ${PLATFORM_GALLERY_ORIGIN:?HTTPS gallery origin required}
+      PLATFORM_API_ORIGIN: ${PLATFORM_API_ORIGIN:?HTTPS API origin required}
+      PLATFORM_PREVIEW_ORIGIN: ${PLATFORM_PREVIEW_ORIGIN:?Independent registered domain required}
+  postgres:
+    image: postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42
+    restart: unless-stopped
+    environment: {POSTGRES_USER: zhinexus, POSTGRES_DB: zhinexus, POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password}
+    secrets: [postgres_password]
+    volumes: ['postgres_data:/var/lib/postgresql']
+    networks: [backend]
+    healthcheck: {test: ['CMD', 'pg_isready', '-h', '127.0.0.1', '-U', 'zhinexus'], interval: 5s, timeout: 3s, retries: 30}
+  verdaccio:
+    image: verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f
+    restart: unless-stopped
+    volumes: ['verdaccio_data:/verdaccio/storage', './production/verdaccio.yaml:/verdaccio/conf/config.yaml:ro']
+    secrets: [registry_users]
+    networks: [backend, edge]
+  minio:
+    image: ${PLATFORM_MINIO_IMAGE:?Digest of reviewed pinned MinIO build required}
+    restart: unless-stopped
+    read_only: true
+    tmpfs: ['/tmp:size=64m']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    environment: {MINIO_ROOT_USER_FILE: /run/secrets/minio_user, MINIO_ROOT_PASSWORD_FILE: /run/secrets/minio_password, MINIO_BROWSER: 'off'}
+    secrets: [minio_user, minio_password]
+    volumes: ['minio_data:/data']
+    networks: [backend, edge]
+networks:
+  backend: {internal: true}
+  edge: {external: true, name: '${PLATFORM_EDGE_NETWORK:?Reviewed TLS ingress network required}'}
+  egress: {}
+volumes:
+  postgres_data: {}
+  verdaccio_data: {}
+  minio_data: {}
+secrets:
+  postgres_password: {file: '${POSTGRES_PASSWORD_FILE:?Private secret file required}'}
+  registry_users: {file: '${REGISTRY_USERS_FILE:?Private htpasswd file required}'}
+  minio_user: {file: '${MINIO_USER_FILE:?Private secret file required}'}
+  minio_password: {file: '${MINIO_PASSWORD_FILE:?Private secret file required}'}

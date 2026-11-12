@@ -3,6 +3,7 @@ import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { PlatformEvents } from '../../apps/api/dist/observability/events.js';
 import { metrics } from '../../apps/api/dist/observability/metrics.js';
 import { workerHarness, realRegistry } from './t06-support.js';
+import { platformHarness } from './http-support.js';
 
 it('protects metrics separately and reports durable backlog and bounded stage observations', async () => {
   const lines: string[] = []; const events = new PlatformEvents(line => lines.push(line));
@@ -31,4 +32,16 @@ it('protects metrics separately and reports durable backlog and bounded stage ob
     await h.restart();
     expect(await (await h.request('/internal/metrics', undefined, token, 'GET')).text()).toContain('platform_release_jobs{state="READY"} 1');
   } finally { await h.close(); }
+});
+
+it('disables unconfigured metrics and returns unavailable rather than zero backlog when its database is down', async () => {
+  const disabled=await platformHarness();
+  try { expect((await disabled.request('/internal/metrics',undefined,undefined,'GET')).status).toBe(404); }
+  finally {await disabled.close();}
+  const token='metrics-test-token-with-at-least-32-characters';
+  const h=await platformHarness({databaseUrl:'postgres://unavailable:secret@127.0.0.1:1/unavailable',metricsToken:token,events:new PlatformEvents(()=>{})});
+  try {
+    const response=await h.request('/internal/metrics',undefined,token,'GET');
+    expect(response.status).toBe(503);expect(await response.json()).toMatchObject({code:'INFRA_UNAVAILABLE'});
+  } finally {await h.close();}
 });

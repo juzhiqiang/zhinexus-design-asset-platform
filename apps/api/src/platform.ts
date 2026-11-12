@@ -8,11 +8,13 @@ import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
 import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 import { PlatformEvents } from './observability/events.js';
+import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; events?: PlatformEvents; metricsToken?: string };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy };
 export function environmentOptions(): PlatformOptions {
   const env = process.env;
   const result: PlatformOptions = {};
+  result.retention = retentionPolicy(env);
   if (env.PLATFORM_METRICS_TOKEN) result.metricsToken = env.PLATFORM_METRICS_TOKEN;
   if (env.PLATFORM_PREVIEW_ORIGIN) result.preview = { previewOrigin: env.PLATFORM_PREVIEW_ORIGIN,
     platformOrigin: env.PLATFORM_GALLERY_ORIGIN ?? '', apiOrigin: env.PLATFORM_API_ORIGIN ?? '' };
@@ -44,7 +46,7 @@ export class Platform {
     this.verifier = new OidcVerifier(options.oidc, options.keyResolver);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
-    if (this.db && this.store) this.uploads = new UploadService(this.db, this.store);
+    if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
   }
   async run<T>(authorization: string | undefined, action: 'read'|'upload'|'baseline'|'deprecate', requestId: string,
     operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {

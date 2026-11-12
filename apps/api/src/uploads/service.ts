@@ -5,12 +5,13 @@ import { audit, uuid, type RequestContext } from '../db/access.js';
 import { PlatformError } from '../errors.js';
 import { ArtifactStore, type UploadPlan } from '../storage/artifact-store.js';
 import { validateUploadedArtifact } from './validator.js';
+import { retentionPolicy, type RetentionPolicy } from '../operations/retention.js';
 
 type UploadFile = { path: string; bytes: string; sha256: string; object_key: string; multipart_id: string | null; part_count: number; frozen_key: string | null };
 type Session = { id: string; subject: string; client_id: string; channel: 'cli'|'web'; manifest_digest: string; state: string; fence: string; lease_until: Date | null; expires_at: Date; last_error_code: string | null };
 
 export class UploadService {
-  constructor(private readonly db: Database, private readonly store: ArtifactStore) {}
+  constructor(private readonly db: Database, private readonly store: ArtifactStore, private readonly retention: RetentionPolicy = retentionPolicy({})) {}
   async create(input: unknown, context: RequestContext): Promise<ApiMessages['createUploadResponse']> {
     const checked = validateApiMessage('createUploadRequest', input);
     if (!checked.ok) throw new PlatformError('INVALID_SCHEMA', checked.issues);
@@ -27,7 +28,7 @@ export class UploadService {
         planned.push({ file, key, plan: await this.store.planUpload(key, file.bytes) });
       }
       await this.db.transaction(async client => {
-        await client.query("INSERT INTO upload_sessions(id,subject,client_id,channel,manifest_digest,state,expires_at) VALUES ($1,$2,$3,$4,$5,'OPEN',now()+interval '24 hours')", [sessionId, context.principal.subject, context.principal.clientId, context.principal.channel, manifestDigest]);
+        await client.query("INSERT INTO upload_sessions(id,subject,client_id,channel,manifest_digest,state,expires_at) VALUES ($1,$2,$3,$4,$5,'OPEN',now()+($6::double precision*interval '1 hour'))", [sessionId, context.principal.subject, context.principal.clientId, context.principal.channel, manifestDigest, this.retention.uploadHours]);
         for (const { file, key, plan } of planned) await client.query('INSERT INTO upload_files(session_id,path,sha256,bytes,object_key,multipart_id,part_count) VALUES ($1,$2,$3,$4,$5,$6,$7)', [sessionId, file.path, file.sha256, file.bytes, key, plan.multipart?.uploadId ?? null, plan.multipart?.parts.length ?? 1]);
         await audit(client, context.principal.subject, 'UPLOAD_CREATED', sessionId, { fileCount: files.length }, context.requestId);
       });

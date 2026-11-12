@@ -95,3 +95,7 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 本轮 C 已收口可选 `ComponentExample.states` 与权威 `requiredStates` 清单，并完成本地三存储真实探针，启动方式见 [infra README](infra/README.md)，结果见 [新增验证记录](docs/verification/g2-local-infra-2026-11-12.md)。按用户确认，OIDC 与独立预览域尚未配置，G2/T01 保持开放；本地探针与合成 fixtures 不代替完整组件发布、截图或生产验收。
 
 2026-11-12 T07 C：已交付公开/用户态目录、精确releaseId详情/报告/材料、一次性preview grant和独立静态网关。本地完整回归521普通测试、62真实平台测试、71浏览器测试通过，独立审查问题已修复。接口与部署见 [API](apps/api/README.md)、[网关](apps/preview-gateway/README.md)，证据见 [T07 C验证](docs/verification/t07-catalog-preview-2026-11-12.md)。完整T07/G2/M2仍需公司OIDC、生产独立域和B的真实画廊/八实现联调。
+
+## C 平台运维交付
+
+T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标、故障演练、三存储隔离备份恢复、部署检查与保留策略。入口与边界见 [quickstart](docs/quickstart.md)、[operations](docs/operations.md)、[release-acceptance](docs/release-acceptance.md)。完整G2/M2/T11/T12仍待公司环境及真实试点验收。
