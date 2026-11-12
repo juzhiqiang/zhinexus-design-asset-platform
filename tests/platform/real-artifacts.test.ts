@@ -4,16 +4,16 @@ import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { expect, it } from 'vitest';
 import { sha256 } from '@company/contracts';
-import { prepareReleaseBundle } from '../../packages/component-cli/src/local/manifest.js';
+import { prepareReleaseBundle, loadReleaseBundle } from '../../packages/component-cli/src/local/manifest.js';
 import { platformHarness, grant, upload, release } from './http-support.js';
 
-it('accepts the exact SDK tarballs installed in clean consumers and all four locally captured implementations', async () => {
+it('replays recorded SDK tarballs installed in clean consumers and all four real captured implementations', async () => {
   const root = fileURLToPath(new URL('../../', import.meta.url));
-  const evidenceDir = join(root, 'test-results', 't05-real-' + randomUUID());
+  const evidenceDir = join(root, '.tools', 't05', 'real-' + randomUUID());
   await mkdir(evidenceDir, { recursive: true });
-  // This is a developer-machine acceptance test. No server imports or runs the CLI/browser.
-  const prepared = await prepareReleaseBundle({ repoRoot: root, bundleDir: join(evidenceDir, 'bundle'), components: ['line', 'bar'], frameworks: ['vue', 'react'] });
-  expect(prepared.ok, JSON.stringify(prepared.issues)).toBe(true);
+  // Immutable real 0.0.2 evidence generated before T09 added ./pie; see fixture README.
+  const bundleDir = join(root, 'tests', 'fixtures', 'releases', 't05-verified-sdk', 'bundle');
+  const prepared = { ...await loadReleaseBundle(bundleDir), bundleDir };
   expect(prepared.manifest.packages).toHaveLength(3);
   expect(prepared.manifest.variants).toHaveLength(4);
   const h = await platformHarness();
@@ -40,5 +40,23 @@ it('accepts the exact SDK tarballs installed in clean consumers and all four loc
       fileCount: prepared.manifest.files.length, frozenBytesMatch: true,
       limitations: ['OIDC is a real signed local fixture, not company login', 'T06 publishing and T07 live isolated preview are not exercised', 'CLI preview HTML currently remains a placeholder'],
     }, null, 2) + '\n');
+  } finally { await h.close(); }
+}, 300_000);
+
+it('rejects current SDK bundles that omit the newly exported pie implementations', async () => {
+  const root = fileURLToPath(new URL('../../', import.meta.url));
+  const bundleDir = join(root, '.tools', 't05', 'incomplete-' + randomUUID());
+  // Local build/install/capture only. Intentionally omit pie to exercise real tar export coverage.
+  const prepared = await prepareReleaseBundle({ repoRoot: root, bundleDir, components: ['line', 'bar'], frameworks: ['vue', 'react'] });
+  expect(prepared.ok, JSON.stringify(prepared.issues)).toBe(true);
+  const h = await platformHarness();
+  try {
+    await grant(h);
+    await h.db.query("INSERT INTO package_permissions(subject,package_name) VALUES ('alice','@company/charts-core')");
+    const token = await h.token('alice', ['publisher'], 'cli');
+    const response = await release(h, await upload(h, { manifest: prepared.manifest, files: prepared.filesMap }, token), token);
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: 'ARTIFACT_MISMATCH', details: [{ message: 'npm runtime component subpath has no declared implementation' }] });
+    expect((await h.db.query('SELECT count(*) FROM release_jobs')).rows[0]!.count).toBe('0');
   } finally { await h.close(); }
 }, 300_000);

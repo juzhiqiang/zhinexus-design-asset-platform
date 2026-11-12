@@ -1,0 +1,474 @@
+{
+  "schemaVersion": 1,
+  "channel": "cli",
+  "packages": [
+    {
+      "name": "@company/charts-core",
+      "version": "0.0.2",
+      "tarball": {
+        "path": "packages/company-charts-core-0.0.2.tgz",
+        "sha256": "357735b53bfdb991fe0650a6e2fbce06c57c4a33876286a2bf437eaf8fdbbb2a",
+        "bytes": 18770
+      },
+      "sourceDigest": "4c165c9f741137610db4c63d24069647732728b9847857ffea9c9e46e9941c3d",
+      "dependencies": {},
+      "peerDependencies": {
+        "echarts": "6.1.0"
+      }
+    },
+    {
+      "name": "@company/charts-vue",
+      "version": "0.0.2",
+      "tarball": {
+        "path": "packages/company-charts-vue-0.0.2.tgz",
+        "sha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+        "bytes": 4170
+      },
+      "sourceDigest": "80200178e41065aaa04ed8ab13f95fb0d2fc97fd28a0d103409aba8d01de9408",
+      "dependencies": {
+        "@company/charts-core": "0.0.2"
+      },
+      "peerDependencies": {
+        "vue": "3.5.45",
+        "echarts": "6.1.0"
+      }
+    },
+    {
+      "name": "@company/charts-react",
+      "version": "0.0.2",
+      "tarball": {
+        "path": "packages/company-charts-react-0.0.2.tgz",
+        "sha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+        "bytes": 7342
+      },
+      "sourceDigest": "2ec2836085ec373b5ba6bd57fbd2d05abdd7586f30d89fc93f05aa1d75e72142",
+      "dependencies": {
+        "@company/charts-core": "0.0.2"
+      },
+      "peerDependencies": {
+        "react": "19.3.1",
+        "react-dom": "19.3.1",
+        "echarts": "6.1.0"
+      }
+    }
+  ],
+  "variants": [
+    {
+      "componentId": "line",
+      "variantId": "line-vue",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.2",
+      "exportPath": "./line",
+      "exportName": "LineChart",
+      "api": {
+        "path": "api/line-vue.json",
+        "sha256": "4c4ee05a112e7072811609a00307051061a6fcb1a1505358e36f3350d5108140",
+        "bytes": 436
+      },
+      "docs": {
+        "path": "docs/line-vue.md",
+        "sha256": "a4bba35c1bb4d87f0b633e56c2483f0456b333b67a374aa56fdba65e3f642bef",
+        "bytes": 119
+      },
+      "examples": [
+        {
+          "id": "example-line-vue-default",
+          "previewEntry": "preview/line-vue/index.html",
+          "previewFiles": [
+            {
+              "path": "preview/line-vue/index.html",
+              "sha256": "3b99055dda5157119f1e96fe28c322ed4ffe62c4a8dca549c8cc7b938cc5f3c2",
+              "bytes": 356
+            }
+          ],
+          "fixtureDigest": "94fc3d971a5cf4ca195ad307fad60eae9242c94c27210ad64af14ce507362c91",
+          "renderer": "canvas",
+          "theme": "light",
+          "width": 800,
+          "height": 400,
+          "requiredStates": [
+            "default"
+          ]
+        }
+      ],
+      "screenshots": [
+        {
+          "id": "shot-default-7760b339",
+          "variantId": "line-vue",
+          "framework": "vue",
+          "packageVersion": "0.0.2",
+          "exampleId": "example-line-vue-default",
+          "state": "default",
+          "source": "local-automatic",
+          "image": {
+            "path": "screenshots/line-vue-default.png",
+            "sha256": "7760b339accca882311a3b3625613f9d071e58874272bf87f0e109c8acad690b",
+            "bytes": 12923
+          },
+          "packageSha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+          "environmentKey": "97c9cf055322458d64e4c37da6ff181be7d98514355ffbe09665340d03225c17",
+          "reportId": "report-line-vue"
+        }
+      ],
+      "compatibility": [
+        {
+          "framework": "vue",
+          "frameworkVersion": "3.5.45",
+          "echartsVersion": "6.1.0",
+          "status": "passed",
+          "reportId": "report-line-vue",
+          "verifiedAt": "2026-11-12T05:01:24.153Z"
+        }
+      ]
+    },
+    {
+      "componentId": "line",
+      "variantId": "line-react",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.2",
+      "exportPath": "./line",
+      "exportName": "LineChart",
+      "api": {
+        "path": "api/line-react.json",
+        "sha256": "753296397d41db0588398e553377d3ff2808f3f5454ef8faf7ea1aa041cbce0f",
+        "bytes": 438
+      },
+      "docs": {
+        "path": "docs/line-react.md",
+        "sha256": "5070900d59e9c81ce26979aeed7266c1d5a659a0de3253f69fc0e4ff9dca365f",
+        "bytes": 123
+      },
+      "examples": [
+        {
+          "id": "example-line-react-default",
+          "previewEntry": "preview/line-react/index.html",
+          "previewFiles": [
+            {
+              "path": "preview/line-react/index.html",
+              "sha256": "07f6910508bec4a5ce6e855150659e2ffb75a4a7dc6a30b3cee4cd0fce407786",
+              "bytes": 360
+            }
+          ],
+          "fixtureDigest": "94fc3d971a5cf4ca195ad307fad60eae9242c94c27210ad64af14ce507362c91",
+          "renderer": "canvas",
+          "theme": "light",
+          "width": 800,
+          "height": 400,
+          "requiredStates": [
+            "default"
+          ]
+        }
+      ],
+      "screenshots": [
+        {
+          "id": "shot-default-e765618c",
+          "variantId": "line-react",
+          "framework": "react",
+          "packageVersion": "0.0.2",
+          "exampleId": "example-line-react-default",
+          "state": "default",
+          "source": "local-automatic",
+          "image": {
+            "path": "screenshots/line-react-default.png",
+            "sha256": "e765618c98fbbe975489debb4426b4db4e001d655ff9a9c11722a8fec449f906",
+            "bytes": 13506
+          },
+          "packageSha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+          "environmentKey": "97c9cf055322458d64e4c37da6ff181be7d98514355ffbe09665340d03225c17",
+          "reportId": "report-line-react"
+        }
+      ],
+      "compatibility": [
+        {
+          "framework": "react",
+          "frameworkVersion": "19.3.1",
+          "reactDomVersion": "19.3.1",
+          "echartsVersion": "6.1.0",
+          "status": "passed",
+          "reportId": "report-line-react",
+          "verifiedAt": "2026-11-12T05:01:28.817Z"
+        }
+      ]
+    },
+    {
+      "componentId": "bar",
+      "variantId": "bar-vue",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.2",
+      "exportPath": "./bar",
+      "exportName": "BarChart",
+      "api": {
+        "path": "api/bar-vue.json",
+        "sha256": "1d9f5bee13310a5b0cc717e101f2935eda760f0039bdab630f7459f92826c953",
+        "bytes": 432
+      },
+      "docs": {
+        "path": "docs/bar-vue.md",
+        "sha256": "87d00e488a4f236f2bcc0e732e9f17156e762a708ad76ddd3e380d47ee4e301c",
+        "bytes": 116
+      },
+      "examples": [
+        {
+          "id": "example-bar-vue-default",
+          "previewEntry": "preview/bar-vue/index.html",
+          "previewFiles": [
+            {
+              "path": "preview/bar-vue/index.html",
+              "sha256": "82f66a49b2caaf5091193b30ce953316b6f384a72e51ccda4f77ce4f49c76fd7",
+              "bytes": 354
+            }
+          ],
+          "fixtureDigest": "b66363ff88ecb3273b64d4f2829dd4e74b980591b94eebf1a7c2f08bb3d4c0bf",
+          "renderer": "canvas",
+          "theme": "light",
+          "width": 800,
+          "height": 400,
+          "requiredStates": [
+            "default"
+          ]
+        }
+      ],
+      "screenshots": [
+        {
+          "id": "shot-default-1fc18995",
+          "variantId": "bar-vue",
+          "framework": "vue",
+          "packageVersion": "0.0.2",
+          "exampleId": "example-bar-vue-default",
+          "state": "default",
+          "source": "local-automatic",
+          "image": {
+            "path": "screenshots/bar-vue-default.png",
+            "sha256": "1fc18995b9585a73744dab567f3d9f962c1335e01671dcbb82ddfcd307e70c73",
+            "bytes": 11686
+          },
+          "packageSha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+          "environmentKey": "97c9cf055322458d64e4c37da6ff181be7d98514355ffbe09665340d03225c17",
+          "reportId": "report-bar-vue"
+        }
+      ],
+      "compatibility": [
+        {
+          "framework": "vue",
+          "frameworkVersion": "3.5.45",
+          "echartsVersion": "6.1.0",
+          "status": "passed",
+          "reportId": "report-bar-vue",
+          "verifiedAt": "2026-11-12T05:01:24.486Z"
+        }
+      ]
+    },
+    {
+      "componentId": "bar",
+      "variantId": "bar-react",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.2",
+      "exportPath": "./bar",
+      "exportName": "BarChart",
+      "api": {
+        "path": "api/bar-react.json",
+        "sha256": "8d27e2acbf4ee6cf4c60bb9ace6905535c39dfbfac36ae7eb721467a96d4b18b",
+        "bytes": 434
+      },
+      "docs": {
+        "path": "docs/bar-react.md",
+        "sha256": "328df6e2fbc6fcd2522bf479aacce43b15dd918f1cd673c911c05266398f60c9",
+        "bytes": 120
+      },
+      "examples": [
+        {
+          "id": "example-bar-react-default",
+          "previewEntry": "preview/bar-react/index.html",
+          "previewFiles": [
+            {
+              "path": "preview/bar-react/index.html",
+              "sha256": "0a809a60efdc3b170a3e48fc8f7c37c78cc5eac21486b2c5590baf10f03d1793",
+              "bytes": 358
+            }
+          ],
+          "fixtureDigest": "b66363ff88ecb3273b64d4f2829dd4e74b980591b94eebf1a7c2f08bb3d4c0bf",
+          "renderer": "canvas",
+          "theme": "light",
+          "width": 800,
+          "height": 400,
+          "requiredStates": [
+            "default"
+          ]
+        }
+      ],
+      "screenshots": [
+        {
+          "id": "shot-default-69439fd4",
+          "variantId": "bar-react",
+          "framework": "react",
+          "packageVersion": "0.0.2",
+          "exampleId": "example-bar-react-default",
+          "state": "default",
+          "source": "local-automatic",
+          "image": {
+            "path": "screenshots/bar-react-default.png",
+            "sha256": "69439fd4d39e9fbda6e9f1acaa889af21af2da193dad79b9e248509c54915b6d",
+            "bytes": 11926
+          },
+          "packageSha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+          "environmentKey": "97c9cf055322458d64e4c37da6ff181be7d98514355ffbe09665340d03225c17",
+          "reportId": "report-bar-react"
+        }
+      ],
+      "compatibility": [
+        {
+          "framework": "react",
+          "frameworkVersion": "19.3.1",
+          "reactDomVersion": "19.3.1",
+          "echartsVersion": "6.1.0",
+          "status": "passed",
+          "reportId": "report-bar-react",
+          "verifiedAt": "2026-11-12T05:01:29.183Z"
+        }
+      ]
+    }
+  ],
+  "reports": [
+    {
+      "path": "reports/line-vue.json",
+      "sha256": "defed2120a9ff413d0ad7b87b2b646a6c29683017a00794d8fa882cf0320efa5",
+      "bytes": 1781
+    },
+    {
+      "path": "reports/bar-vue.json",
+      "sha256": "bd20560ba95da792836912b9904928426fa64b7f2eed8b3c9d2240c7711878b2",
+      "bytes": 1774
+    },
+    {
+      "path": "reports/line-react.json",
+      "sha256": "1c190f1a9afbc2efe8cfa853c7763576d6bb1120673e91416f3f50ec88469e17",
+      "bytes": 1797
+    },
+    {
+      "path": "reports/bar-react.json",
+      "sha256": "e207a57c78e7b9f64875a2a507a7d192e59e729b278afc7135e5cdc8cc9db9dd",
+      "bytes": 1790
+    }
+  ],
+  "files": [
+    {
+      "path": "api/bar-react.json",
+      "sha256": "8d27e2acbf4ee6cf4c60bb9ace6905535c39dfbfac36ae7eb721467a96d4b18b",
+      "bytes": 434
+    },
+    {
+      "path": "api/bar-vue.json",
+      "sha256": "1d9f5bee13310a5b0cc717e101f2935eda760f0039bdab630f7459f92826c953",
+      "bytes": 432
+    },
+    {
+      "path": "api/line-react.json",
+      "sha256": "753296397d41db0588398e553377d3ff2808f3f5454ef8faf7ea1aa041cbce0f",
+      "bytes": 438
+    },
+    {
+      "path": "api/line-vue.json",
+      "sha256": "4c4ee05a112e7072811609a00307051061a6fcb1a1505358e36f3350d5108140",
+      "bytes": 436
+    },
+    {
+      "path": "docs/bar-react.md",
+      "sha256": "328df6e2fbc6fcd2522bf479aacce43b15dd918f1cd673c911c05266398f60c9",
+      "bytes": 120
+    },
+    {
+      "path": "docs/bar-vue.md",
+      "sha256": "87d00e488a4f236f2bcc0e732e9f17156e762a708ad76ddd3e380d47ee4e301c",
+      "bytes": 116
+    },
+    {
+      "path": "docs/line-react.md",
+      "sha256": "5070900d59e9c81ce26979aeed7266c1d5a659a0de3253f69fc0e4ff9dca365f",
+      "bytes": 123
+    },
+    {
+      "path": "docs/line-vue.md",
+      "sha256": "a4bba35c1bb4d87f0b633e56c2483f0456b333b67a374aa56fdba65e3f642bef",
+      "bytes": 119
+    },
+    {
+      "path": "packages/company-charts-core-0.0.2.tgz",
+      "sha256": "357735b53bfdb991fe0650a6e2fbce06c57c4a33876286a2bf437eaf8fdbbb2a",
+      "bytes": 18770
+    },
+    {
+      "path": "packages/company-charts-react-0.0.2.tgz",
+      "sha256": "ddbc00156cd717bac17439b70bdde12f8e57dc5b98a8a170c73a875fd8d25e94",
+      "bytes": 7342
+    },
+    {
+      "path": "packages/company-charts-vue-0.0.2.tgz",
+      "sha256": "28894e67a6ee76c89e20631a805bc5f49ec1fe2492a6a20010c4620116187dc8",
+      "bytes": 4170
+    },
+    {
+      "path": "preview/bar-react/index.html",
+      "sha256": "0a809a60efdc3b170a3e48fc8f7c37c78cc5eac21486b2c5590baf10f03d1793",
+      "bytes": 358
+    },
+    {
+      "path": "preview/bar-vue/index.html",
+      "sha256": "82f66a49b2caaf5091193b30ce953316b6f384a72e51ccda4f77ce4f49c76fd7",
+      "bytes": 354
+    },
+    {
+      "path": "preview/line-react/index.html",
+      "sha256": "07f6910508bec4a5ce6e855150659e2ffb75a4a7dc6a30b3cee4cd0fce407786",
+      "bytes": 360
+    },
+    {
+      "path": "preview/line-vue/index.html",
+      "sha256": "3b99055dda5157119f1e96fe28c322ed4ffe62c4a8dca549c8cc7b938cc5f3c2",
+      "bytes": 356
+    },
+    {
+      "path": "reports/bar-react.json",
+      "sha256": "e207a57c78e7b9f64875a2a507a7d192e59e729b278afc7135e5cdc8cc9db9dd",
+      "bytes": 1790
+    },
+    {
+      "path": "reports/bar-vue.json",
+      "sha256": "bd20560ba95da792836912b9904928426fa64b7f2eed8b3c9d2240c7711878b2",
+      "bytes": 1774
+    },
+    {
+      "path": "reports/line-react.json",
+      "sha256": "1c190f1a9afbc2efe8cfa853c7763576d6bb1120673e91416f3f50ec88469e17",
+      "bytes": 1797
+    },
+    {
+      "path": "reports/line-vue.json",
+      "sha256": "defed2120a9ff413d0ad7b87b2b646a6c29683017a00794d8fa882cf0320efa5",
+      "bytes": 1781
+    },
+    {
+      "path": "screenshots/bar-react-default.png",
+      "sha256": "69439fd4d39e9fbda6e9f1acaa889af21af2da193dad79b9e248509c54915b6d",
+      "bytes": 11926
+    },
+    {
+      "path": "screenshots/bar-vue-default.png",
+      "sha256": "1fc18995b9585a73744dab567f3d9f962c1335e01671dcbb82ddfcd307e70c73",
+      "bytes": 11686
+    },
+    {
+      "path": "screenshots/line-react-default.png",
+      "sha256": "e765618c98fbbe975489debb4426b4db4e001d655ff9a9c11722a8fec449f906",
+      "bytes": 13506
+    },
+    {
+      "path": "screenshots/line-vue-default.png",
+      "sha256": "7760b339accca882311a3b3625613f9d071e58874272bf87f0e109c8acad690b",
+      "bytes": 12923
+    }
+  ]
+}

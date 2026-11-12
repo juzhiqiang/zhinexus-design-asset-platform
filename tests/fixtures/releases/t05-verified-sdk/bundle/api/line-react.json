@@ -1,0 +1,25 @@
+{
+  "componentId": "line",
+  "framework": "react",
+  "exportName": "LineChart",
+  "exportPath": "./line",
+  "props": {
+    "data": {
+      "type": "ChartData",
+      "required": true
+    },
+    "config": {
+      "type": "LineChartConfig",
+      "required": false
+    },
+    "optionOverrides": {
+      "type": "EChartsOption",
+      "required": false
+    }
+  },
+  "events": {
+    "point-click": {
+      "payload": "ChartEvent"
+    }
+  }
+}

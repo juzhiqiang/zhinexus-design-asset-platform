@@ -46,4 +46,10 @@
 
 首份机器证据保存在忽略目录 `test-results/t05-real-c6baa495-5268-4975-8356-216fc7ae3464/evidence.json`，含包/图片摘要与时间，无凭证。fixture JWT 使用真实 RSA 签名，不能替代公司 OIDC。B 的 preview HTML 仍为占位，未宣称在线预览可用。SDK 截图后未重新 pack。
 
+### 合并最新主分支的额外边界
+
+主分支 c5329d3 后 SDK 0.0.3 含 ./pie，现有 CLI Bundle 只生成 line/bar，会被 API 按实际导出覆盖规则拒绝。没有修改或放宽验证器。正向回归保留第二次实际验证过的 0.0.2 Bundle 到 tests/fixtures/releases/t05-verified-sdk（包/图片/报告原字节及 2026-11-12T05:01:30.536Z 机器证据），新负例仍实际生成当前 SDK Bundle 并经 HTTP 验证拒绝且无作业登记。B 的 pie 材料接入保持未完成。
+
+Playwright 的 test-results 清理会移除早期忽略证据；因此后续运行证据改存 .tools/t05/real-*，不依赖会被清空的临时输出。受版本管理的样本记录原始消费者/截图执行；重放测试不冒充重新执行过该版本浏览器。
+
 目前没有公司 OIDC 或独立预览域，真实登录/PKCE/撤权、G2 与完整 T05 外部身份验收保持未完成；签名测试不替代该证据。T06 的三存储发布、Ready 与 T07 预览授权也未宣称完成。
