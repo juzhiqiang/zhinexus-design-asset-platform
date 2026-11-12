@@ -122,8 +122,10 @@ RED 提交 `823edee`（`test: 补实心饼图渲染与几何断言（RED）`）�
 3. **缺失扇形在显示列表里占位**：`sectorCenter` 的角度判空必须保留，否则会把 `null` 角度算成 `NaN` 坐标并点到画布外。
 4. **`charts-core` / `charts-react` 的构建不清空 `dist`**：两者的 `build` 分别是 `tsc -p tsconfig.build.json` 与 `tsc … && node scripts/copy-style.mjs`，都没有清理步骤（`charts-vue` 的 `scripts/build.mjs` 明确清理并注释了原因）。`tsc` 不会删除已消失入口的产物，历史构建残留会直接进 tarball。本次增补前后 `dist` 文件与源文件一一对应、无残留，但建议后续给这两个包补清理步骤。
 
-### 本轮 tarball 摘要（0.0.3，本复现环境实测）
+### 本轮 tarball 摘要（0.0.3，复现环境实测）
 
 `charts-core` `22,960` 字节 / `60137946311b2dbdae4f2747279c5daa02283318b5bdf0dbc64ea3ba8d51de30`；`charts-vue` `4,663` / `d7a20cd8e8a82827d72c4654ac8981d86aa8738db22a1db467f47b5ceeb87a48`；`charts-react` `8,323` / `913dd8443d4b9385679b19a1a274913b59310296ca9e1c7a2f2ad45c6da702a6`。
 
-`charts-vue` 与第二批记录一致；`charts-core` / `charts-react` 比第二批记录各小 32 / 36 字节。本次增补未触碰 `packages/`（git 可证），消费者验收写出的体积基线记录的也是上面这三个摘要，差异来自第二批当时的构建环境（`.map` 内嵌构建路径），不是内容变化。SDK tarball 并非冻结工件——冻结工件是 B / C 的 `tests/fixtures/releases/**`，本次未改动。
+`charts-vue` 与第二批记录一致；`charts-core` / `charts-react` 比第二批记录各小 32 / 36 字节。已逐一排除的原因：本次增补未触碰 `packages/`（`git diff 42045c0 -- packages/` 为空，锁文件也未改）；当前 `dist` 恰好 52 个文件、与 13 个源文件一一对应（每个源文件产出 `.js` / `.d.ts` / `.js.map` / `.d.ts.map`），无多余产物；sourcemap 的 `sources` 是相对路径、`sourceRoot` 为空，不含构建机绝对路径；TypeScript 为锁定的 `7.0.2`；同一构建在两种工作树行尾状态（沙箱新建 worktree 的 LF、主工作树同步过来的 CRLF）下产出完全相同的三个摘要。仍未定位到确切成因，最大的嫌疑是第二批当时的 `dist` 里残留了已消失入口的产物——`charts-core` / `charts-react` 的构建不清空 `dist`（见下文问题 4），`tsc` 不会删除它们。SDK tarball 并非冻结工件，冻结工件是 B / C 的 `tests/fixtures/releases/**`，本次未改动。
+
+消费者打包体积护栏（护栏 1 MiB，记录于 gitignored 的 `test-results/t03-bundle-baseline.json`）：Vue 消费者 JS `657,038` 字节、React `814,522` 字节，CSS 均 `93` 字节。与 [第二批合并验证记录](t09-pie-main-merge-2026-11-12.md) 的数字完全一致，本次增补没有改变消费者产物体积（消费者页面是自包含代码，不读 `examples/fixtures`）。
