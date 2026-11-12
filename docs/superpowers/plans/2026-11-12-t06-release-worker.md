@@ -35,10 +35,10 @@
 
 **Interfaces:** `ReleaseLeases.claim(jobId?): Promise<ReleaseLease | undefined>`；`renew(lease)`、`assert(lease, sql?)`、`checkpoint(lease, stage)`，token 用 PostgreSQL bigint 字符串，所有回写检查租约和 token。
 
-- [ ] 并发 claim 仅一人成功；过期可重认领、token 增加；旧 worker 续租/检查点拒绝；实际运行 RED。
-- [ ] 增加 retry_count/next_attempt_at/missing_artifacts，短事务 SKIP LOCKED，网络不持行锁；默认租约 60 秒，每 20 秒续期。
-- [ ] 5 次自动重试延迟 5/15/45/120/300 秒加抖动；耗尽保留 RETRY_WAIT，人工 retry 重置自动预算并保留检查点。
-- [ ] 运行真实 PG 专项及迁移往返，GREEN 后聚焦提交。
+- [x] 并发 claim 仅一人成功；过期可重认领、token 增加；旧 worker 续租/检查点拒绝；实际运行 RED。
+- [x] 增加 retry_count/next_attempt_at/missing_artifacts，短事务 SKIP LOCKED，网络不持行锁；默认租约 60 秒，每 20 秒续期。
+- [x] 5 次自动重试延迟 5/15/45/120/300 秒加抖动；耗尽保留 RETRY_WAIT，人工 retry 重置自动预算并保留检查点。
+- [x] 运行真实 PG 专项及迁移往返，GREEN 后聚焦提交。
 
 ## Task 2: 不可变发布适配器与依赖顺序
 
@@ -46,10 +46,10 @@
 
 **Interfaces:** `ensurePackage(ref, frozenBytes, candidateTag)` 返回 published/already-identical；`verifyPackage(ref)` 实际下载并校验；`checkAvailability(manifest)` 返回缺失项。
 
-- [ ] 写失败测试：同版本异摘要、发布后超时、重定向/外部 tarball URL、超限响应、core 缺失、依赖拓扑；运行 RED。
-- [ ] 固化 `releases/<jobId>/<artifact.path>` 私有对象并核对字节；已存在只允许相同内容。上传会话过期不影响已经接受作业读取冻结副本。
-- [ ] 读取 npm package.json 作为数据，HTTP PUT 同一压缩 tarball，初始使用 candidate tag；公司依赖先于框架包发布并验证可获取。
-- [ ] 运行适配器测试、真实 MinIO/Verdaccio 测试，GREEN 后提交。
+- [x] 写失败测试：同版本异摘要、发布后超时、重定向/外部 tarball URL、超限响应、core 缺失、依赖拓扑；运行 RED。
+- [x] 固化 `releases/<jobId>/<artifact.path>` 私有对象并核对字节；已存在只允许相同内容。上传会话过期不影响已经接受作业读取冻结副本。
+- [x] 读取 npm package.json 作为数据，HTTP PUT 同一压缩 tarball，初始使用 candidate tag；公司依赖先于框架包发布并验证可获取。
+- [x] 运行适配器测试、真实 MinIO/Verdaccio 测试，GREEN 后提交。
 
 ## Task 3: Worker、Ready 事务与独立 tag 恢复
 
@@ -57,21 +57,21 @@
 
 **Interfaces:** `ReleaseWorker.runOnce(jobId?)`、`advanceRelease(lease)`；Ready 写入 outbox，默认 tag 工作独立持久化；进程停止不依赖 CLI。
 
-- [ ] 写失败测试：对象固化后中断、npm 成功响应丢失、Ready 事务异常、并发 worker、旧 token 回写、缺文件/依赖、tag 重试、索引独立；运行 RED。
-- [ ] 按 FINALIZE_OBJECTS → ENSURE_PACKAGES → REGISTER_ASSETS → CHECK_AVAILABILITY → READY_TX 推进；复用 T05 预登记行，不重复创建实现。
-- [ ] Ready 事务写 package/variant/job 状态、审计、outbox 与 tag 待办。tag 使用每包串行协调，重读当前目标；失败保留待办，不能影响 Ready。
-- [ ] 独立 worker 入口支持启动/优雅关闭和故障后续租/重认领；环境配置缺失失败关闭。
-- [ ] 真实三存储与进程中断恢复通过后提交。
+- [x] 写失败测试：对象固化后中断、npm 成功响应丢失、Ready 事务异常、并发 worker、旧 token 回写、缺文件/依赖、tag 重试、索引独立；运行 RED。
+- [x] 按 FINALIZE_OBJECTS → ENSURE_PACKAGES → REGISTER_ASSETS → CHECK_AVAILABILITY → READY_TX 推进；复用 T05 预登记行，不重复创建实现。
+- [x] Ready 事务写 package/variant/job 状态、审计、outbox 与 tag 待办。tag 使用每包串行协调，重读当前目标；失败保留待办，不能影响 Ready。
+- [x] 独立 worker 入口支持启动/优雅关闭和故障后续租/重认领；环境配置缺失失败关闭。
+- [x] 真实三存储与进程中断恢复通过后提交。
 
 ## Task 4: 验收、文档、版本与合并
 
-- [ ] 重放历史真实 SDK tarball/截图/报告，经过真实 T05 上传 → worker → Ready → 注册表下载摘要核对/双框架精确安装；标清历史证据重放。
-- [ ] 运行 `scripts/pnpm.ps1 test:platform`、`test:infra`、`infra:check-access`；最后一项现有外部阻塞保持记录。
-- [ ] `$env:TURBO_FORCE='true'; .\scripts\verify.ps1`：冻结安装、workspace、无缓存 build/typecheck、单元/HTTP/消费者/浏览器通过。
-- [ ] 独立整分支代码审查，重要问题 RED→GREEN 修复；原始架构摘要检查。
-- [ ] README、API README、分工/实施计划追加当前结果，新建 `docs/verification/t06-release-worker-2026-11-12.md`。
-- [ ] 平台根与 API 兼容功能升到 0.0.2，CHANGELOG 独立中文升版提交。
-- [ ] 检查 main 干净及并行变更，合并后运行相关验证，报告提交与外部缺口；不 push。
+- [x] 重放历史真实 SDK tarball/截图/报告，经过真实 T05 上传 → worker → Ready → 注册表下载摘要核对/双框架精确安装；标清历史证据重放。
+- [x] 运行 `scripts/pnpm.ps1 test:platform`、`test:infra`、`infra:check-access`；最后一项现有外部阻塞保持记录。
+- [x] `$env:TURBO_FORCE='true'; .\scripts\verify.ps1`：冻结安装、workspace、无缓存 build/typecheck、单元/HTTP/消费者/浏览器通过。
+- [x] 独立整分支代码审查，重要问题 RED→GREEN 修复；原始架构摘要检查。
+- [x] README、API README、分工/实施计划追加当前结果，新建 `docs/verification/t06-release-worker-2026-11-12.md`。
+- [x] 平台根与 API 兼容功能升到 0.0.2，CHANGELOG 独立中文升版提交。
+- [ ] 检查 main 并行变更并保留无关修改，合并后运行相关验证，报告提交与外部缺口；不 push。
 
 ## 实施补充：真实注册表边界
 
