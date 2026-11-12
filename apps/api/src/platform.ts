@@ -41,6 +41,7 @@ export class Platform {
       principal = await this.verifier.verify(authorization);
       requireRole(principal, action);
       if (!this.db || !this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
+      if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
       return await operation({ principal, requestId }, this.uploads, this.db);
     } catch (error) {
       const code = error instanceof PlatformError && error.authorizationDenied ? 'FORBIDDEN'
