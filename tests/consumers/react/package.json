@@ -1,0 +1,27 @@
+{
+  "name": "consumer-react",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "工作区外 React 消费者模板：安装冻结 tarball 后验证类型、构建与真实渲染（T03/T04 复用）",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@company/charts-react": "file:../freeze/charts-react.tgz",
+    "echarts": "6.1.0",
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
+  },
+  "overrides": {
+    "@company/charts-core": "file:../freeze/charts-core.tgz"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "typescript": "7.0.2",
+    "vite": "8.3.8"
+  }
+}
