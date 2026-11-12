@@ -6,7 +6,7 @@ import type { UploadService } from '../uploads/service.js';
 import { validatePlatformBundle } from '../uploads/validator.js';
 import { PlatformError } from '../errors.js';
 
-type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null };
+type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null; missing_artifacts: string[] };
 export class ReleaseService {
   constructor(private readonly db: Database, private readonly uploads: UploadService) {}
   async create(input: unknown, key: string | undefined, context: RequestContext): Promise<ApiMessages['createReleaseResponse']> {
@@ -92,7 +92,7 @@ export class ReleaseService {
       FROM screenshots s JOIN variant_releases vr ON vr.id=s.variant_release_id
       WHERE s.job_id=$1 AND s.source='local-automatic' AND s.environment_key<>'unknown-manual' ORDER BY s.client_ref`, [job.id]);
     const baselineCandidates = candidates.rows as NonNullable<ApiMessages['releaseJobResponse']['baselineCandidates']>;
-    return { state: job.state, stage: job.stage, attempt: job.attempt, ...(job.last_error ? { lastError: job.last_error } : {}), missingArtifacts: [], pollAfterMs: 2000, baselineCandidates };
+    return { state: job.state, stage: job.stage, attempt: job.attempt, ...(job.last_error ? { lastError: job.last_error } : {}), missingArtifacts: job.missing_artifacts, pollAfterMs: 2000, baselineCandidates };
   }
   async retry(jobId: string, context: RequestContext): Promise<ApiMessages['retryReleaseResponse']> {
     return this.db.transaction(async client => {
@@ -100,7 +100,7 @@ export class ReleaseService {
       await requireComponents(client, context.principal.subject, job.manifest.variants.map(variant => variant.componentId));
       await requirePackages(client, context.principal.subject, job.manifest.packages.map(pkg => pkg.name));
       if (job.state !== 'RETRY_WAIT' || job.lease_until && job.lease_until.getTime() > Date.now()) throw new PlatformError('CONFLICT');
-      await client.query("UPDATE release_jobs SET state='PENDING',fencing_token=fencing_token+1,lease_until=NULL,updated_at=now() WHERE id=$1", [jobId]);
+      await client.query("UPDATE release_jobs SET state='PENDING',fencing_token=fencing_token+1,lease_until=NULL,retry_count=0,next_attempt_at=NULL,updated_at=now() WHERE id=$1", [jobId]);
       await audit(client, context.principal.subject, 'RELEASE_RETRIED', jobId, { state: 'PENDING' }, context.requestId);
       return { jobId, state: 'PENDING' };
     });
