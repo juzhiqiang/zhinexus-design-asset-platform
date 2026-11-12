@@ -21,7 +21,7 @@
 | --- | --- | --- |
 | `tests/unit/chart-semantics.test.ts` | 20 failed（`buildTrendCardOption` / `computeTrendSummary is not a function`） | 68 passed |
 | `tests/browser/component-matrix.spec.ts --grep trend-card` | 15 failed（`/trend-card.html` 未注册，画布计数为 0） | 15 passed |
-| `tests/integration/packed-consumer-frameworks.test.ts` | 缺 `./trend-card` 入口、`dist/trend-card.js`、`trend-card.html` 与点击载荷 | 10 passed |
+| `tests/integration/packed-consumer-frameworks.test.ts` | 缺 `./trend-card` 入口、`dist/trend-card.js`、`trend-card.html` 与点击载荷 | 9 passed（该文件共 9 项，趋势卡片在既有项内扩展覆盖；与 `packed-consumer.test.ts` 合计 10 项） |
 
 RED 后进入 GREEN 时发现一个**实现缺陷**（见「关键行为证据」末条）：数值摘要的 graphic 元素在状态切换时会残留上一次的文本。修复提交为 `2a02bae`，并补了单测与浏览器回归用例；该缺陷也说明「构建新 option 的单测」覆盖不到「同一实例上多次 setOption 的合并行为」，因此浏览器层的 `summarySlots()` 断言是必要补充。
 
@@ -37,7 +37,7 @@ RED 后进入 GREEN 时发现一个**实现缺陷**（见「关键行为证据�
 | `pnpm typecheck` | 14 tasks successful + 根 `tsc -p tsconfig.json --noEmit` 通过 |
 | `pnpm test` | 23 files / 512 tests passed，4 skipped（`tests/tooling/verify.test.ts` 既有跳过） |
 | `pnpm test:browser` | 86 passed |
-| `pnpm exec vitest run tests/integration/packed-consumer-frameworks.test.ts` | 10 passed |
+| `pnpm exec vitest run tests/integration/packed-consumer-frameworks.test.ts` | 9 passed（另跑 `packed-consumer.test.ts` 1 passed，合计 10 项） |
 
 - `pnpm test` 512 passed = 新基线 main `3bbf687` 的 491 passed + 本批 21 项趋势卡片语义。
 - `pnpm test:browser` 86 passed = 新基线 main `3bbf687` 的 71 项 + 本批 15 项趋势卡片矩阵（含 2 项数值摘要 staleness 回归）。
@@ -67,8 +67,10 @@ RED 后进入 GREEN 时发现一个**实现缺陷**（见「关键行为证据�
 | 包 | 版本 | 字节 | SHA-256 |
 | --- | --- | --- | --- |
 | `@company/charts-core` | 0.0.5 | 30,260 | `cfc198d43b0114527ecd99ff4418497d5b0253fbcf4179e0ba5fe1da6a27393c` |
-| `@company/charts-vue` | 0.0.5 | 5,696 | `2d13a7ed0249442233337b5545b386276b572de89608fcb18f82dd9259f33bef` |
+| `@company/charts-vue` | 0.0.5 | 5,692 | `b209aac6ef7f221b6cb08d8d3ae0573af3e0cacafc069a8e640fced18d348c9d` |
 | `@company/charts-react` | 0.0.5 | 10,296 | `40ead94a8820f1e96de22e620a4d1650949ab2e108b0f6939baf3b412ad8c7f1` |
+
+> 摘要勘误（2026-11-12 合并 main 后复核）：本表 `charts-vue` 一栏原记录为 5,696 字节 / `2d13a7ed…`。该值取自分支工作树中 `src/style.css` 带 CRLF 的**工作区文件**（旧的 `copyFile` 构建脚本原样复制，4 个 CRLF 行多出 4 字节）；而 git 中的 blob 为 560 字节纯 LF，`main` 的 T04 又把构建脚本改为强制 LF，因此**可按提交状态稳定复现的摘要是上表的 5,692 / `b209aac6…`**。`charts-core` 与 `charts-react` 两包摘要不受影响，与分支期记录一致。
 
 ## 未覆盖边界与后续
 

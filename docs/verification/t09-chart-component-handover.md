@@ -73,24 +73,31 @@
 | 单元 | `tests/unit/chart-data.test.ts` | 12 passed | 12 passed |
 | 浏览器 | `tests/browser/component-matrix.spec.ts` | 71 passed | 86 passed（趋势卡片 15） |
 | 浏览器 | `core-lifecycle` + `framework-lifecycle` | 8 passed | 8 passed |
-| 集成 | `tests/integration/packed-consumer-frameworks.test.ts` | 9 passed | 10 passed |
+| 集成 | `tests/integration/packed-consumer-frameworks.test.ts` | 9 passed | 9 passed（趋势卡片在既有 9 项内扩展覆盖，未新增用例数） |
 | 全量 | `pnpm test` | 491 passed | 512 passed，4 skipped |
 | 全量 | `pnpm test:browser` | 71 passed | 86 passed |
 
 消费者模板（`tests/consumers/{vue,react}`，非 workspace 成员）：`index.html`（line）+ `bar.html` + `pie.html` + `scatter.html` + `trend-card.html`，各配 `src/*App.{vue,tsx}` 与 `src/*-main.{ts,tsx}`；`vite.config.ts` 的 `rollupOptions.input` 显式登记全部五个入口。
 
-## 7. B 侧材料生成缺口（记录在案，未阻塞合并）
+## 7. B 侧材料生成缺口（已在合并 main 时补齐）
 
-`packages/component-cli/src/local/manifest.ts` 的 `ComponentName` 仍只有 `'line' | 'bar'`，`prepareReleaseBundle` 只生成 line / bar 材料；SDK 0.0.3 起已有 `./pie`、0.0.4 起有 `./scatter`、0.0.5 起有 `./trend-card`，**平台 API 的逐导出覆盖检查会拒绝未覆盖全部导出的 Bundle**（该拒绝行为已由 T05 实测记录，不得放宽）。需要 B 至少完成：
+**状态更新（2026-11-12 合并 main 后）**：本节原记录 `ComponentName` 只有 `'line' | 'bar'`。合并 `feat/t09-trend` 时实测发现，main 的 T04 已把 `ComponentName` 扩展到 `'line' | 'bar' | 'pie' | 'scatter'`，但 SDK 0.0.5 又新增 `./trend-card` 子路径，**平台 API 的逐导出覆盖检查随即拒绝 Bundle**（`ARTIFACT_MISMATCH: npm runtime component subpath has no declared implementation`），`cli-bundle` 集成测试转红。该缺口已由提交 `70138d2` 按 RED→GREEN 补齐，下面是补齐内容与仍然成立的注意事项。
 
-1. `manifest.ts`：`ComponentName` 扩展为 `'line' | 'bar' | 'pie' | 'scatter' | 'trend-card'`；`components` 缺省值建议改为全量（与 API 的逐导出覆盖要求对齐）。
-2. 入口文件名映射：`component === 'line' ? 'index.html' : \`${component}.html\``（bar / pie / scatter / trend-card 均已有消费者页面，由 A 交付）。
-3. `exportName` 映射补 `'PieChart'` / `'ScatterChart'` / `'TrendCard'`（可统一为按 componentId 首字母大写的映射表）。
-4. docs 文案映射补「饼图 / 环形图」「散点图」「趋势卡片」。
-5. `capture.ts` 容器尺寸探测选择器链当前为 `.charts-line` / `.charts-bar` / `.charts-pie` / `.chart-frame` / `#chart` / `#app`；散点与趋势卡片页经 `.chart-frame` 已可探测，建议补 `.charts-scatter` / `.charts-trend-card` 使探测更直接。
-6. B 侧测试同步：`tests/unit/release-bundle.test.ts`、`tests/integration/cli-bundle.test.ts` 中硬编码的组件清单需覆盖 pie / scatter / trend-card。
-7. 状态名：若 Bundle 需要覆盖示例页多于 `default` 的状态，`ExampleRef.requiredStates` 与 manifest 状态定义需补充各图表状态名（pie：`zero-total` / `nested`；scatter：`negative` / `single`；trend-card：`missing` / `single` / `down`）；当前 fixtures 未被 manifest 引用，不影响默认流程。
-8. 就绪协议驱动示例页时依赖散点批次的 `runState` 幂等修复（已在 main）；驱动消费者页面不依赖（消费者页 `runState` 为无操作）。
+平台 API 的逐导出覆盖检查会拒绝未覆盖全部导出的 Bundle（该拒绝行为已由 T05 实测记录，**不得放宽**）。规则见 `apps/api/src/uploads/validator.ts`：运行时包 exports 中每个解析为 JavaScript 的子路径（不含聚合根 `.` 与纯 CSS / JSON 目标）都必须有 `variant.exportPath` 与之对应。
+
+已补齐（提交 `70138d2`，A 侧代 B 完成，B 可复核）：
+
+1. `manifest.ts`：`ComponentName` 扩展为 `'line' | 'bar' | 'pie' | 'scatter' | 'trend-card'`；`components` 缺省值改为全量五项（与 API 的逐导出覆盖要求对齐）。
+2. 入口文件名映射：改为查表 `COMPONENT_ENTRY_HTML`（`line` → `index.html`，其余 → `<component>.html`）。
+3. `exportName` / docs 文案映射：改为查表 `COMPONENT_EXPORT`，补 `TrendCard` 与「趋势卡片」。
+4. `capture.ts` 容器尺寸探测选择器链补 `.charts-trend-card`（散点与趋势卡片页经 `.chart-frame` 本就可探测，此步让探测更直接）。
+5. B 侧测试同步：`tests/integration/cli-bundle.test.ts` 被测组件扩展到 5 × 2 = 10 变体，并新增**回归护栏**——遍历 `charts-vue` / `charts-react` exports 中每个 JS 子路径，断言都有对应变体；已用临时注入 `./ranking` 子路径的方式验证护栏会以明确信息失败。`tests/integration/cli-release.test.ts` 与 `tests/platform/http-support.ts` 的组件清单同步到 trend-card（`requireComponents` 按 `variant.componentId` 逐项校验发布权限，`grant` 必须 seed 该组件行）。
+
+仍然成立的注意事项：
+
+6. 状态名：若 Bundle 需要覆盖示例页多于 `default` 的状态，`ExampleRef.requiredStates` 与 manifest 状态定义需补充各图表状态名（pie：`zero-total` / `nested`；scatter：`negative` / `single`；trend-card：`missing` / `single` / `down`）；当前 fixtures 未被 manifest 引用，不影响默认流程。
+7. 就绪协议驱动示例页时依赖散点批次的 `runState` 幂等修复（已在 main）；驱动消费者页面不依赖（消费者页 `runState` 为无操作）。
+8. **新增图表时的固定动作**：SDK 加一个子路径导出，就必须同批扩展 `COMPONENT_ENTRY_HTML`、`COMPONENT_EXPORT`、默认 `components`，以及 `cli-bundle` / `cli-release` / `http-support` 三处清单，否则平台会以 `ARTIFACT_MISMATCH` 拒绝 Bundle。`cli-bundle` 的回归护栏会在漏扩展时给出明确失败信息。
 
 ## 8. C 侧 contracts
 

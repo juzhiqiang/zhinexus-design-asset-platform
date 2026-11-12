@@ -82,7 +82,7 @@
 | 包 | 版本 | 字节 | SHA-256 |
 | --- | --- | --- | --- |
 | `@company/charts-core` | 0.0.5 | 30,260 | `cfc198d43b0114527ecd99ff4418497d5b0253fbcf4179e0ba5fe1da6a27393c` |
-| `@company/charts-vue` | 0.0.5 | 5,696 | `2d13a7ed0249442233337b5545b386276b572de89608fcb18f82dd9259f33bef` |
+| `@company/charts-vue` | 0.0.5 | 5,692 | `b209aac6ef7f221b6cb08d8d3ae0573af3e0cacafc069a8e640fced18d348c9d` |
 | `@company/charts-react` | 0.0.5 | 10,296 | `40ead94a8820f1e96de22e620a4d1650949ab2e108b0f6939baf3b412ad8c7f1` |0.0.4 → 0.0.5 为兼容变更（0.x 阶段按规则升 PATCH），无新增依赖、锁文件不变（`workspace:*` 协议）。
 
 ### 5.2 B：CLI 发布材料生成实现清单
