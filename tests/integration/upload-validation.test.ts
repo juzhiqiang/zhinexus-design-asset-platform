@@ -127,3 +127,87 @@ describe('platform frozen bundle validation', () => {
     reject(await api.validateUploadedArtifact('api.json', Buffer.from('['.repeat(33) + '0' + ']'.repeat(33))));
   });
 });
+
+describe('review regressions for npm runtime inventory and conditions', () => {
+  it.each(['constructor', '__proto__'])('returns an inert string MIME for inherited suffix %s', async extension => {
+    expect(await api.validateUploadedArtifact(`asset.${extension}`, Buffer.from('bytes'))).toEqual({ ok: true, value: { mimeType: 'application/octet-stream' } });
+  });
+  it.each(['./custom-chart', './charts/line'])('rejects undeclared runtime component subpath %s', async subpath => {
+    const f = await createValidBundle();
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, { exports: {
+      '.': './dist/index.js', './line': './dist/line.js', './bar': './dist/bar.js', [subpath]: './dist/index.js',
+    } }));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it.each(['./custom-chart', './charts/line'])('accepts declared custom runtime subpath with its own screenshot %s', async subpath => {
+    const f = await createValidBundle(); const variant = f.manifest.variants[0]!; variant.exportPath = subpath;
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f));
+    expect((await api.validatePlatformBundle(f.manifest, f.files, 'web')).ok).toBe(true);
+  });
+  it('allows explicit non-JavaScript style exports without fabricating variants', async () => {
+    const f = await createValidBundle(); const raw = gunzipSync(await packageBytes(f, 0, { exports: {
+      '.': './dist/index.js', './line': './dist/line.js', './bar': './dist/bar.js', './style.css': './dist/style.css',
+    } }));
+    const extra = gunzipSync(await tarBytes([{ name: 'package/dist/style.css', bytes: Buffer.from('.chart {}') }]));
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, gzipSync(Buffer.concat([raw.subarray(0, -1024), extra])));
+    expect((await api.validatePlatformBundle(f.manifest, f.files, 'web')).ok).toBe(true);
+  });
+  it.each([
+    { optionalDependencies: { hidden: '1.0.0' } }, { optionalDependencies: { echarts: '9.0.0' } },
+    { bundledDependencies: ['hidden'] }, { bundleDependencies: ['hidden'] }, { bundledDependencies: true },
+  ])('rejects unmodeled installation dependencies %j', async overrides => {
+    const f = await createValidBundle();
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, overrides));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it('rejects optional overrides of an otherwise exactly declared runtime dependency', async () => {
+    const f = await createValidBundle(); f.manifest.packages[0]!.dependencies = { '@company/charts-core': '0.0.2' };
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, { optionalDependencies: { '@company/charts-core': '0.0.9' } }));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it.each([
+    ['@company/contracts', '0.0.1'], ['@company/platform-api', '0.0.1'], ['@company/gallery', '0.0.1'],
+    ['@company/charts-core', 'workspace:*'], ['other', 'file:../other'], ['other', 'npm:@company/contracts@0.0.1'], ['other', '^1.0.0'],
+  ])('rejects forbidden frozen runtime dependency %s=%s even when manifest agrees', async (name, version) => {
+    const f = await createValidBundle(); f.manifest.packages[0]!.dependencies = { [name!]: version! };
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it('accepts declared exact public dependencies including a valid prerelease', async () => {
+    const f = await createValidBundle(); f.manifest.packages[0]!.dependencies = { '@company/charts-core': '0.0.2-rc.1' };
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f));
+    expect((await api.validatePlatformBundle(f.manifest, f.files, 'web')).ok).toBe(true);
+  });
+  it('rejects hidden node_modules contents not declared by the dependency model', async () => {
+    const f = await createValidBundle(); const raw = gunzipSync(await packageBytes(f));
+    const extra = gunzipSync(await tarBytes([{ name: 'package/node_modules/hidden/package.json', bytes: Buffer.from('{"name":"hidden","version":"1.0.0"}') }]));
+    replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, gzipSync(Buffer.concat([raw.subarray(0, -1024), extra])));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it.each([
+    { import: null, default: './dist/line.js' }, { default: null, import: './dist/line.js' },
+    { onlyUnknownCondition: './dist/line.js' }, { import: { onlyUnknownCondition: './dist/line.js' } },
+    { '0': './dist/line.js', import: './dist/line.js' }, { import: [null, null] },
+    { browser: null, import: './dist/line.js' }, { node: null, import: './dist/line.js' },
+    { import: './dist/line.d.ts', default: './dist/line.js' }, { './invalid': './dist/line.js' },
+  ])('rejects blocked, unknown, invalid or declaration-only ESM conditions %j', async lineExport => {
+    const f = await createValidBundle(); replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, { exports: {
+      '.': './dist/index.js', './line': lineExport, './bar': './dist/bar.js',
+    } }));
+    reject(await api.validatePlatformBundle(f.manifest, f.files, 'web'));
+  });
+  it.each([
+    { types: './dist/line.d.ts', import: './dist/line.js' },
+    { onlyUnknownCondition: './dist/line.d.ts', default: './dist/line.js' },
+    { import: { onlyUnknownCondition: './dist/line.d.ts' }, default: './dist/line.js' },
+    { default: './dist/line.js', import: null },
+    { node: './dist/line.js', browser: './dist/line.js', import: './dist/line.js' },
+    { import: [{ onlyUnknownCondition: './dist/line.d.ts' }, './dist/line.js'] },
+    { import: [null, './dist/line.js'] },
+  ])('accepts ordered ESM import/default resolution %j', async lineExport => {
+    const f = await createValidBundle(); replaceBundleArtifact(f, f.manifest.packages[0]!.tarball.path, await packageBytes(f, 0, { exports: {
+      '.': './dist/index.js', './line': lineExport, './bar': './dist/bar.js',
+    } }));
+    expect((await api.validatePlatformBundle(f.manifest, f.files, 'web')).ok).toBe(true);
+  });
+});

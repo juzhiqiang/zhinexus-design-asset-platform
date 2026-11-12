@@ -14,7 +14,7 @@ export async function validateUploadedArtifact(path: string, bytes: Uint8Array):
     if (/\.png$|\.jpe?g$/iu.test(path)) return { ok: true, value: parseImage(path, bytes) };
     if (/\.(?:tgz|tar\.gz)$/iu.test(path)) { parseNpmArchive(bytes); return { ok: true, value: { mimeType: 'application/gzip' } }; }
     const extension = path.split('.').at(-1)?.toLowerCase() ?? '';
-    const mimeType = textMimes[extension];
+    const mimeType = Object.hasOwn(textMimes, extension) ? textMimes[extension] : undefined;
     if (mimeType) {
       const text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
       if (text.includes('\0')) return rejected('Text artifact contains binary data');
@@ -28,15 +28,47 @@ export async function validateUploadedArtifact(path: string, bytes: Uint8Array):
 }
 
 const record = (value: unknown): value is Record<string, unknown> => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-const MANAGED_EXPORTS = new Set(['line', 'bar', 'pie', 'scatter', 'radar', 'heatmap', 'treemap', 'sankey', 'funnel', 'gauge', 'graph', 'map', 'candlestick', 'boxplot', 'sunburst']);
+const PRIVATE_PACKAGES = new Set(['@company/contracts', '@company/platform-api', '@company/preview-gateway', '@company/gallery', '@company/example-vue', '@company/example-react']);
+const prereleaseIdentifier = '(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)';
+const EXACT_DEPENDENCY_VERSION = new RegExp(`^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-${prereleaseIdentifier}(?:\\.${prereleaseIdentifier})*)?$`);
+const PACKAGE_NAME = /^(?:@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/u;
+const isJavaScript = (target: string) => /\.(?:[cm]?js)$/iu.test(target);
+// Safe SSR import and production browser mounting are both promised consumers.
+const ESM_CONDITIONS = [new Set(['node', 'node-addons', 'module-sync', 'import']), new Set(['browser', 'module', 'production', 'import'])];
+function resolveEsmTarget(value: unknown, conditions: ReadonlySet<string>): string | null | undefined {
+  if (typeof value === 'string' || value === null) return value;
+  if (Array.isArray(value)) {
+    // Node skips undefined/null array alternatives; a resolved string stops fallback.
+    for (const alternative of value) {
+      const resolved = resolveEsmTarget(alternative, conditions);
+      if (resolved !== null && resolved !== undefined) return resolved;
+    }
+    return null;
+  }
+  if (record(value)) for (const [condition, target] of Object.entries(value)) {
+    if (condition === 'default' || conditions.has(condition)) {
+      const resolved = resolveEsmTarget(target, conditions);
+      // An object condition that resolves null explicitly blocks later conditions.
+      if (resolved !== undefined) return resolved;
+    }
+  }
+  return undefined;
+}
 function validatePackage(pkg: PackageRef, archive: ReadonlyMap<string, Uint8Array>, variants: VariantRef[]): void {
   const bytes = archive.get('package.json');
   if (!bytes) throw new ArtifactFailure('npm package.json is missing');
   const metadata = boundedJson(bytes);
   if (!record(metadata) || metadata.name !== pkg.name || metadata.version !== pkg.version) throw new ArtifactFailure('npm package identity differs from the manifest');
+  for (const property of ['optionalDependencies', 'bundledDependencies', 'bundleDependencies']) {
+    if (Object.hasOwn(metadata, property)) throw new ArtifactFailure('npm installation dependency fields are not modeled by the manifest');
+  }
+  if ([...archive.keys()].some(path => path.split('/').some(segment => segment.toLowerCase() === 'node_modules'))) throw new ArtifactFailure('Bundled node_modules contents are not modeled by the manifest');
   for (const property of ['dependencies', 'peerDependencies'] as const) {
-    const value = metadata[property] ?? {};
+    const value = Object.hasOwn(metadata, property) ? metadata[property] : {};
     if (!record(value) || Object.values(value).some(version => typeof version !== 'string') || canonicalJson(value) !== canonicalJson(pkg[property])) throw new ArtifactFailure('npm dependencies differ from the manifest');
+    for (const [name, version] of Object.entries(value)) {
+      if (!PACKAGE_NAME.test(name) || PRIVATE_PACKAGES.has(name) || typeof version !== 'string' || !EXACT_DEPENDENCY_VERSION.test(version)) throw new ArtifactFailure('Frozen npm dependencies must be exact public package versions');
+    }
   }
   const exports = metadata.exports;
   if (!record(exports) && typeof exports !== 'string') throw new ArtifactFailure('npm exports must declare bounded package targets');
@@ -48,32 +80,34 @@ function validatePackage(pkg: PackageRef, archive: ReadonlyMap<string, Uint8Arra
       if (path.includes('*') || !archive.has(path)) throw new ArtifactFailure('npm export target is missing from the package');
       return [value];
     }
-    if (record(value) || Array.isArray(value)) {
-      const children = Object.values(value);
-      if (!children.length) throw new ArtifactFailure('npm export target is empty');
-      return children.flatMap(child => targets(child, depth + 1));
+    if (record(value)) {
+      if (Object.keys(value).some(key => key.startsWith('.') || /^[0-9]+$/u.test(key))) throw new ArtifactFailure('npm export condition keys are invalid');
+      return Object.values(value).flatMap(child => targets(child, depth + 1));
     }
+    if (Array.isArray(value)) return value.flatMap(child => targets(child, depth + 1));
     if (value === null) return [];
     throw new ArtifactFailure('npm export target is invalid');
   };
-  targets(exports);
   const subpaths: Record<string, unknown> = record(exports) && Object.keys(exports).some(key => key.startsWith('.')) ? exports : { '.': exports };
   if (Object.keys(subpaths).some(key => key !== '.' && !key.startsWith('./'))) throw new ArtifactFailure('npm exports mix conditions and subpaths');
+  const declaredTargets = new Map<string, string[]>();
+  for (const [subpath, value] of Object.entries(subpaths)) {
+    if (subpath !== '.') requireSafePath(subpath.slice(2));
+    declaredTargets.set(subpath, targets(value));
+  }
   const framework = pkg.name === '@company/charts-vue' ? 'vue' : pkg.name === '@company/charts-react' ? 'react' : undefined;
-  const runtimeTargets = (value: unknown): string[] => {
-    if (typeof value === 'string') return /\.(?:[cm]?js)$/iu.test(value) ? [value] : [];
-    if (record(value)) return Object.entries(value).flatMap(([condition, child]) => condition === 'types' ? [] : runtimeTargets(child));
-    if (Array.isArray(value)) return value.flatMap(runtimeTargets);
-    return [];
-  };
   for (const variant of variants) {
     if (framework && variant.framework !== framework || pkg.name === '@company/charts-core') throw new ArtifactFailure('Variant framework differs from the npm package');
-    if (!Object.hasOwn(subpaths, variant.exportPath) || runtimeTargets(subpaths[variant.exportPath]).length === 0) throw new ArtifactFailure('Variant runtime export is missing from the npm package');
+    if (!Object.hasOwn(subpaths, variant.exportPath)) throw new ArtifactFailure('Variant runtime export is missing from the npm package');
+    for (const conditions of ESM_CONDITIONS) {
+      const target = resolveEsmTarget(subpaths[variant.exportPath], conditions);
+      if (typeof target !== 'string' || !isJavaScript(target)) throw new ArtifactFailure('Variant export is unavailable to a supported ESM consumer');
+    }
   }
-  for (const [subpath, value] of Object.entries(subpaths)) {
-    if (!subpath.startsWith('./')) continue;
-    requireSafePath(subpath.slice(2));
-    if (MANAGED_EXPORTS.has(subpath.slice(2)) && targets(value).length && !variants.some(variant => variant.exportPath === subpath)) throw new ArtifactFailure('Managed npm component export has no declared implementation');
+  for (const [subpath, targetPaths] of declaredTargets) {
+    // Root is the aggregate/core entry. Static CSS/JSON targets are not components;
+    // every JavaScript subpath is managed by default, including custom/nested names.
+    if (subpath !== '.' && targetPaths.some(isJavaScript) && !variants.some(variant => variant.exportPath === subpath)) throw new ArtifactFailure('npm runtime component subpath has no declared implementation');
   }
 }
 
