@@ -6,3 +6,4 @@
 *.json text eol=lf
 *.yaml text eol=lf
 *.ps1 text eol=crlf
+tests/fixtures/releases/t05-verified-sdk/bundle/**/*.html text eol=lf
