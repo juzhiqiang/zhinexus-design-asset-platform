@@ -6,7 +6,7 @@ import { makeFixture } from '../fixtures/releases/g1/factory.js';
 
 describe('G1 API and generated JSON Schema', () => {
   it('accepts optional server candidate IDs without changing frozen screenshot reference IDs', () => {
-    const job = makeApiFixtures().releaseJobResponse;
+    const job = makeApiFixtures().releaseJobResponse as contracts.ApiMessages['releaseJobResponse'];
     const baselineCandidates = [{ screenshotId: 'server-id', sourceScreenshotId: 'client-id', variantId: 'line-vue', exampleId: 'default', environmentKey: 'a'.repeat(64) }];
     expect(contracts.validateApiMessage('releaseJobResponse', { ...job, baselineCandidates }).ok).toBe(true);
     expect(contracts.validateApiMessage('releaseJobResponse', { ...job, baselineCandidates: [{ ...baselineCandidates[0], environmentKey: 'unknown-manual' }] }).ok).toBe(false);
