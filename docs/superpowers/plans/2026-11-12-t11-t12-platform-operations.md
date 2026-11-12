@@ -68,7 +68,7 @@
 - [x] GREEN：固定镜像参数模板、服务配置/凭证注入、运行/迁移/回退说明和检查器。
 - [x] 验证 frozen install、workspace、无缓存 build/typecheck、根tsc、普通/platform/browser测试、infra、deployment、恢复演练；预期全部本地检查通过，真实生产检查保持待接入。
 - [x] 独立整分支审查并修复；平台/API（若网关行为变化则网关）PATCH版本与CHANGELOG单独提交。
-- [ ] 本地合并 main，复验合并树，记录commit和未完成外部门槛。详见2026-11-13独立集成记录。
+- [x] 本地合并 main，复验合并树，记录commit和未完成外部门槛。合并c737e8f；详见2026-11-13独立集成记录。
 
 ## 进展
 
