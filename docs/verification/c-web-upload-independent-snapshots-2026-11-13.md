@@ -125,3 +125,11 @@ B 同步旧浏览器 fixture 期间，C 读取其 `tests/browser/manual-release.
 实际执行 `playwright test --config tests/acceptance/playwright.c-fixture-probe.config.ts --reporter=line`，单 worker、生产画廊 5183，结果 **7 通过 / 1 失败、9.0 秒、退出 1**。日志 `.tools/operations/b-web-working-1723/manual-fixture-probe-1740.log`。完整绑定的恢复卡正例和合法真实目录触发的接口 500 已通过；唯一失败是框架错配测试期待“导入 Manifest 校验失败”，而页面实际返回“导入 Manifest 失败: Manifest 原始结构校验失败”，随后包含 `Screenshot must belong to this variant/framework/version/example/state`。这证明目标错配被拦截，剩余为测试文案断言未同步；已向 B 提供实际失败日志，要求只修测试、不放宽产品校验。
 
 该预跑仍不是 B 最终 Git 提交验收。后续必须在其最终固定 hash 的独立归档中重跑完整网页套件，不能将本次 7 项通过并入最终通过计数。
+
+17:48 B 修正提示断言后，C 再次读取稳定源 fixture（SHA-256 `b4cf8bf721471415d8d9596e0aedeee7e60a13a9afe6dbbe25642d6600242d9d`），新建独立测试副本 `b-manual-fixture-probe-1748.spec.ts`，没有覆盖前一份 RED。副本仍只改端口与冻结材料批次，摘要为 `d3838a06d7560958df35a5bdb5687587c650c59786575c964a195a73a247efc0`。相同 17:23 产品归档实际执行完整 8 项，**8/8、3.4 秒、退出 0**，日志 `manual-fixture-probe-1748.log`。这关闭手动 fixture 的中途预跑失败，B 最终固定 Git hash 的全套复验仍待完成。
+
+17:50 B 同步真实三存储的错配 fixture 后，C 读取稳定源文件，SHA-256 `a0ce36c1d922cabd750d46095921f6a0f76966b988f054a09693b0bf1dd196de`；新增 `b-real-fixture-probe-1750.spec.ts`，只替换 5183、既有 0.0.10 批次、包版本与三包精确摘要，副本摘要 `5bf9876384aca52ea69e2c21aa989cc4e3d6a06c5d913064dc1a9a7df66617af`。`playwright.c-fixture-probe-1750.config.ts` 单 worker 实际执行完整原 6 项，**6/6、54.5 秒、退出 0**，日志 `real-fixture-probe-1750.log`。其中包括真实 201/complete/202 到 READY、缺图、从完整合法清单只改框架的错配拦截、MinIO PUT 中断、丢失 202 后刷新并以原 key 获得同 job 且数据库唯一、损坏 tarball 期望摘要不变。原套件未直接比较两次请求的 session，此限制保留；C 的补充真实普通重试用例另外直接比较原请求体/session。共享三存储未被重启或初始化，测试使用自有随机 RecoveryStack。此结果仍归于 17:23 产品文件与本段测试源摘要，不能替代最终 Git hash。
+
+两处最新 fixture 的独立只读 diff 复审无 Critical/Important：确认错配只改变目标 framework，恢复正例使用完整匹配三元组和真实摘要，500 从真实可提交材料触发，原丢 202/刷新/同 key/同 job/数据库唯一/READY 断言未被弱化。审查没有执行测试，也不替代本段的实际命令与最终 hash 复验。
+
+A 已通过 Claude 交付只读交叉审查文档，报告文档提交 `2768d8fd8ac9124add8042046ccbbd538d7464b4`。C 未在其 Windows 映射目录运行 Git，只在 C 工作区对映射文档执行 `git hash-object` 与 SHA-256：新增 cross-review 的 blob 为 `453757d9610f70ad25401520ebfd79d73b4ad49d`（与 A 界面回执前缀一致），SHA-256 `9ef75b15d6935ff9d5455feca31ad2ccfb8f74ebcb8cfc3e5dde1c88e813bcbb`；SDK handover 的 blob 为 `c5289a6f0fce69106effbcd7bb1151faeb363bc0`，SHA-256 `e922c85d692da0d9d8d28ff6618eff5a0524035babd3c591e7f8aed37e1aa0ef`。本次只增加审查记录及交接索引，SDK 产品基线与冻结三包不变；A 的静态审查不冒充 C 的测试执行或完整 T10/T11/T12 验收。
