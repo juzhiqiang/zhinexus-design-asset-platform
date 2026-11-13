@@ -7,7 +7,7 @@
 
 | 归属 | 内容 |
 | --- | --- |
-| **A（本轮已交付）** | `packages/charts-core/src/engine/compatibility.ts` 的纯策略：候选解析、peer 符合性、报告结构与建议判定。不发起网络请求、不写文件、不改 `package.json`。测试为 `tests/unit/sdk-compatibility.test.ts`（33 例）。当前版本 `0.0.8`（`0.0.8` 修复了独立评审复现的三处策略误判，详见 [T10 SDK 兼容验证记录](t10-sdk-compatibility.md) 第八节）。 |
+| **A（本轮已交付）** | `packages/charts-core/src/engine/compatibility.ts` 的纯策略：候选解析、peer 符合性、报告结构与建议判定。不发起网络请求、不写文件、不改 `package.json`。测试为 `tests/unit/sdk-compatibility.test.ts`（41 例）。当前版本 `0.0.9`：`0.0.8`/`0.0.9` 两轮修复了独立评审复现的策略误判（含「改某一行 echartsVersion 骗取 adopt」与 peerSatisfied 盲信），详见 [T10 SDK 兼容验证记录](t10-sdk-compatibility.md) 第八、九节。 |
 | **B（未开始）** | `packages/component-cli/src/commands/echarts.ts`、`upgrades/{resolve,matrix,report}.ts`；`component echarts check` / `verify --version <exact>` / `verify --latest`。负责抓 registry 快照、建隔离升级目录、改精确依赖、跑矩阵、落报告。测试为实施计划列出的 `tests/unit/upgrade-policy.test.ts` 与 `tests/integration/upgrade-matrix.test.ts`。 |
 | **C** | `compatibility_records` 契约与落库；根 `package.json` / `pnpm-lock.yaml` / `turbo.json` 收口。 |
 
@@ -51,7 +51,7 @@ export type CombinationProbe = (combination: SupportedCombination) => Promise<Co
 export type CompatibilityReport = {
   candidate: EChartsCandidate;
   peerSatisfied: boolean;
-  baselineEchartsVersion: string;
+  baselineEchartsVersion?: string;   // 0.0.9 起可选；缺失即 fail-closed
   results: CombinationResult[];
   supportedRangeUnchanged: true;               // 恒 true
   requiresVisualBaselineConfirmation: boolean;
@@ -86,7 +86,7 @@ export class CandidateError extends Error { readonly reason: CandidateRejectionR
    扩大范围时必须先有新的实测通过记录，再改这里和 `peerDependencies`，顺序不能反。
 3. **`probe`**：对每个组合跑真实验证后回填四个维度。A 侧不执行任何构建，探针由 B 注入。
 
-   **探针收到的 `combination.echartsVersion` 是候选版本，不是基线版本**（`0.0.8` 修复；此前误把基线原样传给探针，导致报告自称验证候选、实测行写的却是基线）。B 侧 runner 必须按入参里的 `echartsVersion` 去装依赖、建隔离升级目录，**不能**按自己手里的基线版本去装。每个 `CombinationResult` 另带 `baselineEchartsVersion`，是该组合在基线状态下的版本，供对照与留痕；两份版本在候选低于基线（回退验证）时不同。
+   **探针收到的 `combination.echartsVersion` 是候选版本，不是基线版本**（`0.0.8` 修复；此前误把基线原样传给探针，导致报告自称验证候选、实测行写的却是基线）。B 侧 runner 必须按入参里的 `echartsVersion` 去装依赖、建隔离升级目录，**不能**按自己手里的基线版本去装。每个 `CombinationResult` 另带 `baselineEchartsVersion`，是该组合在基线状态下的版本，供对照与留痕；两份版本在候选低于基线（回退验证）时不同。该字段 `0.0.9` 起为**可选**（`0.0.8` 曾设为必填，那对手工构造该公开类型的调用方是破坏性变更），**缺失即判为无法与基线对应**：`hasDualFrameworkCoverage` 返回 `false`、`recommend` 返回 `'hold'`。B 侧 runner 应当始终填上它，但即使漏填也是安全方向。
 
    另外两条硬约束（同为 `0.0.8` 修复，B 侧传参时会直接碰到）：
 

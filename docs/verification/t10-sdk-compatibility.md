@@ -271,13 +271,119 @@ c7f3f6d3ee14033b2bfc9e3fbc1683842f1ef7f116e5bb375b66e5f258412e7d  12003  company
 | `pnpm --filter @company/charts-core build` | 通过 |
 | `pnpm exec tsc -p tsconfig.json --noEmit` | 退出码 0，无错误 |
 
-## 九、未覆盖边界
+## 九、复审遗漏与 Vue 声明缺陷（2026-11-13 第二轮）
 
-- **`0.0.8` 的 Windows 原生复验未执行**：C 于 2026-11-13 在固定 `f35ebc9` 上完成的 `0.0.7` 原生复验**不覆盖**本次修复，且 C 已明确记录「当前兼容策略保持未验收」。`0.0.8` 需在含修复提交的分支上重跑，并重点核对三项误判各自的判定：
+### 9.1 实测行版本被篡改仍 adopt
+
+C 对 `83ec74d` 用 tsx 复现：一份全 `passed` 的报告，只把 `results[0].echartsVersion`
+改成 `6.0.0`，`hasDualFrameworkCoverage` 仍 `true`、`recommend` 仍 `'adopt'`。根因是
+造键只用 `baselineEchartsVersion`，没校验每行**实际验的** `echartsVersion` 必须等于
+`report.candidate.version`。同类问题还有盲信传入的 `peerSatisfied`。
+
+复现输出（修复前）：
+
+```
+原始报告: candidate = 6.1.0  baseline = 6.1.0
+results  = vue/6.1.0, react/6.1.0
+recommend = adopt
+
+篡改后: results[0].echartsVersion = 6.0.0
+hasDualFrameworkCoverage = true
+recommend              = adopt   <-- 应为 hold
+
+伪造 peerSatisfied=true 且 baseline=6.0.0 / candidate=6.1.0:
+recommend = adopt   <-- 应为 hold
+```
+
+修复（`9679bac`）后同一脚本：
+
+```
+篡改后: results[0].echartsVersion = 6.0.0
+hasDualFrameworkCoverage = false
+recommend              = hold
+
+伪造 peerSatisfied=true 且 baseline=6.0.0 / candidate=6.1.0:
+recommend = hold
+```
+
+`tests/unit/sdk-compatibility.test.ts` 由 33 例增至 **41 例**，新增 8 例（5 例先红）。
+红态：篡改某一行（含非第一行）的 `echartsVersion`、`peerSatisfied` 置真或置假、
+`supported` 混基线，均曾放行 `'adopt'`。
+
+### 9.2 公开类型兼容性判定修正
+
+`0.0.8` 给导出的 `CombinationResult` 加了**必填** `baselineEchartsVersion`，那对手工
+构造该类型的调用方是破坏性变更，却按 PATCH 发版，不符合 `AGENTS.md`
+「破坏性变更递增 MINOR」。`0.0.9` 改为**可选**：旧公开类型形状依然可构造；缺失即
+fail-closed（`hasDualFrameworkCoverage` 返回 `false`、`recommend` 返回 `'hold'`），
+不会因为少字段放行，也不重新开放「报告与实测脱节」的误判。已有 RED 用例
+「缺少逐行基线对照时不得判为完整覆盖」与「逐行基线与 supported 不一致时」锁定该行为。
+
+### 9.3 charts-vue 发布声明的 NodeNext 缺陷
+
+`src/index.ts` 等入口的 `export { default as LineChart } from './LineChart.vue'` 被
+vue-tsc 原样写进 `dist/*.d.ts`，而真实声明文件叫 `LineChart.vue.d.ts`。仓库与多数
+消费者用 `moduleResolution: 'Bundler'`，TS 能解析过去，缺陷因此在仓库内一直不可见。
+
+修复前，用**真实冻结 tarball** 装到工作区外隔离消费者目录、`moduleResolution:
+NodeNext` + `skipLibCheck: false` 实跑 `tsc`，报 9 处：
+
+```
+node_modules/@company/charts-vue/dist/index.d.ts(1,38): error TS2307: Cannot find module './LineChart.vue' or its corresponding type declarations.
+node_modules/@company/charts-vue/dist/index.d.ts(2,37): error TS2307: Cannot find module './BarChart.vue' …
+…（PieChart / ScatterChart / TrendCard / RankingChart / ProportionChart / bar.d.ts / ranking.d.ts）
+```
+
+修复（`5393fea`）：`packages/charts-vue/scripts/build.mjs` 在声明发射后把 `./X.vue`
+改写为 `./X.vue.js`——NodeNext 与 Bundler 都会把 `.js` 说明符映射到 `X.vue.d.ts`。
+只碰声明文件；vite 产出的运行时 chunk 用哈希文件名，从不出现裸 `.vue` 说明符。
+
+验收（`b0979d9`，`tests/unit/charts-vue-declarations.test.ts` 6 例，4 例先红）：
+静态断言裸 `.vue` 说明符为 0、所有相对说明符以 `.js` 结尾且指向的声明文件存在；
+动态断言用仓库锁定的 TypeScript 以 NodeNext + `skipLibCheck: false` 对真实 `dist`
+的 `.d.ts` 实跑 `tsc`，无相对说明符的 TS2307。
+
+**真实冻结消费者验证（`0.0.9` tarball，工作区外隔离目录，`npm install` 严格 peer）**：
+
+| 消费者 | `moduleResolution: Bundler` | `moduleResolution: NodeNext` |
+| --- | --- | --- |
+| Vue 3.5.45 + echarts 6.1.0 | 退出码 0，无错误 | 退出码 0，无错误 |
+| React 19.3.1 + echarts 6.1.0 | 退出码 0，无错误 | 退出码 0，无错误 |
+
+消费者源码经公开 API 消费全部 7 个组件 + `./ranking` / `./bar` 子路径，`tsconfig`
+与仓库 `tsconfig.base.json` 同款 `strict` + `skipLibCheck: false`。修复前 Vue 侧
+NodeNext 为 9 处 TS2307、Bundler 已为 0；修复后四种组合全部 0。
+
+### 9.4 0.0.9 冻结产物与回归
+
+```
+319292460fd29068c837b55630ebc482ab6ce1277a8f0c71685c1d24cfd7892b  52737  company-charts-core-0.0.9.tgz
+ac8b1da97d239ef850f27da1a73dae5a94b95db86ddac66fa0eb626d147913e2   6627  company-charts-vue-0.0.9.tgz
+308c2cd0fb4837a2db37edac0d1a7ce0aaed0b65aa31105e59d9831ba4f947d2  12003  company-charts-react-0.0.9.tgz
+```
+
+Linux 复现环境重复打包两次结果一致；已核对 `charts-vue` 包内 `dist/index.d.ts`
+为 `./LineChart.vue.js`、`dependencies` 为 `@company/charts-core: 0.0.9`。
+**发布用的权威摘要仍须由 C 在 Windows 上从同一提交重新打包取得**（跨平台差异已在
+8.4 节实证）。
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm exec vitest run tests/unit --test-timeout=60000` | 13 files / **218 passed**（原 204 + 新增 14） |
+| `pnpm --filter @company/charts-vue typecheck`（vue-tsc） | 通过 |
+| `pnpm exec tsc -p tsconfig.json --noEmit` | 退出码 0，无错误 |
+| `pnpm exec playwright test --config tests/playwright.config.ts` | **185 passed** |
+| `pnpm build` | 10 successful, 10 total |
+| `pnpm verify:workspace` | 通过 |
+
+## 十、未覆盖边界
+
+- **`0.0.9` 的 Windows 原生复验未执行**：C 于 2026-11-13 在固定 `f35ebc9` 上完成的 `0.0.7` 原生复验**不覆盖**本轮修复，且 C 已明确记录「当前兼容策略保持未验收」。`0.0.9` 需在含修复提交的分支上重跑，并重点核对三项误判各自的判定：
 
   ```powershell
   .\scripts\verify.ps1
-  .\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts   # 预期 33 passed
+  .\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts          # 预期 41 passed
+  .\scripts\pnpm.ps1 exec vitest run tests/unit/charts-vue-declarations.test.ts    # 预期 6 passed
   ```
 
 - Windows 开发机原生验证（`.\scripts\verify.ps1`）未执行；本记录全部来自 Linux 复现环境。
