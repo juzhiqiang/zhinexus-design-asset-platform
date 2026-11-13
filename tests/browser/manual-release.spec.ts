@@ -25,9 +25,9 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await expect(page.locator('body')).toContainText('当前登录身份：web-developer-alice');
     await expect(page.locator('body')).toContainText('逐实现截图关联与必检清单');
 
-    // 初始包含 4 个实现变体 (line-vue, line-react, bar-vue, bar-react)
+    // 动态覆盖 7 组件 14 个实现变体
     const cards = page.locator('.variant-shot-card');
-    await expect(cards).toHaveCount(4);
+    await expect(cards).toHaveCount(14);
   });
 
   test('缺图阻断：任意变体缺图时禁止提交并展示明确错误提示 (blocks_submit_when_any_variant_has_no_image)', async ({ page }) => {
@@ -99,5 +99,80 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await expect(page.locator('body')).toContainText('CHECK_AVAILABILITY');
     await expect(page.locator('body')).toContainText('READY_TX');
     await expect(page.locator('body')).toContainText('READY');
+  });
+
+  test('断点恢复机制：当存在未完成的发布会话时展示恢复卡片并允许一键恢复', async ({ page }) => {
+    // 预置 localStorage 断点数据
+    await page.goto('http://127.0.0.1:5173/upload');
+    await page.evaluate(() => {
+      localStorage.setItem(
+        'zhinexus_pending_release',
+        JSON.stringify({
+          idempotencyKey: 'web-resume-test-key-999',
+          uploadSessionId: 'sess-resume-001',
+          manifest: { channel: 'web', packages: [], variants: [], files: [], reports: [] },
+          timestamp: Date.now(),
+        }),
+      );
+    });
+
+    // 重新进入并模拟登录
+    await page.goto('http://127.0.0.1:5173/upload');
+    await page.getByRole('button', { name: '一键模拟开发者登录' }).click();
+
+    // 验证出现恢复卡片
+    await expect(page.locator('body')).toContainText('检测到未完成的发布请求');
+    await expect(page.locator('body')).toContainText('web-resume-test-key-999');
+
+    const resumeBtn = page.getByRole('button', { name: '恢复提交' });
+    await expect(resumeBtn).toBeVisible();
+
+    const abandonBtn = page.getByRole('button', { name: '放弃草稿' });
+    await expect(abandonBtn).toBeVisible();
+    await abandonBtn.click();
+
+    // 放弃后卡片消失
+    await expect(page.locator('body')).not.toContainText('web-resume-test-key-999');
+  });
+
+  test('支持界面选择本地图片替换截图并动态更新大小与摘要', async ({ page }) => {
+    await page.goto('http://127.0.0.1:5173/upload');
+    await page.getByRole('button', { name: '一键模拟开发者登录' }).click();
+
+    // 针对 line-vue 变体，触发文件选择
+    const fileInput = page.locator('tr.variant-shot-card').first().locator('input[type="file"]');
+    await fileInput.setInputFiles({
+      name: 'custom-line-shot.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]),
+    });
+
+    // 验证更新为 10 字节
+    const firstRow = page.locator('tr.variant-shot-card').first();
+    await expect(firstRow).toContainText('10 字节');
+    await expect(firstRow).toContainText('已关联 (manual-upload)');
+  });
+
+  test('上传接口失败时阻断提交流程并展示清晰错误提示', async ({ page }) => {
+    await page.goto('http://127.0.0.1:5173/upload');
+    await page.getByRole('button', { name: '一键模拟开发者登录' }).click();
+
+    // 拦截 /v1/uploads 模拟 500 异常
+    await page.route('**/v1/uploads', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'text/plain',
+        body: 'STORAGE_UNAVAILABLE: 模拟对象存储网络故障',
+      });
+    });
+
+    const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
+    await expect(submitBtn).toBeEnabled();
+    await submitBtn.click();
+
+    // 验证页面明确展示错误并停止推进
+    await expect(page.locator('body')).toContainText('发布失败: 创建上传会话失败 (500)');
+    // 提交按钮恢复可用状态
+    await expect(submitBtn).toBeEnabled();
   });
 });

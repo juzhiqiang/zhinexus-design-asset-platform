@@ -21,7 +21,7 @@ export type ScreenshotValidationResult = {
  */
 export function validateVariantScreenshots(
   variants: VariantRef[],
-  packages: PackageRef[],
+  packages: PackageRef[] = [],
 ): ScreenshotValidationResult {
   const issues: ScreenshotValidationIssue[] = [];
   const missingVariantIds: string[] = [];
