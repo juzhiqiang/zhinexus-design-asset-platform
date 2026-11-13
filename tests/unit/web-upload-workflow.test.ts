@@ -563,4 +563,28 @@ describe('T08: 外部 Manifest 与本地文件导入、大小限制与分片契�
     expect(mockApi.completeUploadSession).not.toHaveBeenCalled();
     expect(mockApi.submitReleaseJob).not.toHaveBeenCalled();
   });
+
+  it('导入已有清单时保持期望摘要，同名产物内容篡改或错误时 validateUploadFiles 严格阻断并报告 DIGEST_MISMATCH', async () => {
+    const { manifest, filesMap } = createFourteenVariantManifest();
+    const targetPackage = manifest.packages[0]!;
+    const originalExpectedSha = targetPackage.tarball.sha256;
+
+    // 篡改同名 tarball 字节内容
+    const corruptedTarballBytes = new Uint8Array([0xde, 0xad, 0xbe, 0xef, 0x00, 0x11, 0x22, 0x33]);
+    filesMap.set(targetPackage.tarball.path, corruptedTarballBytes);
+
+    // 运行 validateUploadFiles 核验
+    const result = await validateUploadFiles(manifest, filesMap);
+
+    // 断言核验失败并准确包含 DIGEST_MISMATCH
+    expect(result.ok).toBe(false);
+    const digestIssue = result.issues.find(
+      (issue) => issue.code === 'DIGEST_MISMATCH' && issue.path === targetPackage.tarball.path,
+    );
+    expect(digestIssue).toBeDefined();
+    expect(digestIssue?.message).toContain('文件哈希不一致');
+
+    // 关键安全断言：清单中期望的 tarball.sha256 严禁被篡改
+    expect(targetPackage.tarball.sha256).toBe(originalExpectedSha);
+  });
 });

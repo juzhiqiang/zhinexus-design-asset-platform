@@ -296,7 +296,89 @@ const COMPONENT_EXPORTS: Record<SevenComponentName, { exportName: string; chines
 };
 
 /**
- * 构造覆盖 7 组件 14 实现的合规网页 Manifest 与内存文件映射
+ * 构造覆盖 7 组件 14 实现的干净空白草稿（不预填任何占位截图与假产物字节）
+ * 真实用户必须逐实现提供有效展示截图与真实产物
+ */
+export function createEmptySevenComponentsDraft(version = '0.0.6'): {
+  manifest: ReleaseManifestV1;
+  filesMap: Map<string, Uint8Array>;
+} {
+  const packages: PackageRef[] = [
+    {
+      name: '@company/charts-core',
+      version,
+      tarball: { path: `packages/company-charts-core-${version}.tgz`, sha256: '', bytes: 0 },
+      sourceDigest: '',
+      dependencies: {},
+      peerDependencies: { echarts: '6.1.0' },
+    },
+    {
+      name: '@company/charts-vue',
+      version,
+      tarball: { path: `packages/company-charts-vue-${version}.tgz`, sha256: '', bytes: 0 },
+      sourceDigest: '',
+      dependencies: { '@company/charts-core': version },
+      peerDependencies: { vue: '3.5.45', echarts: '6.1.0' },
+    },
+    {
+      name: '@company/charts-react',
+      version,
+      tarball: { path: `packages/company-charts-react-${version}.tgz`, sha256: '', bytes: 0 },
+      sourceDigest: '',
+      dependencies: { '@company/charts-core': version },
+      peerDependencies: { react: '19.3.1', 'react-dom': '19.3.1', echarts: '6.1.0' },
+    },
+  ];
+
+  const variants: VariantRef[] = [];
+  for (const comp of ALL_SEVEN_COMPONENTS) {
+    const meta = COMPONENT_EXPORTS[comp];
+    for (const fw of ['vue', 'react'] as const) {
+      const variantId = `${comp}-${fw}`;
+      const pkgName = fw === 'vue' ? '@company/charts-vue' : '@company/charts-react';
+      variants.push({
+        componentId: comp,
+        variantId,
+        framework: fw,
+        packageName: pkgName,
+        packageVersion: version,
+        exportPath: `./${comp}`,
+        exportName: meta.exportName,
+        api: { path: `api/${variantId}.json`, sha256: '', bytes: 0 },
+        docs: { path: `docs/${variantId}.md`, sha256: '', bytes: 0 },
+        examples: [
+          {
+            id: `example-${variantId}-default`,
+            previewEntry: `preview/${variantId}/index.html`,
+            previewFiles: [{ path: `preview/${variantId}/index.html`, sha256: '', bytes: 0 }],
+            fixtureDigest: '0000000000000000000000000000000000000000000000000000000000000000',
+            renderer: 'canvas',
+            theme: 'light',
+            width: 800,
+            height: 400,
+            requiredStates: ['default'],
+          },
+        ],
+        screenshots: [], // 真实草稿：必须手动上传有效展示截图，严禁占位假截图
+        compatibility: [],
+      });
+    }
+  }
+
+  const manifest = sanitizeWebManifest({
+    schemaVersion: 1,
+    channel: 'web',
+    packages,
+    variants,
+    reports: [],
+    files: [],
+  });
+
+  return { manifest, filesMap: new Map<string, Uint8Array>() };
+}
+
+/**
+ * 构造覆盖 7 组件 14 实现的合规网页 Manifest 与内存文件映射（供自动化测试夹具使用）
  */
 export function createSevenComponentsManifest(version = '0.0.5'): {
   manifest: ReleaseManifestV1;

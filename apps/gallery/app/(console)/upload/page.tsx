@@ -11,6 +11,7 @@ import {
 } from '../../lib/uploads/screenshot-validation';
 import {
   sanitizeWebManifest,
+  createEmptySevenComponentsDraft,
   createSevenComponentsManifest,
   validateUploadFiles,
   executeWebUploadWorkflow,
@@ -18,6 +19,7 @@ import {
   fetchReleaseJob,
   parseAndValidateImportedManifest,
   attachLocalFile,
+  submitReleaseJob,
 } from '../../lib/uploads/manifest-form';
 
 const LOCAL_STORAGE_WEB_RELEASE = 'zhinexus_web_release_session';
@@ -29,13 +31,13 @@ export default function WebUploadConsole() {
   const [tokenInput, setTokenInput] = useState('');
   const [apiUrl, setApiUrl] = useState<string>('http://127.0.0.1:3000');
   
-  // 初始化 7 组件 14 实现的完整结构与内存文件
-  const [initialData] = useState(() => createSevenComponentsManifest('0.0.5'));
+  // 初始化覆盖 7 组件 14 实现的干净草稿结构（初始无截图，必须由用户上传有效展示截图）
+  const [initialData] = useState(() => createEmptySevenComponentsDraft('0.0.6'));
   const [manifest, setManifest] = useState<ReleaseManifestV1>(initialData.manifest);
   const [filesMap, setFilesMap] = useState<Map<string, Uint8Array>>(initialData.filesMap);
 
   const [validation, setValidation] = useState<ScreenshotValidationResult>({
-    ok: true,
+    ok: false,
     missingVariantIds: [],
     issues: [],
   });
@@ -54,12 +56,6 @@ export default function WebUploadConsole() {
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const urlToken = params.get('token');
-      if (urlToken) {
-        const saved = saveSession(urlToken);
-        if (saved) setSession(saved);
-      }
-
       const queryApiUrl = params.get('apiUrl');
       if (queryApiUrl) {
         setApiUrl(queryApiUrl);
@@ -139,9 +135,9 @@ export default function WebUploadConsole() {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (!tokenInput.trim()) return;
-    const s = saveSession(tokenInput.trim());
-    if (s) {
-      setSession(s);
+    const saved = saveSession(tokenInput.trim());
+    if (saved) {
+      setSession(saved);
       setStatusMessage('');
     } else {
       setStatusMessage('Token 格式无效，无法解析身份');
@@ -152,139 +148,138 @@ export default function WebUploadConsole() {
   const handleLogout = () => {
     clearSession();
     setSession(null);
+    setStatusMessage('');
   };
 
-  // 删除某变体的截图（用于复现 blocks_submit_when_any_variant_has_no_image 测试用例）
-  const handleRemoveScreenshot = (variantId: string) => {
-    setManifest((prev) => {
-      const nextVariants = prev.variants.map((v) => {
-        if (v.variantId === variantId) {
-          return { ...v, screenshots: [] };
-        }
-        return v;
-      });
-      return sanitizeWebManifest({ ...prev, variants: nextVariants });
-    });
-  };
-
-  // 为某变体补齐默认有效截图
-  const handleAddScreenshot = (variantId: string) => {
-    setManifest((prev) => {
-      const nextVariants = prev.variants.map((v) => {
-        if (v.variantId === variantId) {
-          const shotBytes = new Uint8Array([
-            0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d,
-            0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x02,
-            0x08, 0x06, 0x00, 0x00, 0x00, 0x72, 0xb6, 0x0d, 0x24, 0x00, 0x00, 0x00,
-            0x15, 0x49, 0x44, 0x41, 0x54, 0x78, 0x9c, 0x63, 0xf8, 0xff, 0xff, 0x3f,
-            0x03, 0x03, 0x03, 0x03, 0x03, 0x03, 0x00, 0x18, 0x05, 0x03, 0x01, 0x3d,
-            0x5d, 0x3a, 0x89, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae,
-            0x42, 0x60, 0x82,
-          ]);
-          const imagePath = `screenshots/${variantId}-default.png`;
-          setFilesMap((fm) => new Map(fm).set(imagePath, shotBytes));
-
-          return {
-            ...v,
-            screenshots: [
-              createManualScreenshotRef({
-                id: `shot-${variantId}-default`,
-                variantId: v.variantId,
-                framework: v.framework,
-                packageVersion: v.packageVersion,
-                packageSha256: v.packageName.includes('vue')
-                  ? prev.packages.find((p) => p.name === '@company/charts-vue')?.tarball.sha256 || '00'
-                  : prev.packages.find((p) => p.name === '@company/charts-react')?.tarball.sha256 || '00',
-                exampleId: `example-${variantId}-default`,
-                imagePath,
-                imageSha256: '8c762ad0993a5cf6533d38f37b4c528f38fd0b6bf614984abd19ce2f6d8eab58',
-                imageBytes: shotBytes.byteLength,
-                width: 800,
-                height: 400,
-              }),
-            ],
-          };
-        }
-        return v;
-      });
-      return sanitizeWebManifest({ ...prev, variants: nextVariants });
-    });
-  };
-
-  // 模拟将变体配给错误的框架截图以测试错配拒绝
-  const handleMismatchScreenshot = (variantId: string) => {
-    setManifest((prev) => {
-      const nextVariants = prev.variants.map((v) => {
-        if (v.variantId === variantId) {
-          const wrongFramework = v.framework === 'vue' ? 'react' : 'vue';
-          const imagePath = `screenshots/${variantId}-mismatched.png`;
-          const dummyShotBytes = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-          setFilesMap((fm) => new Map(fm).set(imagePath, dummyShotBytes));
-
-          return {
-            ...v,
-            screenshots: [
-              createManualScreenshotRef({
-                id: `shot-${variantId}-mismatched`,
-                variantId: v.variantId,
-                framework: wrongFramework as any, // 故意错配框架
-                packageVersion: v.packageVersion,
-                packageSha256: '0000000000000000000000000000000000000000000000000000000000000000',
-                exampleId: `example-${variantId}-default`,
-                imagePath,
-                imageSha256: '0000000000000000000000000000000000000000000000000000000000000000',
-                imageBytes: dummyShotBytes.byteLength,
-                width: 800,
-                height: 400,
-              }),
-            ],
-          };
-        }
-        return v;
-      });
-      return sanitizeWebManifest({ ...prev, variants: nextVariants });
-    });
-  };
-
-  // 允许用户通过本地文件选择器选择真实图片
+  // 单个变体上传真实展示截图
   const handleFileChange = async (variantId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
-    const sha = await computeBrowserSha256(bytes);
-    const imagePath = `screenshots/${variantId}-${Date.now()}.png`;
+    const fileSha = await computeBrowserSha256(bytes);
+    const shotPath = `screenshots/${variantId}-default.png`;
 
-    setFilesMap((prev) => new Map(prev).set(imagePath, bytes));
+    const nextMap = new Map(filesMap);
+    nextMap.set(shotPath, bytes);
 
-    setManifest((prev) => {
-      const nextVariants = prev.variants.map((v) => {
-        if (v.variantId === variantId) {
-          const pkgTarball = prev.packages.find((p) => p.name === v.packageName)?.tarball;
-          return {
-            ...v,
-            screenshots: [
-              createManualScreenshotRef({
-                id: `shot-${variantId}-custom-${Date.now()}`,
-                variantId: v.variantId,
-                framework: v.framework,
-                packageVersion: v.packageVersion,
-                packageSha256: pkgTarball?.sha256 || '00',
-                exampleId: `example-${variantId}-default`,
-                imagePath,
-                imageSha256: sha,
-                imageBytes: bytes.byteLength,
-                width: 800,
-                height: 400,
-              }),
-            ],
-          };
-        }
-        return v;
-      });
-      return sanitizeWebManifest({ ...prev, variants: nextVariants });
+    const updatedVariants = manifest.variants.map((v) => {
+      if (v.variantId === variantId) {
+        const pkgTarball = manifest.packages.find((p) => p.name === v.packageName)?.tarball;
+        return {
+          ...v,
+          screenshots: [
+            createManualScreenshotRef({
+              id: `shot-${variantId}-default`,
+              variantId: v.variantId,
+              framework: v.framework,
+              packageVersion: v.packageVersion,
+              packageSha256: pkgTarball?.sha256 || '00',
+              exampleId: `example-${variantId}-default`,
+              imagePath: shotPath,
+              imageSha256: fileSha,
+              imageBytes: bytes.byteLength,
+              width: 800,
+              height: 400,
+            }),
+          ],
+        };
+      }
+      return v;
     });
+
+    const updatedFiles = [
+      ...manifest.files.filter((f) => f.path !== shotPath),
+      { path: shotPath, sha256: fileSha, bytes: bytes.byteLength },
+    ];
+
+    setFilesMap(nextMap);
+    setManifest({
+      ...manifest,
+      variants: updatedVariants,
+      files: updatedFiles,
+    });
+    setStatusMessage(`已为实现 ${variantId} 上传有效展示截图 (${bytes.byteLength} 字节)`);
+  };
+
+  // 批量关联本地展示截图（从所选多个文件中自动按 variantId 匹配）
+  const handleBatchScreenshots = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    const nextMap = new Map(filesMap);
+    const updatedVariants = [...manifest.variants];
+    const newFilesMap = new Map(manifest.files.map((f) => [f.path, f]));
+    let matchedCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]!;
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      const fileSha = await computeBrowserSha256(bytes);
+      const relativePath = ((file as any).webkitRelativePath || file.name).replace(/\\/g, '/');
+      const fileName = relativePath.split('/').pop() || file.name;
+
+      for (let j = 0; j < updatedVariants.length; j++) {
+        const v = updatedVariants[j]!;
+        const cleanName = fileName.replace(/\.(png|jpe?g)$/i, '').replace(/-default$/, '');
+        if (cleanName === v.variantId || fileName.includes(v.variantId)) {
+          const pkgTarball = manifest.packages.find((p) => p.name === v.packageName)?.tarball;
+          const shotPath = `screenshots/${v.variantId}-default.png`;
+          nextMap.set(shotPath, bytes);
+
+          const shotRef = createManualScreenshotRef({
+            id: `shot-${v.variantId}-default`,
+            variantId: v.variantId,
+            framework: v.framework,
+            packageVersion: v.packageVersion,
+            packageSha256: pkgTarball?.sha256 || '00',
+            exampleId: `example-${v.variantId}-default`,
+            imagePath: shotPath,
+            imageSha256: fileSha,
+            imageBytes: bytes.byteLength,
+            width: 800,
+            height: 400,
+          });
+
+          updatedVariants[j] = { ...v, screenshots: [shotRef] };
+          newFilesMap.set(shotPath, { path: shotPath, sha256: fileSha, bytes: bytes.byteLength });
+          matchedCount++;
+          break;
+        }
+      }
+    }
+
+    setFilesMap(nextMap);
+    setManifest({
+      ...manifest,
+      variants: updatedVariants,
+      files: [...newFilesMap.values()],
+    });
+    setStatusMessage(`成功批量关联 ${matchedCount} 张有效展示截图并计算摘要`);
+  };
+
+  // 删除某变体的截图（真实用户操作）
+  const handleRemoveScreenshot = (variantId: string) => {
+    const shotPath = `screenshots/${variantId}-default.png`;
+    const nextMap = new Map(filesMap);
+    nextMap.delete(shotPath);
+
+    const updatedVariants = manifest.variants.map((v) => {
+      if (v.variantId === variantId) {
+        return { ...v, screenshots: [] };
+      }
+      return v;
+    });
+
+    const updatedFiles = manifest.files.filter((f) => f.path !== shotPath);
+    setFilesMap(nextMap);
+    setManifest({
+      ...manifest,
+      variants: updatedVariants,
+      files: updatedFiles,
+    });
+    setStatusMessage(`已移除实现 ${variantId} 的展示截图`);
   };
 
   // 导入外部 Manifest JSON 文件
@@ -305,16 +300,12 @@ export default function WebUploadConsole() {
     }
   };
 
-  // 导入本地预构建产物文件并计算 SHA-256（支持相对路径映射与 preview 文件补齐）
+  // 导入本地预构建产物文件或目录（按实际路径映射，保持清单期望摘要不变，错字节由核验阻断）
   const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     let importedCount = 0;
     const nextMap = new Map(filesMap);
-    const updatedManifest = { ...manifest };
-    const updatedPackages = [...updatedManifest.packages];
-    const updatedVariants = [...updatedManifest.variants];
-    const updatedFiles = [...updatedManifest.files];
 
     // 1. 将选择的文件保存到映射（支持相对路径与直接文件名，自动关联到 manifest.files）
     for (let i = 0; i < files.length; i++) {
@@ -324,81 +315,86 @@ export default function WebUploadConsole() {
       const relativePath = (file as any).webkitRelativePath || file.name;
       const normalizedPath = relativePath.replace(/\\/g, '/');
 
-      await attachLocalFile(nextMap, normalizedPath, bytes);
-      const fileSha = await computeBrowserSha256(bytes);
+      // 提取去除顶层文件夹名的相对路径（例如 69443f97-.../preview/line-vue/index.html -> preview/line-vue/index.html）
+      const slashIndex = normalizedPath.indexOf('/');
+      const cleanPath = slashIndex !== -1 ? normalizedPath.slice(slashIndex + 1) : normalizedPath;
 
-      // 路径匹配规则并同步更新 manifest.files 与 packages
-      for (let j = 0; j < updatedFiles.length; j++) {
-        const mf = updatedFiles[j]!;
+      await attachLocalFile(nextMap, normalizedPath, bytes);
+
+      // 路径匹配规则并关联到 manifest.files，但严禁改写 manifest 中期望的 bytes 与 sha256！
+      for (let j = 0; j < manifest.files.length; j++) {
+        const mf = manifest.files[j]!;
         if (
           mf.path === normalizedPath ||
+          mf.path === cleanPath ||
           normalizedPath.endsWith('/' + mf.path) ||
           (file.name.endsWith('.tgz') && mf.path.endsWith('/' + file.name))
         ) {
           nextMap.set(mf.path, bytes);
-          updatedFiles[j] = { ...mf, bytes: bytes.byteLength, sha256: fileSha };
-
-          // 若为包 tarball，同步更新 package_releases 与关联截图的 packageSha256
-          for (let p = 0; p < updatedPackages.length; p++) {
-            if (updatedPackages[p]!.tarball.path === mf.path) {
-              const pkgName = updatedPackages[p]!.name;
-              updatedPackages[p] = {
-                ...updatedPackages[p]!,
-                tarball: { ...updatedPackages[p]!.tarball, bytes: bytes.byteLength, sha256: fileSha },
-              };
-              // 更新对应变体截图的 packageSha256
-              for (let v = 0; v < updatedVariants.length; v++) {
-                if (updatedVariants[v]!.packageName === pkgName) {
-                  updatedVariants[v] = {
-                    ...updatedVariants[v]!,
-                    screenshots: updatedVariants[v]!.screenshots.map((s) => ({
-                      ...s,
-                      packageSha256: fileSha,
-                    })),
-                  };
-                }
-              }
-            }
-          }
         }
       }
       importedCount++;
     }
 
-    // 2. 补齐检查：针对 manifest.files 中若有因浏览器扁平文件选择导致未递归保留路径的 preview/docs/api 文件，自动按实际路径映射或补齐
-    for (let j = 0; j < updatedFiles.length; j++) {
-      const mf = updatedFiles[j]!;
-      if (!nextMap.has(mf.path)) {
-        if (mf.path.startsWith('preview/')) {
-          // 若为 preview 目录文件且扁平选择未包含路径，补齐最小合法预览 HTML
-          const previewHtmlBytes = new TextEncoder().encode(
-            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview ${mf.path}</title></head><body><div id="app"></div></body></html>`,
-          );
-          await attachLocalFile(nextMap, mf.path, previewHtmlBytes);
-          const pSha = await computeBrowserSha256(previewHtmlBytes);
-          updatedFiles[j] = { ...mf, bytes: previewHtmlBytes.byteLength, sha256: pSha };
-        } else if (mf.path.endsWith('.json')) {
-          const jsonBytes = new TextEncoder().encode('{}');
-          await attachLocalFile(nextMap, mf.path, jsonBytes);
-          const jSha = await computeBrowserSha256(jsonBytes);
-          updatedFiles[j] = { ...mf, bytes: jsonBytes.byteLength, sha256: jSha };
-        } else if (mf.path.endsWith('.md')) {
-          const mdBytes = new TextEncoder().encode(`# ${mf.path}\n`);
-          await attachLocalFile(nextMap, mf.path, mdBytes);
-          const mSha = await computeBrowserSha256(mdBytes);
-          updatedFiles[j] = { ...mf, bytes: mdBytes.byteLength, sha256: mSha };
-        }
-      }
+    setFilesMap(nextMap);
+    // 核心安全约束：保持 manifest 原始期望值不变，由 validateUploadFiles 对真实字节进行尺寸与 SHA-256 核验与阻断
+    setStatusMessage(`成功导入 ${importedCount} 个本地预构建产物文件并完成路径映射`);
+  };
+
+  // 恢复未完成的发布请求：直接重放原持久化的 manifest、uploadSessionId 与 idempotencyKey，绝不依赖可能为空的页面草稿状态
+  const handleResumePendingRelease = async () => {
+    if (!session?.token) return;
+    const pendingReleaseStr = localStorage.getItem(LOCAL_STORAGE_PENDING_RELEASE);
+    if (!pendingReleaseStr) {
+      setStatusMessage('未找到可恢复的发布请求记录');
+      setPendingResumeKey(null);
+      return;
+    }
+    let pending: any;
+    try {
+      pending = JSON.parse(pendingReleaseStr);
+    } catch {
+      setStatusMessage('恢复记录损坏，无法解析');
+      return;
     }
 
-    setFilesMap(nextMap);
-    setManifest({
-      ...updatedManifest,
-      packages: updatedPackages,
-      variants: updatedVariants,
-      files: updatedFiles,
-    });
-    setStatusMessage(`成功导入 ${importedCount} 个本地预构建产物文件并自动完成路径映射与核验`);
+    if (!pending.uploadSessionId || !pending.idempotencyKey || !pending.manifest) {
+      setStatusMessage('恢复记录不完整，缺少会话 ID、幂等键或清单');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatusMessage(`正在使用原幂等键 (${pending.idempotencyKey}) 恢复提交发布作业...`);
+
+    try {
+      const targetApiUrl = apiUrl.trim() || 'http://127.0.0.1:3000';
+      const releaseRes = await submitReleaseJob(
+        targetApiUrl,
+        session.token,
+        pending.uploadSessionId,
+        pending.manifest,
+        pending.idempotencyKey,
+      );
+
+      setActiveJobId(releaseRes.jobId);
+      localStorage.setItem(
+        LOCAL_STORAGE_WEB_RELEASE,
+        JSON.stringify({
+          jobId: releaseRes.jobId,
+          uploadSessionId: pending.uploadSessionId,
+          idempotencyKey: pending.idempotencyKey,
+          state: releaseRes.state,
+          timestamp: Date.now(),
+        }),
+      );
+      localStorage.removeItem(LOCAL_STORAGE_PENDING_RELEASE);
+      setPendingResumeKey(null);
+      setStatusMessage(`恢复提交成功，作业已创建 (${releaseRes.jobId})，正在持续轮询状态机...`);
+    } catch (err: any) {
+      setStatusMessage(`恢复发布失败: ${err.message}`);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   // 提交发布流程：严格按照时序持久化并调用实际接口，绝不吞错
@@ -449,38 +445,23 @@ export default function WebUploadConsole() {
             <input
               id="token-input"
               type="text"
-              className="search-box"
-              style={{ width: '100%' }}
-              placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
+              placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+              style={{
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: '6px',
+                border: '1px solid #cbd5e1',
+                fontSize: '13px',
+                fontFamily: 'monospace',
+              }}
             />
           </div>
 
           <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <button type="submit" className="filter-btn active">
-              进入控制台
-            </button>
-            <button
-              type="button"
-              className="filter-btn"
-              onClick={() => {
-                const mockHeader = btoa(JSON.stringify({ alg: 'RS256', typ: 'JWT' }));
-                const mockPayload = btoa(
-                  JSON.stringify({
-                    sub: 'web-developer-alice',
-                    roles: ['publisher', 'maintainer'],
-                    azp: 'web',
-                    client_id: 'web',
-                    exp: Math.floor(Date.now() / 1000) + 3600,
-                  }),
-                );
-                const mockToken = `${mockHeader}.${mockPayload}.testsignature`;
-                const s = saveSession(mockToken);
-                if (s) setSession(s);
-              }}
-            >
-              一键模拟开发者登录
+              凭证登录
             </button>
           </div>
 
@@ -492,7 +473,6 @@ export default function WebUploadConsole() {
     );
   }
 
-  // 已登录状态展示完整发布控制台
   const canSubmit = validation.ok && fileIssues.length === 0 && !isSubmitting;
 
   return (
@@ -510,13 +490,23 @@ export default function WebUploadConsole() {
         </button>
       </div>
 
-      {/* 断点恢复提示卡片 */}
+      {/* 断点恢复卡片（当检测到上次未完成的发布会话时展示） */}
       {pendingResumeKey && (
-        <div style={{ padding: '16px', background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '8px', marginBottom: '24px' }}>
+        <div
+          id="resume-session-card"
+          className="resume-card"
+          style={{
+            padding: '16px',
+            background: '#eff6ff',
+            border: '1px solid #bfdbfe',
+            borderRadius: '8px',
+            marginBottom: '24px',
+          }}
+        >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div>
-              <strong>🔄 检测到未完成的发布请求：</strong>
-              <span style={{ fontSize: '13px', color: '#1e40af', marginLeft: '8px', fontFamily: 'monospace' }}>
+              <strong style={{ color: '#1e40af', fontSize: '14px' }}>检测到未完成的发布请求</strong>
+              <span style={{ marginLeft: '8px', fontSize: '12px', fontFamily: 'monospace', color: '#2563eb' }}>
                 {pendingResumeKey}
               </span>
               <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
@@ -528,7 +518,7 @@ export default function WebUploadConsole() {
                 type="button"
                 className="filter-btn active"
                 style={{ fontSize: '12px', padding: '4px 12px' }}
-                onClick={handleSubmitRelease}
+                onClick={handleResumePendingRelease}
                 disabled={isSubmitting}
               >
                 恢复提交
@@ -563,13 +553,26 @@ export default function WebUploadConsole() {
           />
         </label>
         <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
-          📦 导入本地预构建产物文件 (.tgz / 静态文件)
+          📦 批量导入构建产物目录或文件 (.tgz / preview / docs / api)
           <input
             id="import-files-input"
             type="file"
             multiple
+            {...({ webkitdirectory: '', directory: '' } as any)}
             style={{ display: 'none' }}
             onChange={handleImportFiles}
+          />
+        </label>
+        <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
+          🖼️ 批量关联本地截图目录或文件 (screenshots/*.png)
+          <input
+            id="import-screenshots-input"
+            type="file"
+            multiple
+            {...({ webkitdirectory: '', directory: '' } as any)}
+            accept="image/png,image/jpeg"
+            style={{ display: 'none' }}
+            onChange={handleBatchScreenshots}
           />
         </label>
       </div>
@@ -657,13 +660,13 @@ export default function WebUploadConsole() {
                       </div>
                     ) : (
                       <span style={{ color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>✗</span> 缺少截图
+                        <span>✗</span> 缺少有效展示截图
                       </span>
                     )}
                   </td>
                   <td>
-                    {hasShot ? (
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                    {hasShot && shot ? (
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         <button
                           type="button"
                           className="filter-btn"
@@ -673,46 +676,31 @@ export default function WebUploadConsole() {
                         >
                           删除截图
                         </button>
-                        <button
-                          type="button"
-                          className="filter-btn"
-                          style={{ padding: '2px 8px', fontSize: '11px' }}
-                          onClick={() => handleMismatchScreenshot(v.variantId)}
-                        >
-                          模拟框架错配测试
-                        </button>
                         <label
                           className="filter-btn"
                           style={{ padding: '2px 8px', fontSize: '11px', cursor: 'pointer' }}
                         >
-                          替换图片
+                          替换截图
                           <input
                             type="file"
                             accept="image/png,image/jpeg"
+                            data-upload-shot={v.variantId}
                             style={{ display: 'none' }}
                             onChange={(e) => handleFileChange(v.variantId, e)}
                           />
                         </label>
                       </div>
                     ) : (
-                      <div style={{ display: 'flex', gap: '6px' }}>
-                        <button
-                          type="button"
-                          className="filter-btn active"
-                          data-restore-shot={v.variantId}
-                          style={{ padding: '2px 8px', fontSize: '11px' }}
-                          onClick={() => handleAddScreenshot(v.variantId)}
-                        >
-                          补齐默认截图
-                        </button>
+                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
                         <label
-                          className="filter-btn"
+                          className="filter-btn active"
                           style={{ padding: '2px 8px', fontSize: '11px', cursor: 'pointer' }}
                         >
-                          上传文件
+                          上传有效截图
                           <input
                             type="file"
                             accept="image/png,image/jpeg"
+                            data-upload-shot={v.variantId}
                             style={{ display: 'none' }}
                             onChange={(e) => handleFileChange(v.variantId, e)}
                           />
@@ -727,31 +715,27 @@ export default function WebUploadConsole() {
         </table>
       </section>
 
-      {/* 提交发布操作区 */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '32px' }}>
+      {/* 提交操作区 */}
+      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px' }}>
         <button
           type="button"
-          id="submit-release-btn"
-          className="filter-btn active"
-          style={{ padding: '10px 24px', fontSize: '15px' }}
+          className={`filter-btn ${canSubmit ? 'active' : ''}`}
+          style={{ padding: '10px 24px', fontSize: '14px', fontWeight: 600 }}
           disabled={!canSubmit}
           onClick={handleSubmitRelease}
         >
-          {isSubmitting ? '真实产物发布中...' : '确认并提交发布'}
+          {isSubmitting ? '正在执行上传流水线...' : '确认并提交发布'}
         </button>
-
-        {!canSubmit && (
-          <span style={{ color: '#dc2626', fontSize: '13px' }}>
-            （部分实现缺少截图、存在框架错配或文件损坏，提交已被严格阻断禁用）
-          </span>
-        )}
+        <div style={{ fontSize: '13px', color: '#64748b' }}>
+          渠道: <code>web (manual-upload)</code> · 已装配文件: <strong>{filesMap.size}</strong> 项
+        </div>
       </div>
 
-      {/* 进度与状态提示 */}
+      {/* 进度条展示 */}
       {uploadProgress !== null && (
-        <div style={{ marginBottom: '24px', background: '#ffffff', padding: '16px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', marginBottom: '6px' }}>
-            <span>上传进度</span>
+        <div style={{ marginBottom: '20px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>
+            <span>上传与核验进度</span>
             <span>{uploadProgress}%</span>
           </div>
           <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
@@ -760,6 +744,7 @@ export default function WebUploadConsole() {
         </div>
       )}
 
+      {/* 提示信息栏 */}
       {statusMessage && (
         <div
           id="upload-status-message"
@@ -779,20 +764,22 @@ export default function WebUploadConsole() {
             </Link>
           </div>
 
-          <div className="status-grid" style={{ marginBottom: '16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
             <div className="status-card">
-              <span className="label">作业 ID (Job ID)</span>
-              <span className="value" style={{ fontFamily: 'monospace', fontSize: '13px' }}>{activeJobId}</span>
-            </div>
-            <div className="status-card">
-              <span className="label">状态 (State)</span>
-              <span className={`value ${jobState?.state === 'READY' ? 'ready' : ''}`}>
-                {jobState?.state ?? 'PENDING'}
+              <span className="label">当前作业编号</span>
+              <span className="value" style={{ fontSize: '13px', fontFamily: 'monospace' }}>
+                {activeJobId}
               </span>
             </div>
             <div className="status-card">
-              <span className="label">执行阶段 (Stage)</span>
-              <span className="value">{jobState?.stage ?? 'INITIALIZING'}</span>
+              <span className="label">状态机状态 (State)</span>
+              <span className={`value ${jobState?.state === 'READY' ? 'ready' : ''}`}>
+                {jobState?.state || 'POLLING...'}
+              </span>
+            </div>
+            <div className="status-card">
+              <span className="label">流水线阶段 (Stage)</span>
+              <span className="value">{jobState?.stage || 'INITIALIZING'}</span>
             </div>
             <div className="status-card">
               <span className="label">重试次数</span>
@@ -801,12 +788,20 @@ export default function WebUploadConsole() {
           </div>
 
           {jobState?.state === 'READY' && (
-            <div style={{ padding: '16px', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: '8px', color: '#065f46' }}>
-              <strong>发布成功！</strong> 版本状态已原子写入 Ready。可前往{' '}
-              <Link href="/components" style={{ color: '#047857', textDecoration: 'underline' }}>
-                组件画廊目录
-              </Link>{' '}
-              查看已发布的资产与隔离预览。
+            <div style={{ padding: '16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', color: '#166534' }}>
+              <strong>🎉 发布成功！</strong> 版本状态已原子写入 Ready。可前往组件画廊或通过注册表安装使用。
+            </div>
+          )}
+
+          {jobState?.state === 'CONFLICT' && (
+            <div style={{ padding: '16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b' }}>
+              <strong>⚠️ 版本冲突 (CONFLICT):</strong> 该包版本已发布过不同内容，不可变性保证禁止覆盖。
+            </div>
+          )}
+
+          {jobState?.state === 'REJECTED' && (
+            <div style={{ padding: '16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b' }}>
+              <strong>❌ 发布被拒绝 (REJECTED):</strong> 产物校验或依赖未通过平台合规检查。
             </div>
           )}
         </section>

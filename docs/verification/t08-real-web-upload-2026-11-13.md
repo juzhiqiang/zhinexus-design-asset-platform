@@ -89,67 +89,80 @@
 
 ## 4. 全量自动化验证通过证据
 
-### 4.1 单元测试套件 (`tests/unit/web-upload-workflow.test.ts`)
+### 4.1 单元测试套件 (`tests/unit/web-upload-workflow.test.ts` + `tests/unit/api-cors.test.ts`)
 
-执行命令：`pnpm vitest run tests/unit/web-upload-workflow.test.ts`
-实测结果：**14 项全量通过 (49ms)**
-- 覆盖 14 实现动态校验、缺图与错框架阻断、文件大小与 SHA-256 校验、严格时序持久化、错误中止、幂等键复用、外部 Manifest 清洗与路径补齐、分片 ETag 收集与分片失败中止。
+1. 执行命令：`pnpm vitest run tests/unit/web-upload-workflow.test.ts`
+   实测结果：**15 项全量通过 (45ms)**
+   - 覆盖 14 实现动态校验、缺图与错框架阻断、文件大小与 Web Crypto SHA-256 校验、严格时序持久化、错误中止、幂等键复用、外部 Manifest 清洗与路径补齐、分片 ETag 收集与分片失败中止。
+   - **新增**：导入已有清单时保持期望摘要不可篡改，同名产物内容篡改或错误时 `validateUploadFiles` 严格阻断并报告 `DIGEST_MISMATCH`，禁止自动重写包期望摘要。
+2. 执行命令：`pnpm vitest run tests/unit/api-cors.test.ts`
+   实测结果：**6 项全量通过 (243ms)**
+   - 验证画廊 Origin 精确白名单、OPTIONS 预检 204、头白名单及未配置 Origin 时严格禁用。
 
 ### 4.2 真实三存储端到端浏览器测试 (`tests/browser/web-upload-real-e2e.spec.ts`)
 
 执行命令：`pnpm playwright test tests/browser/web-upload-real-e2e.spec.ts --config tests/playwright.config.ts --workers=1`
-实测结果：**5 项全量通过 (18.2s)**
+实测结果：**6 项全量通过 (49.5s)**
 
 ```text
-Running 5 tests using 1 worker
+Running 6 tests using 1 worker
 
-  ok 1 tests\browser\web-upload-real-e2e.spec.ts:205:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实三存储全链路：选择真实产物和逐实现手动截图，经 Nest API/MinIO/Worker 推进至 READY (5.6s)
-  ok 2 tests\browser\web-upload-real-e2e.spec.ts:295:3 › T08: 真实三存储浏览器端到端发布流水线 › 缺图阻断：当任意变体缺失展示截图时严格阻断提交 (SCREENSHOT_REQUIRED) (281ms)
-  ok 3 tests\browser\web-upload-real-e2e.spec.ts:321:3 › T08: 真实三存储浏览器端到端发布流水线 › 框架错配拦截：将 React 截图关联给 Vue 变体时前置拦截 (SCREENSHOT_VARIANT_MISMATCH) (251ms)
-  ok 4 tests\browser\web-upload-real-e2e.spec.ts:338:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实后端上传异常阻断：MinIO 故障或上传异常时停止发布，禁止调用 complete 或 release (328ms)
-  ok 5 tests\browser\web-upload-real-e2e.spec.ts:356:3 › T08: 真实三存储浏览器端到端发布流水线 › 断点恢复与幂等性：网络异常重试严格复用原持久化的同一幂等键 (274ms)
+  ok 1 tests\browser\web-upload-real-e2e.spec.ts:223:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实三存储全链路：选择真实产物和逐实现手动截图，经 Nest API/MinIO/Worker 推进至 READY (13.5s)
+  ok 2 tests\browser\web-upload-real-e2e.spec.ts:309:3 › T08: 真实三存储浏览器端到端发布流水线 › 缺图阻断：从已导入真实材料的可提交状态删一实现截图，严格阻断提交 (SCREENSHOT_REQUIRED) (485ms)
+  ok 3 tests\browser\web-upload-real-e2e.spec.ts:344:3 › T08: 真实三存储浏览器端到端发布流水线 › 框架错配拦截：导入将 React 截图关联给 Vue 变体的清单时前置拦截 (SCREENSHOT_VARIANT_MISMATCH) (220ms)
+  ok 4 tests\browser\web-upload-real-e2e.spec.ts:413:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实后端上传异常阻断：MinIO 故障或上传异常时停止发布，禁止调用 complete 或 release (633ms)
+  ok 5 tests\browser\web-upload-real-e2e.spec.ts:449:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实丢失响应恢复与唯一作业断言：网络掉线后刷新页面点击恢复，复用原幂等键且数据库仅一作业 (21.1s)
+  ok 6 tests\browser\web-upload-real-e2e.spec.ts:541:3 › T08: 真实三存储浏览器端到端发布流水线 › 清单期望摘要不可篡改：导入同名损坏或篡改 tarball 时保持期望摘要并严格阻断发布 (DIGEST_MISMATCH) (2.8s)
 
-  5 passed (18.2s)
+  6 passed (49.5s)
 ```
 
 **全链路 Happy Path 流转证据**：
-- `POST /v1/uploads` -> HTTP 201 Created；
-- 浏览器直传真实 NPM tarball 与 14 变体截图至 MinIO；
-- `POST /v1/uploads/:id/complete` -> HTTP 200 OK；
-- `POST /v1/releases` (带固定 Idempotency-Key) -> HTTP 202 Accepted；
+- `POST /v1/uploads` -> HTTP 201 Created (246ms)；
+- 浏览器直传真实 NPM 3 个 tarball 与 14 变体 185 个产物文件至 MinIO，全部返回 HTTP 200 并携带有效 ETag；
+- `POST /v1/uploads/:id/complete` -> HTTP 200 OK (3663ms)；
+- `POST /v1/releases` (带固定 Idempotency-Key) -> HTTP 202 Accepted (618ms)；
 - `ReleaseWorker.runOnce(jobId)` 驱动状态机依次通过：
-  - `FINALIZE_OBJECTS` -> success (1374ms)
-  - `ENSURE_PACKAGES` -> success (163ms)
+  - `FINALIZE_OBJECTS` -> success (3820ms)
+  - `ENSURE_PACKAGES` -> success (194ms)
   - `REGISTER_ASSETS` -> success (7ms)
-  - `CHECK_AVAILABILITY` -> success (214ms)
-  - `READY_TX` -> success (215ms)
+  - `CHECK_AVAILABILITY` -> success (501ms)
+  - `READY_TX` -> success (607ms)
 - 数据库 `release_jobs` 状态原子写入 `READY`；
 - 前端轮询捕获 `READY` 状态并展示“发布成功！版本状态已原子写入 Ready”；
-- 通过 Verdaccio API 携带 publisher token 精确读取 `@company/charts-core` 验证候选发布成功（HTTP 200）。
+- 通过 Verdaccio API 携带 publisher token 精确读取 `@company/charts-core`、`@company/charts-vue`、`@company/charts-react` 验证候选发布全部就绪（HTTP 200）。
 
-### 4.3 浏览器端回归全景 (`manual-release.spec.ts` + `web-upload-real-e2e.spec.ts`)
+**丢响应恢复与唯一作业实测证据 (用例 5)**：
+- 首次 `POST /v1/releases` 经服务端处理并落库（HTTP 202，jobId: `ec7180a8-...`），对前端注入连接中断（丢弃响应）；
+- 前端捕获网络中断提示“发布失败: Failed to fetch”，此时本地持久化原幂等键 `web-1794551727694-xlx3hc8w` 与原清单；
+- 用户刷新页面，页面从 `zhinexus_pending_release` 自动识别未完成发布并展示原幂等键卡片；
+- 点击“恢复提交”，前端直接重发原请求，服务端根据相同幂等键再次返回相同的 HTTP 202 与相同的 jobId；
+- 数据库核验：`SELECT id, idempotency_key FROM release_jobs WHERE idempotency_key=$1` 严格仅有 1 条记录，无重复作业产生；
+- ReleaseWorker 推进该作业顺利流转至 `READY`。
 
-执行命令：`pnpm playwright test tests/browser/manual-release.spec.ts tests/browser/web-upload-real-e2e.spec.ts --config tests/playwright.config.ts`
-实测结果：**13 项全量通过 (21.3s)**
+**期望摘要不可篡改实测证据 (用例 6)**：
+- 复制真实产物目录并将 `company-charts-core-0.0.6.tgz` 字节翻转篡改（保持同长度）；
+- 经 `<input webkitdirectory>` 选择器导入真实目录后，前端 `validateUploadFiles` 核验发现真实哈希与清单声明哈希不匹配；
+- 界面精准抛出 `[DIGEST_MISMATCH] packages/company-charts-core-0.0.6.tgz: 文件哈希不一致`，强行禁用提交按钮，清单期望摘要保持不变。
+
+### 4.3 浏览器端回归全景 (`manual-release.spec.ts`)
+
+执行命令：`pnpm playwright test tests/browser/manual-release.spec.ts --config tests/playwright.config.ts`
+实测结果：**8 项全量通过 (4.5s)**
 
 ```text
-Running 13 tests using 2 workers
+Running 8 tests using 2 workers
 
-  ok  1 tests\browser\manual-release.spec.ts:15:3 › T08: 网页手动发布与逐实现截图必检 › 模拟登录后展示发布工作区与逐实现必检清单 (492ms)
-  ok  2 tests\browser\manual-release.spec.ts:4:3 › T08: 网页手动发布与逐实现截图必检 › 未登录用户访问发布工作区渲染登录后开放且带有 noindex 保护 (415ms)
-  ok  3 tests\browser\manual-release.spec.ts:33:3 › T08: 网页手动发布与逐实现截图必检 › 缺图阻断：任意变体缺图时禁止提交并展示明确错误提示 (356ms)
-  ok  4 tests\browser\manual-release.spec.ts:67:3 › T08: 网页手动发布与逐实现截图必检 › 框架错配拦截：将 React 截图配给 Vue 变体时前置阻断 (271ms)
-  ok  5 tests\browser\manual-release.spec.ts:87:3 › T08: 网页手动发布与逐实现截图必检 › 独立作业状态机页面支持 7 阶段步骤器展示与状态轮询 (209ms)
-  ok  6 tests\browser\manual-release.spec.ts:104:3 › T08: 网页手动发布与逐实现截图必检 › 断点恢复机制：当存在未完成的发布会话时展示恢复卡片并允许一键恢复 (328ms)
-  ok  7 tests\browser\manual-release.spec.ts:138:3 › T08: 网页手动发布与逐实现截图必检 › 支持界面选择本地图片替换截图并动态更新大小与摘要 (255ms)
-  ok  8 tests\browser\manual-release.spec.ts:156:3 › T08: 网页手动发布与逐实现截图必检 › 上传接口失败时阻断提交流程并展示清晰错误提示 (276ms)
-  ok  9 tests\browser\web-upload-real-e2e.spec.ts:205:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实三存储全链路：选择真实产物和逐实现手动截图，经 Nest API/MinIO/Worker 推进至 READY (5.5s)
-  ok 10 tests\browser\web-upload-real-e2e.spec.ts:338:3 › T08: 真实三存储浏览器端到端发布流水线 › 真实后端上传异常阻断：MinIO 故障或上传异常时停止发布，禁止调用 complete 或 release (437ms)
-  ok 11 tests\browser\web-upload-real-e2e.spec.ts:356:3 › T08: 真实三存储浏览器端到端发布流水线 › 断点恢复与幂等性：网络异常重试严格复用原持久化的同一幂等键 (279ms)
-  ok 12 tests\browser\web-upload-real-e2e.spec.ts:295:3 › T08: 真实三存储浏览器端到端发布流水线 › 缺图阻断：当任意变体缺失展示截图时严格阻断提交 (SCREENSHOT_REQUIRED) (276ms)
-  ok 13 tests\browser\web-upload-real-e2e.spec.ts:321:3 › T08: 真实三存储浏览器端到端发布流水线 › 框架错配拦截：将 React 截图关联给 Vue 变体时前置拦截 (SCREENSHOT_VARIANT_MISMATCH) (223ms)
+  ok 1 tests\browser\manual-release.spec.ts:16:3 › T08: 网页手动发布与逐实现截图必检 › 未登录用户访问发布工作区渲染登录后开放且带有 noindex 保护 (368ms)
+  ok 2 tests\browser\manual-release.spec.ts:27:3 › T08: 网页手动发布与逐实现截图必检 › 模拟登录后展示发布工作区与逐实现必检清单 (445ms)
+  ok 3 tests\browser\manual-release.spec.ts:43:3 › T08: 网页手动发布与逐实现截图必检 › 缺图阻断：任意变体缺图时禁止提交并展示明确错误提示 (blocks_submit_when_any_variant_has_no_image) (322ms)
+  ok 4 tests\browser\manual-release.spec.ts:83:3 › T08: 网页手动发布与逐实现截图必检 › 框架错配拦截：导入错配框架截图时前置阻断 (SCREENSHOT_VARIANT_MISMATCH) (283ms)
+  ok 5 tests\browser\manual-release.spec.ts:155:3 › T08: 网页手动发布与逐实现截图必检 › 独立作业状态机页面支持 7 阶段步骤器展示与状态轮询 (223ms)
+  ok 6 tests\browser\manual-release.spec.ts:172:3 › T08: 网页手动发布与逐实现截图必检 › 断点恢复机制：当存在未完成的发布会话时展示恢复卡片并允许一键恢复 (315ms)
+  ok 7 tests\browser\manual-release.spec.ts:206:3 › T08: 网页手动发布与逐实现截图必检 › 支持界面选择本地图片替换截图并动态更新大小与摘要 (238ms)
+  ok 8 tests\browser\manual-release.spec.ts:224:3 › T08: 网页手动发布与逐实现截图必检 › 上传接口失败时阻断提交流程并展示清晰错误提示 (386ms)
 
-  13 passed (21.3s)
+  8 passed (4.5s)
 ```
 
 ### 4.4 工作区架构与类型验证
