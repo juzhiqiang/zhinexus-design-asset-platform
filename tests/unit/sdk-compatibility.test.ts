@@ -471,3 +471,121 @@ describe('基线 ECharts 版本必须唯一', () => {
     expect(recommend(backward, [REACT, VUE])).toBe('adopt');
   });
 });
+
+/**
+ * 复审遗漏（2026-11-13，C 对 `83ec74d` 用 tsx 复现）：`hasDualFrameworkCoverage`
+ * 只用 `baselineEchartsVersion` 造键，没有校验**每行实际验的 echartsVersion**必须等于
+ * `report.candidate.version`。于是一份全 passed 的报告，只把
+ * `results[0].echartsVersion` 改成 `6.0.0`，`recommend` 仍是 `'adopt'`。
+ *
+ * 同类问题还有「盲信传入的 `peerSatisfied`」：报告自称 `peerSatisfied: true`，
+ * 但 `candidate.version` 与 `baselineEchartsVersion` 并不相等时也放行。
+ */
+describe('实测行版本与 peer 标志必须自洽', () => {
+  it('把某一行的 echartsVersion 改成非候选版本时，不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const tampered: CompatibilityReport = {
+      ...report,
+      results: report.results.map((result, index) =>
+        index === 0 ? { ...result, echartsVersion: '6.0.0' } : result,
+      ),
+    };
+
+    expect(tampered.results[0]!.echartsVersion).toBe('6.0.0');
+    expect(hasDualFrameworkCoverage(tampered, SUPPORTED)).toBe(false);
+    expect(recommend(tampered, SUPPORTED)).toBe('hold');
+  });
+
+  it('每一行的 echartsVersion 都必须等于候选版本，不只第一行', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const tampered: CompatibilityReport = {
+      ...report,
+      results: report.results.map((result, index) =>
+        index === 1 ? { ...result, echartsVersion: '6.2.0' } : result,
+      ),
+    };
+
+    expect(hasDualFrameworkCoverage(tampered, SUPPORTED)).toBe(false);
+    expect(recommend(tampered, SUPPORTED)).toBe('hold');
+  });
+
+  it('篡改造出的假报告即便四维全过、无差异，也不得建议采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const tampered: CompatibilityReport = {
+      ...report,
+      results: report.results.map((result) => ({ ...result, echartsVersion: '6.0.0' })),
+    };
+
+    expect(tampered.results.every((r) => r.typecheck === 'passed')).toBe(true);
+    expect(tampered.results.every((r) => r.differences.length === 0)).toBe(true);
+    expect(recommend(tampered, SUPPORTED)).toBe('hold');
+  });
+
+  it('peerSatisfied 不可盲信：与 candidate/baseline 实际关系矛盾时不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    // 自称 peer 符合，但候选 6.1.0 与基线 6.0.0 并不相等
+    const lied: CompatibilityReport = { ...report, peerSatisfied: true, baselineEchartsVersion: '6.0.0' };
+
+    expect(lied.peerSatisfied).toBe(true);
+    expect(recommend(lied, SUPPORTED)).toBe('hold');
+  });
+
+  it('peerSatisfied 被伪造成 false 时同样不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const lied: CompatibilityReport = { ...report, peerSatisfied: false };
+
+    expect(recommend(lied, SUPPORTED)).toBe('hold');
+  });
+
+  it('supported 自身混基线时，recommend 不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    // verifyCandidate 会拒绝混基线，这里直接构造一份绕过它的报告
+    const mixed: CompatibilityReport = {
+      ...report,
+      results: [
+        report.results[0]!,
+        { ...report.results[1]!, baselineEchartsVersion: '6.0.0' },
+      ],
+    };
+    const mixedSupported: readonly SupportedCombination[] = [
+      SUPPORTED[0]!,
+      { ...SUPPORTED[1]!, echartsVersion: '6.0.0' },
+    ];
+
+    expect(hasDualFrameworkCoverage(mixed, mixedSupported)).toBe(false);
+    expect(recommend(mixed, mixedSupported)).toBe('hold');
+  });
+
+  it('缺少逐行基线对照时不得判为完整覆盖（可选字段缺失即 fail-closed）', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const withoutBaseline: CompatibilityReport = {
+      ...report,
+      results: report.results.map(({ baselineEchartsVersion: _ignored, ...rest }) => rest),
+    };
+
+    expect('baselineEchartsVersion' in withoutBaseline.results[0]!).toBe(false);
+    expect(hasDualFrameworkCoverage(withoutBaseline, SUPPORTED)).toBe(false);
+    expect(recommend(withoutBaseline, SUPPORTED)).toBe('hold');
+  });
+
+  it('逐行基线与 supported 不一致时不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const wrongBaseline: CompatibilityReport = {
+      ...report,
+      results: report.results.map((result, index) =>
+        index === 1 ? { ...result, baselineEchartsVersion: '6.0.0' } : result,
+      ),
+    };
+
+    expect(hasDualFrameworkCoverage(wrongBaseline, SUPPORTED)).toBe(false);
+    expect(recommend(wrongBaseline, SUPPORTED)).toBe('hold');
+  });
+});
