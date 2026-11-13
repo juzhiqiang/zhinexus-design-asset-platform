@@ -24,6 +24,11 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff'); next();
     });
+    if (platform.galleryOrigin) app.enableCors({
+      origin: (origin, callback) => callback(null, origin === platform.galleryOrigin),
+      methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key'],
+      exposedHeaders: ['X-Request-Id'], credentials: false,
+    });
     app.useBodyParser('json', { limit: '8mb', strict: true });
     app.useGlobalFilters(new ErrorFilter());
     return app;
