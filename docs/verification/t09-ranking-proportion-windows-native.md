@@ -85,7 +85,7 @@ T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆�
 
 #### 待原生复验的提交（截至 2026-11-13 收尾）
 
-分支 `feat/t10-sdk-compatibility` 上相对基线 main `885792b` 的提交（截至 2026-11-13 收尾共 11 个，完整列表以 `git log --oneline 885792b..HEAD` 为准），**均未做 Windows 原生验收**：
+分支 `feat/t10-sdk-compatibility` 上相对基线 main `885792b` 的提交（截至 2026-11-13 收尾；完整列表以 `git log --oneline 885792b..HEAD` 为准），**均未做 Windows 原生验收**：
 
 | 提交 | 内容 |
 | --- | --- |
