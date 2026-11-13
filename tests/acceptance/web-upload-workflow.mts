@@ -17,13 +17,17 @@ for (const change of ['same', 'digest', 'api', 'subject'] as const) {
     const values = new Map<string, string>();
     const storage = { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => values.set(k, v), removeItem: (k: string) => values.delete(k) };
     let creates = 0;
-    const submissions: Array<{ session: string; key: string }> = [];
+    const createdApiUrls: string[] = [];
+    const submissions: Array<{ apiUrl: string; session: string; key: string }> = [];
     const api = {
-      createUploadSession: async (_url: string, _token: string, mf: typeof manifest) => ({ uploadSessionId: `independent-session-${++creates}`, files: mf.files.map((f: any) => ({ path: f.path, uploadUrl: 'https://upload.invalid/test', expiresAt: new Date(Date.now() + 3600000).toISOString() })) }),
+      createUploadSession: async (url: string, _token: string, mf: typeof manifest) => {
+        createdApiUrls.push(url);
+        return { uploadSessionId: `independent-session-${++creates}`, files: mf.files.map((f: any) => ({ path: f.path, uploadUrl: 'https://upload.invalid/test', expiresAt: new Date(Date.now() + 3600000).toISOString() })) };
+      },
       uploadFileBytes: async () => {},
       completeUploadSession: async () => {},
-      submitReleaseJob: async (_url: string, _token: string, session: string, _mf: typeof manifest, key: string) => {
-        submissions.push({ session, key });
+      submitReleaseJob: async (url: string, _token: string, session: string, _mf: typeof manifest, key: string) => {
+        submissions.push({ apiUrl: url, session, key });
         if (submissions.length === 1) throw new Error('independent lost response');
         return { jobId: 'independent-job', state: 'PENDING' };
       },
@@ -39,6 +43,8 @@ for (const change of ['same', 'digest', 'api', 'subject'] as const) {
     if (change === 'digest') next.manifest.variants[0].examples[0].theme = 'dark';
     await executeWebUploadWorkflow(next);
     assert.equal(creates, change === 'same' ? 1 : 2, 'independent session creation count');
+    assert.equal(createdApiUrls.at(-1), next.apiUrl, 'upload session must target the selected API');
+    assert.equal(submissions[1].apiUrl, next.apiUrl, 'release must target the selected API');
     assert.equal(submissions[1].session, change === 'same' ? 'independent-session-1' : 'independent-session-2');
     if (change === 'same') assert.equal(submissions[1].key, submissions[0].key);
     else assert.notEqual(submissions[1].key, submissions[0].key);
@@ -48,6 +54,12 @@ for (const change of ['same', 'digest', 'api', 'subject'] as const) {
     assert.equal(creates, change === 'same' ? 2 : 3, 'successful release must not reuse completed session');
   });
 }
+
+await check('accept a complete valid web manifest', () => {
+  const { manifest } = createSevenComponentsManifest();
+  const parsed = parseAndValidateImportedManifest(JSON.stringify(manifest));
+  assert.equal(parsed.ok, true, 'rejecting all manifests must not pass the import gate');
+});
 
 for (const mutate of ['schema', 'channel', 'reports-shape', 'files-shape', 'path', 'framework'] as const) {
   await check(`reject malformed manifest: ${mutate}`, () => {
@@ -90,7 +102,7 @@ for (const kind of ['corrupt-pending', 'expired-before-pending'] as const) {
       const savedPlan = storage.getItem('zhinexus_active_session_plan');
       const savedUploads = uploads;
       const savedCompletes = completes;
-      await assert.rejects(executeWebUploadWorkflow(options), undefined, 'invalid pending for same session must stop rather than generate a new key');
+      await assert.rejects(executeWebUploadWorkflow(options), /(?:INVALID|CORRUPTED|TAMPERED)_PENDING_RELEASE/, 'invalid pending must fail for the recovery guard, not an unrelated error');
       assert.equal(releases, 1, 'must not POST another release');
       assert.equal(creates, 1, 'must not replace an uncertain session');
       assert.equal(storage.getItem('zhinexus_pending_release'), savedPending, 'must preserve the original pending key, session and request');
@@ -146,6 +158,8 @@ await check('valid pending bypasses expired upload plan on normal retry', async 
   assert.equal(result.jobId, 'replayed-original-job');
   assert.equal(creates, 1);
   assert.equal(uploads, firstUploads, 'pending follows completed upload and must not PUT again');
+  // This regression enforces direct release replay after a completed upload,
+  // even though the server also makes repeat complete requests idempotent.
   assert.equal(completes, 1, 'pending must not complete again');
   assert.equal(releases, 2);
   assert.deepEqual(submissions[1], submissions[0], 'replay the exact original session, key and manifest');

@@ -102,6 +102,18 @@ C 再次从同一 `cddf54b` 导出全新目录 `.tools/operations/b-web-working-
 
 固定快照两文件只读复审未发现 Critical/Important：确认 pending 在所有网络操作前验证并直接重放、过期计划不再由 pending 字符串兜底、API/subject/digest 绑定仍在、旧摘要结果取消与提交前重验仍在。非阻断边界另记：这不是多上下文草稿存储模型；最终文件校验的底层 WebCrypto 异常若直接 reject，因校验 await 位于后续 try/finally 之外，可能令页面保持提交忙碌。未把这些静态结论冒充测试执行，也未为该极端可用性边界扩大本轮修复范围。
 
-B 恢复顺序已在上述固定文件快照中实际转为 GREEN。继续等待原浏览器 fixture 同步和 fix/独立升版固定提交；C 再从最终 hash 导出归档，执行构建、类型、工作区、单元、13 项显式工作流、12 项 UI、原 14 项网页及 0.0.10 真实补充验收。以上中途快照不能替代最终结果。
+### Claude 复核后的验收质量补强
+
+Claude 首轮读取的是其映射中的旧文件，C 明确纠正版本后，采用其中适用的建议：新增完整合法网页清单导入正例，给创建会话及 release 都增加实际 API URL 断言，损坏 pending 的拒绝须匹配恢复错误码而非任意异常。脚本现在为 **14 项**。
+
+在 C 自有忽略目录创建两个受控负例适配器，转发真实生产工作流而只故意破坏一个边界：
+
+- parser 恒返回拒绝：实际 13 通过 / 1 失败，新增合法导入正例按预期 RED；日志 `sdk-policy-audit/b-workflow-reject-all-red.json`。
+- 请求 adapter 把 create / release URL 写死为旧 API：实际 13 通过 / 1 失败，API 切换例明确报目标不等，按预期 RED；日志 `sdk-policy-audit/b-workflow-wrong-api-red.json`。
+- 同一最新版 14 项重新对上述固定真实源码快照执行，14/14 GREEN、退出 0；日志 `sdk-policy-audit/b-workflow-14-green-reviewed.json`。没有修改固定快照产品文件或 B 工作区。
+
+保留四键清理是本轮明确的会话生命周期要求；保留零重复 complete 是“有效 pending 直接重放 release”契约，即使服务端重复 complete 本身幂等，也不能拿它替代该前端时序验收。mock 工作流仍不宣称真实网络证据，后者已由前述两项实际执行取得。
+
+B 恢复顺序已在上述固定文件快照中实际转为 GREEN。继续等待原浏览器 fixture 同步和 fix/独立升版固定提交；C 再从最终 hash 导出归档，执行构建、类型、工作区、单元、14 项显式工作流、12 项 UI、原 14 项网页及 0.0.10 真实补充验收。以上中途快照不能替代最终结果。
 
 共享三存储未初始化、未重启、未轮换凭据；真实测试仅使用自有随机端口 RecoveryStack，已检查本轮容器清理和 5183 释放。公司 OIDC、生产独立域/TLS、真实 Vue/React 业务试点及完整 G2/M2/T10/T11/T12 仍未验收。
