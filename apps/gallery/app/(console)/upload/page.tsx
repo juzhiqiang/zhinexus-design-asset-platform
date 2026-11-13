@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import type { PackageRef, ReleaseManifestV1, VariantRef } from '@company/contracts';
+import { manifestDigest, type PackageRef, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
 import { getStoredSession, saveSession, clearSession, type UserSession } from '../../lib/auth';
 import {
   validateVariantScreenshots,
@@ -42,6 +42,7 @@ export default function WebUploadConsole() {
     issues: [],
   });
   const [fileIssues, setFileIssues] = useState<Array<{ code: string; path: string; message: string }>>([]);
+  const [isValidatingFiles, setIsValidatingFiles] = useState(false);
   const [activeJobId, setActiveJobId] = useState<string | null>(null);
   const [jobState, setJobState] = useState<any>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -65,15 +66,7 @@ export default function WebUploadConsole() {
         if (storedApiUrl) setApiUrl(storedApiUrl);
       }
 
-      // 检查是否有未完成的发布会话可恢复
       try {
-        const savedPending = localStorage.getItem(LOCAL_STORAGE_PENDING_RELEASE);
-        if (savedPending) {
-          const parsed = JSON.parse(savedPending);
-          if (parsed.idempotencyKey) {
-            setPendingResumeKey(parsed.idempotencyKey);
-          }
-        }
         const savedJob = localStorage.getItem(LOCAL_STORAGE_WEB_RELEASE);
         if (savedJob) {
           const parsed = JSON.parse(savedJob);
@@ -87,14 +80,99 @@ export default function WebUploadConsole() {
     }
   }, []);
 
-  // 2. 变体截图与文件完整性校验
+  // 1.1 动态断点恢复资格核验：当 session.subject 或 apiUrl 变更时严格 fail-closed 检查
+  useEffect(() => {
+    if (!session?.subject) {
+      setPendingResumeKey(null);
+      return;
+    }
+
+    const currentApi = (apiUrl || localStorage.getItem('zhinexus_api_url') || 'http://127.0.0.1:3000').trim();
+
+    try {
+      const savedPending = localStorage.getItem(LOCAL_STORAGE_PENDING_RELEASE);
+      if (!savedPending) {
+        setPendingResumeKey(null);
+        return;
+      }
+
+      const parsed = JSON.parse(savedPending);
+      const hasRequiredFields =
+        Boolean(parsed.idempotencyKey) &&
+        Boolean(parsed.uploadSessionId) &&
+        Boolean(parsed.apiUrl) &&
+        Boolean(parsed.subject) &&
+        Boolean(parsed.manifestDigest) &&
+        Boolean(parsed.manifest);
+
+      if (!hasRequiredFields) {
+        setPendingResumeKey(null);
+        return;
+      }
+
+      const apiMatches = parsed.apiUrl.trim() === currentApi;
+      const subjectMatches = parsed.subject === session.subject;
+
+      if (!apiMatches || !subjectMatches) {
+        setPendingResumeKey(null);
+        return;
+      }
+
+      // 重算 pending.manifest 摘要防篡改
+      let cancelled = false;
+      manifestDigest(parsed.manifest)
+        .then((computedDigest) => {
+          if (!cancelled) {
+            if (computedDigest === parsed.manifestDigest) {
+              setPendingResumeKey(parsed.idempotencyKey);
+            } else {
+              setPendingResumeKey(null);
+            }
+          }
+        })
+        .catch(() => {
+          if (!cancelled) setPendingResumeKey(null);
+        });
+
+      return () => {
+        cancelled = true;
+      };
+    } catch {
+      setPendingResumeKey(null);
+    }
+  }, [session?.subject, apiUrl]);
+
+  // 2. 变体截图与文件完整性校验（含代际取消保护与校验中提交禁用）
   useEffect(() => {
     const res = validateVariantScreenshots(manifest.variants, manifest.packages);
     setValidation(res);
 
-    validateUploadFiles(manifest, filesMap).then((fRes) => {
-      setFileIssues(fRes.issues);
-    });
+    let cancelled = false;
+    setIsValidatingFiles(true);
+
+    validateUploadFiles(manifest, filesMap)
+      .then((fRes) => {
+        if (!cancelled) {
+          setFileIssues(fRes.issues);
+          setIsValidatingFiles(false);
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setFileIssues([
+            {
+              code: 'CHECKSUM_FAILED',
+              path: 'files',
+              message: `文件校验异常: ${err.message || '未知错误'}`,
+            },
+          ]);
+          setIsValidatingFiles(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
   }, [manifest, filesMap]);
 
   // 3. 发布作业轮询
@@ -148,6 +226,7 @@ export default function WebUploadConsole() {
   const handleLogout = () => {
     clearSession();
     setSession(null);
+    setPendingResumeKey(null);
     setStatusMessage('');
   };
 
@@ -358,8 +437,33 @@ export default function WebUploadConsole() {
       return;
     }
 
-    if (!pending.uploadSessionId || !pending.idempotencyKey || !pending.manifest) {
-      setStatusMessage('恢复记录不完整，缺少会话 ID、幂等键或清单');
+    const hasRequiredFields =
+      Boolean(pending.uploadSessionId) &&
+      Boolean(pending.idempotencyKey) &&
+      Boolean(pending.manifest) &&
+      Boolean(pending.manifestDigest) &&
+      Boolean(pending.apiUrl) &&
+      Boolean(pending.subject);
+
+    if (!hasRequiredFields) {
+      setStatusMessage('恢复记录不完整，缺少必须的绑定字段，拒绝恢复重放');
+      return;
+    }
+
+    const targetApiUrl = apiUrl.trim() || 'http://127.0.0.1:3000';
+    if (pending.apiUrl.trim() !== targetApiUrl) {
+      setStatusMessage(`恢复记录绑定的 API 地址 (${pending.apiUrl}) 与当前环境 (${targetApiUrl}) 不一致，禁止恢复重放`);
+      return;
+    }
+    if (pending.subject !== session?.subject) {
+      setStatusMessage(`恢复记录绑定的用户 (${pending.subject}) 与当前登录用户 (${session?.subject}) 不一致，禁止恢复重放`);
+      return;
+    }
+
+    // 重算摘要防篡改
+    const computedDigest = await manifestDigest(pending.manifest);
+    if (computedDigest !== pending.manifestDigest) {
+      setStatusMessage('恢复记录中的 Manifest 内容与期望摘要不一致（清单已被篡改），拒绝恢复重放');
       return;
     }
 
@@ -367,7 +471,6 @@ export default function WebUploadConsole() {
     setStatusMessage(`正在使用原幂等键 (${pending.idempotencyKey}) 恢复提交发布作业...`);
 
     try {
-      const targetApiUrl = apiUrl.trim() || 'http://127.0.0.1:3000';
       const releaseRes = await submitReleaseJob(
         targetApiUrl,
         session.token,
@@ -387,7 +490,11 @@ export default function WebUploadConsole() {
           timestamp: Date.now(),
         }),
       );
+      // 成功恢复后彻底清理 pending、active 会话与草稿
       localStorage.removeItem(LOCAL_STORAGE_PENDING_RELEASE);
+      localStorage.removeItem(LOCAL_STORAGE_ACTIVE_SESSION);
+      localStorage.removeItem('zhinexus_active_session_plan');
+      localStorage.removeItem('zhinexus_upload_draft');
       setPendingResumeKey(null);
       setStatusMessage(`恢复提交成功，作业已创建 (${releaseRes.jobId})，正在持续轮询状态机...`);
     } catch (err: any) {
@@ -399,9 +506,36 @@ export default function WebUploadConsole() {
 
   // 提交发布流程：严格按照时序持久化并调用实际接口，绝不吞错
   const handleSubmitRelease = async () => {
-    if (!validation.ok || fileIssues.length > 0 || !session?.token) return;
+    if (!session?.token || !session?.subject) return;
 
     setIsSubmitting(true);
+    setStatusMessage('正在执行提交前最终快照完整性核验...');
+
+    // 核心门禁：即使 UI 状态未显示异常，也必须对当前 manifest 与 filesMap 快照同步重跑真实校验
+    const finalScreenshotRes = validateVariantScreenshots(manifest.variants, manifest.packages);
+    if (!finalScreenshotRes.ok) {
+      setValidation(finalScreenshotRes);
+      setIsSubmitting(false);
+      setStatusMessage('提交前变体截图核验未通过，阻断发布');
+      return;
+    }
+
+    const finalFileRes = await validateUploadFiles(manifest, filesMap);
+    if (!finalFileRes.ok || finalFileRes.issues.length > 0) {
+      setFileIssues(finalFileRes.issues);
+      setIsSubmitting(false);
+      setStatusMessage(
+        `提交前文件核验失败: 存在 ${finalFileRes.issues.length} 处哈希或尺寸异常 (${finalFileRes.issues[0]?.message})，阻断发布`,
+      );
+      return;
+    }
+
+    if (manifest.variants.length === 0 || manifest.files.length === 0) {
+      setIsSubmitting(false);
+      setStatusMessage('发布清单变体或产物文件列表不能为空，阻断发布');
+      return;
+    }
+
     setStatusMessage('正在初始化真实文件上传流水线...');
     setUploadProgress(10);
 
@@ -412,6 +546,7 @@ export default function WebUploadConsole() {
         token: session.token,
         manifest,
         filesMap,
+        subject: session.subject,
         onProgress: (step, percent) => {
           setStatusMessage(step);
           setUploadProgress(percent);
@@ -473,7 +608,13 @@ export default function WebUploadConsole() {
     );
   }
 
-  const canSubmit = validation.ok && fileIssues.length === 0 && !isSubmitting;
+  const canSubmit =
+    validation.ok &&
+    fileIssues.length === 0 &&
+    manifest.variants.length > 0 &&
+    manifest.files.length > 0 &&
+    !isValidatingFiles &&
+    !isSubmitting;
 
   return (
     <main>

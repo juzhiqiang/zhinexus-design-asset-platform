@@ -346,68 +346,35 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
   }) => {
     await loginToUploadConsole(page, mainEnv!.token, mainEnv!.apiOrigin);
 
-    // 构造框架错配清单（Vue 变体错误关联了 React 截图）
+    // 从完整合法 web manifest 出发，只将 line-vue 变体的截图框架错误标记为 react
+    const realManifest = JSON.parse(readFileSync(webManifestPath, 'utf8'));
     const mismatchManifest = {
-      schemaVersion: 1,
-      channel: 'web',
-      packages: [],
-      variants: [
-        {
-          componentId: 'line',
-          variantId: 'line-vue',
-          framework: 'vue',
-          packageName: '@company/charts-vue',
-          packageVersion: '0.0.6',
-          exportPath: './line',
-          exportName: 'LineChart',
-          api: { path: 'api/line-vue.json', sha256: '00', bytes: 10 },
-          docs: { path: 'docs/line-vue.md', sha256: '00', bytes: 10 },
-          examples: [
-            {
-              id: 'example-line-vue-default',
-              previewEntry: 'preview/line-vue/index.html',
-              previewFiles: [{ path: 'preview/line-vue/index.html', sha256: '00', bytes: 10 }],
-              fixtureDigest: '0000000000000000000000000000000000000000000000000000000000000000',
-              renderer: 'canvas',
-              theme: 'light',
-              width: 800,
-              height: 400,
-              requiredStates: ['default'],
-            },
-          ],
-          screenshots: [
-            {
-              id: 'shot-line-vue-default',
-              variantId: 'line-vue',
-              framework: 'react', // 故意错误标记为 react 框架
-              packageVersion: '0.0.6',
-              packageSha256: '00',
-              exampleId: 'example-line-vue-default',
-              state: 'default',
-              source: 'manual-upload',
-              image: { path: 'screenshots/line-vue-default.png', sha256: '00', bytes: 10 },
-              environmentKey: 'unknown-manual',
-            },
-          ],
-          compatibility: [],
-        },
-      ],
-      reports: [],
-      files: [],
+      ...realManifest,
+      variants: realManifest.variants.map((v: any) => {
+        if (v.variantId === 'line-vue') {
+          return {
+            ...v,
+            screenshots: v.screenshots.map((s: any) => ({ ...s, framework: 'react' })),
+          };
+        }
+        return v;
+      }),
     };
 
     await page.locator('#import-manifest-input').setInputFiles({
       name: 'manifest.json',
       mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(mismatchManifest)),
+      buffer: Buffer.from(JSON.stringify(mismatchManifest, null, 2)),
     });
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
     await expect(submitBtn).toBeDisabled();
-    const alert = page.locator('.blocker-alert');
-    await expect(alert).toBeVisible();
-    await expect(alert).toContainText('SCREENSHOT_VARIANT_MISMATCH');
-    await expect(alert).toContainText('框架错配');
+
+    // 验证前置拦截并明确提示错误
+    const statusMsg = page.locator('#upload-status-message');
+    await expect(statusMsg).toBeVisible();
+    await expect(statusMsg).toContainText('导入 Manifest 失败');
+    await expect(statusMsg).toContainText('Screenshot must belong to this variant/framework');
   });
 
   test('真实后端上传异常阻断：MinIO 故障或上传异常时停止发布，禁止调用 complete 或 release', async ({

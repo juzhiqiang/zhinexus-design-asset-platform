@@ -23,6 +23,20 @@ export function validateVariantScreenshots(
   variants: VariantRef[],
   packages: PackageRef[] = [],
 ): ScreenshotValidationResult {
+  if (!variants || variants.length === 0) {
+    return {
+      ok: false,
+      missingVariantIds: [],
+      issues: [
+        {
+          code: 'SCREENSHOT_REQUIRED',
+          variantId: 'none',
+          message: '缺少待发布的变体实现，网页发布清单 variants 不能为空',
+        },
+      ],
+    };
+  }
+
   const issues: ScreenshotValidationIssue[] = [];
   const missingVariantIds: string[] = [];
   const packagesMap = new Map<string, PackageRef>();

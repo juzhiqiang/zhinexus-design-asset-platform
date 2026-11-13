@@ -1,8 +1,13 @@
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
+import { manifestDigest } from '@company/contracts';
+import { sanitizeWebManifest } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+
+const CURRENT_SDK_DIR = 'D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/69443f97-8b73-4ecb-91aa-d8835a0b58dc';
 
 const MOCK_AUTH_TOKEN =
   'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ3ZWItZGV2ZWxvcGVyLWFsaWNlIiwicm9sZXMiOlsicHVibGlzaGVyIiwibWFpbnRhaW5lciJdLCJhenAiOiJ3ZWIiLCJleHAiOjE5OTk5OTk5OTl9.test_sig';
@@ -87,68 +92,33 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
     await expect(submitBtn).toBeDisabled();
 
-    // 构造将 React 截图错误赋给 Vue 变体的 manifest 清单
+    // 从完整合法 web manifest 出发，只将 line-vue 变体的截图框架错误标记为 react
+    const realManifest = JSON.parse(readFileSync(join(CURRENT_SDK_DIR, 'manifest.json'), 'utf8'));
     const mismatchManifest = {
-      schemaVersion: 1,
-      channel: 'web',
-      packages: [],
-      variants: [
-        {
-          componentId: 'line',
-          variantId: 'line-vue',
-          framework: 'vue',
-          packageName: '@company/charts-vue',
-          packageVersion: '0.0.6',
-          exportPath: './line',
-          exportName: 'LineChart',
-          api: { path: 'api/line-vue.json', sha256: '00', bytes: 10 },
-          docs: { path: 'docs/line-vue.md', sha256: '00', bytes: 10 },
-          examples: [
-            {
-              id: 'example-line-vue-default',
-              previewEntry: 'preview/line-vue/index.html',
-              previewFiles: [{ path: 'preview/line-vue/index.html', sha256: '00', bytes: 10 }],
-              fixtureDigest: '0000000000000000000000000000000000000000000000000000000000000000',
-              renderer: 'canvas',
-              theme: 'light',
-              width: 800,
-              height: 400,
-              requiredStates: ['default'],
-            },
-          ],
-          screenshots: [
-            {
-              id: 'shot-line-vue-default',
-              variantId: 'line-vue',
-              framework: 'react', // 故意错误标记为 react 框架
-              packageVersion: '0.0.6',
-              packageSha256: '00',
-              exampleId: 'example-line-vue-default',
-              state: 'default',
-              source: 'manual-upload',
-              image: { path: 'screenshots/line-vue-default.png', sha256: '00', bytes: 10 },
-              environmentKey: 'unknown-manual',
-            },
-          ],
-          compatibility: [],
-        },
-      ],
-      reports: [],
-      files: [],
+      ...realManifest,
+      variants: realManifest.variants.map((v: any) => {
+        if (v.variantId === 'line-vue') {
+          return {
+            ...v,
+            screenshots: v.screenshots.map((s: any) => ({ ...s, framework: 'react' })),
+          };
+        }
+        return v;
+      }),
     };
 
     // 通过导入清单功能导入
     await page.locator('#import-manifest-input').setInputFiles({
       name: 'manifest.json',
       mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(mismatchManifest)),
+      buffer: Buffer.from(JSON.stringify(mismatchManifest, null, 2)),
     });
 
-    // 验证阻断提示明确指示 SCREENSHOT_VARIANT_MISMATCH
-    const blockerAlert = page.locator('.blocker-alert');
-    await expect(blockerAlert).toBeVisible();
-    await expect(blockerAlert).toContainText('SCREENSHOT_VARIANT_MISMATCH');
-    await expect(blockerAlert).toContainText('框架错配');
+    // 验证阻断提示明确指示导入失败并包含错配原因
+    const statusMsg = page.locator('#upload-status-message');
+    await expect(statusMsg).toBeVisible();
+    await expect(statusMsg).toContainText('导入 Manifest 失败');
+    await expect(statusMsg).toContainText('Screenshot must belong to this variant/framework');
     await expect(submitBtn).toBeDisabled();
   });
 
@@ -170,19 +140,29 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('断点恢复机制：当存在未完成的发布会话时展示恢复卡片并允许一键恢复', async ({ page }) => {
-    // 预置 localStorage 断点数据
+    const realManifest = JSON.parse(readFileSync(join(CURRENT_SDK_DIR, 'manifest.json'), 'utf8'));
+    const clean = sanitizeWebManifest(realManifest);
+    const digest = await manifestDigest(clean);
+
+    // 预置符合当前 fail-closed 契约的完整三元组与合法摘要
     await page.goto('http://127.0.0.1:5173/upload');
-    await page.evaluate(() => {
-      localStorage.setItem(
-        'zhinexus_pending_release',
-        JSON.stringify({
-          idempotencyKey: 'web-resume-test-key-999',
-          uploadSessionId: 'sess-resume-001',
-          manifest: { channel: 'web', packages: [], variants: [], files: [], reports: [] },
-          timestamp: Date.now(),
-        }),
-      );
-    });
+    await page.evaluate(
+      ({ digestVal, manifestVal }) => {
+        localStorage.setItem(
+          'zhinexus_pending_release',
+          JSON.stringify({
+            idempotencyKey: 'web-resume-test-key-999',
+            uploadSessionId: 'sess-resume-001',
+            apiUrl: 'http://127.0.0.1:3000',
+            subject: 'web-developer-alice',
+            manifest: manifestVal,
+            manifestDigest: digestVal,
+            timestamp: Date.now(),
+          }),
+        );
+      },
+      { digestVal: digest, manifestVal: clean },
+    );
 
     // 重新进入并模拟登录
     await page.goto('http://127.0.0.1:5173/upload');
@@ -225,104 +205,36 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await page.goto('http://127.0.0.1:5173/upload');
     await devLogin(page);
 
-    const testBuf = Buffer.from('0123456789');
-    const testSha = createHash('sha256').update(testBuf).digest('hex');
+    // 1. 导入完整合法外部清单
+    await page.locator('#import-manifest-input').setInputFiles(join(CURRENT_SDK_DIR, 'manifest.json'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
 
-    // 构造包含单个有效变体的合规 manifest
-    const validSingleManifest = {
-      schemaVersion: 1,
-      channel: 'web',
-      packages: [],
-      variants: [
-        {
-          componentId: 'line',
-          variantId: 'line-vue',
-          framework: 'vue',
-          packageName: '@company/charts-vue',
-          packageVersion: '0.0.6',
-          exportPath: './line',
-          exportName: 'LineChart',
-          api: { path: 'api/line-vue.json', sha256: testSha, bytes: testBuf.byteLength },
-          docs: { path: 'docs/line-vue.md', sha256: testSha, bytes: testBuf.byteLength },
-          examples: [
-            {
-              id: 'example-line-vue-default',
-              previewEntry: 'preview/line-vue/index.html',
-              previewFiles: [{ path: 'preview/line-vue/index.html', sha256: testSha, bytes: testBuf.byteLength }],
-              fixtureDigest: '0000000000000000000000000000000000000000000000000000000000000000',
-              renderer: 'canvas',
-              theme: 'light',
-              width: 800,
-              height: 400,
-              requiredStates: ['default'],
-            },
-          ],
-          screenshots: [
-            {
-              id: 'shot-line-vue-default',
-              variantId: 'line-vue',
-              framework: 'vue',
-              packageVersion: '0.0.6',
-              packageSha256: '00',
-              exampleId: 'example-line-vue-default',
-              state: 'default',
-              source: 'manual-upload',
-              image: { path: 'screenshots/line-vue-default.png', sha256: testSha, bytes: testBuf.byteLength },
-              environmentKey: 'unknown-manual',
-            },
-          ],
-          compatibility: [],
-        },
-      ],
-      reports: [],
-      files: [
-        { path: 'screenshots/line-vue-default.png', sha256: testSha, bytes: testBuf.byteLength },
-        { path: 'preview/line-vue/index.html', sha256: testSha, bytes: testBuf.byteLength },
-        { path: 'docs/line-vue.md', sha256: testSha, bytes: testBuf.byteLength },
-        { path: 'api/line-vue.json', sha256: testSha, bytes: testBuf.byteLength },
-      ],
-    };
+    // 2. 真实目录导入全部预构建产物
+    await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入');
 
-    // 导入清单
-    await page.locator('#import-manifest-input').setInputFiles({
-      name: 'manifest.json',
-      mimeType: 'application/json',
-      buffer: Buffer.from(JSON.stringify(validSingleManifest)),
+    // 3. 真实目录导入 14 张有效展示截图
+    await page.locator('#import-screenshots-input').setInputFiles(join(CURRENT_SDK_DIR, 'screenshots'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功批量关联 14 张有效展示截图');
+
+    const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
+    await expect(submitBtn).toBeEnabled();
+
+    // 拦截 /v1/uploads 模拟 500 异常
+    await page.route('**/v1/uploads', async (route) => {
+      await route.fulfill({
+        status: 500,
+        contentType: 'text/plain',
+        body: 'STORAGE_UNAVAILABLE: 模拟对象存储网络故障',
+      });
     });
 
-    // 真实目录导入对应产物文件
-    const tempDir = await mkdtemp(join(tmpdir(), 'manual-test-files-'));
-    try {
-      await mkdir(join(tempDir, 'screenshots'), { recursive: true });
-      await mkdir(join(tempDir, 'preview/line-vue'), { recursive: true });
-      await mkdir(join(tempDir, 'docs'), { recursive: true });
-      await mkdir(join(tempDir, 'api'), { recursive: true });
-      await writeFile(join(tempDir, 'screenshots/line-vue-default.png'), testBuf);
-      await writeFile(join(tempDir, 'preview/line-vue/index.html'), testBuf);
-      await writeFile(join(tempDir, 'docs/line-vue.md'), testBuf);
-      await writeFile(join(tempDir, 'api/line-vue.json'), testBuf);
+    await submitBtn.click();
 
-      await page.locator('#import-files-input').setInputFiles(tempDir);
-
-      // 拦截 /v1/uploads 模拟 500 异常
-      await page.route('**/v1/uploads', async (route) => {
-        await route.fulfill({
-          status: 500,
-          contentType: 'text/plain',
-          body: 'STORAGE_UNAVAILABLE: 模拟对象存储网络故障',
-        });
-      });
-
-      const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
-      await expect(submitBtn).toBeEnabled();
-      await submitBtn.click();
-
-      // 验证页面明确展示错误并停止推进
-      await expect(page.locator('body')).toContainText('发布失败: 创建上传会话失败 (500)');
-      // 提交按钮恢复可用状态
-      await expect(submitBtn).toBeEnabled();
-    } finally {
-      await rm(tempDir, { recursive: true, force: true });
-    }
+    // 验证页面明确展示错误并停止推进
+    await expect(page.locator('#upload-status-message')).toContainText('发布失败:');
+    await expect(page.locator('#upload-status-message')).toContainText('创建上传会话失败 (500)');
+    // 提交按钮恢复可用状态
+    await expect(submitBtn).toBeEnabled();
   });
 });

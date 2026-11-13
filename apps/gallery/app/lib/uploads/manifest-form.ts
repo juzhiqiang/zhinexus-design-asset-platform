@@ -4,7 +4,7 @@ import type {
   ReleaseManifestV1,
   VariantRef,
 } from '@company/contracts';
-import { manifestDigest, UPLOAD_LIMITS } from '@company/contracts';
+import { manifestDigest, UPLOAD_LIMITS, validateManifest } from '@company/contracts';
 
 /**
  * 在浏览器端通过 Web Crypto 计算字节数组的 SHA-256 哈希
@@ -91,10 +91,69 @@ export function parseAndValidateImportedManifest(jsonContent: string): {
 } {
   try {
     const raw = JSON.parse(jsonContent);
-    if (!raw || typeof raw !== 'object') {
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
       return { ok: false, error: 'Manifest 内容必须为 JSON 对象' };
     }
+
+    // 1. 显式核对原 schemaVersion / channel / 基础结构，严禁静默把未知 schema 降级为 1
+    if (raw.schemaVersion !== 1) {
+      return {
+        ok: false,
+        error: `不支持的 Manifest schemaVersion: ${raw.schemaVersion}，当前仅支持 schemaVersion: 1`,
+      };
+    }
+
+    if (raw.channel !== 'web' && raw.channel !== 'cli') {
+      return {
+        ok: false,
+        error: `不支持的发布渠道 channel: ${raw.channel}，仅支持 web 或 cli`,
+      };
+    }
+
+    if (!Array.isArray(raw.packages) || raw.packages.length === 0) {
+      return {
+        ok: false,
+        error: 'Manifest packages 列表必须为非空数组',
+      };
+    }
+
+    if (!Array.isArray(raw.variants) || raw.variants.length === 0) {
+      return {
+        ok: false,
+        error: 'Manifest variants 变体列表不能为空，网页发布必须包含至少一个变体实现',
+      };
+    }
+
+    // 2. 首遍对 raw 调用公开 validateManifest 拦截原结构问题（如 reports: null、files: [null] 等）
+    // 过滤掉因为未提供 context.reports 而导致的合法 CLI 检查报告依赖 (REPORT_REQUIRED / COMPATIBILITY_EVIDENCE_REQUIRED)
+    const rawValidation = validateManifest(raw as any);
+    if (!rawValidation.ok) {
+      const structuralIssues = rawValidation.issues.filter(
+        (issue) =>
+          issue.code !== 'REPORT_REQUIRED' &&
+          issue.code !== 'COMPATIBILITY_EVIDENCE_REQUIRED',
+      );
+      if (structuralIssues.length > 0) {
+        return {
+          ok: false,
+          error: `Manifest 原始结构校验失败: ${structuralIssues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
+        };
+      }
+    }
+
+    // 3. 转换为合规的网页清单格式
     const clean = sanitizeWebManifest(raw);
+
+    // 4. 第二遍调用 contracts 运行时公开 validateManifest 校验最终 web 清单
+    const validResult = validateManifest(clean);
+    if (!validResult.ok) {
+      const issueDetails = validResult.issues.map((i) => `${i.path}: ${i.message}`).join('; ');
+      return {
+        ok: false,
+        error: `Manifest 网页清单校验失败: ${issueDetails}`,
+      };
+    }
+
     return { ok: true, manifest: clean };
   } catch (err: any) {
     return { ok: false, error: err.message || 'Manifest JSON 解析失败' };
@@ -640,6 +699,7 @@ export function createMemoryStorage(): WebUploadWorkflowStorage {
 export type ExecuteWebUploadWorkflowOptions = {
   apiUrl: string;
   token: string;
+  subject: string;
   manifest: ReleaseManifestV1;
   filesMap: Map<string, Uint8Array>;
   storage?: WebUploadWorkflowStorage;
@@ -687,6 +747,11 @@ export async function executeWebUploadWorkflow(
   const cleanManifest = sanitizeWebManifest(options.manifest);
   const digest = await manifestDigest(cleanManifest);
 
+  const currentSubject = options.subject?.trim();
+  if (!currentSubject) {
+    throw new Error('SUBJECT_REQUIRED: 网页发布工作流必须提供有效的操作人 subject，严禁跨用户生成未授权恢复记录');
+  }
+
   // 1. 创建上传会话前持久化草稿元数据
   storage.setItem(
     'zhinexus_upload_draft',
@@ -697,18 +762,137 @@ export async function executeWebUploadWorkflow(
     }),
   );
 
+  // 核心安全前置检查：在任何上传或网络副作用前核验是否已有待恢复的 pending_release
+  const pendingReleaseStr = storage.getItem('zhinexus_pending_release');
+  const currentActiveSession = storage.getItem('zhinexus_active_session_id');
+
+  if (pendingReleaseStr) {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(pendingReleaseStr);
+    } catch (err: any) {
+      if (currentActiveSession) {
+        throw new Error(`INVALID_PENDING_RELEASE: 无法解析当前发布会话的持久化记录: ${err.message}`);
+      }
+    }
+
+    if (parsed) {
+      const isSameSession = Boolean(parsed.uploadSessionId && parsed.uploadSessionId === currentActiveSession);
+
+      // 1. 校验 pending 记录自身的完整性与防篡改
+      const hasAllFields =
+        Boolean(parsed.uploadSessionId) &&
+        Boolean(parsed.idempotencyKey) &&
+        Boolean(parsed.apiUrl) &&
+        Boolean(parsed.subject) &&
+        Boolean(parsed.manifestDigest) &&
+        Boolean(parsed.manifest);
+
+      let isTampered = false;
+      if (hasAllFields) {
+        const computed = await manifestDigest(parsed.manifest);
+        if (computed !== parsed.manifestDigest) {
+          isTampered = true;
+        }
+      } else {
+        isTampered = true;
+      }
+
+      // 规则：如果是同会话记录且自身损坏/被篡改，必须 fail-closed 抛错阻断
+      if (isSameSession && isTampered) {
+        throw new Error(
+          `TAMPERED_PENDING_RELEASE: 当前会话 (${parsed.uploadSessionId}) 持久化的发布记录损坏或被篡改，严禁换键重新提交`,
+        );
+      }
+
+      // 2. 比对是否与当前操作的三元组 (apiUrl, subject, digest) 完全匹配
+      const isApiMatch = parsed.apiUrl && parsed.apiUrl.trim() === options.apiUrl.trim();
+      const isSubjectMatch = parsed.subject && parsed.subject === currentSubject;
+      const isDigestMatch = parsed.manifestDigest && parsed.manifestDigest === digest;
+
+      if (!isTampered && isApiMatch && isSubjectMatch && isDigestMatch) {
+        // 同三元组/摘要的有效 pending：说明产物上传与 complete 阶段已就绪，直接重放原 release，完全跳过 PUT / complete！
+        onProgress('检测到未完成的发布提交记录，正在直接重放原幂等键提交...', 90);
+        const releaseRes = await api.submitReleaseJob(
+          options.apiUrl,
+          options.token,
+          parsed.uploadSessionId,
+          parsed.manifest,
+          parsed.idempotencyKey,
+        );
+
+        onProgress(`发布作业已创建 (${releaseRes.jobId})`, 100);
+
+        storage.setItem(
+          'zhinexus_web_release_session',
+          JSON.stringify({
+            jobId: releaseRes.jobId,
+            uploadSessionId: parsed.uploadSessionId,
+            idempotencyKey: parsed.idempotencyKey,
+            state: releaseRes.state,
+            timestamp: Date.now(),
+          }),
+        );
+
+        storage.removeItem('zhinexus_upload_draft');
+        storage.removeItem('zhinexus_pending_release');
+        storage.removeItem('zhinexus_active_session_id');
+        storage.removeItem('zhinexus_active_session_plan');
+
+        return {
+          ok: true,
+          jobId: releaseRes.jobId,
+          uploadSessionId: parsed.uploadSessionId,
+        };
+      }
+    }
+  }
+
   onProgress('正在创建不可变上传会话...', 10);
 
-  // 检查是否已有活跃的会话可恢复
+  // 检查是否已有活跃的会话可恢复（必须严格绑定 manifestDigest、apiUrl、subject）
   let uploadSessionId = storage.getItem('zhinexus_active_session_id') || '';
   let sessionFiles: Array<UploadSessionFilePlan> = [];
 
   const existingSessionData = storage.getItem('zhinexus_active_session_plan');
+
   if (uploadSessionId && existingSessionData) {
     try {
-      sessionFiles = JSON.parse(existingSessionData);
+      const planRecord = JSON.parse(existingSessionData);
+      const isDigestMatch = planRecord && planRecord.manifestDigest === digest;
+      const isApiMatch = planRecord && planRecord.apiUrl && planRecord.apiUrl.trim() === options.apiUrl.trim();
+      const isSubjectMatch = planRecord && planRecord.subject && planRecord.subject === currentSubject;
+      const isSessionMatch = planRecord && planRecord.uploadSessionId === uploadSessionId;
+
+      // 检查文件计划的 URL 是否已到期
+      const now = Date.now();
+      const isExpired =
+        Array.isArray(planRecord.files) &&
+        planRecord.files.some((f: UploadSessionFilePlan) => {
+          if (!f.expiresAt) return false;
+          return Date.parse(f.expiresAt) <= now;
+        });
+
+      // 此时无当前有效 pending，若预签名 URL 已到期，必须安全废弃并创建新 session，避免向过期 URL 发起 PUT
+      if (
+        isDigestMatch &&
+        isApiMatch &&
+        isSubjectMatch &&
+        isSessionMatch &&
+        Array.isArray(planRecord.files) &&
+        planRecord.files.length > 0 &&
+        !isExpired
+      ) {
+        sessionFiles = planRecord.files;
+      } else {
+        uploadSessionId = '';
+        storage.removeItem('zhinexus_active_session_id');
+        storage.removeItem('zhinexus_active_session_plan');
+      }
     } catch {
       uploadSessionId = '';
+      storage.removeItem('zhinexus_active_session_id');
+      storage.removeItem('zhinexus_active_session_plan');
     }
   }
 
@@ -717,9 +901,19 @@ export async function executeWebUploadWorkflow(
     uploadSessionId = sessionRes.uploadSessionId;
     sessionFiles = sessionRes.files;
 
-    // 2. uploadSessionId 在服务返回后立即持久化
+    // 2. uploadSessionId 在服务返回后立即持久化，并绑定 manifestDigest、apiUrl 与 subject
     storage.setItem('zhinexus_active_session_id', uploadSessionId);
-    storage.setItem('zhinexus_active_session_plan', JSON.stringify(sessionFiles));
+    storage.setItem(
+      'zhinexus_active_session_plan',
+      JSON.stringify({
+        uploadSessionId,
+        manifestDigest: digest,
+        apiUrl: options.apiUrl.trim(),
+        subject: currentSubject,
+        files: sessionFiles,
+        timestamp: Date.now(),
+      }),
+    );
   }
 
   onProgress('正在推送真实预构建产物与手动截图...', 20);
@@ -763,31 +957,19 @@ export async function executeWebUploadWorkflow(
   onProgress('上传核验通过，正在准备发布提交...', 85);
 
   // 5. 首次 POST release 前持久化固定幂等键及完整原请求
-  let idempotencyKey = '';
-  const pendingReleaseStr = storage.getItem('zhinexus_pending_release');
-  if (pendingReleaseStr) {
-    try {
-      const parsed = JSON.parse(pendingReleaseStr);
-      if (parsed.uploadSessionId === uploadSessionId && parsed.idempotencyKey) {
-        idempotencyKey = parsed.idempotencyKey;
-      }
-    } catch {
-      // ignore
-    }
-  }
-
-  if (!idempotencyKey) {
-    idempotencyKey = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
-    storage.setItem(
-      'zhinexus_pending_release',
-      JSON.stringify({
-        idempotencyKey,
-        uploadSessionId,
-        manifest: cleanManifest,
-        timestamp: Date.now(),
-      }),
-    );
-  }
+  const idempotencyKey = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  storage.setItem(
+    'zhinexus_pending_release',
+    JSON.stringify({
+      idempotencyKey,
+      uploadSessionId,
+      apiUrl: options.apiUrl.trim(),
+      subject: currentSubject,
+      manifest: cleanManifest,
+      manifestDigest: digest,
+      timestamp: Date.now(),
+    }),
+  );
 
   onProgress('正在提交发布作业...', 90);
 
@@ -802,7 +984,7 @@ export async function executeWebUploadWorkflow(
 
   onProgress(`发布作业已创建 (${releaseRes.jobId})`, 100);
 
-  // 成功提交后更新最终持久化
+  // 成功提交后更新最终持久化，并清理草稿、pending 与 active 会话（真正失败才保留供恢复）
   storage.setItem(
     'zhinexus_web_release_session',
     JSON.stringify({
@@ -813,6 +995,11 @@ export async function executeWebUploadWorkflow(
       timestamp: Date.now(),
     }),
   );
+
+  storage.removeItem('zhinexus_upload_draft');
+  storage.removeItem('zhinexus_pending_release');
+  storage.removeItem('zhinexus_active_session_id');
+  storage.removeItem('zhinexus_active_session_plan');
 
   return {
     ok: true,
