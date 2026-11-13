@@ -10,8 +10,16 @@
  *    `supportedRangeUnchanged` 恒为 `true`，且不提供任何「建议扩范围」字段；
  *    是否扩大范围是人在审阅报告后的显式决定。
  * 2. **预发布不当候选**：`latest` 指向预发布，或显式请求预发布版本，一律拒绝。
- * 3. **共享核心变化必须双框架齐验**：少任何一个已支持框架的实测结果，
- *    报告不得建议采纳（`recommend` 返回 `'hold'`）。
+ * 3. **共享核心变化必须每个精确组合齐验**：`supported` 里的每个
+ *    （框架 × 框架版本 × ECharts 基线）组合都要有一条对应实测，少任何一个、
+ *    多出任何一个、版本对不上，报告都不得建议采纳（`recommend` 返回 `'hold'`）。
+ *
+ * 另外两条「报告必须与实测一致」的硬约束（2026-11-13 独立评审复现后补入）：
+ * - **探针收到的是候选版本**：`verifyCandidate` 把 `combination.echartsVersion`
+ *   替换为 `candidate.version` 再交给探针，实测行另行记录 `baselineEchartsVersion`；
+ *   否则报告自称验证候选、实测行写的却是基线。
+ * - **基线必须唯一**：`supported` 的 ECharts 基线不一致时直接拒绝出报告，
+ *   不取首项——取首项会让 `peerSatisfied` 随数组顺序翻转。
  */
 
 /** 候选来源标识：官方源地址或本地代理地址，用于报告留痕。 */
@@ -89,13 +97,25 @@ export type CombinationProbe = (
   combination: SupportedCombination,
 ) => Promise<CombinationDimensions>;
 
-export type CombinationResult = SupportedCombination & CombinationDimensions;
+/**
+ * 单个组合的实测结果。
+ *
+ * `echartsVersion` 是**实际验证**的 ECharts 版本，即候选版本；
+ * `baselineEchartsVersion` 是该组合在基线（未升级）状态下的版本，用于对照。
+ * 两者在候选低于基线（回退验证）时不同——这正是「报告自称验证 6.0.0、实测行却写
+ * 6.1.0」这类误判的要害，因此必须分开记录，不能只留一个版本字段。
+ */
+export type CombinationResult = SupportedCombination &
+  CombinationDimensions & {
+    /** 该组合对应的基线 ECharts 版本（来自 `supported`，与候选无关）。 */
+    baselineEchartsVersion: string;
+  };
 
 export type CompatibilityReport = {
   candidate: EChartsCandidate;
   /** 候选是否落在当前已锁定的 peer 精确版本上。 */
   peerSatisfied: boolean;
-  /** 当前已支持的基线 ECharts 版本（取自 `supported` 首项）。 */
+  /** 当前已支持的基线 ECharts 版本。所有 `supported` 组合必须一致，否则拒绝出报告。 */
   baselineEchartsVersion: string;
   results: CombinationResult[];
   /**
@@ -212,30 +232,120 @@ export function candidateSatisfiesPeer(
   return compareVersions(candidate.version, peer.echarts) === 0;
 }
 
-/** 双框架覆盖是否完整：`supported` 里出现的每个框架都要有非 `not-run` 的实测结果。 */
+/**
+ * 精确组合键：框架 + 框架版本 + ECharts 基线版本，三者缺一不可。
+ * 只按 `framework` 分组会让「Vue 3.5.45 验过了」掩盖「Vue 3.4.0 没验」。
+ */
+function combinationKey(
+  framework: CompatibilityFramework,
+  frameworkVersion: string,
+  echartsVersion: string,
+): string {
+  return `${framework}@${frameworkVersion}@${echartsVersion}`;
+}
+
+/** 实测行的键用基线版本对齐 `supported`：`echartsVersion` 记的是候选版本。 */
+function resultKey(result: CombinationResult): string {
+  return combinationKey(result.framework, result.frameworkVersion, result.baselineEchartsVersion);
+}
+
+/** 四个维度是否都真的跑过（`not-run` 不是通过）。 */
+function fullyMeasured(dimensions: {
+  typecheck: DimensionOutcome;
+  runtime: DimensionOutcome;
+  interaction: DimensionOutcome;
+  visual: DimensionOutcome;
+}): boolean {
+  return [dimensions.typecheck, dimensions.runtime, dimensions.interaction, dimensions.visual].every(
+    (dimension) => dimension !== 'not-run',
+  );
+}
+
+/**
+ * 覆盖是否完整：`supported` 里的**每个精确组合**都必须有一条对应的实测结果，
+ * 且四条维度都真的跑过。判定是一一对应，不是「每个框架有一条」：
+ *
+ * - 缺：`supported` 有而 `results` 没有 → 不完整；
+ * - 额外：`results` 有而 `supported` 没有 → 不完整（无法确认它属于已支持范围）；
+ * - 重复：任一侧同一组合出现两次 → 不完整（分不出是否各自验过）；
+ * - 版本错：框架版本或 ECharts 基线版本对不上 → 不完整。
+ */
 export function hasDualFrameworkCoverage(
   report: CompatibilityReport,
   supported: readonly SupportedCombination[],
 ): boolean {
-  const required = new Set(supported.map((combination) => combination.framework));
-  for (const framework of required) {
-    const runs = report.results.filter((result) => result.framework === framework);
-    const measured = runs.filter((result) =>
-      [result.typecheck, result.runtime, result.interaction, result.visual].every(
-        (dimension) => dimension !== 'not-run',
-      ),
+  if (supported.length === 0 || report.results.length === 0) {
+    return false;
+  }
+
+  const required = new Map<string, number>();
+  for (const combination of supported) {
+    const key = combinationKey(
+      combination.framework,
+      combination.frameworkVersion,
+      combination.echartsVersion,
     );
-    if (measured.length === 0) {
+    required.set(key, (required.get(key) ?? 0) + 1);
+  }
+  // supported 自身重复：同一精确组合列了两次，无法判断是否各自实测
+  if ([...required.values()].some((count) => count > 1)) {
+    return false;
+  }
+
+  const measured = new Map<string, CombinationResult>();
+  for (const result of report.results) {
+    const key = resultKey(result);
+    // results 重复记录同一组合同样拒绝
+    if (measured.has(key)) {
+      return false;
+    }
+    measured.set(key, result);
+  }
+  // 数量不等必有一侧多出或缺失
+  if (measured.size !== required.size) {
+    return false;
+  }
+  for (const [key, result] of measured) {
+    if (!required.has(key)) {
+      return false;
+    }
+    if (!fullyMeasured(result)) {
       return false;
     }
   }
-  return required.size > 0;
+  return true;
+}
+
+/**
+ * 唯一的基线 ECharts 版本。
+ *
+ * `supported` 是「当前已实测通过的精确组合」，它们的 ECharts 基线必须一致：
+ * 混合基线意味着调用方给的自相矛盾（例如一条 6.1.0、一条 6.0.0），此时
+ * 「候选是否落在当前 peer 精确版本上」没有唯一答案。原先取 `supported[0]` 的做法
+ * 会让结论随数组顺序翻转——同样两份输入，正序 `adopt`、反序 `hold`。
+ * 因此这里显式拒绝，不猜、不取首项。
+ */
+function singleBaselineEchartsVersion(supported: readonly SupportedCombination[]): string {
+  const baseline = supported[0]!.echartsVersion;
+  for (const combination of supported) {
+    if (combination.echartsVersion !== baseline) {
+      throw new Error(
+        `verifyCandidate 要求所有已支持组合的 ECharts 基线一致：` +
+          `收到 ${baseline} 与 ${combination.echartsVersion}` +
+          `（${combination.framework}@${combination.frameworkVersion}）。` +
+          `混合基线无法判定候选是否落在当前 peer 精确版本上，已拒绝出报告。`,
+      );
+    }
+  }
+  return baseline;
 }
 
 /**
  * 生成兼容报告。
  *
  * `supported` 提供当前已实测通过的精确组合（基线），`probe` 对每个组合跑真实验证。
+ * **探针收到的是候选版本**：`combination.echartsVersion` 被替换为 `candidate.version`，
+ * 否则「已验证候选 6.0.0」实际验的是基线 6.1.0，报告与实测脱节。
  * 报告不含任何「建议的新支持范围」字段——扩大范围是人在审阅后的显式动作。
  */
 export async function verifyCandidate(
@@ -246,11 +356,22 @@ export async function verifyCandidate(
   if (supported.length === 0) {
     throw new Error('verifyCandidate 需要至少一个已支持组合作为基线');
   }
+  const baselineEchartsVersion = singleBaselineEchartsVersion(supported);
   const results: CombinationResult[] = [];
   for (const combination of supported) {
-    results.push({ ...combination, ...(await probe(combination)) });
+    // 实际送验的组合：框架与框架版本来自基线，ECharts 版本换成候选
+    const measured: SupportedCombination = {
+      framework: combination.framework,
+      frameworkVersion: combination.frameworkVersion,
+      echartsVersion: candidate.version,
+    };
+    const dimensions = await probe(measured);
+    results.push({
+      ...measured,
+      ...dimensions,
+      baselineEchartsVersion: combination.echartsVersion,
+    });
   }
-  const baselineEchartsVersion = supported[0]!.echartsVersion;
   return {
     candidate,
     peerSatisfied: candidateSatisfiesPeer(candidate, { echarts: baselineEchartsVersion }),
@@ -264,8 +385,11 @@ export async function verifyCandidate(
 }
 
 /**
- * 由报告得出建议：只有「peer 符合 + 双框架齐验 + 四个维度全过 + 无差异」才建议采纳，
+ * 由报告得出建议：只有「peer 符合 + 每个精确组合都实测且四维全过 + 无差异」才建议采纳，
  * 其余一律 `'hold'`。`'hold'` 不意味着候选不可用，只意味着**不自动改支持范围**。
+ *
+ * 注意 `allPassed` 只覆盖 `report.results` 自身；「results 是否就是 supported 要求的
+ * 那一组组合」由 `hasDualFrameworkCoverage` 判定，两者缺一不可。
  */
 export function recommend(
   report: CompatibilityReport,
