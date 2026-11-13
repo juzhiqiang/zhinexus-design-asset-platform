@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, rmdirSync, writeFileSync } from 'node:fs';
+import { existsSync, linkSync, mkdirSync, mkdtempSync, readFileSync, rmSync, rmdirSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -81,13 +81,18 @@ export function imageId(options: { directory?: string; inspect?: (reference: str
   }
   if (existing) return existing;
   mkdirSync(directory, { recursive: true });
+  const staging = mkdtempSync(join(directory, '.images-'));
   try {
-    writeFileSync(file, `${JSON.stringify({ minioImageId: info.Id }, null, 2)}\n`, { flag: 'wx' });
-  } catch (error) {
-    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
-    // A concurrent registration is authoritative only after the same validation.
-    return imageId(options);
-  }
+    const staged = join(staging, 'images.json');
+    writeFileSync(staged, `${JSON.stringify({ minioImageId: info.Id }, null, 2)}\n`, { flag: 'wx' });
+    try {
+      // Publish complete bytes atomically, without replacing another registrar.
+      linkSync(staged, file);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+      return imageId(options);
+    }
+  } finally { rmSync(staging, { recursive: true, force: true }); }
   return info.Id;
 }
 export function compose(args: string[], options: { input?: string; visible?: boolean; timeout?: number } = {}): string {
