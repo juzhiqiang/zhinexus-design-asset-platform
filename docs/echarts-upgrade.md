@@ -11,10 +11,10 @@
 | zrender | `6.1.0`（echarts 6.1.0 的运行时依赖，随 echarts 一起锁定） |
 | Vue | `3.5.45` |
 | React / ReactDOM | `19.3.1` |
-| 组件包 | `@company/charts-core` / `charts-vue` / `charts-react` 均 `0.0.7` |
+| 组件包 | `@company/charts-core` / `charts-vue` / `charts-react` 均 `0.0.8` |
 | 工具链 | Node `26.13.0`、pnpm `12.18.0`（`.tools/` 固定） |
 
-**两个「基线」要分清**：`0.0.7` 是本轮工作树上的当前版本；**最后一次完成 Windows 原生全图验收的是 `0.0.6`**（C 于 2026-11-13 在基线 `885792b` 上实测）。`0.0.7` 目前只有 Linux 复现环境证据，Windows 原生复验见第 6.2 节。回退时的「上一组已验证组合」指 `0.0.6`。
+**三个「基线」要分清**：`0.0.8` 是本轮工作树上的当前版本（含兼容策略缺陷修复）；**最后一次完成 Windows 原生全图验收的是 `0.0.7`**（C 于 2026-11-13 在 `f35ebc9` 上实测，但该固定提交的策略判定被独立评审复现有三个 Important 缺陷，C 明确记录「当前兼容策略保持未验收」）；再往前一版是 `0.0.6`。`0.0.8` 目前只有 Linux 复现环境证据，Windows 原生复验见第 6.2 节。回退时的「上一组已验证组合」指 `0.0.6`。
 
 `rules/platform.md` 规定：任何扩大或缩减兼容版本范围的改动，必须同步更新兼容矩阵测试与 `compatibility_records`。**本文件不构成扩大范围的授权**——扩大范围必须是人在审阅实测报告后的显式动作。
 
@@ -24,16 +24,28 @@
 
 - `resolveCandidate(input, registry)`：`'latest'` 或精确版本 → `{ version, integrity, releaseNotesSource, source }`。五条拒绝路径全部显式：非精确字面量、预发布、官方源不存在、缺 `dist.integrity`；`latest` 命中预发布时**不会**回退到上一个稳定版。
 - `candidateSatisfiesPeer(candidate, peer)`：`peerDependencies` 锁定精确版本，符合性即版本相等。候选低于基线（回退）或高于基线（未验证新版本）都不算符合。
-- `verifyCandidate(candidate, supported, probe)`：对每个已支持组合跑注入的探针，汇总**类型 / 运行 / 交互 / 视觉**四维结果与差异。报告恒带 `supportedRangeUnchanged: true`，且**不提供任何「建议的新支持范围」字段**。
-- `recommend(report, supported)` / `hasDualFrameworkCoverage(report, supported)`：只有「peer 符合 + 双框架齐验 + 四维全过 + 无差异」才返回 `'adopt'`，其余一律 `'hold'`。共享核心变化少任何一个已支持框架的实测结果即 `'hold'`。
+- `verifyCandidate(candidate, supported, probe)`：对每个已支持组合跑注入的探针，汇总**类型 / 运行 / 交互 / 视觉**四维结果与差异。报告恒带 `supportedRangeUnchanged: true`，且**不提供任何「建议的新支持范围」字段**。三条「报告必须与实测一致」的硬约束：探针收到的是**候选版本**（`results[].echartsVersion` 记候选，`results[].baselineEchartsVersion` 记基线对照）；所有已支持组合的 ECharts 基线必须一致，混合基线直接抛错不出报告；覆盖判定按**精确组合**一一对应。
+- `recommend(report, supported)` / `hasDualFrameworkCoverage(report, supported)`：只有「peer 符合 + `supported` 里每个精确组合都各有一条对应实测 + 四维全过 + 无差异」才返回 `'adopt'`，其余一律 `'hold'`。缺、额外、重复（任一侧）、框架版本或 ECharts 基线版本对不上，任何一种都判为不完整。共享核心变化少任何一个已支持框架的实测结果即 `'hold'`。
 
-配套测试 `tests/unit/sdk-compatibility.test.ts`（20 例）先红后绿，锁定上述纪律。
+配套测试 `tests/unit/sdk-compatibility.test.ts`（33 例）先红后绿，锁定上述纪律。
 
 **候选失败不得扩大 peer 范围**在三个层次上都有实证，不是一句口号：
 
 1. **安装层**：把冻结的 `0.0.6` tarball 与 `echarts@6.0.0` 一起安装，`npm install` 直接 `ERESOLVE`（`peer echarts@"6.1.0" from @company/charts-vue@0.0.6` / `@company/charts-react@0.0.6`），退出码 1，任何代码都不会跑起来。
 2. **策略层**：`verifyCandidate` 的报告里 `peerSatisfied === false`、`supportedRangeUnchanged === true`、`suggestedPeerRange === undefined`，`recommend` 返回 `'hold'`。
 3. **类型层**：见第 4 节的潜在脆弱点——即便绕过 peer 检查，`skipLibCheck: false` 的消费者会在 6.0.0 上拿到真实的类型解析失败。
+
+### 2.1 2026-11-13 独立评审复现并已修复的三处策略误判
+
+独立评审对 `f35ebc9` 的 git 对象直接复现了三处「报告自称验证了某件事、实际验的是另一件事」的误判。三者都足以让 `recommend` 在缺少实测的情况下返回 `'adopt'`，因此在 `0.0.8` 修复，并各配 RED 用例（33 例中 13 例为本轮新增，其中 11 例先红后绿）：
+
+| 误判 | 复现 | 修复 |
+| --- | --- | --- |
+| 探针收到基线版本 | 候选 `6.0.0`、基线 `6.1.0` 时，`probe` 收到的 `echartsVersion` 是 `6.1.0`，`results[].echartsVersion` 也是 `6.1.0`，报告却自称验证 `6.0.0` | `verifyCandidate` 把 `combination.echartsVersion` 替换为 `candidate.version` 再交给探针；`results` 新增 `baselineEchartsVersion` 记录基线对照 |
+| 覆盖只按框架 | `supported` 含 Vue 3.5.45、Vue 3.4.0、React 19.3.1，实测只覆盖其中两项（或把 3.4.0 记成 3.5.45、多出一条、任一侧重复），`hasDualFrameworkCoverage` 仍返回 `true`、`recommend` 返回 `'adopt'` | 改为按 `framework@frameworkVersion@echartsVersion` 精确组合一一对应判定；缺、额外、重复、版本错一律 `false` |
+| 基线取首项 | `supported` 为「Vue/6.1.0 + React/6.0.0」时 `baselineEchartsVersion` 取 `supported[0]`，候选 `6.1.0` 得 `peerSatisfied=true`/`adopt`；交换数组顺序则 `hold` | 所有已支持组合的 ECharts 基线必须一致，否则抛错且不出报告 |
+
+复现与修复后的逐条断言脚本实际输出（17 项全 PASS）见 [T10 SDK 兼容验证记录](verification/t10-sdk-compatibility.md) 第七节。
 
 ## 3. 本轮候选查证结果
 
@@ -125,23 +137,25 @@ React 消费者：同上，另需确认 `@types/react` / `@types/react-dom` 与 
 
 基线 `885792b` / SDK `0.0.6` 的 Windows 原生验收已由 C 于 2026-11-13 实际完成：build 10 tasks、typecheck 14 + 根 `tsc`、unit/contracts 322、packed-consumer + cli-bundle 12、完整浏览器 122 均通过；`current-sdk` 从旧 10 实现 RED 后改为 14 实现，隔离三存储发布 READY、逐预览/截图摘要、Vue/React 各 7 子路径的精确 Registry 安装全部通过。
 
-**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例与 `sdk-compatibility` 20 例。Linux 复现环境本轮全量实测：`pnpm exec playwright test --config tests/playwright.config.ts` → **185 passed**，即基线 122 + 新增 63（`presentation-matrix` 56 + `core-lifecycle` 由 4 增至 11 的 7 例）。基线 122 与 C 在 Windows 上测得的 122 一致，可作为本轮新增用例的对照基准。
+**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例与 `sdk-compatibility` 33 例。Linux 复现环境本轮全量实测：`pnpm exec playwright test --config tests/playwright.config.ts` → **185 passed**，即基线 122 + 新增 63（`presentation-matrix` 56 + `core-lifecycle` 由 4 增至 11 的 7 例）。基线 122 与 C 在 Windows 上测得的 122 一致，可作为本轮新增用例的对照基准。
+
+C 另于 2026-11-13 在固定 `f35ebc9` 上完成 `0.0.7` 的 Windows 原生复验（强制构建/类型 20 项、策略 20 项、外部消费者/CLI 材料 13 项、展示/核心浏览器 67 项、十四实现隔离发布与双框架精确 Registry 消费）。**该复验固定的是 `0.0.7`，且 C 明确记录「当前兼容策略保持未验收」**：三个 Important 策略误判是在该固定提交上复现的，修复落在 `0.0.8`，因此 `0.0.8` 需要重新做一遍原生复验，不能继承 `0.0.7` 的结论。
 
 ### 6.3 产物侧
 
-**回退目标组合是 `0.0.6`**（C 已完成 Windows 原生全图验收的那一版），不是 `0.0.7`。
+**回退目标组合是 `0.0.6`**（C 已完成 Windows 原生全图验收的那一版），不是 `0.0.7` 或 `0.0.8`。
 
 已发布版本不可变：任何版本一旦发布到 Verdaccio 即冻结，回退只能通过「继续安装已发布的 `0.0.6`」实现，不能覆盖或删除重发。若需要修复，递增 `PATCH` 发布新版本，并通过平台把旧版本标记为 `deprecated`。同一份 tarball 的 SHA-256 必须贯穿安装、截图、报告、上传与发布。
 
-`0.0.7` 候选冻结产物摘要（`pnpm pack`，与发布链同口径）：
+`0.0.8` 候选冻结产物摘要（`pnpm pack`，与发布链同口径；Linux 复现环境，重复打包结果一致，tarball 只含 `dist/`）：
 
 | 包 | 字节 | SHA-256 |
 | --- | --- | --- |
-| `company-charts-core-0.0.7.tgz` | 48,744 | `e7cf6b21d422edd245cc2cd4ed5b8b973cba183d840145e806d70c1f4fae884d` |
-| `company-charts-vue-0.0.7.tgz` | 6,621 | `654bda9c6b8401cef57e0e5feea2acc5905ed3efb28635061f2c0fd1b458b858` |
-| `company-charts-react-0.0.7.tgz` | 12,003 | `b1ce0212acb46f7b9053d833c7a2a7763d7e0b7e3e70e4baef0fc947eea88aa1` |
+| `company-charts-core-0.0.8.tgz` | 51,538 | `8af080504c5d1bf57eb52a647bf6e95daef798cc213c4ea68ed7132223f0ece4` |
+| `company-charts-vue-0.0.8.tgz` | 6,621 | `2bd53114187d504145726a673400bd487e8e368502c171dfdd8a41e850be6aee` |
+| `company-charts-react-0.0.8.tgz` | 12,003 | `c7f3f6d3ee14033b2bfc9e3fbc1683842f1ef7f116e5bb375b66e5f258412e7d` |
 
-上表在 Linux 复现环境重复打包两次结果一致（可复现），tarball 只含 `dist/`。**发布用的权威摘要仍须由 C 在 Windows 上从同一提交重新打包取得**——跨平台字节差异（换行、文件模式、打包顺序）无法在沙箱内排除，安装、截图、报告、上传必须贯穿同一份 Windows 摘要。
+上表在 Linux 复现环境重复打包两次结果一致（可复现），tarball 只含 `dist/`。**发布用的权威摘要仍须由 C 在 Windows 上从同一提交重新打包取得**——C 在 Windows 为 `0.0.7` 取得的三包摘要（`70232cd9…` / `861d4ee9…` / `e4630ba2…`）与上表同版本的 Linux 摘要（`e7cf6b21…` / `654bda9c…` / `b1ce0212…`）**不同**，已实证跨平台字节差异真实存在。安装、截图、报告、上传必须贯穿同一份 Windows 摘要。
 
 ## 7. 待办与边界
 

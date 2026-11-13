@@ -154,9 +154,133 @@ echarts@6.1.0：
 
 `cli-check.test.ts`、`cli-bundle.test.ts`、`cli-release.test.ts`、`packed-consumer-frameworks.test.ts` 在沙箱内单次超过 178s 的命令上限（`packed-consumer-frameworks` 的 `beforeAll` 就要为两个框架各做一次隔离安装），本轮未在 0.0.7 上整体重跑；这四个文件均不含版本字面量断言（`cli-check` 里的 `'0.0.1'` 是暂存目录名），升版不改变其判定输入。`cli-check` 的 `rejects`、`executes component check for vue`、`executes component check for react`、`tampered` 四条已在 0.0.6 上单独跑通。
 
-## 七、未覆盖边界
+## 八、独立评审复现的三处策略误判与修复（2026-11-13）
+
+C 在固定 `f35ebc9` 上完成 `0.0.7` 的 Windows 原生复验后，独立评审对该 git 对象的 `compatibility.ts` 直接复现了三处误判，并明确「当前测试通过不视为策略已验收」。三处的共同点是**报告自称验证了某件事、实际验的是另一件事**，因此都足以让 `recommend` 在缺少实测的情况下返回 `'adopt'`。
+
+### 8.1 复现（修复前，`f35ebc9`）
+
+```
+===== 缺陷①：探针收到基线版本，results 与 candidate 不一致 =====
+candidate.version      = 6.0.0
+probe 收到的 echarts   = 6.1.0, 6.1.0
+results 的 echarts     = 6.1.0, 6.1.0
+
+===== 缺陷②：覆盖判定只按 framework，漏框架版本 =====
+supported 精确组合数   = 3 (Vue3.5.45, Vue3.4.0, React19.3.1)
+results 条数           = 2          # reviewer 原述：只测了两项
+hasDualFrameworkCoverage = true
+recommend              = adopt      # 少验一个 Vue 3.4.0 却建议采纳
+
+===== 缺陷③：基线取 supported[0]，混合基线随顺序翻转 =====
+baselineEchartsVersion = 6.1.0 (取自 supported[0])
+peerSatisfied          = true
+recommend              = adopt
+交换数组顺序后 baseline = 6.0.0 peerSatisfied = false recommend = hold
+```
+
+缺陷② 的四个变体（缺一条精确组合、框架版本写错、多出 `supported` 里没有的组合、任一侧重复）在修复前**全部**返回 `coverage=true` / `recommend=adopt`。
+
+### 8.2 RED → GREEN
+
+`tests/unit/sdk-compatibility.test.ts` 由 20 例增至 **33 例**，新增 13 例，其中 **11 例先红**（另 2 例描述的是修复后仍应成立的正向行为，修复前即通过）。红态证据：
+
+```
+$ pnpm exec vitest run tests/unit/sdk-compatibility.test.ts
+ × 候选低于基线时，probe 收到候选 echartsVersion，实测行另行记录基线对照
+ × 框架与框架版本取自基线，不随候选改写
+ × 候选与基线同版本时，实测行与基线一致
+ × supported 有三个精确组合而 results 只有两项时，不得判为完整覆盖
+ × results 的框架版本与 supported 不一致时，不得判为完整覆盖
+ × results 多出 supported 里没有的组合时，不得判为完整覆盖
+ × supported 自身有重复组合时，不得判为完整覆盖
+ × results 重复记录同一组合时，不得判为完整覆盖
+ × 混合 echarts 基线直接拒绝，不静默取首项
+ × 拒绝与数组顺序无关
+ × 候选 6.0.0 配混合基线同样拒绝，不因候选与其中一项相同就放行
+AssertionError: expected [ '6.1.0', '6.1.0' ] to deeply equal [ '6.0.0', '6.0.0' ]
+AssertionError: expected true to be false
+AssertionError: promise resolved "{ candidate: { …(4) }, …(5) }" instead of rejecting
+ Tests  11 failed | 22 passed (33)
+```
+
+修复后：
+
+```
+$ pnpm exec vitest run tests/unit/sdk-compatibility.test.ts
+ Test Files  1 passed (1)
+      Tests  33 passed (33)
+```
+
+### 8.3 修复后的逐条断言（17 项全 PASS）
+
+用与 8.1 相同的输入重跑，并补足缺陷② 的四个变体与「不扩 peer」回归：
+
+```
+--- ① 探针收到候选版本 ---
+PASS  probe 收到 6.0.0 而非基线 6.1.0
+PASS  results.echartsVersion = 候选 6.0.0
+PASS  results.baselineEchartsVersion = 基线 6.1.0
+PASS  report.baselineEchartsVersion = 6.1.0
+PASS  框架与框架版本仍取自基线
+--- ② 覆盖按精确组合 ---
+PASS  三个精确组合全实测 → adopt
+PASS  缺一条精确组合 → hold
+PASS  框架版本写错 → hold
+PASS  多出组合 → hold
+PASS  supported 重复 → hold
+PASS  results 重复 → hold
+PASS  有 not-run 维度 → hold
+--- ③ 基线唯一 ---
+PASS  候选6.1.0 正序 混合基线被拒绝
+PASS  候选6.1.0 反序 混合基线被拒绝
+PASS  候选6.0.0 正序 混合基线被拒绝
+PASS  基线一致时正反序结论相同
+PASS  候选 6.0.0 对 6.1.0 基线仍 hold（不扩 peer）
+```
+
+混合基线的拒绝消息（节选）：
+
+```
+Error: verifyCandidate 要求所有已支持组合的 ECharts 基线一致：收到 6.1.0 与 6.0.0（react@19.3.1）。
+混合基线无法判定候选是否落在当前 peer 精确版本上，已拒绝出报告。
+```
+
+### 8.4 改动范围与升版
+
+只改 `packages/charts-core/src/engine/compatibility.ts` 与 `tests/unit/sdk-compatibility.test.ts`；`peerDependencies.echarts` 仍为 `6.1.0`，未扩范围。`CombinationResult` 由 `SupportedCombination & CombinationDimensions` 改为显式类型并新增必填字段 `baselineEchartsVersion`（该类型由本包产出、不由调用方构造），按 `0.x` 兼容变更递增 PATCH：三包 `0.0.7 → 0.0.8`。
+
+仓库内除 `tests/unit/sdk-compatibility.test.ts` 与 `src/index.ts` 的导出外无其他调用点；C 的 `e490564`（`tests/platform/*`、`tests/unit/platform-harness-cleanup.test.ts`）不引用本模块，修复不影响 C 侧测试。
+
+`0.0.8` 冻结产物（Linux 复现环境，重复打包一致，tarball 只含 `dist/`；已核对包内 `dist/engine/compatibility.d.ts` 与 `.js` 均含修复，vue / react 的 `dependencies` 为 `@company/charts-core: 0.0.8`）：
+
+```
+8af080504c5d1bf57eb52a647bf6e95daef798cc213c4ea68ed7132223f0ece4  51538  company-charts-core-0.0.8.tgz
+2bd53114187d504145726a673400bd487e8e368502c171dfdd8a41e850be6aee   6621  company-charts-vue-0.0.8.tgz
+c7f3f6d3ee14033b2bfc9e3fbc1683842f1ef7f116e5bb375b66e5f258412e7d  12003  company-charts-react-0.0.8.tgz
+```
+
+**跨平台摘要差异已实证**：C 在 Windows 为 `0.0.7` 取得的三包摘要（`70232cd9…` / `861d4ee9…` / `e4630ba2…`）与 Linux 同版本摘要（`e7cf6b21…` / `654bda9c…` / `b1ce0212…`）不同。发布用的权威摘要必须由 C 在 Windows 从同一提交重新打包取得。
+
+### 8.5 升版后的回归
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm exec vitest run tests/unit --test-timeout=60000` | 12 files / **204 passed**（原 191 + 新增 13） |
+| `pnpm --filter @company/charts-core typecheck` | 通过 |
+| `pnpm --filter @company/charts-core build` | 通过 |
+| `pnpm exec tsc -p tsconfig.json --noEmit` | 退出码 0，无错误 |
+
+## 九、未覆盖边界
+
+- **`0.0.8` 的 Windows 原生复验未执行**：C 于 2026-11-13 在固定 `f35ebc9` 上完成的 `0.0.7` 原生复验**不覆盖**本次修复，且 C 已明确记录「当前兼容策略保持未验收」。`0.0.8` 需在含修复提交的分支上重跑，并重点核对三项误判各自的判定：
+
+  ```powershell
+  .\scripts\verify.ps1
+  .\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts   # 预期 33 passed
+  ```
 
 - Windows 开发机原生验证（`.\scripts\verify.ps1`）未执行；本记录全部来自 Linux 复现环境。
 - 真实三存储（Verdaccio / PostgreSQL / MinIO）与 OIDC 不在本机可用范围，`compatibility_records` 的 `'passed'` 无法落库。
-- B 侧 CLI `component echarts check` / `verify` 命令与 `upgrades/{resolve,matrix,report}.ts` 不在本轮范围（B 主责）；A 侧只提供 `charts-core` 的策略函数与接口约定。
+- B 侧 CLI `component echarts check` / `verify` 命令与 `upgrades/{resolve,matrix,report}.ts` 不在本轮范围（B 主责）；A 侧只提供 `charts-core` 的策略函数与接口约定。修复后 `CombinationProbe` 收到的组合 `echartsVersion` 为候选版本，B 侧实现探针时须按该版本安装依赖、建隔离目录，**不能**按组合里原有的基线版本去装。
 - 6.0.0 的视觉回归未做，因此即便类型/运行/交互全过，也不能据此扩大支持范围。

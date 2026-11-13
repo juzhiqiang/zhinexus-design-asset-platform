@@ -7,7 +7,7 @@
 
 | 归属 | 内容 |
 | --- | --- |
-| **A（本轮已交付）** | `packages/charts-core/src/engine/compatibility.ts` 的纯策略：候选解析、peer 符合性、报告结构与建议判定。不发起网络请求、不写文件、不改 `package.json`。测试为 `tests/unit/sdk-compatibility.test.ts`（20 例）。 |
+| **A（本轮已交付）** | `packages/charts-core/src/engine/compatibility.ts` 的纯策略：候选解析、peer 符合性、报告结构与建议判定。不发起网络请求、不写文件、不改 `package.json`。测试为 `tests/unit/sdk-compatibility.test.ts`（33 例）。当前版本 `0.0.8`（`0.0.8` 修复了独立评审复现的三处策略误判，详见 [T10 SDK 兼容验证记录](t10-sdk-compatibility.md) 第八节）。 |
 | **B（未开始）** | `packages/component-cli/src/commands/echarts.ts`、`upgrades/{resolve,matrix,report}.ts`；`component echarts check` / `verify --version <exact>` / `verify --latest`。负责抓 registry 快照、建隔离升级目录、改精确依赖、跑矩阵、落报告。测试为实施计划列出的 `tests/unit/upgrade-policy.test.ts` 与 `tests/integration/upgrade-matrix.test.ts`。 |
 | **C** | `compatibility_records` 契约与落库；根 `package.json` / `pnpm-lock.yaml` / `turbo.json` 收口。 |
 
@@ -86,9 +86,16 @@ export class CandidateError extends Error { readonly reason: CandidateRejectionR
    扩大范围时必须先有新的实测通过记录，再改这里和 `peerDependencies`，顺序不能反。
 3. **`probe`**：对每个组合跑真实验证后回填四个维度。A 侧不执行任何构建，探针由 B 注入。
 
+   **探针收到的 `combination.echartsVersion` 是候选版本，不是基线版本**（`0.0.8` 修复；此前误把基线原样传给探针，导致报告自称验证候选、实测行写的却是基线）。B 侧 runner 必须按入参里的 `echartsVersion` 去装依赖、建隔离升级目录，**不能**按自己手里的基线版本去装。每个 `CombinationResult` 另带 `baselineEchartsVersion`，是该组合在基线状态下的版本，供对照与留痕；两份版本在候选低于基线（回退验证）时不同。
+
+   另外两条硬约束（同为 `0.0.8` 修复，B 侧传参时会直接碰到）：
+
+   - `supported` 里所有组合的 `echartsVersion` 必须一致，混用不同基线（如一条 6.1.0、一条 6.0.0）会直接抛错、不出报告。上表的一期清单两条都是 `6.1.0`，满足该约束。
+   - 覆盖判定按**精确组合**一一对应：`supported` 有几条，`results` 就必须有几条且键完全对齐（框架 + 框架版本 + ECharts 基线版本）。少一条、多一条、重复一条、版本写错一条，`recommend` 都返回 `'hold'`。B 侧若按框架去重或只跑一个代表版本，会被判为不完整。
+
 ## 四、报告要求
 
-- 四个维度必须分别结论，`'not-run'` 不是通过。A 侧已保证：任一维度为 `'not-run'` 或少一个框架的实测，`recommend` 一律返回 `'hold'`。
+- 四个维度必须分别结论，`'not-run'` 不是通过。A 侧已保证：任一维度为 `'not-run'`、或少任何一个精确组合的实测，`recommend` 一律返回 `'hold'`。
 - `differences` 保留差异原文（例如「柱状图标签位置偏移 2px」），供人工基线确认；`requiresVisualBaselineConfirmation` 为 `true` 时不得自动判过。
 - 报告**不得**包含「建议的新支持范围」。扩大范围是人的决定，`supportedRangeUnchanged` 恒为 `true` 就是在结构上堵死自动扩范围的路径。
 - 同一份冻结 tarball 的 SHA-256 必须贯穿安装、截图、报告、上传与发布；截图完成后严禁重新打包。
