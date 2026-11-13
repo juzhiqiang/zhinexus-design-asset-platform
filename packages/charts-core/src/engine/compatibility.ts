@@ -14,12 +14,18 @@
  *    （框架 × 框架版本 × ECharts 基线）组合都要有一条对应实测，少任何一个、
  *    多出任何一个、版本对不上，报告都不得建议采纳（`recommend` 返回 `'hold'`）。
  *
- * 另外两条「报告必须与实测一致」的硬约束（2026-11-13 独立评审复现后补入）：
+ * 另外四条「报告不得改写已支持范围」的硬约束（2026-11-13 三轮独立评审复现后补入）：
  * - **探针收到的是候选版本**：`verifyCandidate` 把 `combination.echartsVersion`
  *   替换为 `candidate.version` 再交给探针，实测行另行记录 `baselineEchartsVersion`；
  *   否则报告自称验证候选、实测行写的却是基线。
- * - **基线必须唯一**：`supported` 的 ECharts 基线不一致时直接拒绝出报告，
- *   不取首项——取首项会让 `peerSatisfied` 随数组顺序翻转。
+ * - **基线以 `supported` 为唯一事实来源**：`supported` 的 ECharts 基线不一致时
+ *   直接拒绝出报告，不取首项——取首项会让结论随数组顺序翻转。`recommend` 与
+ *   `hasDualFrameworkCoverage` 也一律以 `supported` 的基线为准，报告里的
+ *   `baselineEchartsVersion` / `peerSatisfied` 只能被核对，不能当判据。
+ * - **每行实测版本必须就是候选版本**：`results[].echartsVersion` 必须等于
+ *   `report.candidate.version`，只改某一行的版本号、其余照旧，也属于造假。
+ * - **双框架齐验**：`supported` 必须同时覆盖 Vue 与 React。共享核心变化只有一个
+ *   框架的实测时，即便四维全过也不得建议采纳。
  */
 
 /** 候选来源标识：官方源地址或本地代理地址，用于报告留痕。 */
@@ -260,17 +266,31 @@ function resultKey(result: CombinationResult): string {
 }
 
 /**
- * `peerSatisfied` 是否自洽：候选版本必须真的等于报告里的基线版本。
+ * `supported` 的唯一真实基线。
  *
- * `recommend` 不能只信报告自称的 `peerSatisfied`——一份手工构造的报告可以把该标志
- * 置为 `true`，同时让 `candidate.version` 与 `baselineEchartsVersion` 毫不相干。
- * 这里按 `candidateSatisfiesPeer` 的同一条判据（精确版本相等）重新推导一遍，
- * 不一致即不放行。
+ * `supported` 是「当前已实测通过的精确组合」，是已支持范围的**唯一事实来源**。
+ * 报告里的 `baselineEchartsVersion` / `peerSatisfied` 只是对它的转述，可以被构造、
+ * 序列化、反序列化改写；因此判定一律以 `supported` 为准，报告不得改写已支持范围。
+ * 混合基线返回 `undefined`（此时「当前 peer 精确版本」没有唯一答案）。
  */
-function peerFlagSelfConsistent(report: CompatibilityReport): boolean {
-  const derived =
-    compareVersions(report.candidate.version, report.baselineEchartsVersion) === 0;
-  return report.peerSatisfied === derived;
+function supportedBaseline(supported: readonly SupportedCombination[]): string | undefined {
+  if (supported.length === 0) {
+    return undefined;
+  }
+  const baseline = supported[0]!.echartsVersion;
+  return supported.every((combination) => combination.echartsVersion === baseline)
+    ? baseline
+    : undefined;
+}
+
+/**
+ * `supported` 里出现的框架集合。共享核心变化必须两个框架都验，缺任一不放行。
+ * 用集合而不是计数：`supported` 同一框架列多个版本时仍只要求该框架被覆盖到。
+ */
+function supportedFrameworks(
+  supported: readonly SupportedCombination[],
+): ReadonlySet<CompatibilityFramework> {
+  return new Set(supported.map((combination) => combination.framework));
 }
 
 /** 四个维度是否都真的跑过（`not-run` 不是通过）。 */
@@ -286,18 +306,21 @@ function fullyMeasured(dimensions: {
 }
 
 /**
- * 覆盖是否完整：`supported` 里的**每个精确组合**都必须有一条对应的实测结果，
- * 且四条维度都真的跑过。判定是一一对应，不是「每个框架有一条」：
+ * 覆盖是否完整。判定完全以 `supported` 为基准，**不信报告自称的任何版本或标志**：
  *
- * - 缺：`supported` 有而 `results` 没有 → 不完整；
- * - 额外：`results` 有而 `supported` 没有 → 不完整（无法确认它属于已支持范围）；
- * - 重复：任一侧同一组合出现两次 → 不完整（分不出是否各自验过）；
- * - 版本错：框架版本、ECharts 基线版本对不上 → 不完整；
- * - **实测行版本不是候选版本**：`result.echartsVersion` 必须等于
- *   `report.candidate.version`。只改某一行的版本号、其余照旧，也属于造假。
- *
- * 另外 `supported` 自身的 ECharts 基线必须唯一：混基线时「候选是否落在当前 peer
- * 精确版本上」没有唯一答案，`verifyCandidate` 已拒绝出报告，这里再兜一层。
+ * 1. `supported` 的 ECharts 基线唯一，且报告的 `baselineEchartsVersion` 必须精确
+ *    等于它。`candidate.version` 与 `report.baselineEchartsVersion` 都在报告里，
+ *    可以一起伪造；`supported` 才是外部事实来源。
+ * 2. `supported` 必须同时覆盖 Vue 与 React：共享核心变化两个框架都要验，
+ *    只有一个框架时即便四维全过也不完整。
+ * 3. `supported` 里的**每个精确组合**都必须有一条对应的实测结果，且四条维度都真的
+ *    跑过。判定是一一对应，不是「每个框架有一条」：
+ *    - 缺：`supported` 有而 `results` 没有 → 不完整；
+ *    - 额外：`results` 有而 `supported` 没有 → 不完整（无法确认它属于已支持范围）；
+ *    - 重复：任一侧同一组合出现两次 → 不完整（分不出是否各自验过）；
+ *    - 版本错：框架版本、ECharts 基线版本对不上 → 不完整；
+ *    - **实测行版本不是候选版本**：`result.echartsVersion` 必须等于
+ *      `report.candidate.version`。只改某一行的版本号、其余照旧，也属于造假。
  */
 export function hasDualFrameworkCoverage(
   report: CompatibilityReport,
@@ -306,11 +329,25 @@ export function hasDualFrameworkCoverage(
   if (supported.length === 0 || report.results.length === 0) {
     return false;
   }
-  if (!hasSingleBaseline(supported)) {
+
+  // 1) 基线以 supported 为唯一事实来源，报告不得改写
+  const baseline = supportedBaseline(supported);
+  if (baseline === undefined) {
+    return false;
+  }
+  if (compareVersions(report.baselineEchartsVersion, baseline) !== 0) {
     return false;
   }
 
-  // 每一行实际验的版本必须就是候选版本，否则「已验证候选」是假的
+  // 2) 双框架齐验：只覆盖一个框架时，共享核心变化没有被完整验证
+  const frameworks = supportedFrameworks(supported);
+  for (const framework of ['vue', 'react'] as const) {
+    if (!frameworks.has(framework)) {
+      return false;
+    }
+  }
+
+  // 3) 每一行实际验的版本必须就是候选版本，否则「已验证候选」是假的
   for (const result of report.results) {
     if (compareVersions(result.echartsVersion, report.candidate.version) !== 0) {
       return false;
@@ -357,15 +394,6 @@ export function hasDualFrameworkCoverage(
     }
   }
   return true;
-}
-
-/** `supported` 的 ECharts 基线是否唯一（空集合视为不唯一：没有基线就无从判定）。 */
-function hasSingleBaseline(supported: readonly SupportedCombination[]): boolean {
-  if (supported.length === 0) {
-    return false;
-  }
-  const baseline = supported[0]!.echartsVersion;
-  return supported.every((combination) => combination.echartsVersion === baseline);
 }
 
 /**
@@ -437,23 +465,26 @@ export async function verifyCandidate(
 }
 
 /**
- * 由报告得出建议：只有「peer 符合且自洽 + 每个精确组合都实测且四维全过 + 无差异」
- * 才建议采纳，其余一律 `'hold'`。`'hold'` 不意味着候选不可用，只意味着
- * **不自动改支持范围**。
+ * 由报告得出建议：只有「候选落在 supported 唯一基线上 + 双框架齐验 + 每个精确组合
+ * 都实测且四维全过 + 无差异」才建议采纳，其余一律 `'hold'`。
+ * `'hold'` 不意味着候选不可用，只意味着**不自动改支持范围**。
  *
- * 注意 `allPassed` 只覆盖 `report.results` 自身；「results 是否就是 supported 要求的
- * 那一组组合、每行是否真的验的候选版本」由 `hasDualFrameworkCoverage` 判定，
- * 两者缺一不可。
+ * **peer 由 `supported` 推导，不由报告自称**：`report.peerSatisfied` 与
+ * `report.baselineEchartsVersion` 都在报告里，可以被一起伪造（第三轮复审复现：
+ * 候选 6.0.0、supported 基线 6.1.0 的真实报告，把这两个字段改成 `true` / `6.0.0`
+ * 即可骗取 `'adopt'`）。因此这里用 `supported` 的唯一真实基线重新判定，
+ * 报告只能被核对、不能作为判据。
  */
 export function recommend(
   report: CompatibilityReport,
   supported: readonly SupportedCombination[],
 ): Recommendation {
-  if (!report.peerSatisfied) {
+  // 基线以 supported 为唯一事实来源，报告不得改写已支持范围
+  const baseline = supportedBaseline(supported);
+  if (baseline === undefined) {
     return 'hold';
   }
-  // 自称符合还不够：候选版本必须真的等于报告里的基线版本
-  if (!peerFlagSelfConsistent(report)) {
+  if (compareVersions(report.candidate.version, baseline) !== 0) {
     return 'hold';
   }
   if (!hasDualFrameworkCoverage(report, supported)) {
