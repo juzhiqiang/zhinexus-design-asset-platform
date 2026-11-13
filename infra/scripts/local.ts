@@ -54,10 +54,41 @@ function initialize(): void {
     'credentials.json': JSON.stringify(config, null, 2),
   })) writeFileSync(join(localDir, file), value, { mode: 0o600, flag: 'wx' });
 }
-export function imageId(): string {
-  const { minioImageId } = JSON.parse(readFileSync(join(localDir, 'images.json'), 'utf8'));
-  if (!/^sha256:[a-f0-9]{64}$/.test(minioImageId)) throw new Error('Invalid local MinIO image identity');
-  return minioImageId;
+export function imageId(options: { directory?: string; inspect?: (reference: string) => unknown } = {}): string {
+  const directory = options.directory ?? localDir;
+  const file = join(directory, 'images.json');
+  const identity = /^sha256:[a-f0-9]{64}$/;
+  const recorded = () => {
+    try {
+      const value = JSON.parse(readFileSync(file, 'utf8')).minioImageId;
+      if (typeof value !== 'string' || !identity.test(value)) throw new Error();
+      return value as string;
+    } catch { throw new Error('Invalid local MinIO image identity record; restore it before continuing'); }
+  };
+  const existing = existsSync(file) ? recorded() : undefined;
+  let data: unknown;
+  try {
+    data = (options.inspect ?? (reference => JSON.parse(command('docker', ['image', 'inspect', reference]))))(existing ?? versions.minio.localTag);
+  } catch { throw new Error('Pinned local MinIO image unavailable; run infra:up to build it'); }
+  const info = Array.isArray(data) && data.length === 1 ? data[0] : undefined;
+  const labels = info?.Config?.Labels;
+  if (!identity.test(info?.Id ?? '') || (existing && info.Id !== existing)
+    || info.Os !== 'linux' || info.Architecture !== 'amd64'
+    || labels?.['org.opencontainers.image.source'] !== 'https://github.com/minio/minio'
+    || labels?.['org.opencontainers.image.revision'] !== versions.minio.sourceCommit
+    || labels?.['org.opencontainers.image.version'] !== versions.minio.release) {
+    throw new Error('Local MinIO image identity does not match pinned source and linux/amd64 platform');
+  }
+  if (existing) return existing;
+  mkdirSync(directory, { recursive: true });
+  try {
+    writeFileSync(file, `${JSON.stringify({ minioImageId: info.Id }, null, 2)}\n`, { flag: 'wx' });
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+    // A concurrent registration is authoritative only after the same validation.
+    return imageId(options);
+  }
+  return info.Id;
 }
 export function compose(args: string[], options: { input?: string; visible?: boolean; timeout?: number } = {}): string {
   return command('docker', ['compose', '--project-name', 'zhinexus-g2', '--file', join(root, 'infra/compose.yaml'), ...args], {
