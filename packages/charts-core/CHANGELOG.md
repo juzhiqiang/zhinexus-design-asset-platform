@@ -2,6 +2,18 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.7] - 2026-11-13
+
+### Added
+
+- ECharts 升级候选的精确兼容策略（T10，A 侧 SDK 交付）：`engine/compatibility.ts` 新增 `resolveCandidate` / `candidateSatisfiesPeer` / `verifyCandidate` / `recommend` / `hasDualFrameworkCoverage` / `compareVersions` / `isExactVersion` / `isPrerelease` / `notRunDimensions` 与 `CandidateError`，以及 `RegistrySnapshot` / `EChartsCandidate` / `SupportedCombination` / `CombinationDimensions` / `CombinationProbe` / `CompatibilityReport` / `Recommendation` / `CompatibilityFramework` 等类型。
+- 策略约束：`resolveCandidate` 对非精确版本字面量、预发布版本、官方源不存在的版本、缺 `dist.integrity` 四种情况显式拒绝，`latest` 命中预发布时不回退到上一个稳定版；`verifyCandidate` 生成的报告恒带 `supportedRangeUnchanged: true` 且不含任何「建议的新支持范围」字段，扩大支持范围只能是人的显式动作。
+- `recommend` 仅在「候选满足当前 peer 精确版本 + 双框架均有实测 + 类型/运行/交互/视觉四维全部通过 + 无差异」时返回 `'adopt'`，其余一律 `'hold'`；共享核心变化缺少任何一个已支持框架的实测结果即 `'hold'`。
+
+### Changed
+
+- 兼容框架标识在 `charts-core` 内本地定义为 `CompatibilityFramework`（`'vue' | 'react'`），与 `@company/contracts` 的 `Framework` 同构；`charts-core` 是公开包，按架构约束不得依赖私有 `@company/contracts`，两边取值集合必须保持一致。
+
 ## [0.0.6] - 2026-11-13
 
 ### Added
