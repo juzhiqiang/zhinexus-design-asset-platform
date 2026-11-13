@@ -4,7 +4,7 @@
 
 本文是**给业务方（真实试点项目）与 B/C 的 SDK 使用与回退交接材料**，不是验收证据。T11/T12 本身**未完成**：两个真实 Vue/React 业务试点未提供业务项目，T10 视觉矩阵未做，G2 未验收（见 [上线验收状态](../release-acceptance.md)）。本文只记录「怎么用、怎么退」，不声称上述任何一项已通过。
 
-所有导入路径、包名、子路径、Props/Handle 形状均于 `190b60b` 从 `packages/charts-{core,vue,react}/package.json` 的 `exports` 与 `src/index.ts`、`src/<chart>.ts`、`src/<chart>-chart.types.ts` 逐条核对，未使用记忆或推测。**2026-11-13 修订**（独立评审复现五项，均在 `190b60b` 源码与 `0.0.10` 构建产物上核对后修正，未改动任何 SDK 源码、未重新打包、未升版）：§3.2 命名碰撞原因改为 `ranking.js` 与 `Ranking.js` 产物名碰撞；§3.3 明确 React 子路径不导出 `Emits`；§3.3 末精确列出 option/entry 类型只有五个、其余须从 `@company/charts-core` 导入；§5.2 去掉「`chart` 缺失或写错运行时会被拒绝」的不实承诺；§5.5/§6.3 限定 `whenRendered` 的调用前提；§6.2 修正 Vue SSR 片段（补 `onMounted` 与 `defineProps`）与 KeepAlive 表述、React 片段改为只依赖真实导出；§4 补样式副作用导入在裸 `tsc` 下需要 `*.css` 声明；§9 删去「大小写敏感文件系统构建未实测」的不实项。
+所有导入路径、包名、子路径、Props/Handle 形状均于 `190b60b` 从 `packages/charts-{core,vue,react}/package.json` 的 `exports` 与 `src/index.ts`、`src/<chart>.ts`、`src/<chart>-chart.types.ts` 逐条核对，未使用记忆或推测。**2026-11-13 修订**（独立评审复现五项，均在 `190b60b` 源码与 `0.0.10` 构建产物上核对后修正，未改动任何 SDK 源码、未重新打包、未升版）：§3.2 命名碰撞原因改为 `ranking.js` 与 `Ranking.js` 产物名碰撞；§3.3 明确 React 子路径不导出 `Emits`；§3.3 末精确列出 option/entry 类型只有五个、其余须从 `@company/charts-core` 导入；§5.2 去掉「`chart` 缺失或写错运行时会被拒绝」的不实承诺；§5.5/§6.3 限定 `whenRendered` 的调用前提；§6.2 修正 Vue SSR 片段（补 `onMounted` 与 `defineProps`）与 KeepAlive 表述、React 片段改为只依赖真实导出；§4 补样式副作用导入在裸 `tsc` 下需要 `*.css` 声明；§9 删去「大小写敏感文件系统构建未实测」的不实项。**2026-11-13 再补**：本文的 SDK 使用与回退内容此后未再改动；仅在第十节新增指向 [T08 网页上传链路只读交叉审查](t08-web-upload-cross-review-2026-11-13.md) 的指针，该文是 A 对 B/C 网页上传验收的只读审查留痕，与消费者的导入和回退操作无关。
 
 ## 一、可用的已验版本
 
@@ -395,3 +395,4 @@ StrictMode 场景（是否开启；双调用后画布数量是否为 1）：
 - [上线验收状态](../release-acceptance.md)：T11/T12 各项当前状态与负责人。
 - [A→B 接口交接](t10-a-to-b-interface-handover.md)：`compatibility.ts` 的策略函数与 `supported` 约定。
 - [T09 SDK 证据核对](t09-sdk-evidence-audit.md)：七组件 14 实现的证据盘点。
+- [T08 网页上传链路只读交叉审查](t08-web-upload-cross-review-2026-11-13.md)：A 对 B/C 网页上传验收的只读审查留痕，含建议采纳结果与未覆盖边界。与本文的导入/回退操作无关，仅供代理协作追溯，不是验收证据。
