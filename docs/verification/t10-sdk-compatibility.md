@@ -354,7 +354,82 @@ node_modules/@company/charts-vue/dist/index.d.ts(2,37): error TS2307: Cannot fin
 与仓库 `tsconfig.base.json` 同款 `strict` + `skipLibCheck: false`。修复前 Vue 侧
 NodeNext 为 9 处 TS2307、Bundler 已为 0；修复后四种组合全部 0。
 
-### 9.4 0.0.9 冻结产物与回归
+### 9.4 报告基线未绑定 supported 与单框架齐验（第三轮复审，`0.0.10`）
+
+C 对 `e2e27c9` 复现两类问题（均非推测，tsx 实测）：
+
+```
+===== 问题 A：报告基线未绑定 supported 唯一真实基线 =====
+supported 唯一基线 = 6.1.0  candidate = 6.0.0
+forged.baselineEchartsVersion = 6.0.0  peerSatisfied = true
+hasDualFrameworkCoverage = true
+recommend              = adopt   <-- 应为 hold
+
+===== 问题 B：只有 Vue 一个框架也 adopt（违反双框架齐验）=====
+supported = vue@3.5.45 （仅 Vue）
+results  = 1 条，四维全过
+hasDualFrameworkCoverage = true
+recommend              = adopt   <-- 应为 hold
+仅 React 时 recommend   = adopt   <-- 应为 hold
+```
+
+**A 的根因**：`peerFlagSelfConsistent` 只比较 `candidate.version` 与
+`report.baselineEchartsVersion`——两者都在报告里，可以一起伪造。`supported` 这个
+外部事实来源反而没被用上。
+
+**修复**（`b901dc4`）：新增 `supportedBaseline()` 取 `supported` 的唯一 ECharts 基线；
+`hasDualFrameworkCoverage` 要求 `report.baselineEchartsVersion` **精确等于**它；
+`recommend` 直接用 `supported` 基线推导 peer 符合性，不再读 `report.peerSatisfied`。
+报告只能被核对，不能作为判据，**不能改写已支持范围**。
+
+**B 的根因**：原条件只是「`supported` 里每个组合都有实测」。`supported` 本身只有
+一个框架时该条件被轻易满足，而 `supported` 描述的是当前已支持范围，共享核心变化
+必须两个框架都验。
+
+**修复**（同一提交）：`hasDualFrameworkCoverage` 要求 `supported` 同时覆盖 Vue 与
+React。用框架集合判定而非计数——同一框架列多个版本时仍只要求该框架被覆盖到。
+
+修复后同一脚本：
+
+```
+forged.baselineEchartsVersion = 6.0.0  peerSatisfied = true
+hasDualFrameworkCoverage = false
+recommend              = hold
+
+supported = vue@3.5.45 （仅 Vue）
+hasDualFrameworkCoverage = false
+recommend              = hold
+仅 React 时 recommend   = hold
+```
+
+`tests/unit/sdk-compatibility.test.ts` 由 41 例增至 **51 例**，新增 10 例
+（6 例先红）。另修正 1 例旧断言并新增 1 例：peer 改由 `supported` 推导后，伪造
+`peerSatisfied` 的 `true`/`false` 都不再影响判定（它只是转述），只有与 `supported`
+基线矛盾才 `hold`。
+
+**版本判定**：本轮是行为收紧，**未改任何导出类型形状**——`CombinationResult.
+baselineEchartsVersion` 自 `0.0.9` 起保持可选，`0.0.10` 不动它。因此按 `0.x`
+兼容变更递增 PATCH，无需 MINOR。
+
+### 9.5 0.0.10 冻结产物与回归
+
+```
+e6f298f90a122f6e51393a5058b2f0bb0f9404d46630e5d833515b5a40231826  53513  company-charts-core-0.0.10.tgz
+3d64d250e0b265ab80123aae5a43c9add0b826126a180429f6783d4533f059fa   6630  company-charts-vue-0.0.10.tgz
+ae70d1a18cb663c8dd2cc9e639425c82f6e7e13966d9824c04c9bb201b40cafc  12006  company-charts-react-0.0.10.tgz
+```
+
+Linux 复现环境重复打包两次结果一致；已核对包内 `compatibility.js` 含 `supportedBaseline`、
+`charts-vue` 的 `dependencies` 为 `@company/charts-core: 0.0.10`。**发布用的权威摘要
+仍须由 C 在 Windows 上从同一提交重新打包取得**（跨平台差异已在 8.4 节实证）。
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm exec vitest run tests/unit --test-timeout=60000` | 13 files / **228 passed**（原 218 + 新增 10） |
+| `pnpm exec vitest run tests/unit/sdk-compatibility.test.ts` | **51 passed** |
+| `pnpm exec tsc -p tsconfig.json --noEmit` | 退出码 0，无错误 |
+
+### 9.6 0.0.9 冻结产物与回归（第一轮修复后）
 
 ```
 319292460fd29068c837b55630ebc482ab6ce1277a8f0c71685c1d24cfd7892b  52737  company-charts-core-0.0.9.tgz
@@ -382,7 +457,7 @@ Linux 复现环境重复打包两次结果一致；已核对 `charts-vue` 包内
 
   ```powershell
   .\scripts\verify.ps1
-  .\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts          # 预期 41 passed
+  .\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts          # 预期 51 passed
   .\scripts\pnpm.ps1 exec vitest run tests/unit/charts-vue-declarations.test.ts    # 预期 6 passed
   ```
 
