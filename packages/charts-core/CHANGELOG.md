@@ -2,6 +2,18 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.9] - 2026-11-13
+
+### Fixed
+
+- `hasDualFrameworkCoverage` 现在逐行校验**实际验证的 ECharts 版本**：每一行 `results[].echartsVersion` 必须等于 `report.candidate.version`。此前只用 `baselineEchartsVersion` 造键，于是一份全 `passed` 的报告只要把某一行（例如 `results[0]`）的 `echartsVersion` 改成 `6.0.0`，`hasDualFrameworkCoverage` 仍返回 `true`、`recommend` 仍返回 `'adopt'`。该场景已由独立复审用 tsx 复现。
+- `recommend` 不再盲信报告自称的 `peerSatisfied`：除判据本身外，还要求 `peerSatisfied` 与「`candidate.version` 是否真的等于 `report.baselineEchartsVersion`」自洽。伪造 `peerSatisfied: true` 而候选与基线并不相等的报告，现在返回 `'hold'`。
+- `hasDualFrameworkCoverage` 增加 `supported` 自身基线唯一性兜底：`verifyCandidate` 本就拒绝混合基线，这里对绕过它手工构造的报告再兜一层，混基线一律 `false`。
+
+### Changed
+
+- `CombinationResult.baselineEchartsVersion` 由必填改为**可选**。`0.0.8` 把它设为必填，那对手工构造 `CombinationResult` 的调用方是破坏性变更，却按 PATCH 发版，不符合 `AGENTS.md`「破坏性变更递增 MINOR」。改为可选后旧公开类型形状依然可构造；**缺失即 fail-closed**——`hasDualFrameworkCoverage` 返回 `false`、`recommend` 返回 `'hold'`，不会因为少一个字段就放行，也不会重新开放「报告与实测脱节」的误判。
+
 ## [0.0.8] - 2026-11-13
 
 ### Fixed

@@ -2,6 +2,12 @@
 
 本文件记录 `@company/charts-vue` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.9] - 2026-11-13
+
+### Fixed
+
+- 发布声明里的裸 `.vue` 再导出说明符已规范化为 `.vue.js`。`src/index.ts` 等入口的 `export { default as LineChart } from './LineChart.vue'` 会被 vue-tsc 原样写进 `dist/*.d.ts`，而真实声明文件是 `LineChart.vue.d.ts`；仓库与多数消费者使用 `moduleResolution: 'Bundler'` 因此一直不可见，但 `moduleResolution: 'NodeNext'` 且 `skipLibCheck: false` 的消费者会报 9 处 `TS2307: Cannot find module './LineChart.vue'`（覆盖根入口与全部七条子路径）。现在构建时由 `scripts/build.mjs` 统一改写，NodeNext 与 Bundler 两种解析模式均通过。运行时产物不受影响（vite 产出的是哈希 chunk，从不出现裸 `.vue` 说明符）。
+
 ## [0.0.8] - 2026-11-13
 
 ### Changed
