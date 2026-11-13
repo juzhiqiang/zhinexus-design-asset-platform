@@ -4,7 +4,7 @@
 
 本文是**给业务方（真实试点项目）与 B/C 的 SDK 使用与回退交接材料**，不是验收证据。T11/T12 本身**未完成**：两个真实 Vue/React 业务试点未提供业务项目，T10 视觉矩阵未做，G2 未验收（见 [上线验收状态](../release-acceptance.md)）。本文只记录「怎么用、怎么退」，不声称上述任何一项已通过。
 
-所有导入路径、包名、子路径、Props/Handle 形状均于 `190b60b` 从 `packages/charts-{core,vue,react}/package.json` 的 `exports` 与 `src/index.ts`、`src/<chart>.ts`、`src/<chart>-chart.types.ts` 逐条核对，未使用记忆或推测。
+所有导入路径、包名、子路径、Props/Handle 形状均于 `190b60b` 从 `packages/charts-{core,vue,react}/package.json` 的 `exports` 与 `src/index.ts`、`src/<chart>.ts`、`src/<chart>-chart.types.ts` 逐条核对，未使用记忆或推测。**2026-11-13 修订**（独立评审复现五项，均在 `190b60b` 源码与 `0.0.10` 构建产物上核对后修正，未改动任何 SDK 源码、未重新打包、未升版）：§3.2 命名碰撞原因改为 `ranking.js` 与 `Ranking.js` 产物名碰撞；§3.3 明确 React 子路径不导出 `Emits`；§3.3 末精确列出 option/entry 类型只有五个、其余须从 `@company/charts-core` 导入；§5.2 去掉「`chart` 缺失或写错运行时会被拒绝」的不实承诺；§5.5/§6.3 限定 `whenRendered` 的调用前提；§6.2 修正 Vue SSR 片段（补 `onMounted` 与 `defineProps`）与 KeepAlive 表述、React 片段改为只依赖真实导出；§4 补样式副作用导入在裸 `tsc` 下需要 `*.css` 声明；§9 删去「大小写敏感文件系统构建未实测」的不实项。
 
 ## 一、可用的已验版本
 
@@ -72,23 +72,48 @@ import { Ranking } from '@company/charts-vue/ranking';
 import { Ranking } from '@company/charts-react/ranking';
 ```
 
-**命名注意**：排行榜与占比的**源文件**分别是 `RankingChart.vue` / `ProportionChart.vue`（避开大小写不敏感文件系统上的 `ranking.ts` 与 `RankingChart.tsx` 碰撞），但**导出名**是 `Ranking` / `Proportion`，两个框架一致。业务方按导出名导入，不要按文件名猜。
+**命名注意**：子路径入口模块是 `ranking.ts` / `proportion.ts`，而组件**源文件**是 `RankingChart.vue` / `ProportionChart.vue`（Vue）与 `RankingChart.tsx` / `ProportionChart.tsx`（React），**导出名**是 `Ranking` / `Proportion`，两个框架一致。源文件不按导出名命名（即不叫 `Ranking.vue` / `Ranking.tsx`）的原因：那样它会与子路径入口 `ranking.ts` 分别产出 `Ranking.js` 与 `ranking.js`，在大小写不敏感的文件系统（Windows NTFS、macOS 默认）上是同一个文件，TypeScript 直接报 `TS5056: ... would be overwritten by multiple input files`。业务方按**导出名**导入，不要按文件名猜。
 
 子路径是平台**逐导出覆盖校验**的对象：SDK 新增子路径导出必须同批扩展 `component-cli`，否则平台报 `ARTIFACT_MISMATCH`（见 [T09 图表组件交接](t09-chart-component-handover.md)）。业务方用子路径导入时，安装与发布链路会校验该子路径真实存在。
 
 ### 3.3 每条子路径还导出什么
 
-以 `/line` 为范本（其余六条同构，`same<Chart>Config` 与类型名随图表替换）：
+**两个框架的子路径导出不完全相同**：Vue 子路径额外导出该组件的 `Emits` 类型，React 子路径**没有** `Emits`（React 的点击走 `onPointClick` prop，没有独立事件名）。
+
+Vue `/line`（其余六条同构，`same<Chart>Config` 与类型名随图表替换）：
 
 ```ts
-export { default as LineChart } from './LineChart.vue';   // React: from './LineChart.js'
+export { default as LineChart } from './LineChart.vue';
 export { useChart, sameLineConfig } from './useChart.js';
 export type { UseChartOptions, UseChartResult } from './useChart.js';
 export type { LineChartEmits, LineChartHandle, LineChartProps } from './line-chart.types.js';
 export type { ChartConfig, ChartData, ChartEvent, /* … */ } from '@company/charts-core';
 ```
 
-即每条子路径都带：该组件、`useChart`、`same<Chart>Config`、`UseChartOptions`/`UseChartResult`、该组件的 `Emits`/`Handle`/`Props`，以及 core 的公共类型。根入口额外带全部七个组件与全部 `same*Config`。
+React `/line`（**无 `LineChartEmits`**，其余同构）：
+
+```ts
+export { LineChart } from './LineChart.js';
+export { useChart, sameLineConfig } from './useChart.js';
+export type { UseChartOptions, UseChartResult } from './useChart.js';
+export type { LineChartHandle, LineChartProps } from './line-chart.types.js';
+export type { ChartConfig, ChartData, ChartEvent, /* … */ } from '@company/charts-core';
+```
+
+即每条子路径都带：该组件、`useChart`、该组件自己的 `Handle`/`Props`，以及 core 的公共类型；Vue 侧再多一个 `Emits`。`same<Chart>Config` 与 core 类型的**实际集合逐条不同**，不要按上表推断：
+
+- `same*Config`：`/line` 只有 `sameLineConfig`；`/bar` 起累计前序（`/bar` 有 `sameBarConfig` + `sameLineConfig`，`/pie` 三个，依此递增）；`/ranking` 与 `/proportion` 两条带齐全部七个。`/line` 到 `/proportion` 的顺序即上一小表格的行序。
+- core 类型：每条子路径导出**该图表自己的 `*ChartConfig`** 加同一组 11 个公共类型（`ChartConfig`、`ChartData`、`ChartEvent`、`ChartPoint`、`ChartSeries`、`PointClickListener`、`Renderer`、`SupportedOptionOverrides`、`ThemeName`、`UnitSpec`、`Unsubscribe`）。因此 `/bar` 导出 `BarChartConfig` 而不导出 `LineChartConfig`。
+
+根入口比子路径多：全部七个组件、全部七个 `same*Config` 加 `sameChartConfig`、全部七组 `Handle`/`Props`、Vue 侧全部七个 `Emits`、25 个 core 类型，以及 `getVueRuntimeInfo()` / `getReactRuntimeInfo()` 工程探针。
+
+这 25 个 core 类型 = 七个 `*ChartConfig` + 子路径那 11 个公共类型 + `AnyChartConfig` + `ChartType` + **五个 option/entry 类型**。**option/entry 类型只有五个，不要以为「各图表都有」**：
+
+| 能从适配包根入口导入 | 只能从 `@company/charts-core` 导入 |
+| --- | --- |
+| `ProportionChartOption`、`ProportionShare`、`RankingChartOption`、`RankingDirection`、`RankingEntry` | `LineChartOption`、`BarChartOption`、`PieChartOption`、`ScatterChartOption`、`TrendCardOption`、`ChartComponentOption` |
+
+也就是说 `LineChartOption` 这类**不**在 `@company/charts-vue` / `@company/charts-react` 的根入口里，从适配包导入会直接 `TS2305` / `TS2724`（已实测复现）。需要它们时显式依赖 `@company/charts-core` 并从那里导入——它是**普通依赖**（不是 peer），随适配包一起安装，在消费者的 `node_modules` 里本就解析得到，但建议在 `package.json` 里显式写出以便锁定版本。
 
 ## 四、样式引入
 
@@ -100,6 +125,8 @@ import '@company/charts-react/style.css';
 ```
 
 两个框架的样式入口内容相同（同一份 `src/style.css` 构建产物），一个项目只装一个适配包、只引一份。样式只含图表宿主的最小布局约束，主题颜色由 `charts-core` 的 `lightTheme` / `darkTheme` 令牌在运行时写入 ECharts option，不在 CSS 里。
+
+**裸 `tsc`（不经 Vite）需要自己声明 CSS 模块**：`import '@company/charts-vue/style.css'` 在只有 `tsc --noEmit` 的工程里会报 `TS2882: Cannot find module or type declarations for side-effect import`，加一句 `declare module '*.css';` 即可。用 Vite 的工程不需要——`vite/client` 已带该声明。
 
 ## 五、Props、配置与事件
 
@@ -133,12 +160,21 @@ type LineChartProps = {
 
 **两框架差异要点**：Vue 用 `@point-click` 监听事件、用模板 ref 取句柄；React 用 `onPointClick` prop、用 `ref` 取句柄。除此之外 `data` / `config` / `optionOverrides` 的语义完全一致，配置可互换。
 
-### 5.2 `config.chart` 判别字段
+### 5.2 `config.chart` 判别字段：类型层约束，运行时无校验
 
 | 图表 | `chart` 字段 | 说明 |
 | --- | --- | --- |
 | `line` | `chart?: 'line'` | **可缺省**，缺省视为折线（兼容 T02/T03 既有调用方） |
-| `bar` / `pie` / `scatter` / `trend-card` / `ranking` / `proportion` | `chart: '<type>'` | **必填判别字段**，缺失或写错都会被拒绝 |
+| `bar` / `pie` / `scatter` / `trend-card` / `ranking` / `proportion` | `chart: '<type>'` | **类型层必填**：TS 判别联合要求字面量与组件匹配，写错编译不过 |
+
+**整个 `config` 可以省略**。两个框架的 `useChart` 在 `config` 为 `undefined` 时填入该组件自己的缺省配置（`defaultConfig(chart)`，如排行榜得到 `{ chart: 'ranking' }`），`chart` 由组件内部固定传对，业务方不写 `config` 也能拿到正确图表。
+
+**但运行时没有任何校验，不要指望它拒绝错误输入。** `charts-core` 的 `chartTypeOf(config)` 是一串 `if` 匹配，匹配不上就 `return 'line'`，既不抛错也不告警。两种实际情况：
+
+- 提供了 `config` 对象但里面没有 `chart`（只有未类型化的输入能做到，TS 下 `BarChartConfig` 等要求该字段）：`chartTypeOf` 回落到 `'line'`。例如给 `Ranking` 传 `{}`，渲染出来的是**折线图**，不报错。
+- `config.chart` 是另一个合法字面量（如给 `Ranking` 传 `{ chart: 'pie' }`）：控制器按 `'pie'` 建图，同样不报错。
+
+因此判别字段的保障**来自 TS 类型，不是运行时**。类型化的业务方由编译期挡住；JS 调用方或经接口/JSON 透传的配置需自行保证 `chart` 与组件一致。
 
 ### 5.3 主题与渲染器：切换必须重建实例
 
@@ -159,10 +195,18 @@ type ChartEvent = {
 
 ### 5.5 命令式句柄与 `useChart`
 
-每个组件都有 `whenRendered(): Promise<void>`，渲染完成（ECharts `finished`）后 resolve，用于截图与自动化就绪判定。`useChart(options)` 提供无组件版的同一能力：
+每个组件都通过句柄暴露 `whenRendered(): Promise<void>`，渲染完成（ECharts `finished`）后 resolve，供截图与自动化就绪判定。`useChart(options)` 提供无组件版的同一能力：
 
-- Vue：`host: Ref<HTMLElement | null>`，`data`/`config`/`optionOverrides` 均为 `Ref`，`onPointClick` 必填且需传稳定引用；返回 `{ controller, whenRendered }`。
-- React：`host: RefObject<HTMLDivElement | null>`，`data` 为值、`config`/`optionOverrides` 可选，`onPointClick` 可选；返回 `{ whenRendered }`。
+- Vue：`host: Ref<HTMLElement | null>`，`data`/`config`/`optionOverrides` 均为 `Ref`，`onPointClick` 必填且需传稳定引用；返回 `{ controller, whenRendered }`。组件的模板 ref 拿到的是 `defineExpose({ whenRendered })`，即 `{ whenRendered }`。
+- React：`host: RefObject<HTMLDivElement | null>`，`data` 为值、`config`/`optionOverrides` 可选，`onPointClick` 可选；返回 `{ whenRendered }`（**不返回 controller**，句柄只能取到 `whenRendered`）。组件用 `ref` prop + `useImperativeHandle` 暴露同一个 `{ whenRendered }`。
+
+**`whenRendered()` 有调用前提，不能无条件当截图就绪信号**（两侧实现相同，见 `packages/charts-core/src/controller.ts` 与两个 `useChart.ts`）：
+
+1. **控制器必须已建立**。Vue 侧是 `controller.value?.whenRendered() ?? Promise.resolve()`，React 侧是 `controllerRef.current?.whenRendered() ?? Promise.resolve()`——控制器为 `null`（尚未挂载、已卸载）时**立即 resolve**，那不是渲染完成。
+2. **容器必须已有有效尺寸**。挂载时容器零宽高或处于隐藏状态，SDK 不创建实例，而是等 `ResizeObserver` 拿到非零尺寸才初始化；这期间 `whenRendered()` 同样立即 resolve。
+3. **渲染必须已触发**。控制器刚建立时内部 `pendingRender` 也是已 resolve 的 promise，只有这次 `setOption` 触发的 `finished` 才唤醒等待者。
+
+因此截图与自动化就绪判定的正确做法是：**客户端挂载后、容器有非零宽高时再调用**；容器初始隐藏（折叠面板、Tab 页、`display:none`）时，先等它可见再调用。SSR 阶段不要调用。
 
 ## 六、SSR 安全导入与客户端挂载
 
@@ -183,44 +227,51 @@ packages/charts-react/dist/line.js
 
 **SSR 宿主只承诺安全导入，不提供服务端图表渲染。** ECharts 需要真实 DOM 与 canvas，服务端不要尝试渲染图表、不要调用 `whenRendered`、不要把图表标记为已挂载。业务方的 SSR 框架需要把图表区域放到客户端才挂载的分支里。
 
-Vue：
+Vue（`mounted` 必须在 `onMounted` 里置真，否则 SSR 输出之后图表永远不挂载）：
 
 ```vue
 <script setup lang="ts">
-import { ref, onActivated, nextTick } from 'vue';
+import { onMounted, ref } from 'vue';
+import type { ChartData, RankingChartConfig } from '@company/charts-vue';
 import { Ranking } from '@company/charts-vue/ranking';
 
+const props = defineProps<{ data: ChartData; config?: RankingChartConfig }>();
+
+// SSR 阶段 mounted 为 false，服务端输出里不出现图表容器
 const mounted = ref(false);
-// 图表只在客户端挂载；SSR 阶段 mounted 为 false，不创建实例
-onActivated(async () => {
-  // KeepAlive：被缓存后再次激活时容器尺寸可能已变，需触发一次 resize
-  await nextTick();
+onMounted(() => {
+  mounted.value = true;
 });
 </script>
 
 <template>
-  <!-- 具体「仅客户端渲染」的写法取决于所用 SSR 框架（如 Nuxt 的 ClientOnly、
-       或自建的 mounted 守卫）；关键是 SSR 输出里不出现图表容器 -->
-  <Ranking v-if="mounted" :data="data" :config="config" />
+  <!-- 「仅客户端渲染」的写法取决于所用 SSR 宿主：Nuxt 用 <ClientOnly> 包裹，
+       自建宿主用上面的 mounted 守卫；关键是 SSR 输出里不出现图表容器 -->
+  <Ranking v-if="mounted" :data="props.data" :config="props.config" />
 </template>
 ```
+
+**KeepAlive 不需要业务方写 `onActivated`。** `useChart` 内部已注册 `onActivated(() => controller.value?.resize())`：停用时实例与数据保留，激活后自动按新容器尺寸 resize。业务方只要把组件放进 `<KeepAlive>` 即可，自己再调一次 resize 或 `nextTick` 反而多余。该路径有实测覆盖（`tests/browser/framework-lifecycle.spec.ts` 的 `vue_keepalive_resizes_on_activate`：停用期间改容器宽度，激活后画布跟随新尺寸，且始终只有一个实例）。
 
 React（StrictMode 下组件会被双调用，SDK 的清理逻辑会正确 dispose 并重挂载，业务方不需要额外处理；实测 `react_strictmode_cleans_and_remounts` 通过）：
 
 ```tsx
 'use client';
 import { Ranking } from '@company/charts-react/ranking';
+import type { RankingProps } from '@company/charts-react/ranking';
 
-export function RankingPanel({ data, config }: Props) {
+export function RankingPanel(props: RankingProps) {
   // 组件内部在 effect 中创建实例、在清理中 dispose；
   // StrictMode 的 mount→unmount→mount 不会残留第二个画布
-  return <Ranking data={data} config={config} onPointClick={onPointClick} />;
+  return <Ranking {...props} />;
 }
 ```
 
+React 侧点击走 `onPointClick` prop（`RankingProps` 已含它），没有 Vue 那样的 `@point-click` 事件名；句柄用 `ref` prop 取，`RankingHandle` 只有 `whenRendered`。
+
 ### 6.3 截图就绪判定
 
-用 `whenRendered()`，不要用固定 `sleep`。对 Vue 的 `useChart` / React 的 `useChart` 同样返回 `whenRendered`。示例页的完整就绪协议（`window.__COMPONENT_EXAMPLE__` 的 `ready` / `states` / `runState` / `getChecks`）见 G1 回执，业务方试点可复用同一约定以便平台截图。
+用 `whenRendered()`，不要用固定 `sleep`——但**必须满足第 5.5 节的三个前提**：客户端已挂载、容器有非零宽高、渲染已触发。控制器未建立时 `whenRendered()` 会立即 resolve，把它当成就绪信号会拍到空画布。Vue 的 `useChart` / React 的 `useChart` 同样返回 `whenRendered`，前提相同。示例页的完整就绪协议（`window.__COMPONENT_EXAMPLE__` 的 `ready` / `states` / `runState` / `getChecks`）见 G1 回执，业务方试点可复用同一约定以便平台截图。该协议的做法值得照抄：它**先等 DOM 里的系列快照相对上一状态真正发生变化**（`document.fonts.ready` 后轮询系列 id 快照，超时即报错），确认图表确实画出来了，**之后**才 `await whenRendered()`——正是为了绕开「控制器没建好就立即 resolve」这个陷阱。
 
 ## 七、从不可变旧版回退到已验版本
 
@@ -284,7 +335,7 @@ echarts / vue 版本（peer，必须精确）：
 
 SSR 场景（是否有 SSR 宿主；若有，导入层是否安全、图表是否仅在客户端挂载）：
 KeepAlive / 动态组件场景（若有，activate 后是否触发 resize）：
-截图就绪判定方式（whenRendered 还是固定等待）：
+截图就绪判定方式（是否 whenRendered；调用时客户端是否已挂载、容器是否有非零宽高）：
 点击事件是否验证（载荷是否为 seriesId/dataIndex/value/nativeType 四字段）：
 类型检查命令与结果：
 构建命令与结果：
@@ -317,7 +368,7 @@ echarts / react / react-dom 版本（peer，必须精确）：
 SSR 场景（若有 SSR 宿主，导入层是否安全、图表是否仅在客户端挂载）：
 StrictMode 场景（是否开启；双调用后画布数量是否为 1）：
 并发特性使用情况（Suspense / transition 等，若有）：
-截图就绪判定方式（whenRendered 还是固定等待）：
+截图就绪判定方式（是否 whenRendered；调用时客户端是否已挂载、容器是否有非零宽高）：
 点击事件是否验证（onPointClick 载荷是否与 Vue 侧一致）：
 类型检查命令与结果：
 构建命令与结果：
@@ -334,7 +385,7 @@ StrictMode 场景（是否开启；双调用后画布数量是否为 1）：
 - **T10 视觉矩阵未完成**：`echarts@6.0.0` 候选的视觉维度为 `not-run`，没有截图基线；跨版本升级矩阵也未完成（官方 `latest` 与基线同为 `6.1.0`，无新上游版本）。因此 `peerDependencies.echarts` 保持 `6.1.0`，未扩大。
 - **G2 未验收**：本地 G2 探针与备份/容量预演是 C 的本地验证，不等于生产验收。
 - **生产三存储发布未做**：真实 Verdaccio / PostgreSQL / MinIO 与公司 OIDC 不在本机可用范围。
-- **大小写敏感文件系统的构建未实测**：`ranking.ts` 与 `RankingChart.tsx` 只差大小写，已按 `RankingChart.*` 命名规避 NTFS 碰撞，大小写敏感文件系统上的构建未验证。
+- **文件系统大小写敏感性已两侧覆盖**：`RankingChart.*` 的命名是为了避免 `ranking.js` 与 `Ranking.js` 在大小写不敏感文件系统上碰撞（`TS5056`）。A 的 Linux 复现环境本身是大小写敏感的（已实证：同目录下 `A.txt` 与 `a.txt` 是两个文件），全量构建在其上通过；C 另在 Windows（NTFS，大小写不敏感）上对 `190b60b` 完成强制 build/typecheck 20/20。两侧都不是「未实测」。
 - **本文不含验收结论**：T11 需要 M2/T08/T10 及真实试点通过，T12 最终验收需 T11 通过（见 [上线验收状态](../release-acceptance.md)）。
 
 ## 十、相关文档
