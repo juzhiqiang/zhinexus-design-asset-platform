@@ -2,6 +2,12 @@
 
 本文件记录 `@company/charts-react` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.8] - 2026-11-13
+
+### Changed
+
+- `@company/charts-core` 依赖随兼容策略缺陷修复同步升至精确版本 `0.0.8`；本包自身的组件 API、Props、事件与子路径导出不变。发布顺序仍须先发 `charts-core` 并通过注册表依赖可达性检查，再发本包（`rules/testing-release.md`）。
+
 ## [0.0.7] - 2026-11-13
 
 ### Changed

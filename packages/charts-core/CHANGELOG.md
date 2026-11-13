@@ -2,6 +2,18 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.8] - 2026-11-13
+
+### Fixed
+
+- `verifyCandidate` 现在把**候选版本**交给探针，而不是原样传基线组合。此前候选为 6.0.0、基线为 6.1.0 时，探针收到的是 6.1.0，`results[].echartsVersion` 也记 6.1.0，报告却自称验证 6.0.0——报告与实测脱节。修复后 `results[].echartsVersion` 是实际验证的候选版本，并新增 `results[].baselineEchartsVersion` 记录该组合的基线版本供对照；`report.baselineEchartsVersion` 语义不变。
+- `hasDualFrameworkCoverage` 改为按**精确组合**（框架 × 框架版本 × ECharts 基线版本）一一对应判定，不再只按框架分组。此前 `supported` 含 Vue 3.5.45、Vue 3.4.0、React 19.3.1 而实测只覆盖其中两项时仍返回 `true`，`recommend` 随之返回 `'adopt'`。现在缺、额外、重复（任一侧）、框架版本写错、ECharts 基线版本对不上，任一种情况都判为不完整，`recommend` 返回 `'hold'`。
+- `verifyCandidate` 显式拒绝混合 ECharts 基线。此前 `baselineEchartsVersion` 取 `supported[0]`，`supported` 为「Vue/6.1.0 + React/6.0.0」时 `peerSatisfied` 为 `true`、`recommend` 为 `'adopt'`，把数组顺序交换则变成 `'hold'`——同一份输入结论随顺序翻转。现在所有已支持组合的 ECharts 基线必须一致，否则抛错且不出报告。
+
+### Changed
+
+- `CombinationResult` 由 `SupportedCombination & CombinationDimensions` 改为显式类型并新增必填字段 `baselineEchartsVersion`。该类型由本包产出、不由调用方构造；`charts-core` 处于 `0.x`，按兼容变更递增 PATCH。
+
 ## [0.0.7] - 2026-11-13
 
 ### Added
