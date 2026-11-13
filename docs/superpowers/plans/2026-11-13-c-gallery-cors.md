@@ -34,13 +34,13 @@
 - [x] 新增真实 HTTP 测试：允许预检204、精确ACAO/Vary、GET/POST/OPTIONS、Authorization/Content-Type/Idempotency-Key、X-Request-Id；实际匿名POST401；拒绝来源与配置边界。
 - [x] `exec vitest run tests/unit/api-cors.test.ts` 在旧dist上观察预期失败（4 failed/2 passed）。
 - [x] 实现最小配置校验和 Nest CORS，`build:services` 后窄测试6/6、unit/contracts333、根tsc、verify:workspace通过。
-- [ ] 独立审查、记录结果，中文聚焦修复提交。
+- [x] 独立审查无 Critical/Important/Minor，记录结果；中文聚焦修复提交 `1bfbcd2`。
 
 ### Task 2: 交付与版本
 
 **Files:** API README、根README、实施评估与本轮验证记录；API package.json、根CHANGELOG.md。
 
 - [x] 同步配置文档与实施计划；B继续MinIO实测与真实网页E2E。提交后交接修复文件。
-- [ ] API 0.0.4 → 0.0.5，单独 `chore: 升级版本号至 0.0.5` 提交；检查锁文件。
+- [x] API 0.0.4 → 0.0.5，单独 `chore: 升级版本号至 0.0.5` 提交 `3e9921d`；检查确认无需改锁文件。
 
 执行记录：基线 e490564，已确认画廊直接请求apiUrl而API未配置CORS。T08行为范围与鉴权契约不变，本轮补缺失部署通道。
