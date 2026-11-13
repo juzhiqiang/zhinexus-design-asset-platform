@@ -7,11 +7,28 @@
 
 | 归属 | 内容 |
 | --- | --- |
-| **A（本轮已交付）** | `packages/charts-core/src/engine/compatibility.ts` 的纯策略：候选解析、peer 符合性、报告结构与建议判定。不发起网络请求、不写文件、不改 `package.json`。 |
-| **B（未开始）** | `packages/component-cli/src/commands/echarts.ts`、`upgrades/{resolve,matrix,report}.ts`；`component echarts check` / `verify --version <exact>` / `verify --latest`。负责抓 registry 快照、建隔离升级目录、改精确依赖、跑矩阵、落报告。 |
+| **A（本轮已交付）** | `packages/charts-core/src/engine/compatibility.ts` 的纯策略：候选解析、peer 符合性、报告结构与建议判定。不发起网络请求、不写文件、不改 `package.json`。测试为 `tests/unit/sdk-compatibility.test.ts`（20 例）。 |
+| **B（未开始）** | `packages/component-cli/src/commands/echarts.ts`、`upgrades/{resolve,matrix,report}.ts`；`component echarts check` / `verify --version <exact>` / `verify --latest`。负责抓 registry 快照、建隔离升级目录、改精确依赖、跑矩阵、落报告。测试为实施计划列出的 `tests/unit/upgrade-policy.test.ts` 与 `tests/integration/upgrade-matrix.test.ts`。 |
 | **C** | `compatibility_records` 契约与落库；根 `package.json` / `pnpm-lock.yaml` / `turbo.json` 收口。 |
 
+**测试文件切分**（按 C 2026-11-13 交接要求）：`tests/unit/upgrade-policy.test.ts` 预留给 B 的 CLI 策略测试，A 侧 SDK 策略测试命名为 `tests/unit/sdk-compatibility.test.ts`。实施计划 T10 的 Files 一行同时列了两个文件名，那是计划建立时的划分；实际归属以本文为准，两边互不占用。
+
 B 的 runner **应当直接调用** `@company/charts-core` 导出的 `resolveCandidate` / `verifyCandidate` / `recommend`，不要另写一份版本判定。A 侧已用 20 条单测锁定这些纪律，B 侧复用即可获得同样的约束。
+
+## 一之二、与 contracts 的 CompatibilityRecord 对应关系
+
+`packages/contracts/src/reports.ts` 的 `CompatibilityRecord` 已把状态区分为 `'candidate' | 'passed' | 'failed'`，`passed` 必须带 `reportId` 与 `verifiedAt`，且校验层要求该 `reportId` 指向的报告属于同一 variant、同一 `packageSha256`、同一 `frameworkVersion` 与 `echartsVersion`，报告自身全部 check 为 `passed`、`baselineResult` 为 `PASS`/`NEW`，且 `verifiedAt` 不早于报告创建时间。
+
+A 侧 `CompatibilityReport` 与它的对应关系（**A 不写契约，也不落库**，仅约定字段语义，供 B 生成记录时对齐）：
+
+| A 侧 `CompatibilityReport` | contracts `CompatibilityRecord` |
+| --- | --- |
+| `candidate`（候选已解析、已跑探针） | `status: 'candidate'`，可不带 `reportId` / `verifiedAt` |
+| `recommend(report, supported) === 'adopt'` 且已有匹配的通过报告 | `status: 'passed'`，必须带 `reportId` 与 `verifiedAt` |
+| `recommend === 'hold'` 且探针有失败维度 | `status: 'failed'` |
+| `peerSatisfied === false` | 记录为 `candidate` 或 `failed`，**不得**记为 `passed` |
+
+本轮 echarts 6.0.0 的实测结论对应 `candidate`（已解析、已跑探针、视觉 not-run、peer 不符合），不是 `passed`。
 
 ## 二、A 侧导出清单（`@company/charts-core`）
 

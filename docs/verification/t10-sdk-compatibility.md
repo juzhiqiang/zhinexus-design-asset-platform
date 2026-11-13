@@ -26,11 +26,11 @@ GET https://registry.npmjs.org/echarts/6.0.0    → 存在，dist.integrity sha5
 
 ## 三、SDK 策略实现与测试（先红后绿）
 
-新增 `packages/charts-core/src/engine/compatibility.ts` 并从 `charts-core` 根导出。红态证据：测试文件先于模块存在，`vitest run tests/unit/upgrade-policy.test.ts` 报模块不存在（`no tests`）。
+新增 `packages/charts-core/src/engine/compatibility.ts` 并从 `charts-core` 根导出。红态证据：测试文件先于模块存在，`vitest run tests/unit/sdk-compatibility.test.ts` 报模块不存在（`no tests`）。
 
 ```
-$ pnpm exec vitest run tests/unit/upgrade-policy.test.ts
- ✓ tests/unit/upgrade-policy.test.ts (20 tests) 7ms
+$ pnpm exec vitest run tests/unit/sdk-compatibility.test.ts
+ ✓ tests/unit/sdk-compatibility.test.ts (20 tests) 7ms
  Test Files  1 passed (1)
       Tests  20 passed (20)
 ```
@@ -43,15 +43,25 @@ $ pnpm exec vitest run tests/unit/upgrade-policy.test.ts
 
 ### 4.1 冻结产物
 
+探针执行时打包的是 `0.0.6`：
+
 ```
-$ pnpm --filter @company/charts-core --filter @company/charts-vue --filter @company/charts-react run build   # 三包 Done
-$ pnpm --filter @company/<pkg> pack --pack-destination <freeze>
 921bce480f578ac7e07400b947d1cb335f940da4b6bcdcc2aa9c4aa1d921f51c  48744  company-charts-core-0.0.6.tgz
 4c3ff2dba5eba0c918e526887ead25c5b7436b403d94540df046094d0bd30945  12003  company-charts-react-0.0.6.tgz
 90c70ce2f1d36fa1992887c0f513c09b04503595ec27be4d2770c9ebac3d4444   6621  company-charts-vue-0.0.6.tgz
 ```
 
-vue / react 两个摘要与 T09 第五批记录完全一致（本轮未改动这两个包）。core 的摘要与体积相对 T09 记录变化，原因是本轮新增 `engine/compatibility.ts` 并导出。
+其中 vue / react 两个摘要与 T09 第五批记录完全一致（探针执行时这两个包尚未升版）。core 的摘要相对 T09 记录变化，原因是新增了 `engine/compatibility.ts` 并导出。
+
+任务收尾时三个图表包按发布约定同步升到 `0.0.7`（core 因新增公开 API；vue / react 因对 core 的精确依赖随动）。升版后的冻结产物：
+
+```
+e7cf6b21d422edd245cc2cd4ed5b8b973cba183d840145e806d70c1f4fae884d  48744  company-charts-core-0.0.7.tgz
+b1ce0212acb46f7b9053d833c7a2a7763d7e0b7e3e70e4baef0fc947eea88aa1  12003  company-charts-react-0.0.7.tgz
+654bda9c6b8401cef57e0e5feea2acc5905ed3efb28635061f2c0fd1b458b858   6621  company-charts-vue-0.0.7.tgz
+```
+
+**0.0.6 → 0.0.7 只改 `package.json`**：解包后逐文件比对，除 `package.json` 外三个包的其余内容完全一致（`diff -r --exclude=package.json` 无差异）；`package.json` 的差异为 2 行（core，仅版本号）与 4 行（vue / react，版本号 + core 精确依赖）。因此 4.3 节在 0.0.6 上取得的类型/运行/交互结论对 0.0.7 同样成立，不是重新假设而是已比对。
 
 ### 4.2 安装层：严格 peer 直接被拒
 

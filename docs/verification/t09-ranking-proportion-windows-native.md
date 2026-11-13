@@ -76,12 +76,12 @@ T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆�
 .\scripts\pnpm.ps1 exec playwright test --config tests/playwright.config.ts core-lifecycle
 
 # ECharts 升级候选的精确兼容策略（20 例）
-.\scripts\pnpm.ps1 exec vitest run tests/unit/upgrade-policy.test.ts
+.\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts
 ```
 
 人工核对新增入口：示例页现在接受 `?theme=dark&renderer=svg` 查询参数，可直接在地址栏切换，例如 `http://127.0.0.1:5174/ranking.html?theme=dark&renderer=svg` 与 `http://127.0.0.1:5175/ranking.html?theme=dark&renderer=svg`。未识别的值回退 `light` + `canvas`。
 
-预期用例数（Linux 复现环境实测值，Windows 应完全一致）：`test:browser` 合计 **173 passed**（main 基线 117 + 本轮新增 56）；`upgrade-policy` 20 passed。
+预期用例数（Linux 复现环境实测值，Windows 应完全一致）：`test:browser` 合计 **173 passed**（main 基线 117 + 本轮新增 56）；`sdk-compatibility` 20 passed。
 
 ## 三、人工目视检查（截图无法覆盖的判断）
 

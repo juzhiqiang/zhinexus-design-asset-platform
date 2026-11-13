@@ -69,7 +69,7 @@
 
 ## 六、仍未覆盖的边界
 
-- **Windows 开发机原生验证未执行**：本轮全部在 Linux 复现环境完成（Node `26.13.0`、pnpm `12.18.0`、Vue `3.5.45`、React `19.3.1`、ECharts `6.1.0`）。Linux 通过**不**等于 Windows 原生通过，清单见 [T09 第五批 Windows 原生复验清单](t09-ranking-proportion-windows-native.md)。
-- **人工目视检查未执行**：截图无法覆盖的判断（深色主题下 graphic 摘要文字与条形对比度、条末标签是否被裁切、两框架并排比对）仍需在 Windows 上人看一眼。
-- **真实三存储闭环未执行**：Verdaccio / PostgreSQL / MinIO 与 OIDC 不在本机可用范围。
+- **本轮新增测试的 Windows 原生验证未执行**：C 已于 2026-11-13 在 Windows 开发机完成**基线 `885792b` / SDK `0.0.6`** 的原生验收（build 10 tasks、typecheck 14 + 根 `tsc`、unit/contracts 322、packed-consumer + cli-bundle 12、完整浏览器 122 均通过；`current-sdk` 从旧 10 实现 RED 后改为 14 实现，隔离三存储发布 READY、逐预览/截图摘要、Vue/React 各 7 子路径的精确 Registry 安装全部通过）。但该验收**不包含**本轮新增的 `presentation-matrix` 56 例与 `core-lifecycle` 新增 7 例——这两批要在含本轮提交的分支上重跑 `.\scripts\verify.ps1` 才算原生通过。本文所有结果均来自 Linux 复现环境。
+- **人工目视检查未执行**：截图无法覆盖的判断（深色主题下 graphic 摘要文字与条形对比度、条末标签是否被裁切、两框架并排比对）仍需在 Windows 上人看一眼。示例页现已支持 `?theme=dark&renderer=svg`，可直接在地址栏切换后核对。
+- **真实三存储闭环在 A 侧未执行**：C 已在隔离环境完成三存储发布 READY 与逐预览/截图摘要核对；A 侧本轮只做了工作区外隔离消费者的安装与渲染探针，未走 Verdaccio / PostgreSQL / MinIO 的完整发布链路。
 - **大小写敏感文件系统的构建未验证**：`ranking.ts` 与 `RankingChart.tsx` 只差大小写，在大小写不敏感的 NTFS 上已按 `RankingChart.*` 命名规避；大小写敏感文件系统上的构建未实测。

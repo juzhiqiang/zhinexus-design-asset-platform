@@ -7,12 +7,14 @@
 
 | 项 | 值 |
 | --- | --- |
-| ECharts | `6.1.0`（根 `pnpm-lock.yaml` 锁定，`packages/charts-core` 的 `peerDependencies.echarts` 与 `devDependencies.echarts` 同为 `6.1.0`） |
+| ECharts | `6.1.0`（根 `pnpm-lock.yaml` 锁定，`packages/charts-core` 的 `peerDependencies.echarts` 与 `devDependencies.earts` 同为 `6.1.0`） |
 | zrender | `6.1.0`（echarts 6.1.0 的运行时依赖，随 echarts 一起锁定） |
 | Vue | `3.5.45` |
 | React / ReactDOM | `19.3.1` |
-| 组件包 | `@company/charts-core` / `charts-vue` / `charts-react` 均 `0.0.6` |
+| 组件包 | `@company/charts-core` / `charts-vue` / `charts-react` 均 `0.0.7` |
 | 工具链 | Node `26.13.0`、pnpm `12.18.0`（`.tools/` 固定） |
+
+**两个「基线」要分清**：`0.0.7` 是本轮工作树上的当前版本；**最后一次完成 Windows 原生全图验收的是 `0.0.6`**（C 于 2026-11-13 在基线 `885792b` 上实测）。`0.0.7` 目前只有 Linux 复现环境证据，Windows 原生复验见第 6.2 节。回退时的「上一组已验证组合」指 `0.0.6`。
 
 `rules/platform.md` 规定：任何扩大或缩减兼容版本范围的改动，必须同步更新兼容矩阵测试与 `compatibility_records`。**本文件不构成扩大范围的授权**——扩大范围必须是人在审阅实测报告后的显式动作。
 
@@ -25,7 +27,7 @@
 - `verifyCandidate(candidate, supported, probe)`：对每个已支持组合跑注入的探针，汇总**类型 / 运行 / 交互 / 视觉**四维结果与差异。报告恒带 `supportedRangeUnchanged: true`，且**不提供任何「建议的新支持范围」字段**。
 - `recommend(report, supported)` / `hasDualFrameworkCoverage(report, supported)`：只有「peer 符合 + 双框架齐验 + 四维全过 + 无差异」才返回 `'adopt'`，其余一律 `'hold'`。共享核心变化少任何一个已支持框架的实测结果即 `'hold'`。
 
-配套测试 `tests/unit/upgrade-policy.test.ts`（20 例）先红后绿，锁定上述纪律。
+配套测试 `tests/unit/sdk-compatibility.test.ts`（20 例）先红后绿，锁定上述纪律。
 
 **候选失败不得扩大 peer 范围**在三个层次上都有实证，不是一句口号：
 
@@ -119,11 +121,25 @@ npx vite build                              # 构建
 
 React 消费者：同上，另需确认 `@types/react` / `@types/react-dom` 与 `react` / `react-dom` 版本匹配。
 
-验证顺序（与 `rules/testing-release.md` 一致）：`verify:workspace` → `build` → `typecheck` → `test` → `test:browser`。本基线在 Linux 复现环境下的实测值：build 10 tasks、typecheck 14 tasks + 根 `tsc`、`test:browser` 173 passed（main 基线 117 + 本轮新增 56）、`core-lifecycle` 11 passed、`upgrade-policy` 20 passed。Windows 开发机应以 `.\scripts\verify.ps1` 复跑并回填，Linux 结果**不**等同于 Windows 原生通过。
+验证顺序（与 `rules/testing-release.md` 一致）：`verify:workspace` → `build` → `typecheck` → `test` → `test:browser`。
+
+基线 `885792b` / SDK `0.0.6` 的 Windows 原生验收已由 C 于 2026-11-13 实际完成：build 10 tasks、typecheck 14 + 根 `tsc`、unit/contracts 322、packed-consumer + cli-bundle 12、完整浏览器 122 均通过；`current-sdk` 从旧 10 实现 RED 后改为 14 实现，隔离三存储发布 READY、逐预览/截图摘要、Vue/React 各 7 子路径的精确 Registry 安装全部通过。
+
+**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例与 `sdk-compatibility` 20 例。Linux 复现环境的本轮实测值：`test:browser` 173 passed（Linux 基线 117 + 新增 56）。Windows 基线计数 122 与 Linux 基线 117 的差异来自 main 侧此前的增量，不影响本轮新增用例的判断。
 
 ### 6.3 产物侧
 
-已发布版本不可变：`0.0.6` 的三个 tarball 一旦发布到 Verdaccio 即冻结，回退只能通过「继续安装 `0.0.6`」实现，不能覆盖或删除重发。若需要修复，递增 `PATCH` 发布新版本，并通过平台把旧版本标记为 `deprecated`。同一份 tarball 的 SHA-256 必须贯穿安装、截图、报告、上传与发布。
+**回退目标组合是 `0.0.6`**（C 已完成 Windows 原生全图验收的那一版），不是 `0.0.7`。
+
+已发布版本不可变：任何版本一旦发布到 Verdaccio 即冻结，回退只能通过「继续安装已发布的 `0.0.6`」实现，不能覆盖或删除重发。若需要修复，递增 `PATCH` 发布新版本，并通过平台把旧版本标记为 `deprecated`。同一份 tarball 的 SHA-256 必须贯穿安装、截图、报告、上传与发布。
+
+`0.0.7` 候选冻结产物摘要（`pnpm pack`，与发布链同口径）：
+
+| 包 | 字节 | SHA-256 |
+| --- | --- | --- |
+| `company-charts-core-0.0.7.tgz` | 48,744 | `e7cf6b21d422edd245cc2cd4ed5b8b973cba183d840145e806d70c1f4fae884d` |
+| `company-charts-vue-0.0.7.tgz` | 6,621 | `654bda9c6b8401cef57e0e5feea2acc5905ed3efb28635061f2c0fd1b458b858` |
+| `company-charts-react-0.0.7.tgz` | 12,003 | `b1ce0212acb46f7b9053d833c7a2a7763d7e0b7e3e70e4baef0fc947eea88aa1` |
 
 ## 7. 待办与边界
 
