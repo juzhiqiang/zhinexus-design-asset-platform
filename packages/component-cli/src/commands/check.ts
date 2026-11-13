@@ -10,6 +10,8 @@ import { captureExample, type CaptureResult } from '../local/capture.js';
 import { compareBaseline, type CompareBaselineResult } from '../local/compare.js';
 import { buildCheckReport } from '../local/report.js';
 import { validateCheckReport } from '../contracts/validation.js';
+import { validateSchema, object } from '../contracts/schema.js';
+import { environmentSchema } from '../contracts/schemas.js';
 import type { CheckReportV1, EnvironmentV1 } from '../contracts/reports.js';
 import type { Framework } from '../contracts/release-manifest.js';
 
@@ -267,13 +269,26 @@ export async function runCheckCommand(
         let baselineInput: { environment: EnvironmentV1; environmentKey?: string; imageBuffer: Buffer } | null = null;
         if (fs.existsSync(basePngPath) && fs.existsSync(baseMetaPath)) {
           const basePng = await fs.promises.readFile(basePngPath);
-          const baseMeta = JSON.parse(await fs.promises.readFile(baseMetaPath, 'utf8')) as {
-            environment: EnvironmentV1;
-            environmentKey?: string;
-          };
+          const rawMeta: unknown = JSON.parse(await fs.promises.readFile(baseMetaPath, 'utf8'));
+          const baselineMetaSchema = object(
+            {
+              environment: environmentSchema,
+              environmentKey: { type: 'string', pattern: '^(?:[a-f0-9]{64}|unknown-manual)$' },
+            },
+            ['environmentKey'],
+          );
+          const metaChecked = validateSchema<{ environment: EnvironmentV1; environmentKey?: string }>(
+            baselineMetaSchema,
+            rawMeta,
+          );
+          if (!metaChecked.ok) {
+            throw new Error(
+              `INVALID_BASELINE_METADATA: ${baseMetaPath} 契约校验失败: ${metaChecked.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
+            );
+          }
           baselineInput = {
-            environment: baseMeta.environment,
-            environmentKey: baseMeta.environmentKey,
+            environment: metaChecked.value.environment,
+            environmentKey: metaChecked.value.environmentKey,
             imageBuffer: basePng,
           };
         }

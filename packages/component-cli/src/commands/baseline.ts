@@ -1,6 +1,6 @@
 import * as fs from 'node:fs/promises';
 import { validateCheckReport } from '../contracts/validation.js';
-import type { ApiMessages } from '../contracts/api.js';
+import { validateApiMessage, type ApiMessages } from '../contracts/api.js';
 import { computeEnvironmentKey } from '../local/environment.js';
 
 export type AcceptBaselineOptions = {
@@ -9,9 +9,11 @@ export type AcceptBaselineOptions = {
   apiUrl?: string;
   token?: string;
   expectedRevision?: string;
+  jobId?: string;
   variantId?: string;
   exampleId?: string;
   screenshotId?: string;
+  timeoutMs?: number;
   fetchImpl?: typeof fetch;
 };
 
@@ -27,11 +29,31 @@ export type AcceptBaselineResult = {
   status?: number;
 };
 
+function validateApiUrl(rawUrl: string): { ok: true; url: string } | { ok: false; error: string } {
+  if (!rawUrl) {
+    return { ok: false, error: '缺少平台 API 地址，请通过 --api-url 或环境变量 PLATFORM_API_URL / ZHINEXUS_API_URL 指定' };
+  }
+  let parsed: URL;
+  try {
+    parsed = new URL(rawUrl);
+  } catch {
+    return { ok: false, error: `平台 API 地址格式无效: ${rawUrl}` };
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    return { ok: false, error: `平台 API 地址仅支持 http/https 协议，收到: ${parsed.protocol}` };
+  }
+  if (parsed.username || parsed.password) {
+    return { ok: false, error: '平台 API 地址禁止内嵌用户名或密码凭证' };
+  }
+  return { ok: true, url: rawUrl.replace(/\/+$/, '') };
+}
+
 /**
  * 执行 `component baseline accept --report <path> --reason <text>`：
  * 1. 本地校验 CheckReportV1 契约，拒绝失败报告、不兼容环境报告、手动上传图与 unknown-manual；
  * 2. 重新计算并核对 environmentKey，杜绝伪造来源；
- * 3. 调用 POST /v1/baselines 复用服务端权限与 expectedRevision CAS 机制提交基线。
+ * 3. 若指定 --job-id，则先读取 GET /v1/releases/:jobId 并按本地截图 ID 匹配 releaseJob.baselineCandidates 中的服务端 screenshotId（不以服务端 UUID 反筛本地数组）；
+ * 4. 调用 POST /v1/baselines（带超时与 redirect:'error' 防凭证泄露），并使用 validateApiMessage('createBaselineResponse') 严格校验响应。
  */
 export async function acceptBaseline(options: AcceptBaselineOptions): Promise<AcceptBaselineResult> {
   const reason = options.reason?.trim() ?? '';
@@ -103,6 +125,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
     };
   }
 
+  // 保持使用本地报告截图 ID / exampleId 定位本地截图记录，绝不用服务端 UUID 反筛本地数组
   const targetShot = report.screenshots.find((s) => {
     if (options.screenshotId && s.id !== options.screenshotId) return false;
     if (options.exampleId && s.exampleId !== options.exampleId) return false;
@@ -138,53 +161,145 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
     };
   }
 
-  const apiUrl = (options.apiUrl ?? process.env.ZHINEXUS_API_URL ?? '').replace(/\/+$/, '');
-  const token = (options.token ?? process.env.ZHINEXUS_TOKEN ?? '').trim();
-
-  if (!apiUrl) {
+  const rawApiUrl = (options.apiUrl ?? process.env.PLATFORM_API_URL ?? process.env.ZHINEXUS_API_URL ?? '').trim();
+  const urlCheck = validateApiUrl(rawApiUrl);
+  if (!urlCheck.ok) {
     return {
       ok: false,
-      errorCode: 'MISSING_API_URL',
-      error: '缺少平台 API 地址，请通过 --api-url 或环境变量 ZHINEXUS_API_URL 指定',
+      errorCode: rawApiUrl ? 'INVALID_API_URL' : 'MISSING_API_URL',
+      error: urlCheck.error,
     };
   }
+  const apiUrl = urlCheck.url;
+
+  const token = (
+    options.token ??
+    process.env.PLATFORM_TOKEN ??
+    process.env.PLATFORM_API_TOKEN ??
+    process.env.ZHINEXUS_TOKEN ??
+    ''
+  ).trim();
+
   if (!token) {
     return {
       ok: false,
       errorCode: 'MISSING_TOKEN',
-      error: '缺少认证凭证，请通过 --token 或环境变量 ZHINEXUS_TOKEN 指定',
+      error: '缺少认证凭证，请通过 --token 或环境变量 PLATFORM_TOKEN / ZHINEXUS_TOKEN 指定',
     };
+  }
+
+  const timeoutMs = options.timeoutMs ?? 30_000;
+  const fetchFn = options.fetchImpl ?? globalThis.fetch;
+
+  let resolvedScreenshotId = targetShot.id;
+
+  // 若指定了 jobId，则从 releaseJob.baselineCandidates 解析服务端唯一 screenshotId
+  if (options.jobId) {
+    let jobRes: Response;
+    try {
+      jobRes = await fetchFn(`${apiUrl}/v1/releases/${encodeURIComponent(options.jobId)}`, {
+        method: 'GET',
+        headers: {
+          authorization: `Bearer ${token}`,
+        },
+        redirect: 'error',
+        signal: AbortSignal.timeout(timeoutMs),
+      });
+    } catch (err: unknown) {
+      return {
+        ok: false,
+        errorCode: 'NETWORK_ERROR',
+        error: `查询发布作业 ${options.jobId} 失败: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+
+    let jobRaw: unknown;
+    try {
+      jobRaw = await jobRes.json();
+    } catch {
+      jobRaw = {};
+    }
+
+    if (!jobRes.ok) {
+      const errObj = jobRaw as Record<string, unknown>;
+      const errorCode = typeof errObj.code === 'string' ? errObj.code : `HTTP_${jobRes.status}`;
+      const errorMsg = typeof errObj.message === 'string' ? errObj.message : jobRes.statusText || '查询作业失败';
+      return {
+        ok: false,
+        status: jobRes.status,
+        errorCode,
+        error: `查询发布作业失败 [${errorCode}]: ${errorMsg}`,
+      };
+    }
+
+    const validatedJob = validateApiMessage('releaseJobResponse', jobRaw);
+    if (!validatedJob.ok) {
+      return {
+        ok: false,
+        status: jobRes.status,
+        errorCode: 'INVALID_RESPONSE',
+        error: `服务端发布作业响应格式无效: ${validatedJob.issues.map((i) => i.message).join('; ')}`,
+      };
+    }
+
+    const candidates = validatedJob.value.baselineCandidates ?? [];
+    const matchedCandidate = candidates.find(
+      (c) =>
+        c.sourceScreenshotId === targetShot.id &&
+        c.variantId === report.variantId &&
+        c.exampleId === report.exampleId &&
+        c.environmentKey === computedEnvKey,
+    );
+    if (!matchedCandidate) {
+      return {
+        ok: false,
+        errorCode: 'CANDIDATE_NOT_FOUND',
+        error: `在作业 ${options.jobId} 的 baselineCandidates 中未找到匹配的候选截图 (sourceScreenshotId=${targetShot.id}, variantId=${report.variantId}, exampleId=${report.exampleId})`,
+      };
+    }
+    resolvedScreenshotId = matchedCandidate.screenshotId;
   }
 
   const payload: ApiMessages['createBaselineRequest'] = {
     variantId: report.variantId,
     exampleId: report.exampleId,
     environmentKey: computedEnvKey,
-    screenshotId: targetShot.id,
+    screenshotId: resolvedScreenshotId,
     reason,
     ...(options.expectedRevision ? { expectedRevision: options.expectedRevision } : {}),
   };
 
-  const fetchFn = options.fetchImpl ?? globalThis.fetch;
-  const response = await fetchFn(`${apiUrl}/v1/baselines`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify(payload),
-  });
-
-  let bodyJson: Record<string, unknown> = {};
+  let response: Response;
   try {
-    bodyJson = (await response.json()) as Record<string, unknown>;
+    response = await fetchFn(`${apiUrl}/v1/baselines`, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+      redirect: 'error',
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      errorCode: 'NETWORK_ERROR',
+      error: `提交基线请求失败: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
+
+  let bodyJson: unknown = {};
+  try {
+    bodyJson = await response.json();
   } catch {
-    // ignore non-json
+    bodyJson = {};
   }
 
   if (!response.ok) {
-    const errorCode = typeof bodyJson.code === 'string' ? bodyJson.code : `HTTP_${response.status}`;
-    const errorMsg = typeof bodyJson.message === 'string' ? bodyJson.message : response.statusText || '请求失败';
+    const errObj = (bodyJson && typeof bodyJson === 'object' ? bodyJson : {}) as Record<string, unknown>;
+    const errorCode = typeof errObj.code === 'string' ? errObj.code : `HTTP_${response.status}`;
+    const errorMsg = typeof errObj.message === 'string' ? errObj.message : response.statusText || '请求失败';
     return {
       ok: false,
       status: response.status,
@@ -193,13 +308,23 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
     };
   }
 
+  const validatedResp = validateApiMessage('createBaselineResponse', bodyJson);
+  if (!validatedResp.ok) {
+    return {
+      ok: false,
+      status: response.status,
+      errorCode: 'INVALID_RESPONSE',
+      error: `服务端响应未通过 createBaselineResponse 契约校验: ${validatedResp.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
+    };
+  }
+
   return {
     ok: true,
     status: response.status,
-    revisionId: typeof bodyJson.revisionId === 'string' ? bodyJson.revisionId : undefined,
+    revisionId: validatedResp.value.revisionId,
     variantId: report.variantId,
     exampleId: report.exampleId,
     environmentKey: computedEnvKey,
-    screenshotId: targetShot.id,
+    screenshotId: resolvedScreenshotId,
   };
 }

@@ -233,4 +233,82 @@ describe('T04: component baseline accept CLI 与权限/CAS 闭环', () => {
     expect(forbiddenCli.exitCode).toBe(1);
     expect(forbiddenCli.stderr).toContain('FORBIDDEN');
   });
+
+  it('服务端返回 HTTP 200 {} 或非法 revisionId 时必须判定失败 (INVALID_RESPONSE)', async () => {
+    const { reportPath } = await writeReportFixture();
+    const empty200Api = await startStubApi((_req, _body, res) => {
+      res.writeHead(200, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({}));
+    });
+
+    const res = await acceptBaseline({
+      reportPath,
+      reason: '空响应校验',
+      apiUrl: empty200Api.url,
+      token: 'jwt-maintainer',
+    });
+    expect(res.ok).toBe(false);
+    expect(res.errorCode).toBe('INVALID_RESPONSE');
+  });
+
+  it('通过 jobId 查询 releaseJob.baselineCandidates 映射服务端 screenshotId，且保留本地 report 匹配', async () => {
+    const { reportPath, envKey } = await writeReportFixture();
+    const serverShotUuid = '11111111-1111-4111-8111-111111111111';
+    let capturedRedirect: RequestRedirect | undefined;
+    let hasSignal = false;
+
+    const api = await startStubApi((req, _body, res) => {
+      if (req.method === 'GET' && req.url === '/v1/releases/job-abc') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(
+          JSON.stringify({
+            state: 'READY',
+            stage: 'READY',
+            attempt: 1,
+            missingArtifacts: [],
+            pollAfterMs: 1000,
+            baselineCandidates: [
+              {
+                screenshotId: serverShotUuid,
+                sourceScreenshotId: 'shot-line-vue-default',
+                variantId: 'line-vue',
+                exampleId: 'line-default',
+                environmentKey: envKey,
+              },
+            ],
+          }),
+        );
+        return;
+      }
+      if (req.method === 'POST' && req.url === '/v1/baselines') {
+        res.writeHead(200, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ revisionId: 'rev-server-mapped' }));
+        return;
+      }
+      res.writeHead(404);
+      res.end('{}');
+    });
+
+    const wrappedFetch: typeof fetch = (input, init) => {
+      capturedRedirect = init?.redirect;
+      hasSignal = Boolean(init?.signal);
+      return globalThis.fetch(input, init);
+    };
+
+    const res = await acceptBaseline({
+      reportPath,
+      reason: '使用 releaseJob.baselineCandidates 服务端 ID 确认基线',
+      apiUrl: api.url,
+      token: 'jwt-maintainer',
+      jobId: 'job-abc',
+      fetchImpl: wrappedFetch,
+    });
+
+    expect(res.ok).toBe(true);
+    expect(res.revisionId).toBe('rev-server-mapped');
+    expect(capturedRedirect).toBe('error');
+    expect(hasSignal).toBe(true);
+    const postReq = api.requests.find((r) => r.url === '/v1/baselines')!;
+    expect(postReq.body.screenshotId).toBe(serverShotUuid);
+  });
 });

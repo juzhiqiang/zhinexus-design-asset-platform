@@ -176,4 +176,84 @@ describe('T04: compareBaseline 本地视觉基线比对', () => {
     );
     expect(res.result).toBe('INCOMPATIBLE');
   });
+
+  it('绝不信任外部伪造的 environmentKey：两个不同环境即使传入相同伪造 key 也必须返回 INCOMPATIBLE', () => {
+    const img = createSolidRgbaPng(10, 10, [10, 20, 30, 255]);
+    const linuxEnv = detectEnvironment({ ...baseEnv, framework: 'vue', os: 'linux' });
+    const forgedKey = 'c'.repeat(64);
+
+    const resForgedBoth = compareBaseline(
+      { environment: linuxEnv, environmentKey: forgedKey, imageBuffer: img },
+      { environment: baseEnv, environmentKey: forgedKey, imageBuffer: img },
+    );
+    expect(resForgedBoth.result).toBe('INCOMPATIBLE');
+
+    const resMismatchedKey = compareBaseline(
+      { environment: baseEnv, environmentKey: forgedKey, imageBuffer: img },
+      { environment: baseEnv, imageBuffer: img },
+    );
+    expect(resMismatchedKey.result).toBe('INCOMPATIBLE');
+  });
+
+  it('PNG 解码必须校验 CRC32 与尺寸上限，拒绝坏 CRC 或畸形 PNG', () => {
+    const valid = createSolidRgbaPng(10, 10, [10, 20, 30, 255]);
+    // 破坏最后一个字节前的 CRC (IEND chunk 前)
+    const badCrc = Buffer.from(valid);
+    badCrc[badCrc.length - 1] = (badCrc[badCrc.length - 1]! + 1) % 256;
+
+    expect(() =>
+      compareBaseline({ environment: baseEnv, imageBuffer: badCrc }, { environment: baseEnv, imageBuffer: valid }),
+    ).toThrow(/CRC|INVALID_PNG/);
+
+    // 构造超大尺寸 IHDR (> 8192)
+    const ihdrOversized = Buffer.alloc(13);
+    ihdrOversized.writeUInt32BE(9000, 0);
+    ihdrOversized.writeUInt32BE(10, 4);
+    ihdrOversized[8] = 8;
+    ihdrOversized[9] = 6;
+    const oversizedPng = Buffer.concat([
+      Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+      makePngChunk('IHDR', ihdrOversized),
+      makePngChunk('IEND', Buffer.alloc(0)),
+    ]);
+    expect(() =>
+      compareBaseline({ environment: baseEnv, imageBuffer: oversizedPng }, { environment: baseEnv, imageBuffer: valid }),
+    ).toThrow(/INVALID_PNG|UNSUPPORTED_PNG|尺寸/);
+  });
+
+  it('支持 RGB tRNS 透明色块 PNG：透明像素与非透明像素可准确比对', () => {
+    // 构造 colorType=2 (RGB) + tRNS (透明色 [0,0,0])
+    const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(2, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2; // RGB
+    const trns = Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]); // RGB(0,0,0) transparent
+
+    // 图 A: 像素0=[0,0,0] (透明 alpha=0), 像素1=[255,0,0]
+    const rawA = Buffer.from([0, 0, 0, 0, 255, 0, 0]);
+    const pngA = Buffer.concat([
+      signature,
+      makePngChunk('IHDR', ihdr),
+      makePngChunk('tRNS', trns),
+      makePngChunk('IDAT', zlib.deflateSync(rawA)),
+      makePngChunk('IEND', Buffer.alloc(0)),
+    ]);
+
+    // 图 B: 同像素 RGB(0,0,0) 但无 tRNS (不透明 alpha=255), 像素1=[255,0,0]
+    const pngB = Buffer.concat([
+      signature,
+      makePngChunk('IHDR', ihdr),
+      makePngChunk('IDAT', zlib.deflateSync(rawA)),
+      makePngChunk('IEND', Buffer.alloc(0)),
+    ]);
+
+    const resSame = compareBaseline({ environment: baseEnv, imageBuffer: pngA }, { environment: baseEnv, imageBuffer: pngA });
+    expect(resSame.result).toBe('PASS');
+
+    const resAlphaDiff = compareBaseline({ environment: baseEnv, imageBuffer: pngA }, { environment: baseEnv, imageBuffer: pngB });
+    expect(resAlphaDiff.result).toBe('DIFF');
+    expect(resAlphaDiff.diffPixelCount).toBe(1);
+  });
 });

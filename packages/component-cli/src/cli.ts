@@ -334,6 +334,8 @@ export async function runCli(
     let token: string | undefined;
     let expectedRevision: string | undefined;
     let screenshotId: string | undefined;
+    let jobId: string | undefined;
+    let timeoutMs: number | undefined;
 
     for (let i = 0; i < subRest.length; i++) {
       const arg = subRest[i];
@@ -349,11 +351,15 @@ export async function runCli(
         expectedRevision = subRest[++i];
       } else if (arg === '--screenshot-id') {
         screenshotId = subRest[++i];
+      } else if (arg === '--job-id') {
+        jobId = subRest[++i];
+      } else if (arg === '--timeout') {
+        timeoutMs = Number(subRest[++i]);
       } else {
         return {
           exitCode: 1,
           stdout: '',
-          stderr: `错误: 未知参数 ${arg}\n用法: component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]\n`,
+          stderr: `错误: 未知参数 ${arg}\n用法: component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>] [--job-id <id>]\n`,
         };
       }
     }
@@ -373,6 +379,8 @@ export async function runCli(
       token,
       expectedRevision,
       screenshotId,
+      jobId,
+      timeoutMs,
     });
 
     if (!result.ok) {
