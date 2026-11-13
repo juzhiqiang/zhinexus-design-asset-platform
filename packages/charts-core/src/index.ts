@@ -53,6 +53,34 @@ export { buildRankingOption, computeRanking } from './charts/ranking.js';
 export { buildScatterOption } from './charts/scatter.js';
 export { buildTrendCardOption, computeTrendSummary } from './charts/trend-card.js';
 export { createChartController } from './controller.js';
+export {
+  CandidateError,
+  candidateSatisfiesPeer,
+  compareVersions,
+  hasDualFrameworkCoverage,
+  isExactVersion,
+  isPrerelease,
+  notRunDimensions,
+  recommend,
+  resolveCandidate,
+  verifyCandidate,
+} from './engine/compatibility.js';
+export type {
+  CandidateInput,
+  CandidateRejectionReason,
+  CandidateSource,
+  CombinationDimensions,
+  CombinationProbe,
+  CombinationResult,
+  CompatibilityFramework,
+  CompatibilityReport,
+  DimensionOutcome,
+  EChartsCandidate,
+  PresentationContext,
+  Recommendation,
+  RegistrySnapshot,
+  SupportedCombination,
+} from './engine/compatibility.js';
 
 import { version } from 'echarts/core.js';
 

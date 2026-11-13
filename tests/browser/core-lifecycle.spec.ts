@@ -138,3 +138,92 @@ test('set_presentation_rebuilds_without_losing_data', async ({ page }) => {
   await expect(page.locator('#host svg')).toHaveCount(1);
   await expect(page.locator('#host canvas')).toHaveCount(0);
 });
+
+/**
+ * 主题 / 渲染器重建必须对全部 7 种图表类型成立。
+ *
+ * `rules/platform.md` 要求「主题 / 渲染器切换重建」，而 core 层此前只有折线图一条
+ * 覆盖。T09 补齐的柱状、饼图、散点、趋势卡片、排行榜与占比都各自注册图表模块，
+ * 任一类型漏注册都会在切换后渲染不出来，因此逐类型验证。
+ */
+const CHART_TYPES = [
+  'line',
+  'bar',
+  'pie',
+  'scatter',
+  'trend-card',
+  'ranking',
+  'proportion',
+] as const;
+
+/** 散点图 x 必须是数值（数值轴坐标）。 */
+const numericTwoSeries: ChartData = {
+  series: [
+    { id: 'alpha', name: '甲', points: [{ x: 1, y: 10 }, { x: 2, y: 20 }] },
+    { id: 'beta', name: '乙', points: [{ x: 1, y: 5 }, { x: 2, y: 15 }] },
+  ],
+};
+
+/** 排行榜与占比只接受单系列（多系列抛 ChartDataError）。 */
+const singleSeries: ChartData = { series: [withTwoSeries.series[0]!] };
+
+/** 每种图表类型各自合法的数据形状与期望系列 id。 */
+const CASE_BY_CHART: Record<
+  (typeof CHART_TYPES)[number],
+  { data: ChartData; seriesIds: string[] }
+> = {
+  line: { data: withTwoSeries, seriesIds: ['alpha', 'beta'] },
+  bar: { data: withTwoSeries, seriesIds: ['alpha', 'beta'] },
+  pie: { data: withTwoSeries, seriesIds: ['alpha', 'beta'] },
+  scatter: { data: numericTwoSeries, seriesIds: ['alpha', 'beta'] },
+  'trend-card': { data: withTwoSeries, seriesIds: ['alpha', 'beta'] },
+  ranking: { data: singleSeries, seriesIds: ['alpha'] },
+  proportion: { data: singleSeries, seriesIds: ['alpha'] },
+};
+
+for (const chart of CHART_TYPES) {
+  test(`set_presentation_rebuilds_${chart}`, async ({ page }) => {
+    const pageErrors: string[] = [];
+    page.on('pageerror', (error) => pageErrors.push(error.message));
+    const testCase = CASE_BY_CHART[chart];
+
+    await page.evaluate(
+      ({ data, chartType }) => {
+        const host = document.getElementById('host');
+        if (!host) throw new Error('harness host missing');
+        window.__CORE_HARNESS__!.create(host, {
+          chart: chartType,
+          renderer: 'canvas',
+          theme: 'light',
+          animation: false,
+        });
+        window.__CORE_HARNESS__!.update(data);
+      },
+      { data: testCase.data, chartType: chart },
+    );
+    await page.evaluate(() => window.__CORE_HARNESS__!.whenRendered());
+    expect(await page.evaluate(() => window.__CORE_HARNESS__!.seriesIds())).toEqual(
+      testCase.seriesIds,
+    );
+
+    // light + canvas → dark + svg
+    await page.evaluate(() => window.__CORE_HARNESS__!.setPresentation('dark', 'svg'));
+    await page.evaluate(() => window.__CORE_HARNESS__!.whenRendered());
+    expect(await page.evaluate(() => window.__CORE_HARNESS__!.seriesIds())).toEqual(
+      testCase.seriesIds,
+    );
+    await expect(page.locator('#host svg')).toHaveCount(1);
+    await expect(page.locator('#host canvas')).toHaveCount(0);
+
+    // 再切回 light + canvas：反方向同样只保留一个画布，数据不丢
+    await page.evaluate(() => window.__CORE_HARNESS__!.setPresentation('light', 'canvas'));
+    await page.evaluate(() => window.__CORE_HARNESS__!.whenRendered());
+    expect(await page.evaluate(() => window.__CORE_HARNESS__!.seriesIds())).toEqual(
+      testCase.seriesIds,
+    );
+    await expect(page.locator('#host canvas')).toHaveCount(1);
+    await expect(page.locator('#host svg')).toHaveCount(0);
+
+    expect(pageErrors).toEqual([]);
+  });
+}

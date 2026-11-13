@@ -64,6 +64,51 @@
 | 负值 / 多系列 / 同名条目拒绝 | `chart-semantics.test.ts` 的 `ChartDataError` 断言 |
 | 平台不拒收 Bundle | `cli-bundle.test.ts` 的逐导出覆盖回归护栏 |
 
+### 2026-11-13 追加：T09 收口与 T10 新增范围
+
+T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆盖（详见 [T09 SDK 证据核对](t09-sdk-evidence-audit.md) 与 [T10 SDK 兼容验证](t10-sdk-compatibility.md)）：
+
+```powershell
+# light/dark × Canvas/SVG 在 14 个实现上的矩阵（56 例）
+.\scripts\pnpm.ps1 exec playwright test --config tests/playwright.config.ts presentation-matrix
+
+# core 层主题/渲染器重建覆盖全部 7 种图表类型（11 例）
+.\scripts\pnpm.ps1 exec playwright test --config tests/playwright.config.ts core-lifecycle
+
+# ECharts 升级候选的精确兼容策略（20 例）
+.\scripts\pnpm.ps1 exec vitest run tests/unit/sdk-compatibility.test.ts
+```
+
+人工核对新增入口：示例页现在接受 `?theme=dark&renderer=svg` 查询参数，可直接在地址栏切换，例如 `http://127.0.0.1:5174/ranking.html?theme=dark&renderer=svg` 与 `http://127.0.0.1:5175/ranking.html?theme=dark&renderer=svg`。未识别的值回退 `light` + `canvas`。
+
+预期用例数（Linux 复现环境全量实测值，Windows 应完全一致）：`pnpm exec playwright test --config tests/playwright.config.ts` 合计 **185 passed**（基线 122 + 本轮新增 63，其中 `presentation-matrix` 56 例、`core-lifecycle` 由 4 增至 11 的 7 例）；`sdk-compatibility` 20 passed。基线 122 与 C 在 Windows 于 `885792b` 测得的 122 相同，可直接对照。
+
+#### 待原生复验的提交（截至 2026-11-13 收尾）
+
+分支 `feat/t10-sdk-compatibility` 上相对基线 main `885792b` 的提交（截至 2026-11-13 收尾；完整列表以 `git log --oneline 885792b..HEAD` 为准），**均未做 Windows 原生验收**：
+
+| 提交 | 内容 |
+| --- | --- |
+| `383d165` | T09 展示矩阵证据：14 个示例页支持 `?theme=&renderer=`，新增 `presentation-matrix.spec.ts` 56 例，`core-lifecycle` 增加 7 例 |
+| `6ba03e7` | T10 兼容策略模块 `packages/charts-core/src/engine/compatibility.ts` 及导出 |
+| `96b9cd4` | 文档：T09 证据核对、T10 兼容验证、升级与回退、A 侧 G1 回执 |
+| `afa92ad` | 测试：`upgrade-policy.test.ts` → `sdk-compatibility.test.ts` 更名，两处类型声明修正 |
+| `bf0bfa1` | 三个图表包版本号 `0.0.6` → `0.0.7`（含 CHANGELOG） |
+| `f35ebc9` | 文档：版本边界（0.0.7 工作树 / 0.0.6 末次原生验收）与测试归属说明 |
+| `1920b24` | 文档：0.0.7 回归实测命令与计数、`packed-consumer` 60s 硬编码超时说明 |
+| `a9fba5e` | 文档：`test:browser` 全量计数修正为 185 passed |
+| `279d5b9` | 文档：0.0.7 冻结产物摘要的复现性与跨平台边界说明 |
+
+需要跑代码与测试的是前六个提交（代码、测试、版本号）；其余为文档修订（含本表自身的两次补录），不改变复验范围。
+
+全图入口（推荐先跑这一条，再用上面的窄命令定位）：
+
+```powershell
+.\scripts\verify.ps1
+```
+
+**注意**：C 于 2026-11-13 完成的 Windows 原生验收覆盖的是基线 `885792b` / SDK `0.0.6`，**不包含**上表六个提交。上表任一提交进入 main 之前，都需在含这些提交的分支上重跑 `.\scripts\verify.ps1` 并回填本节。
+
 ## 三、人工目视检查（截图无法覆盖的判断）
 
 Linux 复现环境只验证 option 结构与浏览器自检，不生成人工截图。请在 Windows 上打开下列页面各看一眼：

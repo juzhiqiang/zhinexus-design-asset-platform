@@ -12,7 +12,12 @@ import {
   createExampleRuntime,
   createExampleTestHook,
   installPageErrorCollector,
+  resolvePresentation,
 } from './example/runtime.js';
+
+// 展示配置可由 URL 查询参数覆盖（?theme=dark&renderer=svg），缺省 light + canvas；
+// light/dark × Canvas/SVG 矩阵测试与人工核对都靠它，不各自硬编码。
+const presentation = resolvePresentation();
 
 const states = Object.keys(barFixture.states);
 const expectedSeriesIds: Record<string, readonly string[]> = {};
@@ -20,7 +25,7 @@ for (const name of states) {
   expectedSeriesIds[name] = barFixture.states[name as keyof typeof barFixture.states].expectedSeriesIds;
 }
 
-const config: BarChartConfig = { chart: 'bar', theme: 'light', renderer: 'canvas', animation: false };
+const config: BarChartConfig = { chart: 'bar', theme: presentation.theme, renderer: presentation.renderer, animation: false };
 
 export function BarApp() {
   const [stateName, setStateName] = useState(states[0] ?? 'default');
@@ -51,7 +56,7 @@ export function BarApp() {
         setStateName(name);
       },
       whenRendered: () => chartRef.current?.whenRendered() ?? Promise.resolve(),
-      renderer: 'canvas',
+      renderer: presentation.renderer,
       hostSelector: '.charts-bar',
     });
     runtimeRef.current = runtime;

@@ -1,5 +1,5 @@
 import { getInstanceByDom } from 'echarts/core.js';
-import type { ChartEvent, Renderer } from '@company/charts-vue';
+import type { ChartEvent, Renderer, ThemeName } from '@company/charts-vue';
 
 /**
  * 示例就绪协议（T03 对齐件定义）：页面通过 window.__COMPONENT_EXAMPLE__ 暴露
@@ -8,6 +8,29 @@ import type { ChartEvent, Renderer } from '@company/charts-vue';
  * 不使用固定 sleep。
  */
 export type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
+
+/** 示例页的展示配置：主题与渲染器。缺省 light + canvas，与 T09 各批基线一致。 */
+export type Presentation = { theme: ThemeName; renderer: Renderer };
+
+const DEFAULT_PRESENTATION: Presentation = { theme: 'light', renderer: 'canvas' };
+
+/**
+ * 从 URL 查询参数解析展示配置：`?theme=dark&renderer=svg`。
+ *
+ * 存在的理由：7 个组件的示例页此前把 `theme:'light', renderer:'canvas'` 硬编码在配置里，
+ * light/dark × Canvas/SVG 四组合没有任何一条测试或人工核对入口。加了查询参数覆盖后，
+ * 矩阵测试可以用同一批示例页覆盖 14 个实现，人工核对也可以直接改地址栏。
+ * 未识别的值一律回退缺省，不把错误输入带进图表实例。
+ */
+export function resolvePresentation(search: string = window.location.search): Presentation {
+  const params = new URLSearchParams(search);
+  const theme = params.get('theme');
+  const renderer = params.get('renderer');
+  return {
+    theme: theme === 'dark' ? 'dark' : DEFAULT_PRESENTATION.theme,
+    renderer: renderer === 'svg' ? 'svg' : DEFAULT_PRESENTATION.renderer,
+  };
+}
 
 export type ComponentExample = {
   readonly ready: Promise<void>;
@@ -40,6 +63,17 @@ export type ExampleTestHook = {
    * 用它在浏览器层断言「1,2,2,4」竞赛排名，而不是只断言数据顺序。
    */
   categoryLabels(): string[];
+  /**
+   * 实例上真实生效的展示配置：渲染器由 DOM 中的 canvas / svg 数量判定，
+   * 主题由 option 的调色板首色与全局文本颜色反映。示例页通过 URL 查询参数
+   * 覆盖主题与渲染器，测试用它核对「声明了什么」与「实际生效什么」一致。
+   */
+  appliedPresentation(): {
+    canvases: number;
+    svgs: number;
+    paletteFirst: string;
+    textColor: string;
+  } | null;
 };
 
 export type ExampleRuntimeOptions = {
@@ -194,6 +228,33 @@ function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
+/**
+ * 实例上真实生效的展示配置。ECharts 不挂到 window 上，只能经由测试钩子从页面内读数；
+ * 渲染器看 DOM，主题看 option 的调色板与文本颜色——两者都由 core 的主题令牌写入，
+ * 因此可以把「示例页声明 light/dark」与「实例里真正生效的颜色」对上。
+ */
+function appliedPresentation(selector: string): {
+  canvases: number;
+  svgs: number;
+  paletteFirst: string;
+  textColor: string;
+} | null {
+  const host = chartHost(selector);
+  const instance = chartInstance(selector);
+  if (!host || !instance) {
+    return null;
+  }
+  const option = instance.getOption() as { color?: unknown; textStyle?: { color?: unknown } };
+  const palette = Array.isArray(option.color) ? option.color : [];
+  const textColor = option.textStyle?.color;
+  return {
+    canvases: host.querySelectorAll('canvas').length,
+    svgs: host.querySelectorAll('svg').length,
+    paletteFirst: typeof palette[0] === 'string' ? palette[0] : '',
+    textColor: typeof textColor === 'string' ? textColor : '',
+  };
+}
+
 export function createExampleRuntime(options: ExampleRuntimeOptions): { example: ComponentExample } {
   const hostSelector = options.hostSelector ?? DEFAULT_HOST_SELECTOR;
   let currentState = options.states[0] ?? 'default';
@@ -329,6 +390,7 @@ export function createExampleTestHook(options: ExampleTestHookOptions): ExampleT
     seriesRadius: (seriesIndex: number) => seriesRadius(hostSelector, seriesIndex),
     summarySlots: () => summarySlots(hostSelector),
     categoryLabels: () => categoryLabels(hostSelector),
+    appliedPresentation: () => appliedPresentation(hostSelector),
     sectorRadii: (seriesIndex: number, dataIndex: number) => {
       const instance = chartInstance(hostSelector);
       if (!instance) {

@@ -2,6 +2,49 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.10] - 2026-11-13
+
+### Fixed
+
+- `recommend` 与 `hasDualFrameworkCoverage` 改为**以 `supported` 为唯一事实来源**。此前二者读取报告里的 `baselineEchartsVersion` / `peerSatisfied`，而这两个字段与 `candidate.version` 同在报告内、可以被一起伪造：一份候选 `6.0.0`、`supported` 基线 `6.1.0` 的真实报告，只要把 `peerSatisfied` 与 `baselineEchartsVersion` 改成 `true` / `6.0.0`，`recommend` 就返回 `'adopt'`。现在 `recommend` 直接用 `supported` 的唯一基线推导 peer 符合性，报告只能被核对、不能作为判据，**不能改写已支持范围**。
+- `hasDualFrameworkCoverage` 强制**双框架齐验**：`supported` 必须同时覆盖 Vue 与 React。此前只要求「`supported` 里每个组合都有实测」，当 `supported` 本身只有一个框架时该条件被轻易满足，共享核心变化未被双框架验证也会 `'adopt'`。
+
+## [0.0.9] - 2026-11-13
+
+### Fixed
+
+- `hasDualFrameworkCoverage` 现在逐行校验**实际验证的 ECharts 版本**：每一行 `results[].echartsVersion` 必须等于 `report.candidate.version`。此前只用 `baselineEchartsVersion` 造键，于是一份全 `passed` 的报告只要把某一行（例如 `results[0]`）的 `echartsVersion` 改成 `6.0.0`，`hasDualFrameworkCoverage` 仍返回 `true`、`recommend` 仍返回 `'adopt'`。该场景已由独立复审用 tsx 复现。
+- `recommend` 不再盲信报告自称的 `peerSatisfied`：除判据本身外，还要求 `peerSatisfied` 与「`candidate.version` 是否真的等于 `report.baselineEchartsVersion`」自洽。伪造 `peerSatisfied: true` 而候选与基线并不相等的报告，现在返回 `'hold'`。
+- `hasDualFrameworkCoverage` 增加 `supported` 自身基线唯一性兜底：`verifyCandidate` 本就拒绝混合基线，这里对绕过它手工构造的报告再兜一层，混基线一律 `false`。
+
+### Changed
+
+- `CombinationResult.baselineEchartsVersion` 由必填改为**可选**。`0.0.8` 把它设为必填，那对手工构造 `CombinationResult` 的调用方是破坏性变更，却按 PATCH 发版，不符合 `AGENTS.md`「破坏性变更递增 MINOR」。改为可选后旧公开类型形状依然可构造；**缺失即 fail-closed**——`hasDualFrameworkCoverage` 返回 `false`、`recommend` 返回 `'hold'`，不会因为少一个字段就放行，也不会重新开放「报告与实测脱节」的误判。
+
+## [0.0.8] - 2026-11-13
+
+### Fixed
+
+- `verifyCandidate` 现在把**候选版本**交给探针，而不是原样传基线组合。此前候选为 6.0.0、基线为 6.1.0 时，探针收到的是 6.1.0，`results[].echartsVersion` 也记 6.1.0，报告却自称验证 6.0.0——报告与实测脱节。修复后 `results[].echartsVersion` 是实际验证的候选版本，并新增 `results[].baselineEchartsVersion` 记录该组合的基线版本供对照；`report.baselineEchartsVersion` 语义不变。
+- `hasDualFrameworkCoverage` 改为按**精确组合**（框架 × 框架版本 × ECharts 基线版本）一一对应判定，不再只按框架分组。此前 `supported` 含 Vue 3.5.45、Vue 3.4.0、React 19.3.1 而实测只覆盖其中两项时仍返回 `true`，`recommend` 随之返回 `'adopt'`。现在缺、额外、重复（任一侧）、框架版本写错、ECharts 基线版本对不上，任一种情况都判为不完整，`recommend` 返回 `'hold'`。
+- `verifyCandidate` 显式拒绝混合 ECharts 基线。此前 `baselineEchartsVersion` 取 `supported[0]`，`supported` 为「Vue/6.1.0 + React/6.0.0」时 `peerSatisfied` 为 `true`、`recommend` 为 `'adopt'`，把数组顺序交换则变成 `'hold'`——同一份输入结论随顺序翻转。现在所有已支持组合的 ECharts 基线必须一致，否则抛错且不出报告。
+
+### Changed
+
+- `CombinationResult` 由 `SupportedCombination & CombinationDimensions` 改为显式类型并新增必填字段 `baselineEchartsVersion`。该类型由本包产出、不由调用方构造；`charts-core` 处于 `0.x`，按兼容变更递增 PATCH。
+
+## [0.0.7] - 2026-11-13
+
+### Added
+
+- ECharts 升级候选的精确兼容策略（T10，A 侧 SDK 交付）：`engine/compatibility.ts` 新增 `resolveCandidate` / `candidateSatisfiesPeer` / `verifyCandidate` / `recommend` / `hasDualFrameworkCoverage` / `compareVersions` / `isExactVersion` / `isPrerelease` / `notRunDimensions` 与 `CandidateError`，以及 `RegistrySnapshot` / `EChartsCandidate` / `SupportedCombination` / `CombinationDimensions` / `CombinationProbe` / `CompatibilityReport` / `Recommendation` / `CompatibilityFramework` 等类型。
+- 策略约束：`resolveCandidate` 对非精确版本字面量、预发布版本、官方源不存在的版本、缺 `dist.integrity` 四种情况显式拒绝，`latest` 命中预发布时不回退到上一个稳定版；`verifyCandidate` 生成的报告恒带 `supportedRangeUnchanged: true` 且不含任何「建议的新支持范围」字段，扩大支持范围只能是人的显式动作。
+- `recommend` 仅在「候选满足当前 peer 精确版本 + 双框架均有实测 + 类型/运行/交互/视觉四维全部通过 + 无差异」时返回 `'adopt'`，其余一律 `'hold'`；共享核心变化缺少任何一个已支持框架的实测结果即 `'hold'`。
+
+### Changed
+
+- 兼容框架标识在 `charts-core` 内本地定义为 `CompatibilityFramework`（`'vue' | 'react'`），与 `@company/contracts` 的 `Framework` 同构；`charts-core` 是公开包，按架构约束不得依赖私有 `@company/contracts`，两边取值集合必须保持一致。
+
 ## [0.0.6] - 2026-11-13
 
 ### Added
