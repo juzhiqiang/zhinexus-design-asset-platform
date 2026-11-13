@@ -184,9 +184,17 @@ describe('verifyCandidate 报告', () => {
 
     expect(report.peerSatisfied).toBe(false);
     expect(recommend(report, SUPPORTED)).toBe('hold');
-    // 报告本身不得给出任何「已扩大支持范围」的结论
+    // 报告本身不得给出任何「已扩大支持范围」的结论：字段集合固定，
+    // 且不存在 suggestedPeerRange 之类能推出新支持范围的键
     expect(report.supportedRangeUnchanged).toBe(true);
-    expect(report.suggestedPeerRange).toBeUndefined();
+    expect(Object.keys(report).sort()).toEqual([
+      'baselineEchartsVersion',
+      'candidate',
+      'peerSatisfied',
+      'requiresVisualBaselineConfirmation',
+      'results',
+      'supportedRangeUnchanged',
+    ]);
   });
 
   it('共享核心变化必须同时验证双框架：缺任一框架即标记未完整覆盖', async () => {

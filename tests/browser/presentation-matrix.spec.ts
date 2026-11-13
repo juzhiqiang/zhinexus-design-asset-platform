@@ -47,14 +47,18 @@ const THEME_TOKENS = {
 
 type CheckResult = { name: string; status: 'passed' | 'failed'; message?: string };
 
-type ExampleTestHook = {
-  /** 实例上真实生效的展示配置：渲染器看 DOM，主题看 option 的调色板与文本颜色。 */
-  appliedPresentation(): {
-    canvases: number;
-    svgs: number;
-    paletteFirst: string;
-    textColor: string;
-  } | null;
+/**
+ * 测试钩子上与本规格相关的方法。
+ *
+ * 不在这里 `declare global` 声明 `__COMPONENT_EXAMPLE_TEST__`：同一 TS 程序里
+ * `component-matrix.spec.ts` 已声明该全局属性，重复声明会因类型不一致报 TS2717。
+ * 这里只用结构类型描述要用到的方法，读取时经显式转换，避开全局声明。
+ */
+type AppliedPresentation = {
+  canvases: number;
+  svgs: number;
+  paletteFirst: string;
+  textColor: string;
 };
 
 declare global {
@@ -65,7 +69,6 @@ declare global {
       runState(name: string): Promise<void>;
       getChecks(): CheckResult[];
     };
-    __COMPONENT_EXAMPLE_TEST__?: ExampleTestHook;
   }
 }
 
@@ -86,13 +89,15 @@ function chartHostSelector(component: ComponentName): string {
 }
 
 /** 读回实例上真实生效的展示配置（渲染器由 DOM 判定，主题由 option 颜色反映）。 */
-async function appliedPresentation(page: Page): Promise<{
-  canvases: number;
-  svgs: number;
-  paletteFirst: string;
-  textColor: string;
-} | null> {
-  return page.evaluate(() => window.__COMPONENT_EXAMPLE_TEST__?.appliedPresentation() ?? null);
+async function appliedPresentation(page: Page): Promise<AppliedPresentation | null> {
+  return page.evaluate(() => {
+    const hook = (
+      window as unknown as {
+        __COMPONENT_EXAMPLE_TEST__?: { appliedPresentation(): AppliedPresentation | null };
+      }
+    ).__COMPONENT_EXAMPLE_TEST__;
+    return hook?.appliedPresentation() ?? null;
+  });
 }
 
 async function openExample(
