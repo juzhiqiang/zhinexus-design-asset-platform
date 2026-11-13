@@ -139,9 +139,11 @@ React 消费者：同上，另需确认 `@types/react` / `@types/react-dom` 与 
 
 基线 `885792b` / SDK `0.0.6` 的 Windows 原生验收已由 C 于 2026-11-13 实际完成：build 10 tasks、typecheck 14 + 根 `tsc`、unit/contracts 322、packed-consumer + cli-bundle 12、完整浏览器 122 均通过；`current-sdk` 从旧 10 实现 RED 后改为 14 实现，隔离三存储发布 READY、逐预览/截图摘要、Vue/React 各 7 子路径的精确 Registry 安装全部通过。
 
-**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例与 `sdk-compatibility` 33 例。Linux 复现环境本轮全量实测：`pnpm exec playwright test --config tests/playwright.config.ts` → **185 passed**，即基线 122 + 新增 63（`presentation-matrix` 56 + `core-lifecycle` 由 4 增至 11 的 7 例）。基线 122 与 C 在 Windows 上测得的 122 一致，可作为本轮新增用例的对照基准。
+**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例、`sdk-compatibility` 51 例与 `charts-vue-declarations` 6 例。Linux 复现环境本轮全量实测：`pnpm exec playwright test --config tests/playwright.config.ts` → **185 passed**，即基线 122 + 新增 63（`presentation-matrix` 56 + `core-lifecycle` 由 4 增至 11 的 7 例）。基线 122 与 C 在 Windows 上测得的 122 一致，可作为本轮新增用例的对照基准。
 
-C 另于 2026-11-13 在固定 `f35ebc9` 上完成 `0.0.7` 的 Windows 原生复验（强制构建/类型 20 项、策略 20 项、外部消费者/CLI 材料 13 项、展示/核心浏览器 67 项、十四实现隔离发布与双框架精确 Registry 消费）。**该复验固定的是 `0.0.7`，且 C 明确记录「当前兼容策略保持未验收」**：三个 Important 策略误判是在该固定提交上复现的，修复先后落在 `0.0.8`、`0.0.9` 与 `0.0.10`，因此 `0.0.10` 需要重新做一遍原生复验，不能继承 `0.0.7` 的结论。
+**`0.0.10` 的原生验收已完成**：C 于 2026-11-13 在固定 `190b60b` 上实跑 offline 安装 344 包 0 下载、force build/typecheck 20/20 零缓存、unit+contracts 379 通过、TS6/7 × Bundler/NodeNext 四组严格消费者 0 错误、17 个公开入口与旧 `CombinationResult` 形状通过、公开策略六反例全过，并以同一冻结三包完成真实三存储 READY、14 个 HTTPS 预览 × 5 项检查、Vue/React 各 7 个精确 Registry 导出。Windows 冻结 SHA 与 Linux 不同属正常的独立本地构建；C 未修改 A 的源码、未重新打包本批。**这不覆盖**：T10 视觉矩阵（`echarts@6.0.0` 视觉维度仍为 `not-run`）与两个真实业务试点。
+
+C 另于 2026-11-13 在固定 `f35ebc9` 上完成 `0.0.7` 的 Windows 原生复验（强制构建/类型 20 项、策略 20 项、外部消费者/CLI 材料 13 项、展示/核心浏览器 67 项、十四实现隔离发布与双框架精确 Registry 消费）。**该复验固定的是 `0.0.7`，且 C 明确记录「当前兼容策略保持未验收」**：三个 Important 策略误判是在该固定提交上复现的，修复先后落在 `0.0.8`、`0.0.9` 与 `0.0.10`，因此 `0.0.7` 的结论不能沿用到 `0.0.10`；`0.0.10` 需按上文独立验收。
 
 ### 6.3 产物侧
 
