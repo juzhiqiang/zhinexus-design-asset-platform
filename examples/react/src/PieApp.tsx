@@ -12,7 +12,12 @@ import {
   createExampleRuntime,
   createExampleTestHook,
   installPageErrorCollector,
+  resolvePresentation,
 } from './example/runtime.js';
+
+// 展示配置可由 URL 查询参数覆盖（?theme=dark&renderer=svg），缺省 light + canvas；
+// light/dark × Canvas/SVG 矩阵测试与人工核对都靠它，不各自硬编码。
+const presentation = resolvePresentation();
 
 const states = Object.keys(pieFixture.states);
 const expectedSeriesIds: Record<string, readonly string[]> = {};
@@ -26,8 +31,8 @@ function configOf(name: string): PieChartConfig {
   return {
     chart: 'pie',
     donut,
-    theme: 'light',
-    renderer: 'canvas',
+    theme: presentation.theme,
+    renderer: presentation.renderer,
     animation: false,
   };
 }
@@ -62,7 +67,7 @@ export function PieApp() {
         setStateName(name);
       },
       whenRendered: () => chartRef.current?.whenRendered() ?? Promise.resolve(),
-      renderer: 'canvas',
+      renderer: presentation.renderer,
       hostSelector: '.charts-pie',
     });
     runtimeRef.current = runtime;

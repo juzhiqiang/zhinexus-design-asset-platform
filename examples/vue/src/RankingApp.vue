@@ -12,7 +12,12 @@ import {
   createExampleRuntime,
   createExampleTestHook,
   installPageErrorCollector,
+  resolvePresentation,
 } from './example/runtime.js';
+
+// 展示配置可由 URL 查询参数覆盖（?theme=dark&renderer=svg），缺省 light + canvas；
+// light/dark × Canvas/SVG 矩阵测试与人工核对都靠它，不各自硬编码。
+const presentation = resolvePresentation();
 
 const states = Object.keys(rankingFixture.states);
 const expectedSeriesIds: Record<string, readonly string[]> = {};
@@ -27,8 +32,8 @@ const data = computed<ChartData>(
 // 排行榜：横向条形 + 名次标签；排序方向与取前 N 名固定，状态只改数据
 const config: RankingChartConfig = {
   chart: 'ranking',
-  theme: 'light',
-  renderer: 'canvas',
+  theme: presentation.theme,
+  renderer: presentation.renderer,
   animation: false,
   title: '热门组件 Top 5',
   direction: 'desc',
@@ -52,7 +57,7 @@ const { example } = createExampleRuntime({
     stateName.value = name;
   },
   whenRendered: () => chartRef.value?.whenRendered() ?? Promise.resolve(),
-  renderer: 'canvas',
+  renderer: presentation.renderer,
   hostSelector: '.charts-ranking',
 });
 

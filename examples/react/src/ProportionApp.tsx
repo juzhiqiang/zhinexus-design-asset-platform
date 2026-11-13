@@ -12,7 +12,12 @@ import {
   createExampleRuntime,
   createExampleTestHook,
   installPageErrorCollector,
+  resolvePresentation,
 } from './example/runtime.js';
+
+// 展示配置可由 URL 查询参数覆盖（?theme=dark&renderer=svg），缺省 light + canvas；
+// light/dark × Canvas/SVG 矩阵测试与人工核对都靠它，不各自硬编码。
+const presentation = resolvePresentation();
 
 const states = Object.keys(proportionFixture.states);
 const expectedSeriesIds: Record<string, readonly string[]> = {};
@@ -23,8 +28,8 @@ for (const name of states) {
 // 占比：横向条形 + 条末「值（百分比）」标签；条目顺序保持输入顺序，状态只改数据
 const config: ProportionChartConfig = {
   chart: 'proportion',
-  theme: 'light',
-  renderer: 'canvas',
+  theme: presentation.theme,
+  renderer: presentation.renderer,
   animation: false,
   title: '流量来源占比',
   unit: { suffix: '次' },
@@ -59,7 +64,7 @@ export function ProportionApp() {
         setStateName(name);
       },
       whenRendered: () => chartRef.current?.whenRendered() ?? Promise.resolve(),
-      renderer: 'canvas',
+      renderer: presentation.renderer,
       hostSelector: '.charts-proportion',
     });
     runtimeRef.current = runtime;

@@ -12,7 +12,12 @@ import {
   createExampleRuntime,
   createExampleTestHook,
   installPageErrorCollector,
+  resolvePresentation,
 } from './example/runtime.js';
+
+// 展示配置可由 URL 查询参数覆盖（?theme=dark&renderer=svg），缺省 light + canvas；
+// light/dark × Canvas/SVG 矩阵测试与人工核对都靠它，不各自硬编码。
+const presentation = resolvePresentation();
 
 const states = Object.keys(scatterFixture.states);
 const expectedSeriesIds: Record<string, readonly string[]> = {};
@@ -25,7 +30,7 @@ const data = computed<ChartData>(
   () => scatterFixture.states[stateName.value as keyof typeof scatterFixture.states].data as ChartData,
 );
 // 散点图：x / y 双数值轴；unit 缺省时不带单位，x 轴同样按无单位格式化
-const config: ScatterChartConfig = { chart: 'scatter', theme: 'light', renderer: 'canvas', animation: false };
+const config: ScatterChartConfig = { chart: 'scatter', theme: presentation.theme, renderer: presentation.renderer, animation: false };
 
 const clicks = ref<ChartEvent[]>([]);
 const chartRef = ref<{ whenRendered: () => Promise<void> } | null>(null);
@@ -43,7 +48,7 @@ const { example } = createExampleRuntime({
     stateName.value = name;
   },
   whenRendered: () => chartRef.value?.whenRendered() ?? Promise.resolve(),
-  renderer: 'canvas',
+  renderer: presentation.renderer,
   hostSelector: '.charts-scatter',
 });
 
