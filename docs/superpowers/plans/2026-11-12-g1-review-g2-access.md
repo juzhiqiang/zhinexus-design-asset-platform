@@ -100,7 +100,9 @@ A/B 无实际回执、关键字段或示例语义未对齐、必需反例错误�
   本轮提交 383d165（T09 展示矩阵证据）、6ba03e7（T10 兼容策略）
   收尾追加 96b9cd4（文档：证据核对/兼容验证/回退/G1 回执）、
     afa92ad（test：SDK 兼容策略测试更名 sdk-compatibility.test.ts + 两处类型声明修正）、
-    bf0bfa1（chore：版本号升至 0.0.7）、f35ebc9（docs：版本边界与测试归属说明）
+    bf0bfa1（chore：版本号升至 0.0.7）、f35ebc9（docs：版本边界与测试归属说明）、
+    1920b24（docs：0.0.7 回归实测与 packed-consumer 超时说明）、
+    a9fba5e（docs：test:browser 全量计数修正为 185）
 已检查材料与用例：
   - packages/contracts/src/examples.ts：ComponentExample / CheckResult / ExampleRef / ScreenshotRef
   - examples/{vue,react}/src/example/runtime.ts 两份就绪协议实现

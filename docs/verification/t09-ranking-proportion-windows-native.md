@@ -85,7 +85,7 @@ T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆�
 
 #### 待原生复验的提交（截至 2026-11-13 收尾）
 
-分支 `feat/t10-sdk-compatibility` 上相对基线 main `885792b` 的六个提交，**均未做 Windows 原生验收**：
+分支 `feat/t10-sdk-compatibility` 上相对基线 main `885792b` 的八个提交，**均未做 Windows 原生验收**：
 
 | 提交 | 内容 |
 | --- | --- |
@@ -95,6 +95,8 @@ T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆�
 | `afa92ad` | 测试：`upgrade-policy.test.ts` → `sdk-compatibility.test.ts` 更名，两处类型声明修正 |
 | `bf0bfa1` | 三个图表包版本号 `0.0.6` → `0.0.7`（含 CHANGELOG） |
 | `f35ebc9` | 文档：版本边界（0.0.7 工作树 / 0.0.6 末次原生验收）与测试归属说明 |
+| `1920b24` | 文档：0.0.7 回归实测命令与计数、`packed-consumer` 60s 硬编码超时说明 |
+| `a9fba5e` | 文档：`test:browser` 全量计数修正为 185 passed |
 
 全图入口（推荐先跑这一条，再用上面的窄命令定位）：
 
