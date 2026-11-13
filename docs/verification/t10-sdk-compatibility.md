@@ -145,6 +145,7 @@ echarts@6.1.0：
 | `pnpm exec playwright test --config tests/playwright.config.ts component-matrix` | **96 passed** |
 | `pnpm exec playwright test --config tests/playwright.config.ts framework-lifecycle bootstrap contracts-runtime capture-ready` | **11 passed** |
 | `pnpm exec playwright test --config tests/playwright.config.ts gallery-rendering manual-release` | **11 passed** |
+| `pnpm exec playwright test --config tests/playwright.config.ts`（全量） | **185 passed**（基线 122 + 新增 63） |
 | `pnpm build` | **10 successful, 10 total** |
 | `pnpm verify:workspace` | `Workspace verified: 10 members, no cycles, four publishable shells, safe service graph.` |
 | `pnpm exec tsc -p tsconfig.json --noEmit` | 退出码 0，无错误 |

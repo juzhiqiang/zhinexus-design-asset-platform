@@ -125,7 +125,7 @@ React 消费者：同上，另需确认 `@types/react` / `@types/react-dom` 与 
 
 基线 `885792b` / SDK `0.0.6` 的 Windows 原生验收已由 C 于 2026-11-13 实际完成：build 10 tasks、typecheck 14 + 根 `tsc`、unit/contracts 322、packed-consumer + cli-bundle 12、完整浏览器 122 均通过；`current-sdk` 从旧 10 实现 RED 后改为 14 实现，隔离三存储发布 READY、逐预览/截图摘要、Vue/React 各 7 子路径的精确 Registry 安装全部通过。
 
-**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例与 `sdk-compatibility` 20 例。Linux 复现环境的本轮实测值：`test:browser` 173 passed（Linux 基线 117 + 新增 56）。Windows 基线计数 122 与 Linux 基线 117 的差异来自 main 侧此前的增量，不影响本轮新增用例的判断。
+**该验收不包含本轮新增测试**。含本轮提交的分支在 Windows 上需重跑 `.\scripts\verify.ps1`，重点核对 `presentation-matrix` 56 例、`core-lifecycle` 11 例与 `sdk-compatibility` 20 例。Linux 复现环境本轮全量实测：`pnpm exec playwright test --config tests/playwright.config.ts` → **185 passed**，即基线 122 + 新增 63（`presentation-matrix` 56 + `core-lifecycle` 由 4 增至 11 的 7 例）。基线 122 与 C 在 Windows 上测得的 122 一致，可作为本轮新增用例的对照基准。
 
 ### 6.3 产物侧
 

@@ -81,7 +81,7 @@ T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆�
 
 人工核对新增入口：示例页现在接受 `?theme=dark&renderer=svg` 查询参数，可直接在地址栏切换，例如 `http://127.0.0.1:5174/ranking.html?theme=dark&renderer=svg` 与 `http://127.0.0.1:5175/ranking.html?theme=dark&renderer=svg`。未识别的值回退 `light` + `canvas`。
 
-预期用例数（Linux 复现环境实测值，Windows 应完全一致）：`test:browser` 合计 **173 passed**（main 基线 117 + 本轮新增 56）；`sdk-compatibility` 20 passed。
+预期用例数（Linux 复现环境全量实测值，Windows 应完全一致）：`pnpm exec playwright test --config tests/playwright.config.ts` 合计 **185 passed**（基线 122 + 本轮新增 63，其中 `presentation-matrix` 56 例、`core-lifecycle` 由 4 增至 11 的 7 例）；`sdk-compatibility` 20 passed。基线 122 与 C 在 Windows 于 `885792b` 测得的 122 相同，可直接对照。
 
 #### 待原生复验的提交（截至 2026-11-13 收尾）
 
