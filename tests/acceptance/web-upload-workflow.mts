@@ -70,11 +70,12 @@ for (const kind of ['corrupt-pending', 'expired-before-pending'] as const) {
     let creates = 0;
     let releases = 0;
     let uploads = 0;
+    let completes = 0;
     const releaseSessions: string[] = [];
     const api = {
       createUploadSession: async (_url: string, _token: string, mf: typeof manifest) => ({ uploadSessionId: `edge-session-${++creates}`, files: mf.files.map((file: any) => ({ path: file.path, uploadUrl: 'https://storage.invalid/test', expiresAt: new Date(Date.now() + 900000).toISOString() })) }),
       uploadFileBytes: async () => { if (++uploads === 1 && kind === 'expired-before-pending') throw new Error('UPLOAD_FAILED'); },
-      completeUploadSession: async () => {},
+      completeUploadSession: async () => { completes++; },
       submitReleaseJob: async (_url: string, _token: string, session: string) => { releases++; releaseSessions.push(session); if (releases === 1 && kind === 'corrupt-pending') throw new Error('LOST_202'); return { jobId: 'edge-job', state: 'PENDING' }; },
     };
     const options = { apiUrl: 'https://edge-api.invalid', subject: 'edge-user', token: 'mock-token', manifest, filesMap, storage, api };
@@ -87,12 +88,16 @@ for (const kind of ['corrupt-pending', 'expired-before-pending'] as const) {
       const savedPending = storage.getItem('zhinexus_pending_release');
       const savedSession = storage.getItem('zhinexus_active_session_id');
       const savedPlan = storage.getItem('zhinexus_active_session_plan');
+      const savedUploads = uploads;
+      const savedCompletes = completes;
       await assert.rejects(executeWebUploadWorkflow(options), undefined, 'invalid pending for same session must stop rather than generate a new key');
       assert.equal(releases, 1, 'must not POST another release');
       assert.equal(creates, 1, 'must not replace an uncertain session');
       assert.equal(storage.getItem('zhinexus_pending_release'), savedPending, 'must preserve the original pending key, session and request');
       assert.equal(storage.getItem('zhinexus_active_session_id'), savedSession);
       assert.equal(storage.getItem('zhinexus_active_session_plan'), savedPlan);
+      assert.equal(uploads, savedUploads, 'corrupt pending must be rejected before any upload side effect');
+      assert.equal(completes, savedCompletes, 'corrupt pending must be rejected before complete');
     } else {
       assert.equal(storage.getItem('zhinexus_pending_release'), null);
       const plan = JSON.parse(storage.getItem('zhinexus_active_session_plan')!);
@@ -108,6 +113,44 @@ for (const kind of ['corrupt-pending', 'expired-before-pending'] as const) {
     results.push({ name: kind, passed: false, detail: error instanceof Error ? error.message : String(error) });
   }
 }
+
+await check('valid pending bypasses expired upload plan on normal retry', async () => {
+  const { manifest, filesMap } = createSevenComponentsManifest();
+  const values = new Map<string, string>();
+  const storage = { getItem: (k: string) => values.get(k) ?? null, setItem: (k: string, v: string) => values.set(k, v), removeItem: (k: string) => values.delete(k) };
+  let creates = 0;
+  let uploads = 0;
+  let completes = 0;
+  let releases = 0;
+  let expired = false;
+  const submissions: Array<{ session: string; key: string; body: string }> = [];
+  const api = {
+    createUploadSession: async (_url: string, _token: string, mf: typeof manifest) => ({ uploadSessionId: `replay-session-${++creates}`, files: mf.files.map((file: any) => ({ path: file.path, uploadUrl: 'https://storage.invalid/test', expiresAt: new Date(Date.now() + 900000).toISOString() })) }),
+    uploadFileBytes: async () => { uploads++; if (expired) throw new Error('EXPIRED_PRESIGNED_URL'); },
+    completeUploadSession: async () => { completes++; },
+    submitReleaseJob: async (_url: string, _token: string, session: string, mf: typeof manifest, key: string) => {
+      submissions.push({ session, key, body: JSON.stringify(mf) });
+      if (++releases === 1) throw new Error('LOST_ACCEPTED_RESPONSE');
+      return { jobId: 'replayed-original-job', state: 'PENDING' };
+    },
+  };
+  const options = { apiUrl: 'https://replay-api.invalid', subject: 'replay-user', token: 'mock-token', manifest, filesMap, storage, api };
+  await assert.rejects(executeWebUploadWorkflow(options), /LOST_ACCEPTED_RESPONSE/);
+  const firstUploads = uploads;
+  assert.equal(completes, 1);
+  const plan = JSON.parse(storage.getItem('zhinexus_active_session_plan')!);
+  plan.files.forEach((file: any) => { file.expiresAt = new Date(Date.now() - 60000).toISOString(); });
+  storage.setItem('zhinexus_active_session_plan', JSON.stringify(plan));
+  expired = true;
+  const result = await executeWebUploadWorkflow(options);
+  assert.equal(result.jobId, 'replayed-original-job');
+  assert.equal(creates, 1);
+  assert.equal(uploads, firstUploads, 'pending follows completed upload and must not PUT again');
+  assert.equal(completes, 1, 'pending must not complete again');
+  assert.equal(releases, 2);
+  assert.deepEqual(submissions[1], submissions[0], 'replay the exact original session, key and manifest');
+  for (const key of ['zhinexus_active_session_id', 'zhinexus_active_session_plan', 'zhinexus_pending_release', 'zhinexus_upload_draft']) assert.equal(storage.getItem(key), null);
+});
 
 console.log(JSON.stringify({ kind: 'local workflow diagnostics with mock network; not browser or storage evidence', target, results }, null, 2));
 if (results.some(r => !r.passed)) process.exitCode = 1;
