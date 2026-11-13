@@ -86,3 +86,57 @@ A/B 无实际回执、关键字段或示例语义未对齐、必需反例错误�
 ```
 
 截至本清单建立，五项均为“待联系人确认/待验证”，没有已确认接入日期或实测结果。2026-11-13 仍无联系人或必要参数、任一计划交付延迟、验证失败时，C 当天暴露阻塞并更新影响任务（T05/T06/T07/T12）；不能把适配器、stub 或健康检查等价为 G2 验收。设施就绪后再添加执行真实操作的 `test:infra`，缺命令期间不填假通过。11-18 只对有完整实测记录的项目发起验收，其余保留未完成。
+
+## 4. A 侧回执（2026-11-13，SDK 代理会话提交，待 A 的实际评审人签字）
+
+本节由 A 侧代理会话按上文模板填写，记录**实际完成的核对与证据**。按 G1 阻断条件，结论栏仅由实际评审人（人类）填写，因此本节不标记「通过」；A 的业务回执以人类签字为有效。
+
+```text
+角色：A（SDK）
+实际评审人：待 A 侧人类评审人填写（本节为 A 侧代理会话提交的核对记录）
+联系渠道或评审记录链接：待填写
+评审日期时间（Asia/Shanghai）：2026-11-13
+评审分支与提交：feat/t10-sdk-compatibility，基线 main 885792b；
+  本轮提交 383d165（T09 展示矩阵证据）、6ba03e7（T10 兼容策略）
+已检查材料与用例：
+  - packages/contracts/src/examples.ts：ComponentExample / CheckResult / ExampleRef / ScreenshotRef
+  - examples/{vue,react}/src/example/runtime.ts 两份就绪协议实现
+  - 14 个组件示例页（7 Vue SFC + 7 React TSX）的协议挂载点
+  - tests/contracts/example-capabilities.test.ts
+  - tests/browser/capture-ready.spec.ts（CLI 侧 captureExample 驱动）
+实际运行命令及结果/证据路径：
+  - pnpm exec playwright test --config tests/playwright.config.ts capture-ready
+    → 3 passed（ready→runState→getChecks 全流程、page_error 阻断、ready_timeout 抛错）
+  - pnpm exec playwright test --config tests/playwright.config.ts component-matrix
+    → 96 passed（含每组件的 click_payload 与双框架交叉比对）
+  - pnpm exec playwright test --config tests/playwright.config.ts framework-lifecycle
+    → 4 passed（同点击载荷、StrictMode、KeepAlive、SSR 导入无 DOM 访问）
+  - pnpm exec playwright test --config tests/playwright.config.ts presentation-matrix
+    → 56 passed（本轮新增，light/dark × canvas/svg × 14 实现）
+  - pnpm exec vitest run tests/contracts/example-capabilities.test.ts → 通过
+  - 证据：docs/verification/t09-sdk-evidence-audit.md、
+          docs/verification/t10-sdk-compatibility.md
+结论：待 A 侧实际评审人填写（代理会话不代替签字）
+```
+
+### 4.1 核对结论（协议层面未发现阻断项）
+
+- **协议形状与契约一致**：`ready: Promise<void>`、`readonly states?: readonly string[]`、`runState(name): Promise<void>`、`getChecks(): CheckResult[]` 四项在 14 个示例页全部齐备，挂载点为 `window.__COMPONENT_EXAMPLE__`，未做 DOM 全局增强，与契约注释一致。
+- **`states` 只作发现，不作执行清单**：runtime 用 `states` 渲染状态按钮与枚举可选状态，真正驱动截图的是调用方传入的 `requiredStates`；`runState` 对未知状态名抛错。与契约中「Optional discovery only; ExampleRef.requiredStates remains the execution checklist」一致。
+- **`getChecks()` 返回四项**：`single-instance`、`no-page-error`、`series-match`、`renderer-match`，`status` 取值只有 `'passed' | 'failed'`，与 `CheckResult` 一致；`message` 携带可定位信息（实例/画布数量、期望与实际系列 id、声明渲染器与实际 DOM）。
+- **就绪判定不用固定 sleep**：`arm()` 等 `document.fonts.ready` + 系列快照变化 + 控制器 `whenRendered()`，超时 10s 抛错。同一状态重复应用时复用当前就绪 Promise，避免等待永不出现的变化。
+- **双框架对等有实证**：两份 runtime 除导入源一行（`@company/charts-vue` / `@company/charts-react`）外逐字节相同；14 个示例页的协议挂载、状态枚举与自检项完全一致。点击载荷在两框架上经 `*_click_payload_matches_in_both_frameworks` 交叉比对通过。
+
+### 4.2 提请 C 关注的契约观察（不阻断，建议收口时裁定）
+
+1. **`ExampleRef.theme` 是自由字符串**，而 `charts-core` 只接受 `'light' | 'dark'`；同结构的 `renderer` 已约束为 `'canvas' | 'svg'`。建议要么把 theme 也约束为联合，要么在契约中写明允许值集合。本轮起示例页的主题可由 URL 查询参数切换，`ExampleRef.theme` 必须记录**实际使用**的主题而不是常量，否则截图与记录的主题会不一致。
+2. **`Renderer` 有两个定义源**：`packages/contracts/src/examples.ts` 与 `packages/charts-core/src/types.ts` 各自声明 `'canvas' | 'svg'`。公开包不能依赖私有 `@company/contracts`，因此无法单向复用；建议在契约或规则中明确「两边取值集合必须一致，变更时同步」，避免漂移。
+3. **`ready` 超时会转成页面错误**：`installPageErrorCollector` 把未处理的 rejection 计入 `no-page-error`，因此就绪超时的表现是自检失败而非挂起。这是合理设计，但建议在契约 README 中写明，便于 B 侧 runner 区分「超时」与「渲染错误」两类失败。
+
+### 4.3 A 侧未覆盖边界
+
+- 真实截图与报告上传链路未执行：需要 B 的 CLI 冻结产物、C 的 API 与真实三存储；`ExampleRef.fixtureDigest` 与 `ScreenshotRef.packageSha256` / `environmentKey` 的端到端关联未实测。
+- 人工目视检查未执行（深色主题对比度、标签裁切、两框架并排比对）。
+- Windows 开发机原生验证未执行；本节全部结果来自 Linux 复现环境。
+- `manual-upload` / `unknown-manual` 的来源边界只在契约与 CLI 单测层核对，未经网页提交路径实测（属 B/C 范围）。
+

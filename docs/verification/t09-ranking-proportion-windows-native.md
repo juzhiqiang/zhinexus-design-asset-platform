@@ -64,6 +64,25 @@
 | 负值 / 多系列 / 同名条目拒绝 | `chart-semantics.test.ts` 的 `ChartDataError` 断言 |
 | 平台不拒收 Bundle | `cli-bundle.test.ts` 的逐导出覆盖回归护栏 |
 
+### 2026-11-13 追加：T09 收口与 T10 新增范围
+
+T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆盖（详见 [T09 SDK 证据核对](t09-sdk-evidence-audit.md) 与 [T10 SDK 兼容验证](t10-sdk-compatibility.md)）：
+
+```powershell
+# light/dark × Canvas/SVG 在 14 个实现上的矩阵（56 例）
+.\scripts\pnpm.ps1 exec playwright test --config tests/playwright.config.ts presentation-matrix
+
+# core 层主题/渲染器重建覆盖全部 7 种图表类型（11 例）
+.\scripts\pnpm.ps1 exec playwright test --config tests/playwright.config.ts core-lifecycle
+
+# ECharts 升级候选的精确兼容策略（20 例）
+.\scripts\pnpm.ps1 exec vitest run tests/unit/upgrade-policy.test.ts
+```
+
+人工核对新增入口：示例页现在接受 `?theme=dark&renderer=svg` 查询参数，可直接在地址栏切换，例如 `http://127.0.0.1:5174/ranking.html?theme=dark&renderer=svg` 与 `http://127.0.0.1:5175/ranking.html?theme=dark&renderer=svg`。未识别的值回退 `light` + `canvas`。
+
+预期用例数（Linux 复现环境实测值，Windows 应完全一致）：`test:browser` 合计 **173 passed**（main 基线 117 + 本轮新增 56）；`upgrade-policy` 20 passed。
+
 ## 三、人工目视检查（截图无法覆盖的判断）
 
 Linux 复现环境只验证 option 结构与浏览器自检，不生成人工截图。请在 Windows 上打开下列页面各看一眼：
