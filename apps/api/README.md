@@ -17,6 +17,11 @@ T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。
 | PLATFORM_OIDC_WEB_CLIENT_IDS / PLATFORM_OIDC_CLI_CLIENT_IDS | 逗号分隔的可信客户端 ID，两个列表不能重叠 |
 | PLATFORM_REGISTRY_ORIGIN / PLATFORM_REGISTRY_TOKEN | worker 专用 Verdaccio origin 与仅服务端持有的发布 token；只对同 origin 发请求，拒绝重定向 |
 | PLATFORM_WORKER_JOB_ID | 可选；诊断时将 worker 限制为一个已存在的作业，通常不设置 |
+| PLATFORM_GALLERY_ORIGIN | 浏览器画廊的精确 Origin（含端口，不带末尾斜杠）；配置后仅向该来源允许 API 跨域读取与预检 |
+
+画廊跨域配置使用 HTTPS；本机开发可显式设置 `http://127.0.0.1:5173`、`http://localhost:<port>` 或 `http://[::1]:<port>`。无配置时不开放跨域。配置了预览部署时默认采用其中的 platformOrigin，显式画廊 Origin 必须与其一致；预览仍要求独立注册域与 HTTPS，不能以本机例外放宽预览隔离。
+
+API 跨域仅允许 GET/POST/OPTIONS、Authorization/Content-Type/Idempotency-Key，并暴露 X-Request-Id；不允许跨域 Cookie 凭证。OPTIONS 不要求 Bearer，实际业务请求仍使用原 OIDC/角色/组件权限校验。MinIO 预签名 PUT 的 CORS 与 ETag 暴露须在存储端独立配置和验证，API 的配置不会替代它。
 
 OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时间与 azp/client_id。角色读取 token 的 roles 数组（reader/publisher/maintainer）；身份服务需配置该 claim 映射。web/cli 来源根据已验证客户端确定。CLI PKCE 与网页登录由客户端实现；当前公司资源未提供，无开发后门。缺 OIDC 时业务请求 401；认证通过但缺存储配置时 503。healthz 仅表示进程存活。
 

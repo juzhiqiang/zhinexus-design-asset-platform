@@ -1,4 +1,3 @@
-import { randomUUID } from 'node:crypto';
 import * as child_process from 'node:child_process';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -6,7 +5,6 @@ import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
   prepareReleaseBundle,
-  loadReleaseBundle,
 } from '../../packages/component-cli/src/local/manifest.js';
 import {
   executeReleaseCommand,
@@ -17,16 +15,25 @@ import {
 import { platformHarness, grant } from '../platform/http-support.js';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { realRegistry, registryToken } from '../platform/t06-support.js';
+import { createRecoveryStack } from '../../infra/scripts/recovery-stack.js';
 
 describe('T04/T06: CLI release, status, resume, and Verdaccio registry installation', () => {
   it(
     'executes full release to platform API with registry adapter, reaches READY, and enables clean consumer installation from Verdaccio',
     async () => {
-      const h = await platformHarness();
-      const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-full-release-'));
-      const consumerDir = fs.mkdtempSync(path.join(os.tmpdir(), 'verdaccio-consumer-'));
-
+      let stack: Awaited<ReturnType<typeof createRecoveryStack>> | undefined;
+      let harness: Awaited<ReturnType<typeof platformHarness>> | undefined;
+      const directories: string[] = [];
       try {
+        stack = await createRecoveryStack();
+        const services = { credentials: stack.secrets, postgresPort: stack.ports.postgres,
+          storageEndpoint: `http://127.0.0.1:${stack.ports.minio}`,
+          registryOrigin: `http://127.0.0.1:${stack.ports.verdaccio}` };
+        const h = harness = await platformHarness({}, services);
+        const bundleDir = fs.mkdtempSync(path.join(os.tmpdir(), 'cli-full-release-'));
+        directories.push(bundleDir);
+        const consumerDir = fs.mkdtempSync(path.join(os.tmpdir(), 'verdaccio-consumer-'));
+        directories.push(consumerDir);
         await grant(h, 'alice', true);
         await h.db.query(
           "INSERT INTO package_permissions(subject,package_name) VALUES ('alice','@company/charts-core') ON CONFLICT DO NOTHING",
@@ -56,7 +63,7 @@ describe('T04/T06: CLI release, status, resume, and Verdaccio registry installat
 
         // 2. 执行 CLI release 命令并在后台通过 ReleaseWorker 处理发布作业推进至 READY
         const logs: string[] = [];
-        const worker = new ReleaseWorker(h.db, h.store, await realRegistry());
+        const worker = new ReleaseWorker(h.db, h.store, await realRegistry(services));
         let runningWorker = true;
         const workerLoop = (async () => {
           while (runningWorker) {
@@ -124,20 +131,20 @@ describe('T04/T06: CLI release, status, resume, and Verdaccio registry installat
         const readyVariantCount = (
           await h.db.query("SELECT count(*) FROM variant_releases WHERE availability='Ready'")
         ).rows[0]!.count;
-        expect(Number(readyVariantCount)).toBeGreaterThanOrEqual(8);
+        expect(Number(readyVariantCount)).toBe(14);
 
         const readyPackageCount = (
           await h.db.query("SELECT count(*) FROM package_releases WHERE state='READY'")
         ).rows[0]!.count;
-        expect(Number(readyPackageCount)).toBeGreaterThanOrEqual(3);
+        expect(Number(readyPackageCount)).toBe(3);
 
         // 7. 验证注册表已收录并能精确安装
-        const readerToken = await registryToken('g2reader');
+        const readerToken = await registryToken('g2reader', services);
 
         // 7.1 核验 Verdaccio 上的版本元数据
         for (const pkg of prepareResult.manifest.packages) {
           const checkRes = await fetch(
-            `http://127.0.0.1:14873/${encodeURIComponent(pkg.name)}/${pkg.version}`,
+            `${services.registryOrigin}/${encodeURIComponent(pkg.name)}/${pkg.version}`,
             {
               headers: { authorization: `Bearer ${readerToken}` },
             },
@@ -150,11 +157,11 @@ describe('T04/T06: CLI release, status, resume, and Verdaccio registry installat
 
         // 7.2 在干净目录中通过 Verdaccio 安装真实包并验证运行时安全导入
         const vuePkgVersion = prepareResult.manifest.packages.find((p) => p.name === '@company/charts-vue')!.version;
-        const isWin = process.platform === 'win32';
         const npmrcPath = path.join(consumerDir, '.npmrc');
+        const registryUrl = new URL(services.registryOrigin);
         fs.writeFileSync(
           npmrcPath,
-          `@company:registry=http://127.0.0.1:14873/\n//127.0.0.1:14873/:_authToken=${readerToken}\naudit=false\nfund=false\nlegacy-peer-deps=true\n`,
+          `@company:registry=${registryUrl.href}\n//${registryUrl.host}/:_authToken=${readerToken}\naudit=false\nfund=false\nlegacy-peer-deps=true\n`,
           'utf8',
         );
 
@@ -176,12 +183,15 @@ describe('T04/T06: CLI release, status, resume, and Verdaccio registry installat
         );
 
         const installProc = child_process.spawnSync(
-          isWin ? 'npm.cmd' : 'npm',
-          ['install', '--userconfig', npmrcPath, '--no-audit', '--no-fund', '--legacy-peer-deps', '--loglevel=error'],
+          process.execPath,
+          [path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'),
+            'install', '--userconfig', npmrcPath, '--ignore-scripts', '--no-audit', '--no-fund', '--legacy-peer-deps', '--loglevel=error'],
           {
             cwd: consumerDir,
             encoding: 'utf8',
-            shell: isWin,
+            shell: false,
+            windowsHide: true,
+            timeout: 120_000,
             env: { ...process.env },
             maxBuffer: 16 * 1024 * 1024,
           },
@@ -207,7 +217,10 @@ import { LineChart } from '@company/charts-vue/line';
 import { BarChart } from '@company/charts-vue/bar';
 import { PieChart } from '@company/charts-vue/pie';
 import { ScatterChart } from '@company/charts-vue/scatter';
-if (!LineChart || !BarChart || !PieChart || !ScatterChart) throw new Error('Export missing');
+import { TrendCard } from '@company/charts-vue/trend-card';
+import { Ranking } from '@company/charts-vue/ranking';
+import { Proportion } from '@company/charts-vue/proportion';
+if (!LineChart || !BarChart || !PieChart || !ScatterChart || !TrendCard || !Ranking || !Proportion) throw new Error('Export missing');
 console.log('VERDACCIO_INSTALL_VERIFIED_SUCCESS');
 `;
         const testScriptPath = path.join(consumerDir, 'test-import.mjs');
@@ -226,12 +239,15 @@ console.log('VERDACCIO_INSTALL_VERIFIED_SUCCESS');
         expect(nodeProc.status).toBe(0);
         expect(nodeProc.stdout).toContain('VERDACCIO_INSTALL_VERIFIED_SUCCESS');
       } finally {
-        await h.close();
-        try {
-          fs.rmSync(bundleDir, { recursive: true, force: true });
-          fs.rmSync(consumerDir, { recursive: true, force: true });
-        } catch {
-          // ignore
+        try { await harness?.close(); }
+        finally {
+          try {
+            for (const directory of directories) {
+              const owned = path.relative(path.resolve(os.tmpdir()), path.resolve(directory));
+              if (!/^(?:cli-full-release|verdaccio-consumer)-[^/\\]+$/.test(owned)) throw new Error('Refusing cleanup outside owned test directory');
+              fs.rmSync(directory, { recursive: true, force: true });
+            }
+          } finally { await stack?.close(); }
         }
       }
     },

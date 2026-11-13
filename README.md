@@ -101,3 +101,17 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标、故障演练、三存储隔离备份恢复、部署检查与保留策略。入口与边界见 [quickstart](docs/quickstart.md)、[operations](docs/operations.md)、[release-acceptance](docs/release-acceptance.md)。完整G2/M2/T11/T12仍待公司环境及真实试点验收。
 
 2026-11-13：增加 `.\scripts\pnpm.ps1 rehearse:capacity`，在本机真实三存储上量测200组件/400实现的合成目录、20并发读取、总量100MiB分片恢复及5次协议发布。报告按runId写入 `.tools/operations/capacity/`，失败退出非零；不能替代生产容量或业务试点验收。当前SDK十实现的冻结发布、双框架精确安装与逐资源摘要检查，以及网页手动提交后端交接见 [C本轮验证](docs/verification/c-platform-capacity-2026-11-13.md)。
+
+2026-11-13 后续补验：SDK0.0.6 七组件十四实现已完成 Windows 冻结发布、真实 HTTPS 预览自检、逐材料摘要及 Vue/React 精确 Registry 消费，见 [十四实现验收](docs/verification/c-sdk14-acceptance-2026-11-13.md)。测试支撑支持隔离随机端口设施；共享凭据缺失导致旧完整平台套件仍阻塞，B 的真实网页流程和生产验收继续单列。
+
+2026-11-13 网页联调修复：API 复用 `PLATFORM_GALLERY_ORIGIN` 精确放行画廊的 Bearer/JSON/幂等键跨域请求，配置要求见 [API接入](apps/api/README.md)，RED/GREEN 与边界见 [跨域验证](docs/verification/c-gallery-cors-2026-11-13.md)。MinIO直传与B真实浏览器闭环仍单独验收。
+
+2026-11-13 A SDK 0.0.7 接续：C 已在 Windows 对固定 `f35ebc9` 完成强制构建/类型、外部消费者、67 项展示/核心浏览器及十四实现隔离发布复验，冻结摘要与证据见 [新增原生记录](docs/verification/c-a-sdk007-windows-2026-11-13.md)。兼容策略的三个独立审查问题仍待 A 修复，未标记 T10 完成。
+
+2026-11-13 A SDK 0.0.10 复审收口：C 对固定 `190b60b` 完成 20 项强制构建/类型、379 项单元与契约、十四实现真实发布/HTTPS 预览与双框架精确 Registry 消费；同一冻结包的 TS 6/7 × Bundler/NodeNext 严格消费者及六项公开策略检查全部通过。脚本、摘要、RED/GREEN 与边界见 [0.0.10 原生记录](docs/verification/c-a-sdk0010-windows-2026-11-13.md)。完整 T10、网页流程与外部门槛继续独立验收。
+
+2026-11-13 接续浏览器验证：C 在同一 `190b60b` Windows 归档实跑 185 项全部通过，含十四实现和 56 项主题/渲染器矩阵。结果与范围见 [浏览器新增记录](docs/verification/c-a-sdk0010-browser-2026-11-13.md)；不替代 B 最终网页流程、跨版本视觉或真实业务试点验收。
+
+2026-11-13 C 根测试接续：CLI 发布集成测试改用自有随机端口三存储，消除缺共享凭据的唯一失败；专项通过后根 test 实跑 33 文件/600 项通过。RED/GREEN、清理与边界见 [隔离复验](docs/verification/c-cli-release-isolation-2026-11-13.md)。
+
+2026-11-13 SDK 文档交接：A 修正 SSR 挂载、真实导出与静态类型/运行时边界后，C 原样提取 Vue/React 示例，在真实安装冻结 0.0.10 tarball 的干净消费者中完成六组严格编译。固定摘要、验证方式与未完成边界见 [文档独立复验](docs/verification/c-a-sdk0010-handover-2026-11-13.md)。

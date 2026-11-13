@@ -1,0 +1,1412 @@
+{
+  "verifiedAt": "2026-11-13T05:31:58.594Z",
+  "os": "win32",
+  "arch": "x64",
+  "components": [
+    "line",
+    "bar",
+    "pie",
+    "scatter",
+    "trend-card",
+    "ranking",
+    "proportion"
+  ],
+  "packages": [
+    {
+      "name": "@company/charts-core",
+      "version": "0.0.7",
+      "sha256": "70232cd9e90b8afc4e63b64645060b3b01bbd2eb21de3f17bcfa38d9df49a513"
+    },
+    {
+      "name": "@company/charts-vue",
+      "version": "0.0.7",
+      "sha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+    },
+    {
+      "name": "@company/charts-react",
+      "version": "0.0.7",
+      "sha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+    }
+  ],
+  "implementationCount": 14,
+  "registryConsumers": [
+    {
+      "framework": "vue",
+      "version": "0.0.7",
+      "exports": 7
+    },
+    {
+      "framework": "react",
+      "version": "0.0.7",
+      "exports": 7
+    }
+  ],
+  "state": "READY",
+  "previewFilesMatch": true,
+  "browserPreviews": [
+    {
+      "variantId": "line-vue",
+      "entry": "https://r-7346db10-622f-42e9-b30b-b0696324b3a9.preview.assets.test:57700/preview/line-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/line-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/line-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/line-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/line-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/line-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/line-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/line-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/line-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/line-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/line-vue/index.html",
+          "sha256": "f4cd3b10348343b3420ddf11aac5f668d7d2464386320b78ddaf99204b9a5cd6"
+        }
+      ]
+    },
+    {
+      "variantId": "line-react",
+      "entry": "https://r-5124f2ed-1eae-4bb3-9fb1-070d10b747c6.preview.assets.test:57700/preview/line-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/line-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/line-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/line-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/line-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/line-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/line-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/line-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/line-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/line-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/line-react/index.html",
+          "sha256": "2dfec46e7bd885df7e576bb8fa45fb74014ca6c4a8a13ead2d2f49be9e7a74b5"
+        }
+      ]
+    },
+    {
+      "variantId": "bar-vue",
+      "entry": "https://r-5f664a20-7410-45cf-a071-1b62dcba501c.preview.assets.test:57700/preview/bar-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/bar-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/bar-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/bar-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/bar-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/bar-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/bar-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/bar-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/bar-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/bar-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/bar-vue/index.html",
+          "sha256": "0fa89a3df42a91c84b5f530eac114b06d86795a01aa2ee47e5a3177aede01f8e"
+        }
+      ]
+    },
+    {
+      "variantId": "bar-react",
+      "entry": "https://r-adbe01cf-1f19-4d2e-a317-8997ba4ce6c5.preview.assets.test:57700/preview/bar-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/bar-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/bar-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/bar-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/bar-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/bar-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/bar-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/bar-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/bar-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/bar-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/bar-react/index.html",
+          "sha256": "fb8e6093e1c8b4ea9fc420bab7b70099824f0ec65062c85d5f4e5772cd810798"
+        }
+      ]
+    },
+    {
+      "variantId": "pie-vue",
+      "entry": "https://r-58b077b2-b86b-4726-aa7f-73cbf98c73c3.preview.assets.test:57700/preview/pie-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/pie-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/pie-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/pie-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/pie-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/pie-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/pie-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/pie-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/pie-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/pie-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/pie-vue/index.html",
+          "sha256": "2d3fba3d545e55e1d4b90d984c4d5796d710683b8d96ee3b27c7a2d886f80b7e"
+        }
+      ]
+    },
+    {
+      "variantId": "pie-react",
+      "entry": "https://r-74b82cb4-76ca-4c3e-a339-5fa500262c61.preview.assets.test:57700/preview/pie-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/pie-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/pie-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/pie-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/pie-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/pie-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/pie-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/pie-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/pie-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/pie-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/pie-react/index.html",
+          "sha256": "1a8478a02b1eda2b557cfbee39d23cb6c690e849a0e8da926b1e78cdcd854eb1"
+        }
+      ]
+    },
+    {
+      "variantId": "scatter-vue",
+      "entry": "https://r-b7d9428c-7c61-405b-be36-44c958822d7f.preview.assets.test:57700/preview/scatter-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/scatter-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/scatter-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/scatter-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/scatter-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/scatter-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/scatter-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/scatter-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/scatter-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/scatter-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/scatter-vue/index.html",
+          "sha256": "333f6e46931fad3139b3562f12eacfe76d66c5e8b9b0e8cbd795582b9830d1a9"
+        }
+      ]
+    },
+    {
+      "variantId": "scatter-react",
+      "entry": "https://r-f865ae4a-99c3-44e9-88ba-94fc5477959d.preview.assets.test:57700/preview/scatter-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/scatter-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/scatter-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/scatter-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/scatter-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/scatter-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/scatter-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/scatter-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/scatter-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/scatter-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/scatter-react/index.html",
+          "sha256": "a5e4fd34514ec74fe5beb2fb3033af76684b9b39f844b3cda0811dcbdafa25b0"
+        }
+      ]
+    },
+    {
+      "variantId": "trend-card-vue",
+      "entry": "https://r-6c69abba-7f64-4cb7-8934-a8d150ed479e.preview.assets.test:57700/preview/trend-card-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/trend-card-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/trend-card-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/trend-card-vue/index.html",
+          "sha256": "af58188782b8f07403a02774b72deea803c35292e62f2c2b0081f56fd09719bb"
+        }
+      ]
+    },
+    {
+      "variantId": "trend-card-react",
+      "entry": "https://r-0c7cea46-5973-4e3a-9a36-b7cf7e033deb.preview.assets.test:57700/preview/trend-card-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/trend-card-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/trend-card-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/trend-card-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/trend-card-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/trend-card-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/trend-card-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/trend-card-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/trend-card-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/trend-card-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/trend-card-react/index.html",
+          "sha256": "d22835af06802207a5d774341307905b4c1f9e083c78fc7b9c5ba999fc5c5ef1"
+        }
+      ]
+    },
+    {
+      "variantId": "ranking-vue",
+      "entry": "https://r-ef40b18c-e44b-4ba9-aa60-c75bc62ef026.preview.assets.test:57700/preview/ranking-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/ranking-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/ranking-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/ranking-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/ranking-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/ranking-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/ranking-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/ranking-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/ranking-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/ranking-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/ranking-vue/index.html",
+          "sha256": "9053ee191e76d9cff8872d060706ae026a1bf0c334b35e4f92f36271292ad7ea"
+        }
+      ]
+    },
+    {
+      "variantId": "ranking-react",
+      "entry": "https://r-12937571-4a6d-4e33-9680-de15b4873d34.preview.assets.test:57700/preview/ranking-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/ranking-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/ranking-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/ranking-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/ranking-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/ranking-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/ranking-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/ranking-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/ranking-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/ranking-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/ranking-react/index.html",
+          "sha256": "b3ea280f77e122d699fac8d72f5d98306efdb8fe9a55a82f6dde0da740c0ad48"
+        }
+      ]
+    },
+    {
+      "variantId": "proportion-vue",
+      "entry": "https://r-969c3787-04ad-48ec-9c61-55bcefc7326c.preview.assets.test:57700/preview/proportion-vue/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/proportion-vue/assets/bar-B2ypvSuE.js",
+          "sha256": "7dcd9c1cbbaa8550c0b671dbd7a3a77fe3c87e0527129d831c48b6e11099d4b8"
+        },
+        {
+          "path": "preview/proportion-vue/assets/index-DMUI1oBa.js",
+          "sha256": "ad3e57829326cf43e9327627e0e7684a0a18a4a7410356e2874dcf5282b0e925"
+        },
+        {
+          "path": "preview/proportion-vue/assets/pie-BaHttm7K.js",
+          "sha256": "f665abbf89f09cfa97cdb669ad6f9bc4b073d415cf1fd69c2fc4f74e3190d39e"
+        },
+        {
+          "path": "preview/proportion-vue/assets/proportion-CkIfkLll.js",
+          "sha256": "25429228f53d4245c3f28f582686533ea85d030e3a1dc43eb4e2f2452a9ea982"
+        },
+        {
+          "path": "preview/proportion-vue/assets/ranking-B4Lplv19.js",
+          "sha256": "5f88398140b25636e27ab6937e24219d9dcf3118e5af1bca64f343ac823358c3"
+        },
+        {
+          "path": "preview/proportion-vue/assets/scatter-BAY_gUmj.js",
+          "sha256": "3a4b00bbe08602cc29fba8629d83785cb0d370c91603a7476085ca9a9b12c4de"
+        },
+        {
+          "path": "preview/proportion-vue/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/proportion-vue/assets/style-DLrFPct_.js",
+          "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+        },
+        {
+          "path": "preview/proportion-vue/assets/trend-card-DvEU-N0G.js",
+          "sha256": "6c3b27184e17c9f241abe387d9572cf1eafbbf820ce84bba58e7d61b3f96862b"
+        },
+        {
+          "path": "preview/proportion-vue/index.html",
+          "sha256": "911a2189082c1fbed44a2e1fbf41744c40617096ce7fc5666b931538416ac725"
+        }
+      ]
+    },
+    {
+      "variantId": "proportion-react",
+      "entry": "https://r-d822e357-94ef-4330-b9d1-a009aebad258.preview.assets.test:57700/preview/proportion-react/index.html",
+      "checks": [
+        {
+          "name": "fonts-ready",
+          "status": "passed"
+        },
+        {
+          "name": "no-page-error",
+          "status": "passed"
+        },
+        {
+          "name": "series-rendered",
+          "status": "passed"
+        },
+        {
+          "name": "single-instance",
+          "status": "passed"
+        },
+        {
+          "name": "valid-dimensions",
+          "status": "passed"
+        }
+      ],
+      "resources": [
+        {
+          "path": "preview/proportion-react/assets/bar-ClH4Wxtz.js",
+          "sha256": "cce4487fb3377dc58b785d127054e1c808416df16624ff3aa48dd635311a3cb9"
+        },
+        {
+          "path": "preview/proportion-react/assets/index-C4TeFEWC.js",
+          "sha256": "4ce09339fe88a46133f465f100528b5936fa78e43815b2c7d90573915b17b72c"
+        },
+        {
+          "path": "preview/proportion-react/assets/pie-Dw3e8rtJ.js",
+          "sha256": "751bed14333c0e7eb549dac3f39efd70df6233ebba91b450fae8394320d45b69"
+        },
+        {
+          "path": "preview/proportion-react/assets/proportion-DmBhlIQB.js",
+          "sha256": "9025445f885be6b818bfcd61a28847f921335ca9b761d5a550f71f8622575f3f"
+        },
+        {
+          "path": "preview/proportion-react/assets/ranking-Dwng56xt.js",
+          "sha256": "148e29f3909e21e43363f604b7a40454bcea47c7d501db7fe28a9fd12afeeb91"
+        },
+        {
+          "path": "preview/proportion-react/assets/scatter-PDwBwiNq.js",
+          "sha256": "8d06f1f22acd1a9707d9d6ef2bd43157e8372010af90427bd71b2d0c284ecb6e"
+        },
+        {
+          "path": "preview/proportion-react/assets/style-CeWGI-m4.css",
+          "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+        },
+        {
+          "path": "preview/proportion-react/assets/style-Di-YGb2m.js",
+          "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+        },
+        {
+          "path": "preview/proportion-react/assets/trend-card-Dq3QLnfI.js",
+          "sha256": "45827a4b94eaea663bfd0e76af1d0f9f55c49cc016fd9be8058b09a46b591d25"
+        },
+        {
+          "path": "preview/proportion-react/index.html",
+          "sha256": "86b186f96aae02dcf32ae9d6b27cef43f4a0478296c7bcbc7bb2722a9f72481d"
+        }
+      ]
+    }
+  ],
+  "variants": [
+    {
+      "componentId": "line",
+      "framework": "vue",
+      "variantId": "line-vue",
+      "api": {
+        "path": "api/line-vue.json",
+        "sha256": "4c4ee05a112e7072811609a00307051061a6fcb1a1505358e36f3350d5108140",
+        "bytes": 436
+      },
+      "docs": {
+        "path": "docs/line-vue.md",
+        "sha256": "a4bba35c1bb4d87f0b633e56c2483f0456b333b67a374aa56fdba65e3f642bef",
+        "bytes": 119
+      },
+      "reports": [
+        {
+          "path": "reports/line-vue.json",
+          "sha256": "7ea3e83cfaf4290d7efe3acd27853d2763a7e33525ffebf819c08b4829fdd8f9",
+          "bytes": 1781
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/line-vue-default.png",
+          "sha256": "7760b339accca882311a3b3625613f9d071e58874272bf87f0e109c8acad690b",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "line",
+      "framework": "react",
+      "variantId": "line-react",
+      "api": {
+        "path": "api/line-react.json",
+        "sha256": "753296397d41db0588398e553377d3ff2808f3f5454ef8faf7ea1aa041cbce0f",
+        "bytes": 438
+      },
+      "docs": {
+        "path": "docs/line-react.md",
+        "sha256": "5070900d59e9c81ce26979aeed7266c1d5a659a0de3253f69fc0e4ff9dca365f",
+        "bytes": 123
+      },
+      "reports": [
+        {
+          "path": "reports/line-react.json",
+          "sha256": "01fafbe6039b3297fec383dd1551d1a8c16d8a24e208eef3663dce58b43a50ff",
+          "bytes": 1797
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/line-react-default.png",
+          "sha256": "e765618c98fbbe975489debb4426b4db4e001d655ff9a9c11722a8fec449f906",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    },
+    {
+      "componentId": "bar",
+      "framework": "vue",
+      "variantId": "bar-vue",
+      "api": {
+        "path": "api/bar-vue.json",
+        "sha256": "1d9f5bee13310a5b0cc717e101f2935eda760f0039bdab630f7459f92826c953",
+        "bytes": 432
+      },
+      "docs": {
+        "path": "docs/bar-vue.md",
+        "sha256": "87d00e488a4f236f2bcc0e732e9f17156e762a708ad76ddd3e380d47ee4e301c",
+        "bytes": 116
+      },
+      "reports": [
+        {
+          "path": "reports/bar-vue.json",
+          "sha256": "ed0e68233c3692b7d26f5bc23ba1ea3290565ac8c61c8030c82e3d9d479a5873",
+          "bytes": 1774
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/bar-vue-default.png",
+          "sha256": "1fc18995b9585a73744dab567f3d9f962c1335e01671dcbb82ddfcd307e70c73",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "bar",
+      "framework": "react",
+      "variantId": "bar-react",
+      "api": {
+        "path": "api/bar-react.json",
+        "sha256": "8d27e2acbf4ee6cf4c60bb9ace6905535c39dfbfac36ae7eb721467a96d4b18b",
+        "bytes": 434
+      },
+      "docs": {
+        "path": "docs/bar-react.md",
+        "sha256": "328df6e2fbc6fcd2522bf479aacce43b15dd918f1cd673c911c05266398f60c9",
+        "bytes": 120
+      },
+      "reports": [
+        {
+          "path": "reports/bar-react.json",
+          "sha256": "7c225e328e934792709c3ddf80ba0067ef841b3e6ead60303f9f654e39975614",
+          "bytes": 1790
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/bar-react-default.png",
+          "sha256": "69439fd4d39e9fbda6e9f1acaa889af21af2da193dad79b9e248509c54915b6d",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    },
+    {
+      "componentId": "pie",
+      "framework": "vue",
+      "variantId": "pie-vue",
+      "api": {
+        "path": "api/pie-vue.json",
+        "sha256": "c88b54289ff08a195fb6a4412efa921ec3a3621454b40329c4c95110bdff5e8a",
+        "bytes": 432
+      },
+      "docs": {
+        "path": "docs/pie-vue.md",
+        "sha256": "4d52d19c73a47b649707bab903ca29725705db463aa2220f328bcace45c3cb99",
+        "bytes": 113
+      },
+      "reports": [
+        {
+          "path": "reports/pie-vue.json",
+          "sha256": "8006549b1fed7ff9b880ace0ffe4e68fced1233d03490243a89518cec89bd4f3",
+          "bytes": 1774
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/pie-vue-default.png",
+          "sha256": "0b5c5206ae85ee1c8dccd887a3bb9f36f66e2b64f5764322e074d088ca4835fe",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "pie",
+      "framework": "react",
+      "variantId": "pie-react",
+      "api": {
+        "path": "api/pie-react.json",
+        "sha256": "faac32b6757c30bf6967d6aab137f00712736e8d4a8c92a50d753b81ec1fea2a",
+        "bytes": 434
+      },
+      "docs": {
+        "path": "docs/pie-react.md",
+        "sha256": "e66c6c23d6da9b3c842156e9942c2d92125693d8211b36bc32ee4007825c95bc",
+        "bytes": 117
+      },
+      "reports": [
+        {
+          "path": "reports/pie-react.json",
+          "sha256": "256f80c286a44bade06875e87bc20e74c7384b22dcfdc575dbdcc29d9ec48922",
+          "bytes": 1790
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/pie-react-default.png",
+          "sha256": "39c9182e5922749446e0da0ada608149f9a9edcb5f4f199c2567b7830e5ed17a",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    },
+    {
+      "componentId": "scatter",
+      "framework": "vue",
+      "variantId": "scatter-vue",
+      "api": {
+        "path": "api/scatter-vue.json",
+        "sha256": "1f514b786d281d86cd1317c82ae7601150afafae4d297c6eb1f5cc19d7590f72",
+        "bytes": 448
+      },
+      "docs": {
+        "path": "docs/scatter-vue.md",
+        "sha256": "49c1205c81c7e32bfdacbdbdcf7fe3aade41e40e5a74cc153e377eff5662c9ee",
+        "bytes": 128
+      },
+      "reports": [
+        {
+          "path": "reports/scatter-vue.json",
+          "sha256": "856b7684625076157dead2ae5d8cd2c4b797cc00ac002d3e060331cea39aac4a",
+          "bytes": 1802
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/scatter-vue-default.png",
+          "sha256": "508de5040f2c43ac5e67525aececd4fd9074111855b2509237fd42a13e4608ac",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "scatter",
+      "framework": "react",
+      "variantId": "scatter-react",
+      "api": {
+        "path": "api/scatter-react.json",
+        "sha256": "94e6af8cfefe6d5e4a5a3c47b4d4bfcc7506c0f39461b2b759106338ebb788a1",
+        "bytes": 450
+      },
+      "docs": {
+        "path": "docs/scatter-react.md",
+        "sha256": "04d87c5d718f4042a0fc0744713d3d43a030835ebe8e916412b01d484767d446",
+        "bytes": 132
+      },
+      "reports": [
+        {
+          "path": "reports/scatter-react.json",
+          "sha256": "3436a929dcf34ac3a741d46e897f0740e214f80b6cf289f4f6aa029fd79745aa",
+          "bytes": 1818
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/scatter-react-default.png",
+          "sha256": "5ba004921490066cf2aeeaaebeff89f7e685f3746d0da410ba85f9c90c9d4234",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    },
+    {
+      "componentId": "trend-card",
+      "framework": "vue",
+      "variantId": "trend-card-vue",
+      "api": {
+        "path": "api/trend-card-vue.json",
+        "sha256": "a48ba340990d14c84cf8f342cb6622cce6a3145bc55be797335bb6641c906d2b",
+        "bytes": 448
+      },
+      "docs": {
+        "path": "docs/trend-card-vue.md",
+        "sha256": "8a2732b56fed667caf0f63bac974ca22bf3af4bd0c27e7a1bf3a8ecd050b4454",
+        "bytes": 128
+      },
+      "reports": [
+        {
+          "path": "reports/trend-card-vue.json",
+          "sha256": "018ee6e60c8ce63281a367d58bec62f0466fc8e2aff4a1d00867ce8a1c5df12d",
+          "bytes": 1823
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/trend-card-vue-default.png",
+          "sha256": "d7f7af06a1dc31864bcd2bb3db9b642b003373f7570f739a45cb05c9f1f114c5",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "trend-card",
+      "framework": "react",
+      "variantId": "trend-card-react",
+      "api": {
+        "path": "api/trend-card-react.json",
+        "sha256": "99552c95c2d3a380b7bd13e9182683a27bf7a6201f477fcfd97e21b379e2398d",
+        "bytes": 450
+      },
+      "docs": {
+        "path": "docs/trend-card-react.md",
+        "sha256": "a64519a66d9d36f9c143d554d98ca6df54e3d6a9d99795bd2588c187344bfee1",
+        "bytes": 132
+      },
+      "reports": [
+        {
+          "path": "reports/trend-card-react.json",
+          "sha256": "5b34058aa1241a5db647b9a6b65853cd53de21da1ad4081153952809aa73fdf2",
+          "bytes": 1839
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/trend-card-react-default.png",
+          "sha256": "15156a26ccdc98043259e2529605910c8041f4b1c491e3fb666db85060b2e2fc",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    },
+    {
+      "componentId": "ranking",
+      "framework": "vue",
+      "variantId": "ranking-vue",
+      "api": {
+        "path": "api/ranking-vue.json",
+        "sha256": "754efeaa8585a9b84c239e22935d10019e62a87b01178d5b3d36b15860bd6a12",
+        "bytes": 438
+      },
+      "docs": {
+        "path": "docs/ranking-vue.md",
+        "sha256": "0503e100b3c1a1085c9113a42409f6460428a14ca75335a242a9d2706c8161ad",
+        "bytes": 118
+      },
+      "reports": [
+        {
+          "path": "reports/ranking-vue.json",
+          "sha256": "21f155186e67231c186ea50dcf432298cda1c736871338c928cf1ac17e25faf0",
+          "bytes": 1802
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/ranking-vue-default.png",
+          "sha256": "499e80767e1bd7f48b8f32f651dab319b5270d27e5e0d7fe7c5f18ad58470eb0",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "ranking",
+      "framework": "react",
+      "variantId": "ranking-react",
+      "api": {
+        "path": "api/ranking-react.json",
+        "sha256": "cad73fb82f94820ab67e539e1d69ce7a5bca022c9126bc82c6e5c4e3fd3124e1",
+        "bytes": 440
+      },
+      "docs": {
+        "path": "docs/ranking-react.md",
+        "sha256": "20113f43f2d54ced7e3cd43fe83ec26ca75e58de01b06546c0e429433cab2ebf",
+        "bytes": 122
+      },
+      "reports": [
+        {
+          "path": "reports/ranking-react.json",
+          "sha256": "fdcd37b87be96570eea837418a1b13005be0745b30c8593bf9fd6cb365c2f1e7",
+          "bytes": 1818
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/ranking-react-default.png",
+          "sha256": "ac3057635bd03baa8cd24fe702ee5383946a62344e3ee4c57d0341cea0e251df",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    },
+    {
+      "componentId": "proportion",
+      "framework": "vue",
+      "variantId": "proportion-vue",
+      "api": {
+        "path": "api/proportion-vue.json",
+        "sha256": "5799a03815b10635083ad5ce984161ec69a1d857188d5f8f3068f9e9a58aea78",
+        "bytes": 450
+      },
+      "docs": {
+        "path": "docs/proportion-vue.md",
+        "sha256": "a71351aadaee560e29c473fb614bbb191eb2fa1261ae81e1a6a49f943e932211",
+        "bytes": 124
+      },
+      "reports": [
+        {
+          "path": "reports/proportion-vue.json",
+          "sha256": "30f5012d00ecc8296bf00ced11398fcc63861bff974b26b0b8a67c9ce0a79e1b",
+          "bytes": 1823
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/proportion-vue-default.png",
+          "sha256": "b106b46d91c8b3574faa5975950dad59fc7d30c718a85f1e008d95182e896d23",
+          "packageSha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        }
+      ]
+    },
+    {
+      "componentId": "proportion",
+      "framework": "react",
+      "variantId": "proportion-react",
+      "api": {
+        "path": "api/proportion-react.json",
+        "sha256": "3a385768a0d77ea3a6cde512b9dc2726dc24f269ee455ebb22b6acbc25049a4c",
+        "bytes": 452
+      },
+      "docs": {
+        "path": "docs/proportion-react.md",
+        "sha256": "76fc239cd34d56666fda649973d477f4c446d62bda9bb6a8493461eeb395c999",
+        "bytes": 128
+      },
+      "reports": [
+        {
+          "path": "reports/proportion-react.json",
+          "sha256": "47f03ce28a7a8e1be993b2d5ba5d88acbdb0ce501ece268d0b59b8ba26fbf520",
+          "bytes": 1839
+        }
+      ],
+      "screenshots": [
+        {
+          "path": "screenshots/proportion-react-default.png",
+          "sha256": "964ab20862d38e3f09319b37e0fab92e1257b85654631bc8e7008b94f04aba35",
+          "packageSha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Local signed OIDC fixtures and test-only self-signed TLS; no company login or production TLS validation.",
+    "Consumer capture is default state only."
+  ]
+}
