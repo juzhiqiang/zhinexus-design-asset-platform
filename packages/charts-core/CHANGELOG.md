@@ -2,6 +2,13 @@
 
 本文件记录 `@company/charts-core` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.10] - 2026-11-13
+
+### Fixed
+
+- `recommend` 与 `hasDualFrameworkCoverage` 改为**以 `supported` 为唯一事实来源**。此前二者读取报告里的 `baselineEchartsVersion` / `peerSatisfied`，而这两个字段与 `candidate.version` 同在报告内、可以被一起伪造：一份候选 `6.0.0`、`supported` 基线 `6.1.0` 的真实报告，只要把 `peerSatisfied` 与 `baselineEchartsVersion` 改成 `true` / `6.0.0`，`recommend` 就返回 `'adopt'`。现在 `recommend` 直接用 `supported` 的唯一基线推导 peer 符合性，报告只能被核对、不能作为判据，**不能改写已支持范围**。
+- `hasDualFrameworkCoverage` 强制**双框架齐验**：`supported` 必须同时覆盖 Vue 与 React。此前只要求「`supported` 里每个组合都有实测」，当 `supported` 本身只有一个框架时该条件被轻易满足，共享核心变化未被双框架验证也会 `'adopt'`。
+
 ## [0.0.9] - 2026-11-13
 
 ### Fixed
