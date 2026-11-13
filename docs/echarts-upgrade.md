@@ -141,6 +141,8 @@ React 消费者：同上，另需确认 `@types/react` / `@types/react-dom` 与 
 | `company-charts-vue-0.0.7.tgz` | 6,621 | `654bda9c6b8401cef57e0e5feea2acc5905ed3efb28635061f2c0fd1b458b858` |
 | `company-charts-react-0.0.7.tgz` | 12,003 | `b1ce0212acb46f7b9053d833c7a2a7763d7e0b7e3e70e4baef0fc947eea88aa1` |
 
+上表在 Linux 复现环境重复打包两次结果一致（可复现），tarball 只含 `dist/`。**发布用的权威摘要仍须由 C 在 Windows 上从同一提交重新打包取得**——跨平台字节差异（换行、文件模式、打包顺序）无法在沙箱内排除，安装、截图、报告、上传必须贯穿同一份 Windows 摘要。
+
 ## 7. 待办与边界
 
 - **Windows 原生复验未执行**：本文件所有实测均在 Linux 复现环境完成（工具链版本一致）。Windows 原生清单见 [T09 第五批 Windows 原生复验清单](verification/t09-ranking-proportion-windows-native.md)，需由 C 在 Windows 开发机执行并回填。
