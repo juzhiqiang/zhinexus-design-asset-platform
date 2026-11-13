@@ -1,14 +1,14 @@
 import { randomUUID } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
 import { expect } from 'vitest';
 import { RegistryClient } from '../../apps/api/dist/releases/registry-client.js';
 import { createValidBundle, packageBytes, replaceBundleArtifact } from '../fixtures/t05-artifacts.js';
 import { platformHarness, grant, upload, release } from './http-support.js';
+import { localServices } from './support.js';
 
-export async function registryToken(user: 'g2publisher' | 'g2reader' = 'g2publisher'): Promise<string> {
-  const secrets = JSON.parse(await readFile(new URL('../../.tools/g2-local/credentials.json', import.meta.url), 'utf8'));
+export async function registryToken(user: 'g2publisher' | 'g2reader' = 'g2publisher', services = localServices()): Promise<string> {
+  const secrets = services.credentials;
   const password = user === 'g2publisher' ? secrets.publisherPassword : secrets.readerPassword;
-  const response = await fetch(`http://127.0.0.1:14873/-/user/org.couchdb.user:${user}`, {
+  const response = await fetch(`${services.registryOrigin}/-/user/org.couchdb.user:${user}`, {
     method: 'PUT', redirect: 'error', signal: AbortSignal.timeout(10_000),
     headers: { 'content-type': 'application/json', authorization: `Basic ${Buffer.from(`${user}:${password}`).toString('base64')}` },
     body: JSON.stringify({ name: user, password, type: 'user', roles: [], date: new Date().toISOString() }),
@@ -16,8 +16,8 @@ export async function registryToken(user: 'g2publisher' | 'g2reader' = 'g2publis
   if (!response.ok) throw new Error('Local registry authentication failed');
   return (await response.json()).token as string;
 }
-export async function realRegistry() {
-  return new RegistryClient({ origin: 'http://127.0.0.1:14873', token: await registryToken() });
+export async function realRegistry(services = localServices()) {
+  return new RegistryClient({ origin: services.registryOrigin, token: await registryToken('g2publisher', services) });
 }
 /** Unique protocol-test packages: never labeled as real chart/browser evidence. */
 export async function workerHarness(configure?: (fixture: Awaited<ReturnType<typeof createValidBundle>>) => void, overrides: Record<string, unknown> = {}, channel: 'web'|'cli' = 'web') {

@@ -4,7 +4,7 @@ import type {
   ReleaseManifestV1,
   VariantRef,
 } from '@company/contracts';
-import { manifestDigest } from '@company/contracts';
+import { manifestDigest, UPLOAD_LIMITS, validateManifest } from '@company/contracts';
 
 /**
  * 在浏览器端通过 Web Crypto 计算字节数组的 SHA-256 哈希
@@ -24,19 +24,25 @@ export async function computeBrowserSha256(bytes: Uint8Array): Promise<string> {
  */
 export function sanitizeWebManifest(input: ReleaseManifestV1): ReleaseManifestV1 {
   const sanitizedVariants: VariantRef[] = input.variants.map((variant) => {
-    const manualScreenshots = variant.screenshots.map((shot) => ({
-      ...shot,
-      source: 'manual-upload' as const,
-      environmentKey: 'unknown-manual',
-      reportId: undefined, // 手动上传清除非关联报告
-    }));
+    const manualScreenshots = variant.screenshots.map((shot) => {
+      const copy = {
+        ...shot,
+        source: 'manual-upload' as const,
+        environmentKey: 'unknown-manual',
+      };
+      delete (copy as { reportId?: string }).reportId;
+      return copy;
+    });
 
     // 网页手动提交不声称 passed
-    const compatibility = variant.compatibility.map((c) => ({
-      ...c,
-      status: 'candidate' as const,
-      reportId: undefined,
-    }));
+    const compatibility = variant.compatibility.map((c) => {
+      const copy = {
+        ...c,
+        status: 'candidate' as const,
+      };
+      delete (copy as { reportId?: string }).reportId;
+      return copy;
+    });
 
     return {
       ...variant,
@@ -75,13 +81,119 @@ export function sanitizeWebManifest(input: ReleaseManifestV1): ReleaseManifestV1
   };
 }
 
+/**
+ * 解析并校验导入的外部 Manifest JSON 内容
+ */
+export function parseAndValidateImportedManifest(jsonContent: string): {
+  ok: boolean;
+  manifest?: ReleaseManifestV1;
+  error?: string;
+} {
+  try {
+    const raw = JSON.parse(jsonContent);
+    if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+      return { ok: false, error: 'Manifest 内容必须为 JSON 对象' };
+    }
+
+    // 1. 显式核对原 schemaVersion / channel / 基础结构，严禁静默把未知 schema 降级为 1
+    if (raw.schemaVersion !== 1) {
+      return {
+        ok: false,
+        error: `不支持的 Manifest schemaVersion: ${raw.schemaVersion}，当前仅支持 schemaVersion: 1`,
+      };
+    }
+
+    if (raw.channel !== 'web' && raw.channel !== 'cli') {
+      return {
+        ok: false,
+        error: `不支持的发布渠道 channel: ${raw.channel}，仅支持 web 或 cli`,
+      };
+    }
+
+    if (!Array.isArray(raw.packages) || raw.packages.length === 0) {
+      return {
+        ok: false,
+        error: 'Manifest packages 列表必须为非空数组',
+      };
+    }
+
+    if (!Array.isArray(raw.variants) || raw.variants.length === 0) {
+      return {
+        ok: false,
+        error: 'Manifest variants 变体列表不能为空，网页发布必须包含至少一个变体实现',
+      };
+    }
+
+    // 2. 首遍对 raw 调用公开 validateManifest 拦截原结构问题（如 reports: null、files: [null] 等）
+    // 过滤掉因为未提供 context.reports 而导致的合法 CLI 检查报告依赖 (REPORT_REQUIRED / COMPATIBILITY_EVIDENCE_REQUIRED)
+    const rawValidation = validateManifest(raw as any);
+    if (!rawValidation.ok) {
+      const structuralIssues = rawValidation.issues.filter(
+        (issue) =>
+          issue.code !== 'REPORT_REQUIRED' &&
+          issue.code !== 'COMPATIBILITY_EVIDENCE_REQUIRED',
+      );
+      if (structuralIssues.length > 0) {
+        return {
+          ok: false,
+          error: `Manifest 原始结构校验失败: ${structuralIssues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
+        };
+      }
+    }
+
+    // 3. 转换为合规的网页清单格式
+    const clean = sanitizeWebManifest(raw);
+
+    // 4. 第二遍调用 contracts 运行时公开 validateManifest 校验最终 web 清单
+    const validResult = validateManifest(clean);
+    if (!validResult.ok) {
+      const issueDetails = validResult.issues.map((i) => `${i.path}: ${i.message}`).join('; ');
+      return {
+        ok: false,
+        error: `Manifest 网页清单校验失败: ${issueDetails}`,
+      };
+    }
+
+    return { ok: true, manifest: clean };
+  } catch (err: any) {
+    return { ok: false, error: err.message || 'Manifest JSON 解析失败' };
+  }
+}
+
+/**
+ * 导入并关联本地产物文件至内存映射，自动计算其 Web Crypto SHA-256
+ */
+export async function attachLocalFile(
+  filesMap: Map<string, Uint8Array>,
+  path: string,
+  fileBytes: Uint8Array,
+): Promise<{
+  path: string;
+  bytes: number;
+  sha256: string;
+}> {
+  const sha256 = await computeBrowserSha256(fileBytes);
+  filesMap.set(path, fileBytes);
+  return {
+    path,
+    bytes: fileBytes.byteLength,
+    sha256,
+  };
+}
+
+export type UploadSessionFilePlan = {
+  path: string;
+  uploadUrl?: string;
+  multipart?: {
+    uploadId: string;
+    parts: Array<{ partNumber: number; uploadUrl: string; bytes: number }>;
+  };
+  expiresAt: string;
+};
+
 export type UploadSessionResponse = {
   uploadSessionId: string;
-  files: Array<{
-    path: string;
-    uploadUrl: string;
-    expiresAt: string;
-  }>;
+  files: Array<UploadSessionFilePlan>;
 };
 
 /**
@@ -139,12 +251,37 @@ export async function uploadFileBytes(
 }
 
 /**
+ * 分片上传单个分块至对象存储预签名 URL 并获取 ETag
+ */
+export async function uploadPartBytes(
+  uploadUrl: string,
+  bytes: Uint8Array,
+): Promise<{ etag: string }> {
+  const res = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: {
+      'content-length': String(bytes.length),
+    },
+    body: bytes as unknown as BodyInit,
+  });
+
+  if (!res.ok) {
+    throw new Error(`分片上传失败 (${res.status})`);
+  }
+
+  const rawEtag = res.headers.get('etag') || res.headers.get('ETag') || `etag-${Date.now()}`;
+  const etag = rawEtag.replace(/^"|"$/g, '');
+  return { etag };
+}
+
+/**
  * 完成上传核验 (POST /v1/uploads/:id/complete)
  */
 export async function completeUploadSession(
   apiUrl: string,
   token: string,
   sessionId: string,
+  parts: Array<{ path: string; partNumber: number; etag: string }> = [],
 ): Promise<void> {
   const res = await fetch(`${apiUrl}/v1/uploads/${sessionId}/complete`, {
     method: 'POST',
@@ -152,7 +289,7 @@ export async function completeUploadSession(
       'content-type': 'application/json',
       authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify({ parts: [] }),
+    body: JSON.stringify({ parts }),
   });
 
   if (!res.ok) {
@@ -195,6 +332,237 @@ export async function submitReleaseJob(
 /**
  * 查询发布作业状态 (GET /v1/releases/:jobId)
  */
+export const ALL_SEVEN_COMPONENTS = [
+  'line',
+  'bar',
+  'pie',
+  'scatter',
+  'trend-card',
+  'ranking',
+  'proportion',
+] as const;
+
+export type SevenComponentName = (typeof ALL_SEVEN_COMPONENTS)[number];
+
+const COMPONENT_EXPORTS: Record<SevenComponentName, { exportName: string; chineseName: string }> = {
+  line: { exportName: 'LineChart', chineseName: '折线图' },
+  bar: { exportName: 'BarChart', chineseName: '柱状图' },
+  pie: { exportName: 'PieChart', chineseName: '饼图' },
+  scatter: { exportName: 'ScatterChart', chineseName: '散点图' },
+  'trend-card': { exportName: 'TrendCard', chineseName: '趋势卡片' },
+  ranking: { exportName: 'Ranking', chineseName: '排行榜' },
+  proportion: { exportName: 'Proportion', chineseName: '占比' },
+};
+
+/**
+ * 构造覆盖 7 组件 14 实现的干净空白草稿（不预填任何占位截图与假产物字节）
+ * 真实用户必须逐实现提供有效展示截图与真实产物
+ */
+export function createEmptySevenComponentsDraft(version = '0.0.6'): {
+  manifest: ReleaseManifestV1;
+  filesMap: Map<string, Uint8Array>;
+} {
+  const packages: PackageRef[] = [
+    {
+      name: '@company/charts-core',
+      version,
+      tarball: { path: `packages/company-charts-core-${version}.tgz`, sha256: '', bytes: 0 },
+      sourceDigest: '',
+      dependencies: {},
+      peerDependencies: { echarts: '6.1.0' },
+    },
+    {
+      name: '@company/charts-vue',
+      version,
+      tarball: { path: `packages/company-charts-vue-${version}.tgz`, sha256: '', bytes: 0 },
+      sourceDigest: '',
+      dependencies: { '@company/charts-core': version },
+      peerDependencies: { vue: '3.5.45', echarts: '6.1.0' },
+    },
+    {
+      name: '@company/charts-react',
+      version,
+      tarball: { path: `packages/company-charts-react-${version}.tgz`, sha256: '', bytes: 0 },
+      sourceDigest: '',
+      dependencies: { '@company/charts-core': version },
+      peerDependencies: { react: '19.3.1', 'react-dom': '19.3.1', echarts: '6.1.0' },
+    },
+  ];
+
+  const variants: VariantRef[] = [];
+  for (const comp of ALL_SEVEN_COMPONENTS) {
+    const meta = COMPONENT_EXPORTS[comp];
+    for (const fw of ['vue', 'react'] as const) {
+      const variantId = `${comp}-${fw}`;
+      const pkgName = fw === 'vue' ? '@company/charts-vue' : '@company/charts-react';
+      variants.push({
+        componentId: comp,
+        variantId,
+        framework: fw,
+        packageName: pkgName,
+        packageVersion: version,
+        exportPath: `./${comp}`,
+        exportName: meta.exportName,
+        api: { path: `api/${variantId}.json`, sha256: '', bytes: 0 },
+        docs: { path: `docs/${variantId}.md`, sha256: '', bytes: 0 },
+        examples: [
+          {
+            id: `example-${variantId}-default`,
+            previewEntry: `preview/${variantId}/index.html`,
+            previewFiles: [{ path: `preview/${variantId}/index.html`, sha256: '', bytes: 0 }],
+            fixtureDigest: '0000000000000000000000000000000000000000000000000000000000000000',
+            renderer: 'canvas',
+            theme: 'light',
+            width: 800,
+            height: 400,
+            requiredStates: ['default'],
+          },
+        ],
+        screenshots: [], // 真实草稿：必须手动上传有效展示截图，严禁占位假截图
+        compatibility: [],
+      });
+    }
+  }
+
+  const manifest = sanitizeWebManifest({
+    schemaVersion: 1,
+    channel: 'web',
+    packages,
+    variants,
+    reports: [],
+    files: [],
+  });
+
+  return { manifest, filesMap: new Map<string, Uint8Array>() };
+}
+
+/**
+ * 构造覆盖 7 组件 14 实现的合规网页 Manifest 与内存文件映射（供自动化测试夹具使用）
+ */
+export function createSevenComponentsManifest(version = '0.0.5'): {
+  manifest: ReleaseManifestV1;
+  filesMap: Map<string, Uint8Array>;
+} {
+  const dummyTarballBytes = new Uint8Array([0x1f, 0x8b, 0x08, 0x00, 0x01, 0x02, 0x03, 0x04]);
+  const dummyTextBytes = new TextEncoder().encode('{}');
+  // 最小合法 2x2 PNG 字节（具有合法的 IHDR, IDAT, IEND 及正确的 CRC32 校验和）
+  const dummyShotBytes = new Uint8Array([
+    137, 80, 78, 71, 13, 10, 26, 10, 0, 0, 0, 13, 73, 72, 68, 82, 0, 0, 0, 2, 0,
+    0, 0, 2, 8, 6, 0, 0, 0, 114, 182, 13, 36, 0, 0, 0, 17, 73, 68, 65, 84, 120,
+    1, 99, 252, 15, 4, 12, 64, 192, 196, 0, 5, 0, 61, 248, 4, 0, 54, 24, 75,
+    180, 0, 0, 0, 0, 73, 69, 78, 68, 174, 66, 96, 130,
+  ]);
+
+  const TARBALL_SHA = '17d4b1537775ca05f5e5e30863e9667891fce6796522ae0989524b6e5e55c655';
+  const TEXT_SHA = '44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a';
+  const SHOT_SHA = '0abc0b2e70b436996e19700644aa232ce745575c8b44402141b6118f9f33c9f6';
+
+  const filesMap = new Map<string, Uint8Array>();
+
+  function getDigest(bytes: Uint8Array): string {
+    if (bytes === dummyTarballBytes) return TARBALL_SHA;
+    if (bytes === dummyShotBytes) return SHOT_SHA;
+    return TEXT_SHA;
+  }
+
+  function addFile(path: string, bytes: Uint8Array): ArtifactRef {
+    filesMap.set(path, bytes);
+    return { path, sha256: getDigest(bytes), bytes: bytes.byteLength };
+  }
+
+  const packages: PackageRef[] = [
+    {
+      name: '@company/charts-core',
+      version,
+      tarball: addFile(`packages/charts-core-${version}.tgz`, dummyTarballBytes),
+      sourceDigest: TARBALL_SHA,
+      dependencies: {},
+      peerDependencies: {},
+    },
+    {
+      name: '@company/charts-vue',
+      version,
+      tarball: addFile(`packages/charts-vue-${version}.tgz`, dummyTarballBytes),
+      sourceDigest: TARBALL_SHA,
+      dependencies: { '@company/charts-core': version },
+      peerDependencies: { vue: '3.5.45', echarts: '6.1.0' },
+    },
+    {
+      name: '@company/charts-react',
+      version,
+      tarball: addFile(`packages/charts-react-${version}.tgz`, dummyTarballBytes),
+      sourceDigest: TARBALL_SHA,
+      dependencies: { '@company/charts-core': version },
+      peerDependencies: { react: '19.3.1', 'react-dom': '19.3.1', echarts: '6.1.0' },
+    },
+  ];
+
+  const variants: VariantRef[] = [];
+  for (const comp of ALL_SEVEN_COMPONENTS) {
+    const meta = COMPONENT_EXPORTS[comp];
+    for (const fw of ['vue', 'react'] as const) {
+      const variantId = `${comp}-${fw}`;
+      const pkgName = fw === 'vue' ? '@company/charts-vue' : '@company/charts-react';
+      const apiFile = addFile(`api/${variantId}.json`, dummyTextBytes);
+      const docsFile = addFile(`docs/${variantId}.md`, dummyTextBytes);
+      const previewHtml = addFile(`preview/${variantId}/index.html`, dummyTextBytes);
+      const shotFile = addFile(`screenshots/${variantId}-default.png`, dummyShotBytes);
+      const pkgTarball = packages.find((p) => p.name === pkgName)!.tarball;
+
+      variants.push({
+        componentId: comp,
+        variantId,
+        framework: fw,
+        packageName: pkgName,
+        packageVersion: version,
+        exportPath: `./${comp}`,
+        exportName: meta.exportName,
+        api: apiFile,
+        docs: docsFile,
+        examples: [
+          {
+            id: `example-${variantId}-default`,
+            previewEntry: previewHtml.path,
+            previewFiles: [previewHtml],
+            fixtureDigest: '0000000000000000000000000000000000000000000000000000000000000000',
+            renderer: 'canvas',
+            theme: 'light',
+            width: 800,
+            height: 400,
+            requiredStates: ['default'],
+          },
+        ],
+        screenshots: [
+          {
+            id: `shot-${variantId}-default`,
+            variantId,
+            framework: fw,
+            packageVersion: version,
+            packageSha256: pkgTarball.sha256,
+            exampleId: `example-${variantId}-default`,
+            state: 'default',
+            source: 'manual-upload',
+            image: shotFile,
+            environmentKey: 'unknown-manual',
+          },
+        ],
+        compatibility: [],
+      });
+    }
+  }
+
+  const manifest = sanitizeWebManifest({
+    schemaVersion: 1,
+    channel: 'web',
+    packages,
+    variants,
+    reports: [],
+    files: [],
+  });
+
+  return { manifest, filesMap };
+}
+
 export async function fetchReleaseJob(
   apiUrl: string,
   token: string,
@@ -213,4 +581,429 @@ export async function fetchReleaseJob(
   }
 
   return await res.json();
+}
+
+export type FileValidationIssue = {
+  code: 'FILE_MISSING' | 'SIZE_MISMATCH' | 'DIGEST_MISMATCH' | 'SIZE_LIMIT_EXCEEDED';
+  path: string;
+  message: string;
+};
+
+export type FileValidationResult = {
+  ok: boolean;
+  issues: FileValidationIssue[];
+};
+
+/**
+ * 校验待上传真实文件：核对路径存在性、长度 byteLength、SHA-256 哈希一致性及共享大小上限
+ */
+export async function validateUploadFiles(
+  manifest: ReleaseManifestV1,
+  filesMap: Map<string, Uint8Array>,
+): Promise<FileValidationResult> {
+  const issues: FileValidationIssue[] = [];
+
+  if (manifest.files.length > UPLOAD_LIMITS.maxFiles) {
+    issues.push({
+      code: 'SIZE_LIMIT_EXCEEDED',
+      path: '/files',
+      message: `总文件数超过上限: 当前 ${manifest.files.length}, 最大限制 ${UPLOAD_LIMITS.maxFiles}`,
+    });
+  }
+
+  let totalBytes = 0;
+
+  for (const f of manifest.files) {
+    totalBytes += f.bytes;
+    const bytes = filesMap.get(f.path);
+    if (!bytes) {
+      issues.push({
+        code: 'FILE_MISSING',
+        path: f.path,
+        message: `清单声明的文件缺失: ${f.path}`,
+      });
+      continue;
+    }
+
+    if (bytes.byteLength !== f.bytes) {
+      issues.push({
+        code: 'SIZE_MISMATCH',
+        path: f.path,
+        message: `文件长度不一致 (${f.path}): 声明 ${f.bytes} 字节, 实际 ${bytes.byteLength} 字节`,
+      });
+      continue;
+    }
+
+    // 检查单文件大小上限
+    const isImage = /\.(png|jpe?g)$/i.test(f.path);
+    const isTarball = f.path.endsWith('.tgz') || f.path.endsWith('.tar.gz');
+    if (isImage && f.bytes > UPLOAD_LIMITS.imageBytes) {
+      issues.push({
+        code: 'SIZE_LIMIT_EXCEEDED',
+        path: f.path,
+        message: `图片文件大小超限 (${f.path}): 实际 ${f.bytes} 字节, 最大限制 ${UPLOAD_LIMITS.imageBytes} 字节 (10MB)`,
+      });
+    } else if (isTarball && f.bytes > UPLOAD_LIMITS.tarballBytes) {
+      issues.push({
+        code: 'SIZE_LIMIT_EXCEEDED',
+        path: f.path,
+        message: `Tarball 产物包大小超限 (${f.path}): 实际 ${f.bytes} 字节, 最大限制 ${UPLOAD_LIMITS.tarballBytes} 字节 (50MB)`,
+      });
+    }
+
+    const actualSha = await computeBrowserSha256(bytes);
+    if (actualSha !== f.sha256) {
+      issues.push({
+        code: 'DIGEST_MISMATCH',
+        path: f.path,
+        message: `文件哈希不一致 (${f.path}): 声明 ${f.sha256}, 实际 ${actualSha}`,
+      });
+    }
+  }
+
+  if (totalBytes > UPLOAD_LIMITS.totalBytes) {
+    issues.push({
+      code: 'SIZE_LIMIT_EXCEEDED',
+      path: '/files',
+      message: `总产物大小超限: 当前 ${totalBytes} 字节, 最大限制 ${UPLOAD_LIMITS.totalBytes} 字节 (500MB)`,
+    });
+  }
+
+  return {
+    ok: issues.length === 0,
+    issues,
+  };
+}
+
+export type WebUploadWorkflowStorage = {
+  getItem(key: string): string | null;
+  setItem(key: string, value: string): void;
+  removeItem(key: string): void;
+};
+
+export function createMemoryStorage(): WebUploadWorkflowStorage {
+  const store = new Map<string, string>();
+  return {
+    getItem: (k) => (typeof window !== 'undefined' ? window.localStorage.getItem(k) : store.get(k) ?? null),
+    setItem: (k, v) => {
+      if (typeof window !== 'undefined') window.localStorage.setItem(k, v);
+      else store.set(k, v);
+    },
+    removeItem: (k) => {
+      if (typeof window !== 'undefined') window.localStorage.removeItem(k);
+      else store.delete(k);
+    },
+  };
+}
+
+export type ExecuteWebUploadWorkflowOptions = {
+  apiUrl: string;
+  token: string;
+  subject: string;
+  manifest: ReleaseManifestV1;
+  filesMap: Map<string, Uint8Array>;
+  storage?: WebUploadWorkflowStorage;
+  onProgress?: (step: string, percent: number) => void;
+  api?: {
+    createUploadSession: typeof createUploadSession;
+    uploadFileBytes: typeof uploadFileBytes;
+    uploadPartBytes?: typeof uploadPartBytes;
+    completeUploadSession: typeof completeUploadSession;
+    submitReleaseJob: typeof submitReleaseJob;
+  };
+};
+
+/**
+ * 严格执行网页发布全链路时序：
+ * 1. 创建上传前持久化待上传清单与摘要；
+ * 2. uploadSessionId 在服务返回后立即持久化；
+ * 3. 逐文件/分片真实上传字节，失败立即停止抛错；
+ * 4. complete 核验（含分片 parts），失败立即停止抛错；
+ * 5. 首次 POST release 前持久化固定幂等键及完整原请求，重试严格复用该 key；
+ * 6. 连通既有 API，获取有效作业状态。
+ */
+export async function executeWebUploadWorkflow(
+  options: ExecuteWebUploadWorkflowOptions,
+): Promise<{ ok: boolean; jobId: string; uploadSessionId: string }> {
+  const storage =
+    options.storage ??
+    (typeof window !== 'undefined'
+      ? {
+          getItem: (k: string) => window.localStorage.getItem(k),
+          setItem: (k: string, v: string) => window.localStorage.setItem(k, v),
+          removeItem: (k: string) => window.localStorage.removeItem(k),
+        }
+      : createMemoryStorage());
+  const api = options.api ?? {
+    createUploadSession,
+    uploadFileBytes,
+    uploadPartBytes,
+    completeUploadSession,
+    submitReleaseJob,
+  };
+  const partUploader = api.uploadPartBytes ?? uploadPartBytes;
+  const onProgress = options.onProgress ?? (() => {});
+
+  const cleanManifest = sanitizeWebManifest(options.manifest);
+  const digest = await manifestDigest(cleanManifest);
+
+  const currentSubject = options.subject?.trim();
+  if (!currentSubject) {
+    throw new Error('SUBJECT_REQUIRED: 网页发布工作流必须提供有效的操作人 subject，严禁跨用户生成未授权恢复记录');
+  }
+
+  // 1. 创建上传会话前持久化草稿元数据
+  storage.setItem(
+    'zhinexus_upload_draft',
+    JSON.stringify({
+      manifestDigest: digest,
+      filesCount: cleanManifest.files.length,
+      timestamp: Date.now(),
+    }),
+  );
+
+  // 核心安全前置检查：在任何上传或网络副作用前核验是否已有待恢复的 pending_release
+  const pendingReleaseStr = storage.getItem('zhinexus_pending_release');
+  const currentActiveSession = storage.getItem('zhinexus_active_session_id');
+
+  if (pendingReleaseStr) {
+    let parsed: any;
+    try {
+      parsed = JSON.parse(pendingReleaseStr);
+    } catch (err: any) {
+      if (currentActiveSession) {
+        throw new Error(`INVALID_PENDING_RELEASE: 无法解析当前发布会话的持久化记录: ${err.message}`);
+      }
+    }
+
+    if (parsed) {
+      const isSameSession = Boolean(parsed.uploadSessionId && parsed.uploadSessionId === currentActiveSession);
+
+      // 1. 校验 pending 记录自身的完整性与防篡改
+      const hasAllFields =
+        Boolean(parsed.uploadSessionId) &&
+        Boolean(parsed.idempotencyKey) &&
+        Boolean(parsed.apiUrl) &&
+        Boolean(parsed.subject) &&
+        Boolean(parsed.manifestDigest) &&
+        Boolean(parsed.manifest);
+
+      let isTampered = false;
+      if (hasAllFields) {
+        const computed = await manifestDigest(parsed.manifest);
+        if (computed !== parsed.manifestDigest) {
+          isTampered = true;
+        }
+      } else {
+        isTampered = true;
+      }
+
+      // 规则：如果是同会话记录且自身损坏/被篡改，必须 fail-closed 抛错阻断
+      if (isSameSession && isTampered) {
+        throw new Error(
+          `TAMPERED_PENDING_RELEASE: 当前会话 (${parsed.uploadSessionId}) 持久化的发布记录损坏或被篡改，严禁换键重新提交`,
+        );
+      }
+
+      // 2. 比对是否与当前操作的三元组 (apiUrl, subject, digest) 完全匹配
+      const isApiMatch = parsed.apiUrl && parsed.apiUrl.trim() === options.apiUrl.trim();
+      const isSubjectMatch = parsed.subject && parsed.subject === currentSubject;
+      const isDigestMatch = parsed.manifestDigest && parsed.manifestDigest === digest;
+
+      if (!isTampered && isApiMatch && isSubjectMatch && isDigestMatch) {
+        // 同三元组/摘要的有效 pending：说明产物上传与 complete 阶段已就绪，直接重放原 release，完全跳过 PUT / complete！
+        onProgress('检测到未完成的发布提交记录，正在直接重放原幂等键提交...', 90);
+        const releaseRes = await api.submitReleaseJob(
+          options.apiUrl,
+          options.token,
+          parsed.uploadSessionId,
+          parsed.manifest,
+          parsed.idempotencyKey,
+        );
+
+        onProgress(`发布作业已创建 (${releaseRes.jobId})`, 100);
+
+        storage.setItem(
+          'zhinexus_web_release_session',
+          JSON.stringify({
+            jobId: releaseRes.jobId,
+            uploadSessionId: parsed.uploadSessionId,
+            idempotencyKey: parsed.idempotencyKey,
+            state: releaseRes.state,
+            timestamp: Date.now(),
+          }),
+        );
+
+        storage.removeItem('zhinexus_upload_draft');
+        storage.removeItem('zhinexus_pending_release');
+        storage.removeItem('zhinexus_active_session_id');
+        storage.removeItem('zhinexus_active_session_plan');
+
+        return {
+          ok: true,
+          jobId: releaseRes.jobId,
+          uploadSessionId: parsed.uploadSessionId,
+        };
+      }
+    }
+  }
+
+  onProgress('正在创建不可变上传会话...', 10);
+
+  // 检查是否已有活跃的会话可恢复（必须严格绑定 manifestDigest、apiUrl、subject）
+  let uploadSessionId = storage.getItem('zhinexus_active_session_id') || '';
+  let sessionFiles: Array<UploadSessionFilePlan> = [];
+
+  const existingSessionData = storage.getItem('zhinexus_active_session_plan');
+
+  if (uploadSessionId && existingSessionData) {
+    try {
+      const planRecord = JSON.parse(existingSessionData);
+      const isDigestMatch = planRecord && planRecord.manifestDigest === digest;
+      const isApiMatch = planRecord && planRecord.apiUrl && planRecord.apiUrl.trim() === options.apiUrl.trim();
+      const isSubjectMatch = planRecord && planRecord.subject && planRecord.subject === currentSubject;
+      const isSessionMatch = planRecord && planRecord.uploadSessionId === uploadSessionId;
+
+      // 检查文件计划的 URL 是否已到期
+      const now = Date.now();
+      const isExpired =
+        Array.isArray(planRecord.files) &&
+        planRecord.files.some((f: UploadSessionFilePlan) => {
+          if (!f.expiresAt) return false;
+          return Date.parse(f.expiresAt) <= now;
+        });
+
+      // 此时无当前有效 pending，若预签名 URL 已到期，必须安全废弃并创建新 session，避免向过期 URL 发起 PUT
+      if (
+        isDigestMatch &&
+        isApiMatch &&
+        isSubjectMatch &&
+        isSessionMatch &&
+        Array.isArray(planRecord.files) &&
+        planRecord.files.length > 0 &&
+        !isExpired
+      ) {
+        sessionFiles = planRecord.files;
+      } else {
+        uploadSessionId = '';
+        storage.removeItem('zhinexus_active_session_id');
+        storage.removeItem('zhinexus_active_session_plan');
+      }
+    } catch {
+      uploadSessionId = '';
+      storage.removeItem('zhinexus_active_session_id');
+      storage.removeItem('zhinexus_active_session_plan');
+    }
+  }
+
+  if (!uploadSessionId || sessionFiles.length === 0) {
+    const sessionRes = await api.createUploadSession(options.apiUrl, options.token, cleanManifest);
+    uploadSessionId = sessionRes.uploadSessionId;
+    sessionFiles = sessionRes.files;
+
+    // 2. uploadSessionId 在服务返回后立即持久化，并绑定 manifestDigest、apiUrl 与 subject
+    storage.setItem('zhinexus_active_session_id', uploadSessionId);
+    storage.setItem(
+      'zhinexus_active_session_plan',
+      JSON.stringify({
+        uploadSessionId,
+        manifestDigest: digest,
+        apiUrl: options.apiUrl.trim(),
+        subject: currentSubject,
+        files: sessionFiles,
+        timestamp: Date.now(),
+      }),
+    );
+  }
+
+  onProgress('正在推送真实预构建产物与手动截图...', 20);
+
+  // 3. 逐文件/分片真实字节上传（绝不吞错，收集分片 ETag）
+  const uploadedParts: Array<{ path: string; partNumber: number; etag: string }> = [];
+  const totalFiles = sessionFiles.length;
+  for (let i = 0; i < totalFiles; i++) {
+    const plan = sessionFiles[i]!;
+    const bytes = options.filesMap.get(plan.path);
+    if (!bytes) {
+      throw new Error(`FILE_NOT_FOUND: 待上传文件未在内存映射中找到: ${plan.path}`);
+    }
+
+    if (plan.multipart && plan.multipart.parts && plan.multipart.parts.length > 0) {
+      let offset = 0;
+      for (const part of plan.multipart.parts) {
+        const chunk = bytes.subarray(offset, offset + part.bytes);
+        offset += part.bytes;
+        const res = await partUploader(part.uploadUrl, chunk);
+        uploadedParts.push({
+          path: plan.path,
+          partNumber: part.partNumber,
+          etag: res.etag,
+        });
+      }
+    } else if (plan.uploadUrl) {
+      // 单文件直接上传
+      await api.uploadFileBytes(plan.uploadUrl, bytes);
+    } else {
+      throw new Error(`INVALID_PLAN: 计划中缺少有效上传地址: ${plan.path}`);
+    }
+
+    onProgress(`已上传 ${i + 1}/${totalFiles}: ${plan.path}`, 20 + Math.floor(((i + 1) / totalFiles) * 50));
+  }
+
+  onProgress('正在核验上传产物存储摘要一致性...', 75);
+
+  // 4. 完成核验（若失败立即终止抛错，携带已上传的分片 parts）
+  await api.completeUploadSession(options.apiUrl, options.token, uploadSessionId, uploadedParts);
+  onProgress('上传核验通过，正在准备发布提交...', 85);
+
+  // 5. 首次 POST release 前持久化固定幂等键及完整原请求
+  const idempotencyKey = `web-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  storage.setItem(
+    'zhinexus_pending_release',
+    JSON.stringify({
+      idempotencyKey,
+      uploadSessionId,
+      apiUrl: options.apiUrl.trim(),
+      subject: currentSubject,
+      manifest: cleanManifest,
+      manifestDigest: digest,
+      timestamp: Date.now(),
+    }),
+  );
+
+  onProgress('正在提交发布作业...', 90);
+
+  // 6. 提交发布作业（重试时严格复用该 key）
+  const releaseRes = await api.submitReleaseJob(
+    options.apiUrl,
+    options.token,
+    uploadSessionId,
+    cleanManifest,
+    idempotencyKey,
+  );
+
+  onProgress(`发布作业已创建 (${releaseRes.jobId})`, 100);
+
+  // 成功提交后更新最终持久化，并清理草稿、pending 与 active 会话（真正失败才保留供恢复）
+  storage.setItem(
+    'zhinexus_web_release_session',
+    JSON.stringify({
+      jobId: releaseRes.jobId,
+      uploadSessionId,
+      idempotencyKey,
+      state: releaseRes.state,
+      timestamp: Date.now(),
+    }),
+  );
+
+  storage.removeItem('zhinexus_upload_draft');
+  storage.removeItem('zhinexus_pending_release');
+  storage.removeItem('zhinexus_active_session_id');
+  storage.removeItem('zhinexus_active_session_plan');
+
+  return {
+    ok: true,
+    jobId: releaseRes.jobId,
+    uploadSessionId,
+  };
 }
