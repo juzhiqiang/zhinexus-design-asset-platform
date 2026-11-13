@@ -10,6 +10,7 @@ import {
   resolveCandidate,
   verifyCandidate,
   type CombinationProbe,
+  type CompatibilityReport,
   type RegistrySnapshot,
   type SupportedCombination,
 } from '../../packages/charts-core/src/engine/compatibility.js';
@@ -51,6 +52,22 @@ const REACT: SupportedCombination = {
   echartsVersion: '6.1.0',
 };
 const SUPPORTED: readonly SupportedCombination[] = [VUE, REACT];
+
+/**
+ * 三个框架版本各不相同的精确组合：用于覆盖判定必须「按组合」而不是「按框架」。
+ * Vue 出现两个版本（3.5.45 与 3.4.0），只按 framework 分组时后者会被前者掩盖。
+ */
+const MULTI_VUE: readonly SupportedCombination[] = [
+  VUE,
+  { framework: 'vue', frameworkVersion: '3.4.0', echartsVersion: '6.1.0' },
+  REACT,
+];
+
+/** 混合 ECharts 基线：两个组合的基线版本不同。 */
+const MIXED_BASELINE: readonly SupportedCombination[] = [
+  VUE,
+  { framework: 'react', frameworkVersion: '19.3.1', echartsVersion: '6.0.0' },
+];
 
 function passedProbe(): CombinationProbe {
   return async () => ({
@@ -263,5 +280,194 @@ describe('registry 源差异', () => {
     } catch (error) {
       expect((error as CandidateError).reason).toBe('missing-integrity');
     }
+  });
+});
+
+/**
+ * 以下三组锁定「报告必须与实测一致」这一类纪律。
+ *
+ * 2026-11-13 独立评审在 f35ebc9 上对 git 对象直接复现了三处误判，均为「报告自称
+ * 验证了某件事、实际验的却是另一件事」，因此单独立项：探针拿到基线版本、覆盖判定
+ * 只按框架、基线取首项。三者都会让 `recommend` 在缺少实测的情况下返回 `'adopt'`。
+ */
+describe('探针必须收到候选版本，而不是基线版本', () => {
+  it('候选低于基线时，probe 收到候选 echartsVersion，实测行另行记录基线对照', async () => {
+    const candidate = resolveCandidate('6.0.0', OFFICIAL);
+    const seen: SupportedCombination[] = [];
+    const probe: CombinationProbe = async (combination) => {
+      seen.push(combination);
+      return {
+        typecheck: 'passed',
+        runtime: 'passed',
+        interaction: 'passed',
+        visual: 'passed',
+        differences: [],
+      };
+    };
+
+    const report = await verifyCandidate(candidate, SUPPORTED, probe);
+
+    // 探针拿到的必须是候选版本：否则「已验证 6.0.0」这句话是假的
+    expect(seen.map((combination) => combination.echartsVersion)).toEqual(['6.0.0', '6.0.0']);
+    // 实测行记录实际验证的版本（候选），且每行都能回查自己的基线
+    expect(report.results.map((result) => result.echartsVersion)).toEqual(['6.0.0', '6.0.0']);
+    expect(report.results.map((result) => result.baselineEchartsVersion)).toEqual([
+      '6.1.0',
+      '6.1.0',
+    ]);
+    expect(report.baselineEchartsVersion).toBe('6.1.0');
+    expect(report.candidate.version).toBe('6.0.0');
+  });
+
+  it('框架与框架版本取自基线，不随候选改写', async () => {
+    const candidate = resolveCandidate('6.0.0', OFFICIAL);
+    const seen: SupportedCombination[] = [];
+    const probe: CombinationProbe = async (combination) => {
+      seen.push(combination);
+      return {
+        typecheck: 'passed',
+        runtime: 'passed',
+        interaction: 'passed',
+        visual: 'passed',
+        differences: [],
+      };
+    };
+
+    await verifyCandidate(candidate, SUPPORTED, probe);
+
+    expect(seen).toEqual([
+      { framework: 'vue', frameworkVersion: '3.5.45', echartsVersion: '6.0.0' },
+      { framework: 'react', frameworkVersion: '19.3.1', echartsVersion: '6.0.0' },
+    ]);
+  });
+
+  it('候选与基线同版本时，实测行与基线一致', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    expect(report.results.map((result) => result.echartsVersion)).toEqual(['6.1.0', '6.1.0']);
+    expect(report.results.map((result) => result.baselineEchartsVersion)).toEqual([
+      '6.1.0',
+      '6.1.0',
+    ]);
+  });
+});
+
+describe('覆盖判定按精确组合，不按框架', () => {
+  it('supported 有三个精确组合而 results 只有两项时，不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const full = await verifyCandidate(candidate, MULTI_VUE, passedProbe());
+    const partial: CompatibilityReport = {
+      ...full,
+      results: full.results.filter((result) => result.frameworkVersion !== '3.4.0'),
+    };
+
+    expect(partial.results).toHaveLength(2);
+    expect(hasDualFrameworkCoverage(partial, MULTI_VUE)).toBe(false);
+    expect(recommend(partial, MULTI_VUE)).toBe('hold');
+  });
+
+  it('results 的框架版本与 supported 不一致时，不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const full = await verifyCandidate(candidate, MULTI_VUE, passedProbe());
+    const wrongVersion: CompatibilityReport = {
+      ...full,
+      results: full.results.map((result) =>
+        result.frameworkVersion === '3.4.0' ? { ...result, frameworkVersion: '3.5.45' } : result,
+      ),
+    };
+
+    expect(wrongVersion.results).toHaveLength(3);
+    expect(hasDualFrameworkCoverage(wrongVersion, MULTI_VUE)).toBe(false);
+    expect(recommend(wrongVersion, MULTI_VUE)).toBe('hold');
+  });
+
+  it('results 多出 supported 里没有的组合时，不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const full = await verifyCandidate(candidate, MULTI_VUE, passedProbe());
+    const extra: CompatibilityReport = {
+      ...full,
+      results: [
+        ...full.results,
+        {
+          framework: 'vue',
+          frameworkVersion: '3.3.0',
+          echartsVersion: '6.1.0',
+          baselineEchartsVersion: '6.1.0',
+          typecheck: 'passed',
+          runtime: 'passed',
+          interaction: 'passed',
+          visual: 'passed',
+          differences: [],
+        },
+      ],
+    };
+
+    expect(hasDualFrameworkCoverage(extra, MULTI_VUE)).toBe(false);
+    expect(recommend(extra, MULTI_VUE)).toBe('hold');
+  });
+
+  it('supported 自身有重复组合时，不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const duplicated: readonly SupportedCombination[] = [VUE, VUE, REACT];
+    const report = await verifyCandidate(candidate, duplicated, passedProbe());
+
+    expect(report.results).toHaveLength(3);
+    expect(hasDualFrameworkCoverage(report, duplicated)).toBe(false);
+    expect(recommend(report, duplicated)).toBe('hold');
+  });
+
+  it('results 重复记录同一组合时，不得判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const full = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const duplicated: CompatibilityReport = {
+      ...full,
+      results: [...full.results, full.results[0]!],
+    };
+
+    expect(hasDualFrameworkCoverage(duplicated, SUPPORTED)).toBe(false);
+    expect(recommend(duplicated, SUPPORTED)).toBe('hold');
+  });
+
+  it('每个精确组合都实测且四维全过时，才判为完整覆盖', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, MULTI_VUE, passedProbe());
+
+    expect(hasDualFrameworkCoverage(report, MULTI_VUE)).toBe(true);
+    expect(recommend(report, MULTI_VUE)).toBe('adopt');
+  });
+});
+
+describe('基线 ECharts 版本必须唯一', () => {
+  it('混合 echarts 基线直接拒绝，不静默取首项', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    await expect(
+      verifyCandidate(candidate, MIXED_BASELINE, passedProbe()),
+    ).rejects.toThrow(/基线/);
+  });
+
+  it('拒绝与数组顺序无关', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    await expect(
+      verifyCandidate(candidate, [MIXED_BASELINE[1]!, MIXED_BASELINE[0]!], passedProbe()),
+    ).rejects.toThrow(/基线/);
+  });
+
+  it('候选 6.0.0 配混合基线同样拒绝，不因候选与其中一项相同就放行', async () => {
+    const candidate = resolveCandidate('6.0.0', OFFICIAL);
+    await expect(
+      verifyCandidate(candidate, MIXED_BASELINE, passedProbe()),
+    ).rejects.toThrow(/基线/);
+  });
+
+  it('基线一致时才生成报告，且 peerSatisfied 与顺序无关', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const forward = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const backward = await verifyCandidate(candidate, [REACT, VUE], passedProbe());
+
+    expect(forward.peerSatisfied).toBe(true);
+    expect(backward.peerSatisfied).toBe(true);
+    expect(forward.baselineEchartsVersion).toBe(backward.baselineEchartsVersion);
+    expect(recommend(forward, SUPPORTED)).toBe('adopt');
+    expect(recommend(backward, [REACT, VUE])).toBe('adopt');
   });
 });
