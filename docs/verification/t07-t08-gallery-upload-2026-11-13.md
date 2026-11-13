@@ -84,3 +84,4 @@ Get-FileHash component-platform-architecture.md -Algorithm SHA256
 ## 3. 结论
 
 T07（画廊真实 API、授权预览、框架切换、精确版本命令）与 T08（网页手动发布、逐实现截图必检、缺图/错配阻断、任务跟踪）已全部开发完成并通过自动化验证，准备合入 `main`。
+
