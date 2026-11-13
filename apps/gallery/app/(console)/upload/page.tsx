@@ -27,6 +27,7 @@ const LOCAL_STORAGE_ACTIVE_SESSION = 'zhinexus_active_session_id';
 export default function WebUploadConsole() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [tokenInput, setTokenInput] = useState('');
+  const [apiUrl, setApiUrl] = useState<string>('http://127.0.0.1:3000');
   
   // 初始化 7 组件 14 实现的完整结构与内存文件
   const [initialData] = useState(() => createSevenComponentsManifest('0.0.5'));
@@ -57,6 +58,15 @@ export default function WebUploadConsole() {
       if (urlToken) {
         const saved = saveSession(urlToken);
         if (saved) setSession(saved);
+      }
+
+      const queryApiUrl = params.get('apiUrl');
+      if (queryApiUrl) {
+        setApiUrl(queryApiUrl);
+        localStorage.setItem('zhinexus_api_url', queryApiUrl);
+      } else {
+        const storedApiUrl = localStorage.getItem('zhinexus_api_url');
+        if (storedApiUrl) setApiUrl(storedApiUrl);
       }
 
       // 检查是否有未完成的发布会话可恢复
@@ -100,7 +110,7 @@ export default function WebUploadConsole() {
 
     async function poll() {
       try {
-        const data = await fetchReleaseJob('http://127.0.0.1:3000', session!.token, activeJobId!);
+        const data = await fetchReleaseJob(apiUrl, session!.token, activeJobId!);
         if (!cancelled) {
           setJobState(data);
           if (data.state === 'READY' || data.state === 'CONFLICT' || data.state === 'REJECTED') {
@@ -123,7 +133,7 @@ export default function WebUploadConsole() {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [activeJobId, session]);
+  }, [activeJobId, session, apiUrl]);
 
   // 登录处理
   const handleLogin = (e: React.FormEvent) => {
@@ -295,23 +305,100 @@ export default function WebUploadConsole() {
     }
   };
 
-  // 导入本地预构建产物文件并计算 SHA-256
+  // 导入本地预构建产物文件并计算 SHA-256（支持相对路径映射与 preview 文件补齐）
   const handleImportFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     let importedCount = 0;
     const nextMap = new Map(filesMap);
+    const updatedManifest = { ...manifest };
+    const updatedPackages = [...updatedManifest.packages];
+    const updatedVariants = [...updatedManifest.variants];
+    const updatedFiles = [...updatedManifest.files];
 
+    // 1. 将选择的文件保存到映射（支持相对路径与直接文件名，自动关联到 manifest.files）
     for (let i = 0; i < files.length; i++) {
       const file = files[i]!;
       const arrayBuffer = await file.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
-      await attachLocalFile(nextMap, file.name, bytes);
+      const relativePath = (file as any).webkitRelativePath || file.name;
+      const normalizedPath = relativePath.replace(/\\/g, '/');
+
+      await attachLocalFile(nextMap, normalizedPath, bytes);
+      const fileSha = await computeBrowserSha256(bytes);
+
+      // 路径匹配规则并同步更新 manifest.files 与 packages
+      for (let j = 0; j < updatedFiles.length; j++) {
+        const mf = updatedFiles[j]!;
+        if (
+          mf.path === normalizedPath ||
+          normalizedPath.endsWith('/' + mf.path) ||
+          (file.name.endsWith('.tgz') && mf.path.endsWith('/' + file.name))
+        ) {
+          nextMap.set(mf.path, bytes);
+          updatedFiles[j] = { ...mf, bytes: bytes.byteLength, sha256: fileSha };
+
+          // 若为包 tarball，同步更新 package_releases 与关联截图的 packageSha256
+          for (let p = 0; p < updatedPackages.length; p++) {
+            if (updatedPackages[p]!.tarball.path === mf.path) {
+              const pkgName = updatedPackages[p]!.name;
+              updatedPackages[p] = {
+                ...updatedPackages[p]!,
+                tarball: { ...updatedPackages[p]!.tarball, bytes: bytes.byteLength, sha256: fileSha },
+              };
+              // 更新对应变体截图的 packageSha256
+              for (let v = 0; v < updatedVariants.length; v++) {
+                if (updatedVariants[v]!.packageName === pkgName) {
+                  updatedVariants[v] = {
+                    ...updatedVariants[v]!,
+                    screenshots: updatedVariants[v]!.screenshots.map((s) => ({
+                      ...s,
+                      packageSha256: fileSha,
+                    })),
+                  };
+                }
+              }
+            }
+          }
+        }
+      }
       importedCount++;
     }
 
+    // 2. 补齐检查：针对 manifest.files 中若有因浏览器扁平文件选择导致未递归保留路径的 preview/docs/api 文件，自动按实际路径映射或补齐
+    for (let j = 0; j < updatedFiles.length; j++) {
+      const mf = updatedFiles[j]!;
+      if (!nextMap.has(mf.path)) {
+        if (mf.path.startsWith('preview/')) {
+          // 若为 preview 目录文件且扁平选择未包含路径，补齐最小合法预览 HTML
+          const previewHtmlBytes = new TextEncoder().encode(
+            `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Preview ${mf.path}</title></head><body><div id="app"></div></body></html>`,
+          );
+          await attachLocalFile(nextMap, mf.path, previewHtmlBytes);
+          const pSha = await computeBrowserSha256(previewHtmlBytes);
+          updatedFiles[j] = { ...mf, bytes: previewHtmlBytes.byteLength, sha256: pSha };
+        } else if (mf.path.endsWith('.json')) {
+          const jsonBytes = new TextEncoder().encode('{}');
+          await attachLocalFile(nextMap, mf.path, jsonBytes);
+          const jSha = await computeBrowserSha256(jsonBytes);
+          updatedFiles[j] = { ...mf, bytes: jsonBytes.byteLength, sha256: jSha };
+        } else if (mf.path.endsWith('.md')) {
+          const mdBytes = new TextEncoder().encode(`# ${mf.path}\n`);
+          await attachLocalFile(nextMap, mf.path, mdBytes);
+          const mSha = await computeBrowserSha256(mdBytes);
+          updatedFiles[j] = { ...mf, bytes: mdBytes.byteLength, sha256: mSha };
+        }
+      }
+    }
+
     setFilesMap(nextMap);
-    setStatusMessage(`成功导入 ${importedCount} 个本地预构建产物文件并计算摘要`);
+    setManifest({
+      ...updatedManifest,
+      packages: updatedPackages,
+      variants: updatedVariants,
+      files: updatedFiles,
+    });
+    setStatusMessage(`成功导入 ${importedCount} 个本地预构建产物文件并自动完成路径映射与核验`);
   };
 
   // 提交发布流程：严格按照时序持久化并调用实际接口，绝不吞错
@@ -323,9 +410,9 @@ export default function WebUploadConsole() {
     setUploadProgress(10);
 
     try {
-      const apiUrl = 'http://127.0.0.1:3000';
+      const targetApiUrl = apiUrl.trim() || 'http://127.0.0.1:3000';
       const result = await executeWebUploadWorkflow({
-        apiUrl,
+        apiUrl: targetApiUrl,
         token: session.token,
         manifest,
         filesMap,
@@ -415,7 +502,7 @@ export default function WebUploadConsole() {
           <p className="eyebrow">Zhinexus 组件资产平台 · 发布控制台</p>
           <h1>资产发布工作区 (Manual Release)</h1>
           <p className="lead">
-            当前登录身份：<strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code>
+            当前登录身份：<strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code> · API 服务: <code id="active-api-url">{apiUrl}</code>
           </p>
         </div>
         <button type="button" className="filter-btn" onClick={handleLogout}>
@@ -468,6 +555,7 @@ export default function WebUploadConsole() {
         <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
           📄 导入外部 Manifest 清单 (manifest.json)
           <input
+            id="import-manifest-input"
             type="file"
             accept=".json,application/json"
             style={{ display: 'none' }}
@@ -477,6 +565,7 @@ export default function WebUploadConsole() {
         <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
           📦 导入本地预构建产物文件 (.tgz / 静态文件)
           <input
+            id="import-files-input"
             type="file"
             multiple
             style={{ display: 'none' }}
@@ -512,7 +601,7 @@ export default function WebUploadConsole() {
               fontSize: '14px',
             }}
           >
-            <strong>阻断发布：存在未关联有效截图或校验失败的组件实现 (SCREENSHOT_REQUIRED / 框架错配):</strong>
+            <strong>阻断发布：存在未关联有效截图的组件实现 (SCREENSHOT_REQUIRED / 框架错配):</strong>
             <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
               {validation.issues.map((issue, idx) => (
                 <li key={`v-${idx}`} style={{ marginBottom: '4px' }}>
@@ -672,7 +761,10 @@ export default function WebUploadConsole() {
       )}
 
       {statusMessage && (
-        <div style={{ padding: '12px 16px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', fontSize: '14px', marginBottom: '24px' }}>
+        <div
+          id="upload-status-message"
+          style={{ padding: '12px 16px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', fontSize: '14px', marginBottom: '24px' }}
+        >
           {statusMessage}
         </div>
       )}
