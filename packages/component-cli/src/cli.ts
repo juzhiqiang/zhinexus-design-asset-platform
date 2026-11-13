@@ -1,4 +1,5 @@
 import { runCheckCommand } from './commands/check.js';
+import { acceptBaseline } from './commands/baseline.js';
 import { prepareReleaseBundle, verifyReleaseBundle } from './local/manifest.js';
 import {
   executeReleaseCommand,
@@ -22,13 +23,15 @@ export async function runCli(
   component check [--framework vue|react|all] [--staging-dir <dir>]
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
+  component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]
   component --version
   component --help
 
 可用命令:
   check            本地构建、冻结、干净消费者验证、截图与报告生成闭环
   prepare-release  整理并生成合法的 ReleaseManifestV1 与完整冻结发布材料 Bundle
-  init/dev/release/status/baseline  (部分开发中)
+  baseline         管理与确认本地自动验证产生的视觉回归基线
+  init/dev/release/status  (部分开发中)
 `,
       stderr: '',
     };
@@ -107,6 +110,7 @@ export async function runCli(
   if (command === 'check') {
     let framework: 'vue' | 'react' | 'all' = 'all';
     let stagingDir: string | undefined;
+    let baselineDir: string | undefined;
 
     for (let i = 0; i < rest.length; i++) {
       const arg = rest[i];
@@ -123,21 +127,23 @@ export async function runCli(
         }
       } else if (arg === '--staging-dir') {
         stagingDir = rest[++i];
+      } else if (arg === '--baseline-dir') {
+        baselineDir = rest[++i];
       } else {
         return {
           exitCode: 1,
           stdout: '',
-          stderr: `错误: 未知参数 ${arg}\n用法: component check [--framework vue|react|all] [--staging-dir <dir>]\n`,
+          stderr: `错误: 未知参数 ${arg}\n用法: component check [--framework vue|react|all] [--staging-dir <dir>] [--baseline-dir <dir>]\n`,
         };
       }
     }
 
-    const checkResult = await runCheckCommand({ framework, stagingDir });
+    const checkResult = await runCheckCommand({ framework, stagingDir, baselineDir });
     let stdout = '';
     let stderr = '';
 
     for (const r of checkResult.results) {
-      stdout += `✔ [${r.framework}] 验证通过: 变体 ${r.variantId}, 产物摘要: ${r.packageSha256.slice(0, 16)}..., 报告: ${r.reportPath}\n`;
+      stdout += `✔ [${r.framework}] 验证完成: 变体 ${r.variantId}, 基线结果: ${r.report.baselineResult}, 产物摘要: ${r.packageSha256.slice(0, 16)}..., 报告: ${r.reportPath}\n`;
     }
 
     if (checkResult.success) {
@@ -310,6 +316,79 @@ export async function runCli(
       const msg = err instanceof Error ? err.message : String(err);
       return { exitCode: 1, stdout: '', stderr: `✖ 恢复发布失败: ${msg}\n` };
     }
+  }
+
+  if (command === 'baseline') {
+    const [subcommand, ...subRest] = rest;
+    if (subcommand !== 'accept') {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `错误: 未知 baseline 子命令 ${subcommand ?? '(空)'}\n用法: component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]\n`,
+      };
+    }
+
+    let reportPath = '';
+    let reason = '';
+    let apiUrl: string | undefined;
+    let token: string | undefined;
+    let expectedRevision: string | undefined;
+    let screenshotId: string | undefined;
+
+    for (let i = 0; i < subRest.length; i++) {
+      const arg = subRest[i];
+      if (arg === '--report') {
+        reportPath = subRest[++i] ?? '';
+      } else if (arg === '--reason') {
+        reason = subRest[++i] ?? '';
+      } else if (arg === '--api-url') {
+        apiUrl = subRest[++i];
+      } else if (arg === '--token') {
+        token = subRest[++i];
+      } else if (arg === '--expected-revision') {
+        expectedRevision = subRest[++i];
+      } else if (arg === '--screenshot-id') {
+        screenshotId = subRest[++i];
+      } else {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `错误: 未知参数 ${arg}\n用法: component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]\n`,
+        };
+      }
+    }
+
+    if (!reportPath) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: '错误: 缺少必填参数 --report <path>\n',
+      };
+    }
+
+    const result = await acceptBaseline({
+      reportPath,
+      reason,
+      apiUrl,
+      token,
+      expectedRevision,
+      screenshotId,
+    });
+
+    if (!result.ok) {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `✖ 基线确认失败 [${result.errorCode ?? 'ERROR'}]: ${result.error ?? '未知错误'}\n`,
+      };
+    }
+
+    let stdout = `✔ 视觉基线确认成功！\n`;
+    stdout += `  - 基线版本 (revisionId): ${result.revisionId ?? '-'}\n`;
+    stdout += `  - 变体 / 示例: ${result.variantId} / ${result.exampleId}\n`;
+    stdout += `  - 环境签名: ${result.environmentKey}\n`;
+    stdout += `  - 截图 ID: ${result.screenshotId}\n`;
+    return { exitCode: 0, stdout, stderr: '' };
   }
 
   return {
