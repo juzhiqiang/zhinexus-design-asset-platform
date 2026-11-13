@@ -1,0 +1,1678 @@
+{
+  "verifiedAt": "2026-11-13T07:34:39.752Z",
+  "sdkSourceCommit": "190b60bfc583fc68611a21d270784017b7f91f11",
+  "cSupportCommit": "6dcf6fa",
+  "archive": ".tools/operations/a-sdk-native-190b60b/source",
+  "architectureSha256": "e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723",
+  "supportFiles": [
+    {
+      "file": "tests/platform/current-sdk.test.ts",
+      "sha256": "6c2c27111c1853965e9476884d5987e699c8217d06c99d5d5801daef83795608"
+    },
+    {
+      "file": "tests/platform/support.ts",
+      "sha256": "7506ab807f6fa6f22ad35cd83a411a4c142efdec4b0fcc151b3251cd51c10662"
+    },
+    {
+      "file": "tests/platform/http-support.ts",
+      "sha256": "c6a4ed5358a6de0e90fcb256aef0b929ffec487b6f16e3f8b169d6a346e37450"
+    },
+    {
+      "file": "tests/platform/t06-support.ts",
+      "sha256": "a438a673a8156f4e709a024f0b37937d9874dd1191c9ad541b88c5daec507033"
+    }
+  ],
+  "validation": {
+    "frozenOfflineInstall": {
+      "downloaded": 0,
+      "packages": 344
+    },
+    "buildAndTypecheck": {
+      "successful": 20,
+      "total": 20,
+      "cached": 0,
+      "durationSeconds": 6.584
+    },
+    "unitAndContracts": {
+      "files": 20,
+      "passed": 379,
+      "durationSeconds": 7.14
+    },
+    "rootTypecheck": true,
+    "workspace": true,
+    "platformCurrentSdk": {
+      "passed": 1,
+      "durationSeconds": 63.14
+    }
+  },
+  "publication": {
+    "verifiedAt": "2026-11-13T06:58:18.623Z",
+    "os": "win32",
+    "arch": "x64",
+    "components": [
+      "line",
+      "bar",
+      "pie",
+      "scatter",
+      "trend-card",
+      "ranking",
+      "proportion"
+    ],
+    "packages": [
+      {
+        "name": "@company/charts-core",
+        "version": "0.0.10",
+        "sha256": "2d9d4208bf070f2478116e500b87ab0748fe5af2793dfa3d13a7c7954212e752"
+      },
+      {
+        "name": "@company/charts-vue",
+        "version": "0.0.10",
+        "sha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+      },
+      {
+        "name": "@company/charts-react",
+        "version": "0.0.10",
+        "sha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+      }
+    ],
+    "implementationCount": 14,
+    "registryConsumers": [
+      {
+        "framework": "vue",
+        "version": "0.0.10",
+        "exports": 7
+      },
+      {
+        "framework": "react",
+        "version": "0.0.10",
+        "exports": 7
+      }
+    ],
+    "state": "READY",
+    "previewFilesMatch": true,
+    "browserPreviews": [
+      {
+        "variantId": "line-vue",
+        "entry": "https://r-b32a540e-894c-4dc9-b708-a37f2cb88917.preview.assets.test:57819/preview/line-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/line-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/line-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/line-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/line-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/line-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/line-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/line-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/line-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/line-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/line-vue/index.html",
+            "sha256": "6a71a27497b9ce37fd5858f2f8119554ebfac8e2d34f11e582a1d0d6e9d8b412"
+          }
+        ]
+      },
+      {
+        "variantId": "line-react",
+        "entry": "https://r-ae59e593-fcc7-471e-a693-35d07faba052.preview.assets.test:57819/preview/line-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/line-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/line-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/line-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/line-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/line-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/line-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/line-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/line-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/line-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/line-react/index.html",
+            "sha256": "dc9cf66c1d2ff1c8f61435006f35776ff147bfbf8971270e2e196d9a2a5787a7"
+          }
+        ]
+      },
+      {
+        "variantId": "bar-vue",
+        "entry": "https://r-c5acac85-6487-46a9-b096-34c35ce4f0e7.preview.assets.test:57819/preview/bar-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/bar-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/bar-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/bar-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/bar-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/bar-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/bar-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/bar-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/bar-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/bar-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/bar-vue/index.html",
+            "sha256": "dadf66cbd6bc5a5ae2cb348839b0c67f55ffbe15ef9cac2a16c4d0e63b1a0b07"
+          }
+        ]
+      },
+      {
+        "variantId": "bar-react",
+        "entry": "https://r-110a896f-8efd-499a-bc08-0a8f539be76e.preview.assets.test:57819/preview/bar-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/bar-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/bar-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/bar-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/bar-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/bar-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/bar-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/bar-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/bar-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/bar-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/bar-react/index.html",
+            "sha256": "9fc9141bd35deaf67978f29466261ec925da60249e8af56705bd2e3676724a35"
+          }
+        ]
+      },
+      {
+        "variantId": "pie-vue",
+        "entry": "https://r-b0000c37-725f-4c93-b33f-1abffeb0be14.preview.assets.test:57819/preview/pie-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/pie-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/pie-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/pie-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/pie-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/pie-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/pie-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/pie-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/pie-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/pie-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/pie-vue/index.html",
+            "sha256": "0d01333bcf6fcec8535a0217f66d4bd640ffacd40191228da1128bffdb8cf3fa"
+          }
+        ]
+      },
+      {
+        "variantId": "pie-react",
+        "entry": "https://r-5e9843f0-0fc0-4849-9b07-bf4410f4fbab.preview.assets.test:57819/preview/pie-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/pie-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/pie-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/pie-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/pie-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/pie-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/pie-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/pie-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/pie-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/pie-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/pie-react/index.html",
+            "sha256": "023a259719d1a7b3cb35a22eed63e8ded97cb68fd86665bd8f040802621b3504"
+          }
+        ]
+      },
+      {
+        "variantId": "scatter-vue",
+        "entry": "https://r-2b24c0d1-179b-46da-be53-bbd045a8b438.preview.assets.test:57819/preview/scatter-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/scatter-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/scatter-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/scatter-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/scatter-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/scatter-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/scatter-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/scatter-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/scatter-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/scatter-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/scatter-vue/index.html",
+            "sha256": "c92812c51b5a8ed1f639f81454a5f23f486f6fd40e72b478b40d945ff0b6bb7d"
+          }
+        ]
+      },
+      {
+        "variantId": "scatter-react",
+        "entry": "https://r-5902a346-cbf7-466d-87f6-6e971f639645.preview.assets.test:57819/preview/scatter-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/scatter-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/scatter-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/scatter-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/scatter-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/scatter-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/scatter-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/scatter-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/scatter-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/scatter-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/scatter-react/index.html",
+            "sha256": "3d177b03f116f60bb4b57843e93db3785844a186ed070298b4e26969f25d98dd"
+          }
+        ]
+      },
+      {
+        "variantId": "trend-card-vue",
+        "entry": "https://r-ea200849-5c74-4fd7-ac93-a31385b680f8.preview.assets.test:57819/preview/trend-card-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/trend-card-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/trend-card-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/trend-card-vue/index.html",
+            "sha256": "3adb0f11e630434eafeb94d66384bfb30906871858b30e8362755ca3f9b75209"
+          }
+        ]
+      },
+      {
+        "variantId": "trend-card-react",
+        "entry": "https://r-52ec50bc-1bf1-4be4-8349-f1ac3c28303f.preview.assets.test:57819/preview/trend-card-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/trend-card-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/trend-card-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/trend-card-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/trend-card-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/trend-card-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/trend-card-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/trend-card-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/trend-card-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/trend-card-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/trend-card-react/index.html",
+            "sha256": "b30d9dec8e2a8804ece5618a8584f156bdd6f5c3d5b12b3e08a55dbe41774807"
+          }
+        ]
+      },
+      {
+        "variantId": "ranking-vue",
+        "entry": "https://r-1d29b720-745d-422a-a543-874873b14338.preview.assets.test:57819/preview/ranking-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/ranking-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/ranking-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/ranking-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/ranking-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/ranking-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/ranking-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/ranking-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/ranking-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/ranking-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/ranking-vue/index.html",
+            "sha256": "87cd5feb17505309086c7a1064e619e52a045255d0e44037f3001e1823e24ca1"
+          }
+        ]
+      },
+      {
+        "variantId": "ranking-react",
+        "entry": "https://r-b0a854d2-5b7c-4600-ac17-e50efb67d2ca.preview.assets.test:57819/preview/ranking-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/ranking-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/ranking-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/ranking-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/ranking-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/ranking-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/ranking-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/ranking-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/ranking-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/ranking-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/ranking-react/index.html",
+            "sha256": "71841f84177ecb8119f3da6a43af7296e72d292d6c010766d17c8a3a9d4f5889"
+          }
+        ]
+      },
+      {
+        "variantId": "proportion-vue",
+        "entry": "https://r-1f8c6e1a-2c9b-4f25-bf99-6cd1533e80e6.preview.assets.test:57819/preview/proportion-vue/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/proportion-vue/assets/bar-C1q-LYEx.js",
+            "sha256": "5b0319a7ae10bac40c9595286a0fd25dcbe0a56c168aa2e925975151b93ca906"
+          },
+          {
+            "path": "preview/proportion-vue/assets/index-BxTh1lYy.js",
+            "sha256": "fe2a3e02c8151ce4c0376253d5952405bad5872d000e506e8290d2ecf203909d"
+          },
+          {
+            "path": "preview/proportion-vue/assets/pie-BqmYhF2r.js",
+            "sha256": "d4b68c19d66d8bc54359936e2fe1083135f5d3726db9b55c9418f4c0ac7be89b"
+          },
+          {
+            "path": "preview/proportion-vue/assets/proportion-20ULlsxy.js",
+            "sha256": "5cb1435dcd5a34529fe64fda86a7fbdc65b01119b3ec9701f4bde19084dfd838"
+          },
+          {
+            "path": "preview/proportion-vue/assets/ranking-Pk7R4vQJ.js",
+            "sha256": "60fa4275e3d01286677aa9bbddece0960d40c29928d563a592b8e4dad9bb06ce"
+          },
+          {
+            "path": "preview/proportion-vue/assets/scatter-BPeZYMJw.js",
+            "sha256": "5353f45b86ca81956479a5dae0c023d683dfa25b524172e99727eb92739a6b66"
+          },
+          {
+            "path": "preview/proportion-vue/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/proportion-vue/assets/style-DLrFPct_.js",
+            "sha256": "c842bdf40e07e2907e1b7ae3d6651c4b7eee36afd0e8fa3e59e39a5672539047"
+          },
+          {
+            "path": "preview/proportion-vue/assets/trend-card-Cy46yMmJ.js",
+            "sha256": "10a169da80baa21283770261f879719d368161e4877ae414ad8e6d5512716cf4"
+          },
+          {
+            "path": "preview/proportion-vue/index.html",
+            "sha256": "75daf585d716727d52f8ed8c7a283e6fd5c4e3c5e4ac0fa4a8591292d1ad0536"
+          }
+        ]
+      },
+      {
+        "variantId": "proportion-react",
+        "entry": "https://r-64e1ec95-bf2c-4783-9add-3b284494c5c0.preview.assets.test:57819/preview/proportion-react/index.html",
+        "checks": [
+          {
+            "name": "fonts-ready",
+            "status": "passed"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed"
+          },
+          {
+            "name": "series-rendered",
+            "status": "passed"
+          },
+          {
+            "name": "single-instance",
+            "status": "passed"
+          },
+          {
+            "name": "valid-dimensions",
+            "status": "passed"
+          }
+        ],
+        "resources": [
+          {
+            "path": "preview/proportion-react/assets/bar-C47otfs4.js",
+            "sha256": "2c93681b6005eae8279f437cdd24124fb71c94d8b9d1746fa9056d3f42d2d5f5"
+          },
+          {
+            "path": "preview/proportion-react/assets/index-ix-Y6okB.js",
+            "sha256": "22ce7c040787dc77d72f07e0910af2cb5744c400696ae230b8db24521f80ed05"
+          },
+          {
+            "path": "preview/proportion-react/assets/pie-BvgB0hDi.js",
+            "sha256": "2f70130c950c6b3c4e91648b7822e022422b26dad90b4118f9da91087b329cad"
+          },
+          {
+            "path": "preview/proportion-react/assets/proportion-0p9iK0oy.js",
+            "sha256": "31d8068e7f78f42f94cfe51fce05745e7028d24a97475adca48b527b2cdcff82"
+          },
+          {
+            "path": "preview/proportion-react/assets/ranking-BVFLjXuI.js",
+            "sha256": "c3b78beb4c82a7cf1d2be6f73d25aeb050854fbe3174577e213c5a026688120b"
+          },
+          {
+            "path": "preview/proportion-react/assets/scatter-DwVS0Ysw.js",
+            "sha256": "ad967c824b43fc7a7bdd71719c323f0735f4eb0c785ddb7a7a35833574419437"
+          },
+          {
+            "path": "preview/proportion-react/assets/style-CeWGI-m4.css",
+            "sha256": "63e07375af2da6791fc2e9fe340e39b621bebf0c0f55cdc20dbd1ba7f6094a6f"
+          },
+          {
+            "path": "preview/proportion-react/assets/style-Di-YGb2m.js",
+            "sha256": "9a6c3831b015951d4657ee27767d2121989ca982693e840743028897850e1a5d"
+          },
+          {
+            "path": "preview/proportion-react/assets/trend-card-BElE8Q77.js",
+            "sha256": "68f52c056691bd5c5823ddeea6cd76832fc46fc56aea0d0f127d6ac207b10721"
+          },
+          {
+            "path": "preview/proportion-react/index.html",
+            "sha256": "8c3ac676052e9627189722b9ada439fedcda0ee2dcf95734311f9acf533dbc27"
+          }
+        ]
+      }
+    ],
+    "variants": [
+      {
+        "componentId": "line",
+        "framework": "vue",
+        "variantId": "line-vue",
+        "api": {
+          "path": "api/line-vue.json",
+          "sha256": "4c4ee05a112e7072811609a00307051061a6fcb1a1505358e36f3350d5108140",
+          "bytes": 436
+        },
+        "docs": {
+          "path": "docs/line-vue.md",
+          "sha256": "a4bba35c1bb4d87f0b633e56c2483f0456b333b67a374aa56fdba65e3f642bef",
+          "bytes": 119
+        },
+        "reports": [
+          {
+            "path": "reports/line-vue.json",
+            "sha256": "6a2622282e51ce43e89289321c164d800f8f3f8d0e58477a349950b08eecdd24",
+            "bytes": 1782
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/line-vue-default.png",
+            "sha256": "7760b339accca882311a3b3625613f9d071e58874272bf87f0e109c8acad690b",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "line",
+        "framework": "react",
+        "variantId": "line-react",
+        "api": {
+          "path": "api/line-react.json",
+          "sha256": "753296397d41db0588398e553377d3ff2808f3f5454ef8faf7ea1aa041cbce0f",
+          "bytes": 438
+        },
+        "docs": {
+          "path": "docs/line-react.md",
+          "sha256": "5070900d59e9c81ce26979aeed7266c1d5a659a0de3253f69fc0e4ff9dca365f",
+          "bytes": 123
+        },
+        "reports": [
+          {
+            "path": "reports/line-react.json",
+            "sha256": "7caa8f253bcd93516c1b97dd4c45c680eb37210da17cd741c29e014b27699e27",
+            "bytes": 1798
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/line-react-default.png",
+            "sha256": "e765618c98fbbe975489debb4426b4db4e001d655ff9a9c11722a8fec449f906",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      },
+      {
+        "componentId": "bar",
+        "framework": "vue",
+        "variantId": "bar-vue",
+        "api": {
+          "path": "api/bar-vue.json",
+          "sha256": "1d9f5bee13310a5b0cc717e101f2935eda760f0039bdab630f7459f92826c953",
+          "bytes": 432
+        },
+        "docs": {
+          "path": "docs/bar-vue.md",
+          "sha256": "87d00e488a4f236f2bcc0e732e9f17156e762a708ad76ddd3e380d47ee4e301c",
+          "bytes": 116
+        },
+        "reports": [
+          {
+            "path": "reports/bar-vue.json",
+            "sha256": "33c67c42813e5ccd92584a0c35c3b991fb44c69c2c5f637fdd9f2d977edb1072",
+            "bytes": 1775
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/bar-vue-default.png",
+            "sha256": "1fc18995b9585a73744dab567f3d9f962c1335e01671dcbb82ddfcd307e70c73",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "bar",
+        "framework": "react",
+        "variantId": "bar-react",
+        "api": {
+          "path": "api/bar-react.json",
+          "sha256": "8d27e2acbf4ee6cf4c60bb9ace6905535c39dfbfac36ae7eb721467a96d4b18b",
+          "bytes": 434
+        },
+        "docs": {
+          "path": "docs/bar-react.md",
+          "sha256": "328df6e2fbc6fcd2522bf479aacce43b15dd918f1cd673c911c05266398f60c9",
+          "bytes": 120
+        },
+        "reports": [
+          {
+            "path": "reports/bar-react.json",
+            "sha256": "3b3deb4e6e9bc8b360b3cff8e24de7caf72e69b113202f53089c3e206ebae4fd",
+            "bytes": 1791
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/bar-react-default.png",
+            "sha256": "69439fd4d39e9fbda6e9f1acaa889af21af2da193dad79b9e248509c54915b6d",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      },
+      {
+        "componentId": "pie",
+        "framework": "vue",
+        "variantId": "pie-vue",
+        "api": {
+          "path": "api/pie-vue.json",
+          "sha256": "c88b54289ff08a195fb6a4412efa921ec3a3621454b40329c4c95110bdff5e8a",
+          "bytes": 432
+        },
+        "docs": {
+          "path": "docs/pie-vue.md",
+          "sha256": "4d52d19c73a47b649707bab903ca29725705db463aa2220f328bcace45c3cb99",
+          "bytes": 113
+        },
+        "reports": [
+          {
+            "path": "reports/pie-vue.json",
+            "sha256": "7c297392459fb863f24549f6a82d68f26efa07542b3eed5892fbe8b53a8a78a3",
+            "bytes": 1775
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/pie-vue-default.png",
+            "sha256": "0b5c5206ae85ee1c8dccd887a3bb9f36f66e2b64f5764322e074d088ca4835fe",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "pie",
+        "framework": "react",
+        "variantId": "pie-react",
+        "api": {
+          "path": "api/pie-react.json",
+          "sha256": "faac32b6757c30bf6967d6aab137f00712736e8d4a8c92a50d753b81ec1fea2a",
+          "bytes": 434
+        },
+        "docs": {
+          "path": "docs/pie-react.md",
+          "sha256": "e66c6c23d6da9b3c842156e9942c2d92125693d8211b36bc32ee4007825c95bc",
+          "bytes": 117
+        },
+        "reports": [
+          {
+            "path": "reports/pie-react.json",
+            "sha256": "59384f150b2a28c0a32ef5a6030e1b7a866ab48003c00848515ec590ee58bb91",
+            "bytes": 1791
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/pie-react-default.png",
+            "sha256": "39c9182e5922749446e0da0ada608149f9a9edcb5f4f199c2567b7830e5ed17a",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      },
+      {
+        "componentId": "scatter",
+        "framework": "vue",
+        "variantId": "scatter-vue",
+        "api": {
+          "path": "api/scatter-vue.json",
+          "sha256": "1f514b786d281d86cd1317c82ae7601150afafae4d297c6eb1f5cc19d7590f72",
+          "bytes": 448
+        },
+        "docs": {
+          "path": "docs/scatter-vue.md",
+          "sha256": "49c1205c81c7e32bfdacbdbdcf7fe3aade41e40e5a74cc153e377eff5662c9ee",
+          "bytes": 128
+        },
+        "reports": [
+          {
+            "path": "reports/scatter-vue.json",
+            "sha256": "4027cd196f8a84924f7969bf159b8eafa427bdc49b520355c89285b66215387d",
+            "bytes": 1803
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/scatter-vue-default.png",
+            "sha256": "508de5040f2c43ac5e67525aececd4fd9074111855b2509237fd42a13e4608ac",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "scatter",
+        "framework": "react",
+        "variantId": "scatter-react",
+        "api": {
+          "path": "api/scatter-react.json",
+          "sha256": "94e6af8cfefe6d5e4a5a3c47b4d4bfcc7506c0f39461b2b759106338ebb788a1",
+          "bytes": 450
+        },
+        "docs": {
+          "path": "docs/scatter-react.md",
+          "sha256": "04d87c5d718f4042a0fc0744713d3d43a030835ebe8e916412b01d484767d446",
+          "bytes": 132
+        },
+        "reports": [
+          {
+            "path": "reports/scatter-react.json",
+            "sha256": "947bb3ace17ee67b0fbeb0ede41ae75eefad84933425b7487780369509c9cd8f",
+            "bytes": 1819
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/scatter-react-default.png",
+            "sha256": "5ba004921490066cf2aeeaaebeff89f7e685f3746d0da410ba85f9c90c9d4234",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      },
+      {
+        "componentId": "trend-card",
+        "framework": "vue",
+        "variantId": "trend-card-vue",
+        "api": {
+          "path": "api/trend-card-vue.json",
+          "sha256": "a48ba340990d14c84cf8f342cb6622cce6a3145bc55be797335bb6641c906d2b",
+          "bytes": 448
+        },
+        "docs": {
+          "path": "docs/trend-card-vue.md",
+          "sha256": "8a2732b56fed667caf0f63bac974ca22bf3af4bd0c27e7a1bf3a8ecd050b4454",
+          "bytes": 128
+        },
+        "reports": [
+          {
+            "path": "reports/trend-card-vue.json",
+            "sha256": "74ae25ce919b8306646e36b13b6ebf349dbf789210d8680431d51a9bd69d0029",
+            "bytes": 1824
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/trend-card-vue-default.png",
+            "sha256": "d7f7af06a1dc31864bcd2bb3db9b642b003373f7570f739a45cb05c9f1f114c5",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "trend-card",
+        "framework": "react",
+        "variantId": "trend-card-react",
+        "api": {
+          "path": "api/trend-card-react.json",
+          "sha256": "99552c95c2d3a380b7bd13e9182683a27bf7a6201f477fcfd97e21b379e2398d",
+          "bytes": 450
+        },
+        "docs": {
+          "path": "docs/trend-card-react.md",
+          "sha256": "a64519a66d9d36f9c143d554d98ca6df54e3d6a9d99795bd2588c187344bfee1",
+          "bytes": 132
+        },
+        "reports": [
+          {
+            "path": "reports/trend-card-react.json",
+            "sha256": "704af445dfea2052995a87124078c6617d3ca35a235e96c6c9e4455df6e1735c",
+            "bytes": 1840
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/trend-card-react-default.png",
+            "sha256": "15156a26ccdc98043259e2529605910c8041f4b1c491e3fb666db85060b2e2fc",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      },
+      {
+        "componentId": "ranking",
+        "framework": "vue",
+        "variantId": "ranking-vue",
+        "api": {
+          "path": "api/ranking-vue.json",
+          "sha256": "754efeaa8585a9b84c239e22935d10019e62a87b01178d5b3d36b15860bd6a12",
+          "bytes": 438
+        },
+        "docs": {
+          "path": "docs/ranking-vue.md",
+          "sha256": "0503e100b3c1a1085c9113a42409f6460428a14ca75335a242a9d2706c8161ad",
+          "bytes": 118
+        },
+        "reports": [
+          {
+            "path": "reports/ranking-vue.json",
+            "sha256": "0ffb5e3cdc5e5b48b720d53bd2dd7d92f9c0bbf692bc5be602cbff98373df3ba",
+            "bytes": 1803
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/ranking-vue-default.png",
+            "sha256": "499e80767e1bd7f48b8f32f651dab319b5270d27e5e0d7fe7c5f18ad58470eb0",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "ranking",
+        "framework": "react",
+        "variantId": "ranking-react",
+        "api": {
+          "path": "api/ranking-react.json",
+          "sha256": "cad73fb82f94820ab67e539e1d69ce7a5bca022c9126bc82c6e5c4e3fd3124e1",
+          "bytes": 440
+        },
+        "docs": {
+          "path": "docs/ranking-react.md",
+          "sha256": "20113f43f2d54ced7e3cd43fe83ec26ca75e58de01b06546c0e429433cab2ebf",
+          "bytes": 122
+        },
+        "reports": [
+          {
+            "path": "reports/ranking-react.json",
+            "sha256": "73ab5310ab89540c60a7f9caea1595593b2dc5f86a2bc16d5614f4f81e5883dd",
+            "bytes": 1819
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/ranking-react-default.png",
+            "sha256": "ac3057635bd03baa8cd24fe702ee5383946a62344e3ee4c57d0341cea0e251df",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      },
+      {
+        "componentId": "proportion",
+        "framework": "vue",
+        "variantId": "proportion-vue",
+        "api": {
+          "path": "api/proportion-vue.json",
+          "sha256": "5799a03815b10635083ad5ce984161ec69a1d857188d5f8f3068f9e9a58aea78",
+          "bytes": 450
+        },
+        "docs": {
+          "path": "docs/proportion-vue.md",
+          "sha256": "a71351aadaee560e29c473fb614bbb191eb2fa1261ae81e1a6a49f943e932211",
+          "bytes": 124
+        },
+        "reports": [
+          {
+            "path": "reports/proportion-vue.json",
+            "sha256": "d84daa22f60d8c36ece7d8ea53152d0625c63a221374ff748a7fa4f5133f1f8f",
+            "bytes": 1824
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/proportion-vue-default.png",
+            "sha256": "b106b46d91c8b3574faa5975950dad59fc7d30c718a85f1e008d95182e896d23",
+            "packageSha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+          }
+        ]
+      },
+      {
+        "componentId": "proportion",
+        "framework": "react",
+        "variantId": "proportion-react",
+        "api": {
+          "path": "api/proportion-react.json",
+          "sha256": "3a385768a0d77ea3a6cde512b9dc2726dc24f269ee455ebb22b6acbc25049a4c",
+          "bytes": 452
+        },
+        "docs": {
+          "path": "docs/proportion-react.md",
+          "sha256": "76fc239cd34d56666fda649973d477f4c446d62bda9bb6a8493461eeb395c999",
+          "bytes": 128
+        },
+        "reports": [
+          {
+            "path": "reports/proportion-react.json",
+            "sha256": "4aa56bd5ef697bd889b420b5d80943bd4c3f0a5ce81926e82490527061cd4ef9",
+            "bytes": 1840
+          }
+        ],
+        "screenshots": [
+          {
+            "path": "screenshots/proportion-react-default.png",
+            "sha256": "964ab20862d38e3f09319b37e0fab92e1257b85654631bc8e7008b94f04aba35",
+            "packageSha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+          }
+        ]
+      }
+    ],
+    "limitations": [
+      "Local signed OIDC fixtures and test-only self-signed TLS; no company login or production TLS validation.",
+      "Consumer capture is default state only."
+    ]
+  },
+  "strictConsumer": {
+    "red": {
+      "expectedExitCode": 1,
+      "verifiedAt": "2026-11-13T07:26:48.025Z",
+      "os": "win32",
+      "node": "v26.13.0",
+      "bundle": ".tools\\operations\\current-sdk\\4414e01c-2220-4940-8c93-979250c83259",
+      "packages": [
+        {
+          "name": "@company/charts-core",
+          "version": "0.0.7",
+          "sha256": "70232cd9e90b8afc4e63b64645060b3b01bbd2eb21de3f17bcfa38d9df49a513"
+        },
+        {
+          "name": "@company/charts-vue",
+          "version": "0.0.7",
+          "sha256": "861d4ee9ce99807eb204dedea81cd6bcab7ab350f3bd71fc1cdac0bbf1fd4f28"
+        },
+        {
+          "name": "@company/charts-react",
+          "version": "0.0.7",
+          "sha256": "e4630ba239fda6e47d5f4cba2e7d3efb1f2f76dce78a28130d19fa45f0fdf30c"
+        }
+      ],
+      "importCount": 17,
+      "checksPreviousPublicShape": true,
+      "installExitCode": 0,
+      "results": [
+        {
+          "compiler": "typescript6",
+          "resolution": "Bundler",
+          "exitCode": 0,
+          "output": ""
+        },
+        {
+          "compiler": "typescript6",
+          "resolution": "NodeNext",
+          "exitCode": 2,
+          "output": "node_modules/@company/charts-vue/dist/bar.d.ts(1,37): error TS2307: Cannot find module './BarChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(1,38): error TS2307: Cannot find module './LineChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(2,37): error TS2307: Cannot find module './BarChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(3,37): error TS2307: Cannot find module './PieChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(4,41): error TS2307: Cannot find module './ScatterChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(5,38): error TS2307: Cannot find module './TrendCard.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(6,36): error TS2307: Cannot find module './RankingChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/index.d.ts(7,39): error TS2307: Cannot find module './ProportionChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/line.d.ts(1,38): error TS2307: Cannot find module './LineChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/pie.d.ts(1,37): error TS2307: Cannot find module './PieChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/proportion.d.ts(1,39): error TS2307: Cannot find module './ProportionChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/ranking.d.ts(1,36): error TS2307: Cannot find module './RankingChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/scatter.d.ts(1,41): error TS2307: Cannot find module './ScatterChart.vue' or its corresponding type declarations.\r\nnode_modules/@company/charts-vue/dist/trend-card.d.ts(1,38): error TS2307: Cannot find module './TrendCard.vue' or its corresponding type declarations.\r\n"
+        },
+        {
+          "compiler": "typescript7",
+          "resolution": "Bundler",
+          "exitCode": 0,
+          "output": ""
+        },
+        {
+          "compiler": "typescript7",
+          "resolution": "NodeNext",
+          "exitCode": 1,
+          "output": "node_modules/@company/charts-vue/dist/bar.d.ts(1,37): error TS2307: Cannot find module './BarChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(1,38): error TS2307: Cannot find module './LineChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(2,37): error TS2307: Cannot find module './BarChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(3,37): error TS2307: Cannot find module './PieChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(4,41): error TS2307: Cannot find module './ScatterChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(5,38): error TS2307: Cannot find module './TrendCard.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(6,36): error TS2307: Cannot find module './RankingChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/index.d.ts(7,39): error TS2307: Cannot find module './ProportionChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/line.d.ts(1,38): error TS2307: Cannot find module './LineChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/pie.d.ts(1,37): error TS2307: Cannot find module './PieChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/proportion.d.ts(1,39): error TS2307: Cannot find module './ProportionChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/ranking.d.ts(1,36): error TS2307: Cannot find module './RankingChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/scatter.d.ts(1,41): error TS2307: Cannot find module './ScatterChart.vue' or its corresponding type declarations.\nnode_modules/@company/charts-vue/dist/trend-card.d.ts(1,38): error TS2307: Cannot find module './TrendCard.vue' or its corresponding type declarations.\n"
+        }
+      ],
+      "policy": [
+        {
+          "name": "complete dual framework baseline",
+          "actual": "adopt",
+          "expected": "adopt",
+          "passed": true
+        },
+        {
+          "name": "measured version differs from candidate",
+          "actual": "adopt",
+          "expected": "hold",
+          "passed": false
+        },
+        {
+          "name": "report cannot rewrite supported baseline",
+          "actual": "adopt",
+          "expected": "hold",
+          "passed": false
+        },
+        {
+          "name": "Vue only matrix",
+          "actual": "adopt",
+          "expected": "hold",
+          "passed": false
+        },
+        {
+          "name": "React only matrix",
+          "actual": "adopt",
+          "expected": "hold",
+          "passed": false
+        },
+        {
+          "name": "missing implementation",
+          "actual": "hold",
+          "expected": "hold",
+          "passed": true
+        }
+      ]
+    },
+    "green": {
+      "expectedExitCode": 0,
+      "verifiedAt": "2026-11-13T07:33:49.960Z",
+      "os": "win32",
+      "node": "v26.13.0",
+      "bundle": ".tools\\operations\\current-sdk\\dcc49e73-37c6-4579-a814-713e780ae583",
+      "packages": [
+        {
+          "name": "@company/charts-core",
+          "version": "0.0.10",
+          "sha256": "2d9d4208bf070f2478116e500b87ab0748fe5af2793dfa3d13a7c7954212e752"
+        },
+        {
+          "name": "@company/charts-vue",
+          "version": "0.0.10",
+          "sha256": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b"
+        },
+        {
+          "name": "@company/charts-react",
+          "version": "0.0.10",
+          "sha256": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+        }
+      ],
+      "importCount": 17,
+      "checksPreviousPublicShape": true,
+      "installExitCode": 0,
+      "results": [
+        {
+          "compiler": "typescript6",
+          "resolution": "Bundler",
+          "exitCode": 0,
+          "output": ""
+        },
+        {
+          "compiler": "typescript6",
+          "resolution": "NodeNext",
+          "exitCode": 0,
+          "output": ""
+        },
+        {
+          "compiler": "typescript7",
+          "resolution": "Bundler",
+          "exitCode": 0,
+          "output": ""
+        },
+        {
+          "compiler": "typescript7",
+          "resolution": "NodeNext",
+          "exitCode": 0,
+          "output": ""
+        }
+      ],
+      "policy": [
+        {
+          "name": "complete dual framework baseline",
+          "actual": "adopt",
+          "expected": "adopt",
+          "passed": true
+        },
+        {
+          "name": "measured version differs from candidate",
+          "actual": "hold",
+          "expected": "hold",
+          "passed": true
+        },
+        {
+          "name": "report cannot rewrite supported baseline",
+          "actual": "hold",
+          "expected": "hold",
+          "passed": true
+        },
+        {
+          "name": "Vue only matrix",
+          "actual": "hold",
+          "expected": "hold",
+          "passed": true
+        },
+        {
+          "name": "React only matrix",
+          "actual": "hold",
+          "expected": "hold",
+          "passed": true
+        },
+        {
+          "name": "missing implementation",
+          "actual": "hold",
+          "expected": "hold",
+          "passed": true
+        }
+      ]
+    }
+  },
+  "inputGuardRegression": {
+    "exitCode": 0,
+    "passed": 8,
+    "output": "TAP version 13\n# Subtest: rejects a schema version that was never agreed\nok 1 - rejects a schema version that was never agreed\n  ---\n  duration_ms: 72.2939\n  type: 'test'\n  ...\n# Subtest: rejects core-only input instead of silently omitting both frameworks\nok 2 - rejects core-only input instead of silently omitting both frameworks\n  ---\n  duration_ms: 65.2963\n  type: 'test'\n  ...\n# Subtest: rejects parent escape from the frozen bundle\nok 3 - rejects parent escape from the frozen bundle\n  ---\n  duration_ms: 66.1752\n  type: 'test'\n  ...\n# Subtest: rejects absolute escape from the frozen bundle\nok 4 - rejects absolute escape from the frozen bundle\n  ---\n  duration_ms: 79.889\n  type: 'test'\n  ...\n# Subtest: rejects junction escape from the frozen bundle\nok 5 - rejects junction escape from the frozen bundle\n  ---\n  duration_ms: 66.0106\n  type: 'test'\n  ...\n# Subtest: rejects a packed framework missing one required public entry\nok 6 - rejects a packed framework missing one required public entry\n  ---\n  duration_ms: 4572.8367\n  type: 'test'\n  ...\n# Subtest: rejects a null style export\nok 7 - rejects a null style export\n  ---\n  duration_ms: 4248.6893\n  type: 'test'\n  ...\n# Subtest: rejects a style target absent from the installed package\nok 8 - rejects a style target absent from the installed package\n  ---\n  duration_ms: 4310.0724\n  type: 'test'\n  ...\n1..8\n# tests 8\n# suites 0\n# pass 8\n# fail 0\n# cancelled 0\n# skipped 0\n# todo 0\n# duration_ms 13561.0749\n",
+    "observedRed": {
+      "passed": 0,
+      "failed": 8,
+      "falseSuccesses": 7,
+      "absolutePathFailure": "ENOENT rather than explicit input validation",
+      "styleCases": "Null style export and missing packed CSS both incorrectly exited 0 before style target checks."
+    }
+  },
+  "cRootChecks": {
+    "typecheck": true,
+    "workspace": true,
+    "nodeSyntax": true,
+    "diffCheck": true,
+    "fullTest": {
+      "exitCode": 1,
+      "filesPassed": 32,
+      "filesFailed": 1,
+      "testsPassed": 599,
+      "testsFailed": 1,
+      "durationSeconds": 108.89,
+      "failedTest": "tests/integration/cli-release.test.ts",
+      "reason": "Missing shared .tools/g2-local/credentials.json; no shared credentials were initialized or rotated."
+    }
+  },
+  "limitations": [
+    "Company OIDC and production independent registered domain/TLS remain unverified.",
+    "T10 upstream 6.0.0 visual matrix and B CLI upgrade runner remain unaccepted.",
+    "Full G2/M2/T11/T12 and real business pilot acceptance remain open.",
+    "Platform publication used A product sources with four explicitly copied C test support files."
+  ]
+}

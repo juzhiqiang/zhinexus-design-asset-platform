@@ -107,3 +107,5 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 2026-11-13 网页联调修复：API 复用 `PLATFORM_GALLERY_ORIGIN` 精确放行画廊的 Bearer/JSON/幂等键跨域请求，配置要求见 [API接入](apps/api/README.md)，RED/GREEN 与边界见 [跨域验证](docs/verification/c-gallery-cors-2026-11-13.md)。MinIO直传与B真实浏览器闭环仍单独验收。
 
 2026-11-13 A SDK 0.0.7 接续：C 已在 Windows 对固定 `f35ebc9` 完成强制构建/类型、外部消费者、67 项展示/核心浏览器及十四实现隔离发布复验，冻结摘要与证据见 [新增原生记录](docs/verification/c-a-sdk007-windows-2026-11-13.md)。兼容策略的三个独立审查问题仍待 A 修复，未标记 T10 完成。
+
+2026-11-13 A SDK 0.0.10 复审收口：C 对固定 `190b60b` 完成 20 项强制构建/类型、379 项单元与契约、十四实现真实发布/HTTPS 预览与双框架精确 Registry 消费；同一冻结包的 TS 6/7 × Bundler/NodeNext 严格消费者及六项公开策略检查全部通过。脚本、摘要、RED/GREEN 与边界见 [0.0.10 原生记录](docs/verification/c-a-sdk0010-windows-2026-11-13.md)。完整 T10、网页流程与外部门槛继续独立验收。
