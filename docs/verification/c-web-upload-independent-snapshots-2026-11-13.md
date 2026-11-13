@@ -76,6 +76,32 @@ C 将原有 8 项 manual 与 6 项真实三存储测试复制到独立归档（�
 
 ## 继续验收的边界
 
-等待 B 修复恢复顺序、同步原浏览器 fixture 并形成 fix/独立升版固定提交。C 再从最终 hash 导出归档，执行构建、类型、工作区、单元、13 项显式工作流、12 项 UI、原 14 项网页及 0.0.10 真实补充验收。以上中途快照不能替代最终结果。
+### 17:23 修复后独立快照 GREEN
+
+C 再次从同一 `cddf54b` 导出全新目录 `.tools/operations/b-web-working-1723/source`，复制 B 最新四文件，逐文件复制前/后与目标摘要一致；没有覆盖 16:53 旧快照。新摘要如下：
+
+| 文件 | SHA-256 |
+| --- | --- |
+| `apps/gallery/app/(console)/upload/page.tsx` | `af21838594e86db1686aecf6f01b69ea06bf2e278cd27d26868271e86f6d6111` |
+| `apps/gallery/app/lib/uploads/manifest-form.ts` | `ca0cbcc4d71f7ff06a4c04e1e18c830035f9c9a4ab6f42c36e0819a0631e5867` |
+| `apps/gallery/app/lib/uploads/screenshot-validation.ts` | `03fdd434404090d6497e8f75978acc783548f19cd090543e458266bbb550b8ce` |
+| `tests/unit/web-upload-workflow.test.ts` | `bdb06af52b4304a187ba7536a795bdf9982a041de9540cf38452a48a919783a7` |
+
+实际执行结果均退出 0：
+
+- 离线冻结安装：6.8 秒。
+- `turbo run build typecheck --force`：20/20，零缓存，6.57 秒；根 `tsc --project tsconfig.json --noEmit` 与 `verify:workspace` 通过。
+- `vitest run tests/unit/web-upload-workflow.test.ts tests/unit/screenshot-validation.test.ts`：实际匹配 **1 文件 / 26 项**，422ms；后一个路径并未匹配独立测试文件，不将其称为第二套测试通过。
+- 显式工作流诊断 13/13 通过，包括前述两项顺序 RED、同三元组重放、分别改清单/API/subject 的新会话隔离。
+- C 的恢复/摘要竞态 UI 12/12，13.9 秒。
+- 相同 `dab34757…99a2b` 补充 spec 的真实生命周期与普通提交重试 **2/2，52.4 秒**：202 后四键清理、刷新不重放、新发布获得新会话并在 PUT 中断后保留该新会话；真实丢失 202 后普通重试无新增 create / PUT / complete，原请求体/key/session/job 一致，真实 202 与数据库全表唯一作业、worker READY 均通过。
+
+日志分别为该快照下 `install.log`、`force-build-typecheck.log`、`root-tsc.log`、`workspace.log`、`upload-unit.log`、`workflow.json`、`c-ui.log`、`real-lifecycle-retry.log`。C 只使用 5183，未占 B 的 5173–5176。结束后自有 RecoveryStack 无残留运行容器，5183 无监听。
+
+这是固定文件摘要的中途 GREEN，尚未代替最终 Git hash。B 仍需同步原 manual / real 四项 fixture 并实际验证、提交修复与独立升版；C 将继续对最终提交归档验收。
+
+固定快照两文件只读复审未发现 Critical/Important：确认 pending 在所有网络操作前验证并直接重放、过期计划不再由 pending 字符串兜底、API/subject/digest 绑定仍在、旧摘要结果取消与提交前重验仍在。非阻断边界另记：这不是多上下文草稿存储模型；最终文件校验的底层 WebCrypto 异常若直接 reject，因校验 await 位于后续 try/finally 之外，可能令页面保持提交忙碌。未把这些静态结论冒充测试执行，也未为该极端可用性边界扩大本轮修复范围。
+
+B 恢复顺序已在上述固定文件快照中实际转为 GREEN。继续等待原浏览器 fixture 同步和 fix/独立升版固定提交；C 再从最终 hash 导出归档，执行构建、类型、工作区、单元、13 项显式工作流、12 项 UI、原 14 项网页及 0.0.10 真实补充验收。以上中途快照不能替代最终结果。
 
 共享三存储未初始化、未重启、未轮换凭据；真实测试仅使用自有随机端口 RecoveryStack，已检查本轮容器清理和 5183 释放。公司 OIDC、生产独立域/TLS、真实 Vue/React 业务试点及完整 G2/M2/T10/T11/T12 仍未验收。
