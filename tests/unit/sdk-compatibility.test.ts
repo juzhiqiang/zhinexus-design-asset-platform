@@ -473,6 +473,139 @@ describe('基线 ECharts 版本必须唯一', () => {
 });
 
 /**
+ * 第三轮复审（2026-11-13，C 对 `e2e27c9` 复现）：报告不得改写已支持范围。
+ *
+ * A. `peerFlagSelfConsistent` 只比较 `candidate.version` 与 `report.baselineEchartsVersion`
+ *    ——两者都在报告里，攻击者（或一次错误的序列化/反序列化）可以一起改。于是一份
+ *    候选 6.0.0、基线 6.1.0 的真实报告，只要把 `peerSatisfied` 与
+ *    `baselineEchartsVersion` 一起伪造成 `true` / `6.0.0`，`recommend` 就返回 `'adopt'`。
+ *    修复：报告基线必须**精确等于 `supported` 的唯一真实基线**，peer 由 supported 推导。
+ *
+ * B. 「双框架齐验」此前只要求「supported 里出现的每个组合都有实测」。当 `supported`
+ *    本身只有一个框架（例如只有 Vue）时，条件被轻易满足，`recommend` 返回 `'adopt'`。
+ *    但 `supported` 描述的是**当前已支持范围**，共享核心变化必须两个框架都验。
+ */
+describe('报告基线必须绑定 supported 唯一真实基线', () => {
+  it('同时伪造 peerSatisfied 与 baselineEchartsVersion 不得骗取 adopt', async () => {
+    const candidate = resolveCandidate('6.0.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const forged: CompatibilityReport = {
+      ...report,
+      peerSatisfied: true,
+      baselineEchartsVersion: '6.0.0',
+    };
+
+    // supported 的唯一真实基线仍是 6.1.0，与候选 6.0.0 不相等
+    expect(SUPPORTED.every((c) => c.echartsVersion === '6.1.0')).toBe(true);
+    expect(forged.baselineEchartsVersion).toBe('6.0.0');
+    expect(hasDualFrameworkCoverage(forged, SUPPORTED)).toBe(false);
+    expect(recommend(forged, SUPPORTED)).toBe('hold');
+  });
+
+  it('只伪造 baselineEchartsVersion 而保留 peerSatisfied 原值也不得放行', async () => {
+    const candidate = resolveCandidate('6.0.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const forged: CompatibilityReport = {
+      ...report,
+      peerSatisfied: false,
+      baselineEchartsVersion: '6.0.0',
+    };
+
+    expect(hasDualFrameworkCoverage(forged, SUPPORTED)).toBe(false);
+    expect(recommend(forged, SUPPORTED)).toBe('hold');
+  });
+
+  it('报告基线与 supported 唯一基线不符（哪怕方向相反）一律 hold', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    // supported 唯一基线 6.1.0，报告自称 6.0.0
+    const forged: CompatibilityReport = { ...report, baselineEchartsVersion: '6.0.0' };
+
+    expect(hasDualFrameworkCoverage(forged, SUPPORTED)).toBe(false);
+    expect(recommend(forged, SUPPORTED)).toBe('hold');
+  });
+
+  it('报告基线与 supported 一致时才放行，且与报告数组顺序无关', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const forward = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    const backward = await verifyCandidate(candidate, [REACT, VUE], passedProbe());
+
+    expect(recommend(forward, SUPPORTED)).toBe('adopt');
+    expect(recommend(backward, [REACT, VUE])).toBe('adopt');
+    expect(recommend(backward, SUPPORTED)).toBe('adopt');
+  });
+});
+
+describe('共享核心变化必须双框架齐验', () => {
+  it('supported 只有 Vue 一个框架时，即便四维全过也不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const vueOnly: readonly SupportedCombination[] = [VUE];
+    const report = await verifyCandidate(candidate, vueOnly, passedProbe());
+
+    expect(report.results).toHaveLength(1);
+    expect(report.results.every((r) => r.typecheck === 'passed')).toBe(true);
+    expect(hasDualFrameworkCoverage(report, vueOnly)).toBe(false);
+    expect(recommend(report, vueOnly)).toBe('hold');
+  });
+
+  it('supported 只有 React 一个框架时同样不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const reactOnly: readonly SupportedCombination[] = [REACT];
+    const report = await verifyCandidate(candidate, reactOnly, passedProbe());
+
+    expect(hasDualFrameworkCoverage(report, reactOnly)).toBe(false);
+    expect(recommend(report, reactOnly)).toBe('hold');
+  });
+
+  it('手工构造的「单框架全 passed」报告也不得采纳', () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const vueOnly: readonly SupportedCombination[] = [VUE];
+    const report: CompatibilityReport = {
+      candidate,
+      peerSatisfied: true,
+      baselineEchartsVersion: '6.1.0',
+      supportedRangeUnchanged: true,
+      requiresVisualBaselineConfirmation: false,
+      results: [
+        {
+          ...VUE,
+          echartsVersion: '6.1.0',
+          baselineEchartsVersion: '6.1.0',
+          typecheck: 'passed',
+          runtime: 'passed',
+          interaction: 'passed',
+          visual: 'passed',
+          differences: [],
+        },
+      ],
+    };
+
+    expect(hasDualFrameworkCoverage(report, vueOnly)).toBe(false);
+    expect(recommend(report, vueOnly)).toBe('hold');
+  });
+
+  it('两个框架各至少一个精确组合且都实测时才采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+
+    expect(hasDualFrameworkCoverage(report, SUPPORTED)).toBe(true);
+    expect(recommend(report, SUPPORTED)).toBe('adopt');
+  });
+
+  it('某框架的实测全是 not-run 时不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const reactMissing: CombinationProbe = async (combination) =>
+      combination.framework === 'react'
+        ? { typecheck: 'not-run', runtime: 'not-run', interaction: 'not-run', visual: 'not-run', differences: [] }
+        : { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed', differences: [] };
+    const report = await verifyCandidate(candidate, SUPPORTED, reactMissing);
+
+    expect(hasDualFrameworkCoverage(report, SUPPORTED)).toBe(false);
+    expect(recommend(report, SUPPORTED)).toBe('hold');
+  });
+});
+
+/**
  * 复审遗漏（2026-11-13，C 对 `83ec74d` 用 tsx 复现）：`hasDualFrameworkCoverage`
  * 只用 `baselineEchartsVersion` 造键，没有校验**每行实际验的 echartsVersion**必须等于
  * `report.candidate.version`。于是一份全 passed 的报告，只把
@@ -534,10 +667,27 @@ describe('实测行版本与 peer 标志必须自洽', () => {
     expect(recommend(lied, SUPPORTED)).toBe('hold');
   });
 
-  it('peerSatisfied 被伪造成 false 时同样不得采纳', async () => {
+  it('peerSatisfied 被伪造成 false 时不参与判定，仍以 supported 基线为准', async () => {
     const candidate = resolveCandidate('6.1.0', OFFICIAL);
     const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
-    const lied: CompatibilityReport = { ...report, peerSatisfied: false };
+    // 0.1.0 起 peer 由 supported 唯一基线推导，报告里的 peerSatisfied 只是转述：
+    // 伪造成 false 不应把一次真实通过的验证拖成 hold，也不应被伪造 true时放行。
+    const liedFalse: CompatibilityReport = { ...report, peerSatisfied: false };
+    const liedTrue: CompatibilityReport = { ...report, peerSatisfied: true };
+
+    expect(recommend(liedFalse, SUPPORTED)).toBe('adopt');
+    expect(recommend(liedTrue, SUPPORTED)).toBe('adopt');
+  });
+
+  it('peerSatisfied 与 supported 基线矛盾时不得采纳', async () => {
+    const candidate = resolveCandidate('6.1.0', OFFICIAL);
+    const report = await verifyCandidate(candidate, SUPPORTED, passedProbe());
+    // supported 唯一基线 6.1.0，报告自称基线 6.0.0（peer 转述与事实来源矛盾）
+    const lied: CompatibilityReport = {
+      ...report,
+      peerSatisfied: true,
+      baselineEchartsVersion: '6.0.0',
+    };
 
     expect(recommend(lied, SUPPORTED)).toBe('hold');
   });
