@@ -1,12 +1,12 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { ArtifactStore } from '../../apps/api/dist/storage/artifact-store.js';
-import { localCredentials } from './support.js';
+import { localServices } from './support.js';
 
 describe('T05 real S3 upload and frozen bytes', () => {
   it('presigns single/multipart, verifies parts, and refuses overwriting frozen content', async () => {
-    const credentials = localCredentials();
-    const store = new ArtifactStore({ endpoint: 'http://127.0.0.1:19000', region: 'us-east-1', bucket: `t05-${randomUUID()}`,
+    const { credentials, storageEndpoint } = localServices();
+    const store = new ArtifactStore({ endpoint: storageEndpoint, region: 'us-east-1', bucket: `t05-${randomUUID()}`,
       accessKeyId: credentials.minioUser, secretAccessKey: credentials.minioPassword });
     try {
       await store.ensureBucket();

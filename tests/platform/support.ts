@@ -1,17 +1,14 @@
-import { readFileSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { fileURLToPath } from 'node:url';
 import { Client } from 'pg';
 
 export type LocalCredentials = { postgresPassword: string; minioUser: string; minioPassword: string; publisherPassword: string; readerPassword: string };
 export type PlatformServices = { credentials: LocalCredentials; postgresPort: number; storageEndpoint: string; registryOrigin: string };
 
-export function localCredentials(): LocalCredentials {
-  try { return JSON.parse(readFileSync(fileURLToPath(new URL('../../.tools/g2-local/credentials.json', import.meta.url)), 'utf8')); }
-  catch { throw new Error('Run infra:up before test:platform; real storage is required'); }
-}
+let providedServices: PlatformServices | undefined;
+export function configurePlatformServices(services: PlatformServices): void { providedServices = services; }
 export function localServices(): PlatformServices {
-  return { credentials: localCredentials(), postgresPort: 15432, storageEndpoint: 'http://127.0.0.1:19000', registryOrigin: 'http://127.0.0.1:14873' };
+  if (!providedServices) throw new Error('Isolated platform services were not provided by the test runner');
+  return providedServices;
 }
 export async function isolatedDatabase(services = localServices()): Promise<{ url: string; close(): Promise<void> }> {
   const connection = { host: '127.0.0.1', port: services.postgresPort, user: 'zhinexus', password: services.credentials.postgresPassword, database: 'zhinexus', connectionTimeoutMillis: 5000 };

@@ -13,5 +13,5 @@ try {
     const event = JSON.parse(line);
     if (event.event === 'RELEASE_STAGE' && event.stage === 'ENSURE_PACKAGES' && event.outcome === 'success') process.kill(process.pid, 'SIGKILL');
   });
-  await new ReleaseWorker(db, store, new RegistryClient({ origin: 'http://127.0.0.1:14873', token: options.token }), 1000, events).runOnce(options.jobId);
+  await new ReleaseWorker(db, store, new RegistryClient({ origin: options.registryOrigin, token: options.token }), 1000, events).runOnce(options.jobId);
 } finally { store.close(); await db.close(); }
