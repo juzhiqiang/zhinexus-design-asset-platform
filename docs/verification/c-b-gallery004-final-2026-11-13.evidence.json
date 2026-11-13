@@ -1,0 +1,182 @@
+{
+  "date": "2026-11-13",
+  "finalCommit": "1624fa3282c517738ef4e94780f32a1f63e2a2a4",
+  "fixCommit": "d2f1fa715da0a0682e174f3abe1d40baee2da53b",
+  "galleryVersion": "0.0.4",
+  "sourceArchive": ".tools/operations/b-final-1624fa3/source",
+  "archiveSha256": "eca1f1452b50a60e3d0325dddaec6d4201fd617fb5ab4a1041b1b8040d6773bd",
+  "cTestSupportCommit": "9253223deaf9f3476f25eb3bdcd6b2f5c8cdaec3",
+  "originalAndAdaptedFixtures": [
+    {
+      "kind": "manual",
+      "originalSha256": "b4cf8bf721471415d8d9596e0aedeee7e60a13a9afe6dbbe25642d6600242d9d",
+      "adaptedSha256": "d3838a06d7560958df35a5bdb5687587c650c59786575c964a195a73a247efc0"
+    },
+    {
+      "kind": "real",
+      "originalSha256": "a0ce36c1d922cabd750d46095921f6a0f76966b988f054a09693b0bf1dd196de",
+      "adaptedSha256": "5bf9876384aca52ea69e2c21aa989cc4e3d6a06c5d913064dc1a9a7df66617af"
+    }
+  ],
+  "productFiles": [
+    {
+      "path": "apps/gallery/app/(console)/upload/page.tsx",
+      "sha256": "af21838594e86db1686aecf6f01b69ea06bf2e278cd27d26868271e86f6d6111"
+    },
+    {
+      "path": "apps/gallery/app/lib/uploads/manifest-form.ts",
+      "sha256": "ca0cbcc4d71f7ff06a4c04e1e18c830035f9c9a4ab6f42c36e0819a0631e5867"
+    },
+    {
+      "path": "apps/gallery/app/lib/uploads/screenshot-validation.ts",
+      "sha256": "03fdd434404090d6497e8f75978acc783548f19cd090543e458266bbb550b8ce"
+    },
+    {
+      "path": "tests/unit/web-upload-workflow.test.ts",
+      "sha256": "bdb06af52b4304a187ba7536a795bdf9982a041de9540cf38452a48a919783a7"
+    }
+  ],
+  "generatedSupplementSha256": "baa1c4b2b1c422016e5821cbc001b987498aaf4e78d43561f4e608d321fa6329",
+  "checks": [
+    {
+      "name": "install",
+      "command": "scripts/pnpm.ps1 install --offline --frozen-lockfile --ignore-scripts",
+      "startedAt": "2026-11-13T18:17:54.3009015+08:00",
+      "seconds": 7.794,
+      "exitCode": 0,
+      "log": "install.log",
+      "logSha256": "453577d300e97ee86868fa9d4d4dddc0c0c1caecf15a86187f508d804efc1050"
+    },
+    {
+      "name": "force-build-typecheck",
+      "command": "scripts/pnpm.ps1 exec turbo run build typecheck --force",
+      "startedAt": "2026-11-13T18:18:02.122486+08:00",
+      "seconds": 7.084,
+      "exitCode": 0,
+      "log": "force-build-typecheck.log",
+      "logSha256": "b38cf421be3cabb32e8d0cbbc78c99dbdf4b7a5dd4fe9b6753a58c0bd6873385"
+    },
+    {
+      "name": "generate-real-harness",
+      "command": "scripts/pnpm.ps1 exec node tests/acceptance/prepare-sdk0010-web-harness.mjs D:\\project\\zhinexus-design-asset-platform\\.tools\\operations\\b-final-1624fa3\\source",
+      "startedAt": "2026-11-13T18:18:09.2099101+08:00",
+      "seconds": 0.107,
+      "exitCode": 0,
+      "log": "generate-real-harness.log",
+      "logSha256": "ae1cf9900d7d92cce0e3978d642fd3a04032e48821b712e0f48027235ecadc68"
+    },
+    {
+      "name": "root-tsc",
+      "command": "scripts/pnpm.ps1 exec tsc --project tsconfig.json --noEmit",
+      "startedAt": "2026-11-13T18:18:09.3185973+08:00",
+      "seconds": 0.451,
+      "exitCode": 0,
+      "log": "root-tsc.log",
+      "logSha256": null,
+      "outputNote": "Command exited 0 without stdout/stderr; Tee-Object did not create a log file"
+    },
+    {
+      "name": "workspace",
+      "command": "scripts/pnpm.ps1 verify:workspace",
+      "startedAt": "2026-11-13T18:18:09.7716217+08:00",
+      "seconds": 0.353,
+      "exitCode": 0,
+      "log": "workspace.log",
+      "logSha256": "6937eb8c08c6db032212b3ac8189bd2d5ae43801e6e3641c8ff956a7d3161732"
+    },
+    {
+      "name": "upload-unit",
+      "command": "scripts/pnpm.ps1 exec vitest run tests/unit/web-upload-workflow.test.ts tests/unit/api-cors.test.ts",
+      "startedAt": "2026-11-13T18:18:10.1268507+08:00",
+      "seconds": 2.028,
+      "exitCode": 0,
+      "log": "upload-unit.log",
+      "logSha256": "d1227775d81c01aacd065f485b267185dafe7bf8014cade3134557a009e8ab96"
+    },
+    {
+      "name": "workflow",
+      "command": "scripts/pnpm.ps1 exec tsx tests/acceptance/web-upload-workflow.mts D:\\project\\zhinexus-design-asset-platform\\.tools\\operations\\b-final-1624fa3\\source",
+      "startedAt": "2026-11-13T18:18:12.1560052+08:00",
+      "seconds": 0.289,
+      "exitCode": 0,
+      "log": "workflow.log",
+      "logSha256": "e68975cc56578e358fbf4cfd3f5d4f8f6fbddfa991d5e981831072bd5529a043"
+    },
+    {
+      "name": "c-ui",
+      "command": "scripts/pnpm.ps1 exec playwright test --config tests/acceptance/playwright.web-upload.config.ts --reporter=line",
+      "startedAt": "2026-11-13T18:18:12.4461112+08:00",
+      "seconds": 14.091,
+      "exitCode": 0,
+      "log": "c-ui.log",
+      "logSha256": "756c8f8f07b91112ce57c99a1484f565a88083b2146fcbc5722595989b8eb437"
+    },
+    {
+      "name": "b-original-web",
+      "command": "scripts/pnpm.ps1 exec playwright test --config tests/acceptance/playwright.c-original.config.ts --reporter=line",
+      "startedAt": "2026-11-13T18:18:26.5389757+08:00",
+      "seconds": 56.22,
+      "exitCode": 0,
+      "log": "b-original-web.log",
+      "logSha256": "a0e5a5303bf211d60f66d8d21d7773c2930ff72cb7a8db204067116544cd0640"
+    },
+    {
+      "name": "real-lifecycle-retry",
+      "command": "scripts/pnpm.ps1 exec playwright test --config tests/acceptance/playwright.c-web-real.config.ts --grep 真实三存储全链路|C独立普通提交重试 --reporter=line",
+      "startedAt": "2026-11-13T18:19:22.7607287+08:00",
+      "seconds": 50.043,
+      "exitCode": 0,
+      "log": "real-lifecycle-retry.log",
+      "logSha256": "b82a68d1e4e5d2f8c8b255bd03f6afca36667d253a1613d3dbf1ce103d7a8588"
+    },
+    {
+      "name": "b-root-test",
+      "command": "scripts/pnpm.ps1 test",
+      "startedAt": "2026-11-13T18:20:12.8044859+08:00",
+      "seconds": 91.683,
+      "exitCode": 1,
+      "log": "b-root-test.log",
+      "logSha256": "b2442764836ca57e3abeab1017025ada5099dbab43a7b0e9c593f13b70050723"
+    }
+  ],
+  "counts": {
+    "unitFiles": 2,
+    "unitPassed": 32,
+    "workflowPassed": 14,
+    "cUiPassed": 12,
+    "originalWebPassed": 14,
+    "realSupplementPassed": 2,
+    "rootFilesPassed": 32,
+    "rootFilesFailed": 1,
+    "rootTestsPassed": 620,
+    "rootTestsFailed": 1
+  },
+  "rootFailure": {
+    "file": "tests/integration/cli-release.test.ts",
+    "cause": "Shared .tools/g2-local/credentials.json is missing; platformHarness/localCredentials fails before release preparation",
+    "message": "Run infra:up before test:platform; real storage is required",
+    "sharedInfraInitialized": false,
+    "rootSuitePassed": false
+  },
+  "integrity": {
+    "architectureSha256": {
+      "c": "e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723",
+      "b": "e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723",
+      "archive": "e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723"
+    },
+    "frozenSdkVersion": "0.0.10",
+    "frozenSdkSha256": {
+      "core": "2d9d4208bf070f2478116e500b87ab0748fe5af2793dfa3d13a7c7954212e752",
+      "vue": "b01aeec7604b2c399a6cb1efa7b4ba1ac3092f12ea92322c682a188045e8c01b",
+      "react": "cd625741f37a95f81b395b45bce6a34d439135dcaa1df3ea5989c73159ab8e5c"
+    },
+    "lockGitBlob": "b8339e49a2419683ccb2dd76fd30cfcb9497699d",
+    "productsMatchArchiveProvenance": true
+  },
+  "cleanup": {
+    "recoveryContainers": 0,
+    "recoveryVolumes": 0,
+    "port5183Listeners": 0,
+    "checkedAt": "2026-11-13T18:23:25.9546777+08:00"
+  }
+}
