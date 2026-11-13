@@ -536,3 +536,5 @@ flowchart LR
 2026-11-12 C补充：T07已合并；T11/T12可提前的本地运维准备按 [执行计划](2026-11-12-t11-t12-platform-operations.md) 实施。日志指标、真实故障预演、隔离三存储备份恢复与部署模板是C子交付；完整任务验收状态见 [release-acceptance](../../release-acceptance.md)，不替代M2/T08/T10及业务试点。
 
 2026-11-13 C补充：按 [本轮执行计划](2026-11-13-c-platform-acceptance.md) 验证当前SDK五组件十实现的真实冻结发布、两类精确Registry消费者及预览资源摘要；补充T08网页后端交接测试和 `rehearse:capacity`。200组件/400实现为隔离DB合成目录规模，100MiB为40+40+20MiB总提交分片恢复；本地量测不替代生产SLA、T08页面、T10或业务试点。新增结果见 [本轮记录](../../verification/c-platform-capacity-2026-11-13.md)，保留此前历史状态。
+
+2026-11-13 后续C补验：七组件十四实现的Windows冻结发布/真实HTTPS预览/精确Registry消费见 [新增证据](../../verification/c-sdk14-acceptance-2026-11-13.md)。T08浏览器联调暴露API缺少CORS，C按 [修复计划](2026-11-13-c-gallery-cors.md) 仅放行配置的精确画廊Origin与既有请求头；不改变上传/身份协议，B继续真实网页三存储E2E。

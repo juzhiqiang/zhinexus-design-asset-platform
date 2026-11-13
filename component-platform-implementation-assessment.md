@@ -187,3 +187,5 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 2026-11-12 T05 本地开发补充：身份验证、上传冻结/分片、发布作业登记与读取、基线 CAS/废弃审计已实现；实际 SDK 三份包、双框架四个实现通过本地 CLI→Nest→PG/MinIO 校验。作业停在 PENDING，T06 发布尚未实施，公司 OIDC/PKCE/撤权与独立预览域仍缺。服务端候选 ID 与 Bundle 内引用 ID 分离，状态读取兼容增加 baselineCandidates。最终验证与限制分别维护在 [T05 验证](docs/verification/t05-platform-http.md) 和 [API 接入](apps/api/README.md)，不将本地结果当作 G2 或完整外部身份验收完成。
 
 2026-11-12：C的T11/T12本地运维准备见 docs/superpowers/plans/2026-11-12-t11-t12-platform-operations.md；独立恢复不等于生产RPO/RTO和上线完成，完整验收见 docs/release-acceptance.md。原架构文档保持不变。
+
+2026-11-13 T08 联调修复范围：API 复用 `PLATFORM_GALLERY_ORIGIN` 作为精确 CORS 来源，允许网页 Bearer、JSON 与 Idempotency-Key 预检，保持现有身份/上传/幂等协议。缺配置不放行跨域；HTTPS 部署及显式本机 HTTP 开发例外分别验证。实施见 [C跨域修复计划](docs/superpowers/plans/2026-11-13-c-gallery-cors.md)，不扩大预览域权限或生产验收结论。

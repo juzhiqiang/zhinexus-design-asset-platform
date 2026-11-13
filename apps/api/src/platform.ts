@@ -10,10 +10,18 @@ import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/pr
 import { PlatformEvents } from './observability/events.js';
 import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy };
+function validateGalleryOrigin(value: string): string {
+  let url: URL;
+  try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
+  const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
+  if ((!localHttp && url.protocol !== 'https:') || url.username || url.password || value !== url.origin) throw new PlatformError('INVALID_SCHEMA');
+  return value;
+}
 export function environmentOptions(): PlatformOptions {
   const env = process.env;
   const result: PlatformOptions = {};
+  if (env.PLATFORM_GALLERY_ORIGIN) result.galleryOrigin = env.PLATFORM_GALLERY_ORIGIN;
   result.retention = retentionPolicy(env);
   if (env.PLATFORM_METRICS_TOKEN) result.metricsToken = env.PLATFORM_METRICS_TOKEN;
   if (env.PLATFORM_PREVIEW_ORIGIN) result.preview = { previewOrigin: env.PLATFORM_PREVIEW_ORIGIN,
@@ -38,11 +46,17 @@ export class Platform {
   readonly store?: ArtifactStore;
   readonly uploads?: UploadService;
   readonly preview?: PreviewConfig;
+  readonly galleryOrigin?: string;
   constructor(options: PlatformOptions) {
     this.events = options.events ?? new PlatformEvents();
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
     this.metricsToken = options.metricsToken;
     if (options.preview) this.preview = validatePreviewConfig(options.preview);
+    const galleryOrigin = options.galleryOrigin ?? this.preview?.platformOrigin;
+    if (galleryOrigin !== undefined) {
+      this.galleryOrigin = validateGalleryOrigin(galleryOrigin);
+      if (this.preview && this.galleryOrigin !== this.preview.platformOrigin) throw new PlatformError('INVALID_SCHEMA');
+    }
     this.verifier = new OidcVerifier(options.oidc, options.keyResolver);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);

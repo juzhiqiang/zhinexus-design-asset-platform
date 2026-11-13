@@ -103,3 +103,5 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 2026-11-13：增加 `.\scripts\pnpm.ps1 rehearse:capacity`，在本机真实三存储上量测200组件/400实现的合成目录、20并发读取、总量100MiB分片恢复及5次协议发布。报告按runId写入 `.tools/operations/capacity/`，失败退出非零；不能替代生产容量或业务试点验收。当前SDK十实现的冻结发布、双框架精确安装与逐资源摘要检查，以及网页手动提交后端交接见 [C本轮验证](docs/verification/c-platform-capacity-2026-11-13.md)。
 
 2026-11-13 后续补验：SDK0.0.6 七组件十四实现已完成 Windows 冻结发布、真实 HTTPS 预览自检、逐材料摘要及 Vue/React 精确 Registry 消费，见 [十四实现验收](docs/verification/c-sdk14-acceptance-2026-11-13.md)。测试支撑支持隔离随机端口设施；共享凭据缺失导致旧完整平台套件仍阻塞，B 的真实网页流程和生产验收继续单列。
+
+2026-11-13 网页联调修复：API 复用 `PLATFORM_GALLERY_ORIGIN` 精确放行画廊的 Bearer/JSON/幂等键跨域请求，配置要求见 [API接入](apps/api/README.md)，RED/GREEN 与边界见 [跨域验证](docs/verification/c-gallery-cors-2026-11-13.md)。MinIO直传与B真实浏览器闭环仍单独验收。
