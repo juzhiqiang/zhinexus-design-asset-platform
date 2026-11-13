@@ -129,7 +129,31 @@ echarts@6.1.0：
 | 视觉基线 | **未确认**。6.0.0 无截图基线 |
 | 工作区锁文件 | **未修改**。候选只在工作区外隔离目录验证，`pnpm-lock.yaml` 保持 echarts `6.1.0` |
 
-## 六、未覆盖边界
+## 六、升版 0.0.7 后的回归实测
+
+版本号单独成提交（`bf0bfa1`）后重跑，确认 0.0.7 与 0.0.6 行为一致：
+
+| 命令 | 结果 |
+| --- | --- |
+| `pnpm exec vitest run tests/unit --test-timeout=60000` | 12 files / **191 passed** |
+| `pnpm exec vitest run tests/integration/auth.test.ts tests/integration/platform-config.test.ts tests/integration/upload-validation.test.ts` | 3 files / **212 passed** |
+| `pnpm exec vitest run tests/integration/release-registry.test.ts` | 1 file / **14 passed** |
+| `pnpm exec vitest run tests/integration/packed-consumer.test.ts` | **1 passed**，但耗时 131s——见下方环境说明 |
+| `pnpm exec vitest run tests/unit/sdk-compatibility.test.ts` | **20 passed** |
+| `pnpm exec playwright test --config tests/playwright.config.ts presentation-matrix` | **56 passed** |
+| `pnpm exec playwright test --config tests/playwright.config.ts core-lifecycle` | **11 passed** |
+| `pnpm exec playwright test --config tests/playwright.config.ts component-matrix` | **96 passed** |
+| `pnpm exec playwright test --config tests/playwright.config.ts framework-lifecycle bootstrap contracts-runtime capture-ready` | **11 passed** |
+| `pnpm exec playwright test --config tests/playwright.config.ts gallery-rendering manual-release` | **11 passed** |
+| `pnpm build` | **10 successful, 10 total** |
+| `pnpm verify:workspace` | `Workspace verified: 10 members, no cycles, four publishable shells, safe service graph.` |
+| `pnpm exec tsc -p tsconfig.json --noEmit` | 退出码 0，无错误 |
+
+**`packed-consumer.test.ts` 的 60s 硬编码超时**：该用例把 `60_000` 作为 `it()` 的第三参数传入，`--test-timeout` 无法覆盖。Linux 复现环境的隔离消费者安装 + vite 构建 + Chromium 启动需要约 131s，因此在沙箱里必然超时。本次用「同目录临时副本放大超时后运行、跑完即删」的方式验证，**原文件未改动**（`git status` 干净）；结论是 0.0.7 的冻结 tarball 在工作区外干净消费者中导出、类型、SSR 导入、浏览器渲染与事件全部通过。Windows 上该用例在 60s 内通过（C 的 885792b 基线验收含 packed-consumer + cli-bundle 12 例），但在慢机器上这是个真实脆弱点，建议后续把超时改为常量或读环境变量——这属于共享测试文件调整，需 B/C 收口。
+
+`cli-check.test.ts`、`cli-bundle.test.ts`、`cli-release.test.ts`、`packed-consumer-frameworks.test.ts` 在沙箱内单次超过 178s 的命令上限（`packed-consumer-frameworks` 的 `beforeAll` 就要为两个框架各做一次隔离安装），本轮未在 0.0.7 上整体重跑；这四个文件均不含版本字面量断言（`cli-check` 里的 `'0.0.1'` 是暂存目录名），升版不改变其判定输入。`cli-check` 的 `rejects`、`executes component check for vue`、`executes component check for react`、`tampered` 四条已在 0.0.6 上单独跑通。
+
+## 七、未覆盖边界
 
 - Windows 开发机原生验证（`.\scripts\verify.ps1`）未执行；本记录全部来自 Linux 复现环境。
 - 真实三存储（Verdaccio / PostgreSQL / MinIO）与 OIDC 不在本机可用范围，`compatibility_records` 的 `'passed'` 无法落库。

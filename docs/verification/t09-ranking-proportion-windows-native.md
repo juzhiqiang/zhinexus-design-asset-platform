@@ -83,6 +83,27 @@ T09 收口核对补上了两处证据缺口，Windows 原生复验需一并覆�
 
 预期用例数（Linux 复现环境实测值，Windows 应完全一致）：`test:browser` 合计 **173 passed**（main 基线 117 + 本轮新增 56）；`sdk-compatibility` 20 passed。
 
+#### 待原生复验的提交（截至 2026-11-13 收尾）
+
+分支 `feat/t10-sdk-compatibility` 上相对基线 main `885792b` 的六个提交，**均未做 Windows 原生验收**：
+
+| 提交 | 内容 |
+| --- | --- |
+| `383d165` | T09 展示矩阵证据：14 个示例页支持 `?theme=&renderer=`，新增 `presentation-matrix.spec.ts` 56 例，`core-lifecycle` 增加 7 例 |
+| `6ba03e7` | T10 兼容策略模块 `packages/charts-core/src/engine/compatibility.ts` 及导出 |
+| `96b9cd4` | 文档：T09 证据核对、T10 兼容验证、升级与回退、A 侧 G1 回执 |
+| `afa92ad` | 测试：`upgrade-policy.test.ts` → `sdk-compatibility.test.ts` 更名，两处类型声明修正 |
+| `bf0bfa1` | 三个图表包版本号 `0.0.6` → `0.0.7`（含 CHANGELOG） |
+| `f35ebc9` | 文档：版本边界（0.0.7 工作树 / 0.0.6 末次原生验收）与测试归属说明 |
+
+全图入口（推荐先跑这一条，再用上面的窄命令定位）：
+
+```powershell
+.\scripts\verify.ps1
+```
+
+**注意**：C 于 2026-11-13 完成的 Windows 原生验收覆盖的是基线 `885792b` / SDK `0.0.6`，**不包含**上表六个提交。上表任一提交进入 main 之前，都需在含这些提交的分支上重跑 `.\scripts\verify.ps1` 并回填本节。
+
 ## 三、人工目视检查（截图无法覆盖的判断）
 
 Linux 复现环境只验证 option 结构与浏览器自检，不生成人工截图。请在 Windows 上打开下列页面各看一眼：
