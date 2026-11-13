@@ -2,6 +2,24 @@
 
 所有对本工作区包的重要实质性修改均记录于此文件。
 
+## [0.0.4] - 2026-11-13
+
+### 修复与加固 (fix)
+- **前置 Pending 校验与零新增 create/PUT/complete**:
+  - 在执行任何上传（PUT）或 `completeUploadSession` 之前前置检查本地持久化的 `zhinexus_pending_release`。
+  - 属于当前三元组的有效 pending 记录直接以原幂等键重放 `submitReleaseJob` 并返回，跳过所有上传操作（零新增 create/PUT/complete）。
+  - 同会话但自身损坏或被篡改的 pending（如 manifest 与声明 digest 不匹配），在任何网络副作用前抛出 `TAMPERED_PENDING_RELEASE` 阻断，严禁更换新 key 发送非幂等请求。
+  - 无 pending 上传阶段若预签名 URL 已到期，安全新建 session 刷新 URL。
+- **三元组隔离与防越权 (Fail-Closed)**:
+  - 待恢复记录与活跃上传计划严格绑定 `(manifestDigest, apiUrl, subject)` 三元组。
+  - 任何一项发生变更（切换清单内容、切换 API 接口地址、切换登录用户身份），严格视为新会话并从头开始，杜绝跨用户或跨环境复用旧 session 与旧 key。
+  - `executeWebUploadWorkflow` 选项中 `subject: string` 必填，前置空身份拦截。
+- **发布成功四键清理**:
+  - 收到有效 HTTP 202 成功提交后，彻底清理 `zhinexus_upload_draft`、`zhinexus_pending_release`、`zhinexus_active_session_id`、`zhinexus_active_session_plan` 四键，页面刷新后不再展示恢复卡片，下一次发布干净生成新会话。
+- **校验代际取消 (Generation / Cancel) 与提交前最终快照门禁**:
+  - `validateUploadFiles` 在 `useEffect` 中增加 `cancelled` 代际保护标志与 `isValidatingFiles` 状态，异步校验期间提交按钮保持 disabled，避免旧文件的延迟校验结果覆盖新文件的损坏拦截错误。
+  - `handleSubmitRelease` 提交流程在执行前对当前的 `manifest` 与 `filesMap` 进行一次同步快照重新校验，确保即使只读缓存状态异常也由前端最终门禁强阻断，不依赖旧缓存 `fileIssues`。
+
 ## [0.0.3] - 2026-11-13
 
 ### 新增与优化 (feat/fix)
