@@ -117,3 +117,11 @@ Claude 首轮读取的是其映射中的旧文件，C 明确纠正版本后，�
 B 恢复顺序已在上述固定文件快照中实际转为 GREEN。继续等待原浏览器 fixture 同步和 fix/独立升版固定提交；C 再从最终 hash 导出归档，执行构建、类型、工作区、单元、14 项显式工作流、12 项 UI、原 14 项网页及 0.0.10 真实补充验收。以上中途快照不能替代最终结果。
 
 共享三存储未初始化、未重启、未轮换凭据；真实测试仅使用自有随机端口 RecoveryStack，已检查本轮容器清理和 5183 释放。公司 OIDC、生产独立域/TLS、真实 Vue/React 业务试点及完整 G2/M2/T10/T11/T12 仍未验收。
+
+### 17:40 原手动发布 fixture 的独立预跑
+
+B 同步旧浏览器 fixture 期间，C 读取其 `tests/browser/manual-release.spec.ts`，复制前后源文件 SHA-256 均为 `24330346e7859d297a7676e7a0986a04cb85e5eb777faf267aa492f6f1f52a15`。仅将测试副本中的 5173 改为 5183、冻结材料批次改为既有 SDK 0.0.10，新增到上述 17:23 归档的 `tests/acceptance/b-manual-fixture-probe-1740.spec.ts`；没有替换原测试、固定产品文件或 B 工作区。副本摘要 `993c45c888189b00cd90fd467d0d2e514e2d6206282402a3c48c64f656f7e57d`。
+
+实际执行 `playwright test --config tests/acceptance/playwright.c-fixture-probe.config.ts --reporter=line`，单 worker、生产画廊 5183，结果 **7 通过 / 1 失败、9.0 秒、退出 1**。日志 `.tools/operations/b-web-working-1723/manual-fixture-probe-1740.log`。完整绑定的恢复卡正例和合法真实目录触发的接口 500 已通过；唯一失败是框架错配测试期待“导入 Manifest 校验失败”，而页面实际返回“导入 Manifest 失败: Manifest 原始结构校验失败”，随后包含 `Screenshot must belong to this variant/framework/version/example/state`。这证明目标错配被拦截，剩余为测试文案断言未同步；已向 B 提供实际失败日志，要求只修测试、不放宽产品校验。
+
+该预跑仍不是 B 最终 Git 提交验收。后续必须在其最终固定 hash 的独立归档中重跑完整网页套件，不能将本次 7 项通过并入最终通过计数。
