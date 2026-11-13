@@ -237,4 +237,38 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     // 提交按钮恢复可用状态
     await expect(submitBtn).toBeEnabled();
   });
+
+  test('提交前最终快照校验触发 WebCrypto 异常时必须恢复提交按钮可用状态并提示错误', async ({ page }) => {
+    await page.goto('http://127.0.0.1:5173/upload');
+    await devLogin(page);
+
+    // 1. 导入完整合法外部清单与目录文件直至可提交状态
+    await page.locator('#import-manifest-input').setInputFiles(join(CURRENT_SDK_DIR, 'manifest.json'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
+
+    await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入');
+
+    await page.locator('#import-screenshots-input').setInputFiles(join(CURRENT_SDK_DIR, 'screenshots'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功批量关联 14 张有效展示截图');
+
+    const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
+    await expect(submitBtn).toBeEnabled();
+
+    // 2. 注入 WebCrypto digest reject 故障（模拟并发/硬件忙碌异常）
+    await page.evaluate(() => {
+      Object.defineProperty(window.crypto.subtle, 'digest', {
+        configurable: true,
+        value: async () => {
+          throw new DOMException('Simulated WebCrypto busy/reject', 'OperationError');
+        },
+      });
+    });
+
+    await submitBtn.click();
+
+    // 3. 断言错误信息展示且提交按钮从 busy 状态恢复为可点击
+    await expect(page.locator('#upload-status-message')).toContainText('Simulated WebCrypto busy/reject');
+    await expect(submitBtn).toBeEnabled();
+  });
 });
