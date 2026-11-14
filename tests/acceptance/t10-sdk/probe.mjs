@@ -20,6 +20,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
@@ -35,9 +36,12 @@ import { peerEchartsBaseline, readFrozenBundle, supportedCombinations, variantPa
 import { loadFrozenPolicy, readRegistrySnapshot, resolveCandidateSafely } from './policy.mjs';
 import {
   PUBLIC_SUBPATHS,
+  checkOutsideRepo,
   createConsumer,
+  isInside,
   readResolvedVersions,
   removeConsumer,
+  resolveRealPath,
   runBuild,
   runSsrImport,
   runTypechecks,
@@ -79,7 +83,7 @@ const EVIDENCE_SCHEMA_VERSION = 1;
  * 探针必须能从任意 cwd 启动。
  *
  * @param {string} here 探针所在目录
- * @returns {{packaged: boolean; resourceRoot: string; installRoot: string; probeRoot: string; examplesDir: string; fixturesDir: string; baseTsconfig: string}}
+ * @returns {{packaged: boolean; resourceRoot: string; installRoot: string; packageRoot: string; probeRoot: string; examplesDir: string; fixturesDir: string; baseTsconfig: string}}
  */
 export function resolveProbeLayout(here = HERE) {
   const probeRoot = path.resolve(here);
@@ -89,6 +93,9 @@ export function resolveProbeLayout(here = HERE) {
       packaged: true,
       resourceRoot: packagedResources,
       installRoot: probeRoot,
+      // 只读边界必须是**整个已安装包**，不能只圈 dist/probe：往 dist/ 或 lib/ 里
+      // 写证据/消费者一样污染安装目录，而那份污染不会被 dist/probe 的清单复核发现。
+      packageRoot: nearestPackageRoot(probeRoot),
       probeRoot,
       examplesDir: path.join(packagedResources, 'examples'),
       fixturesDir: path.join(packagedResources, 'examples', 'fixtures'),
@@ -101,6 +108,7 @@ export function resolveProbeLayout(here = HERE) {
       packaged: false,
       resourceRoot: repoRoot,
       installRoot: repoRoot,
+      packageRoot: nearestPackageRoot(repoRoot) ?? repoRoot,
       probeRoot,
       examplesDir: path.join(repoRoot, 'examples'),
       fixturesDir: path.join(repoRoot, 'examples', 'fixtures'),
@@ -116,6 +124,23 @@ export function resolveProbeLayout(here = HERE) {
 }
 
 /**
+ * 向上找最近的、带 `package.json` 的祖先目录。
+ *
+ * 用来把"只读边界"从 `dist/probe` 扩大到**整个已安装包**：`dist/probe` 只是安装包
+ * 里的一个子目录，包根才是"这份东西是分发物"的那个界线。仓库形态下找到的就是
+ * 仓库根本身（根 package.json），与 installRoot 一致，行为不变。
+ */
+function nearestPackageRoot(from) {
+  let current = path.resolve(from);
+  while (true) {
+    if (existsSync(path.join(current, 'package.json'))) return current;
+    const parent = path.dirname(current);
+    if (parent === current) return null;
+    current = parent;
+  }
+}
+
+/**
  * 默认证据输出目录。
  *
  * 必须是**调用者的 cwd** 下，绝不能是安装包目录：安装包是只读分发物，
@@ -126,6 +151,81 @@ export function resolveProbeLayout(here = HERE) {
 export function defaultOutputDir({ cwd = process.cwd(), at = new Date() } = {}) {
   const stamp = at.toISOString().replace(/[:.]/g, '-');
   return path.join(path.resolve(cwd), 'test-results', 't10-sdk-probes', stamp);
+}
+
+/**
+ * 把每个消费者的候选来源核对结果装配成证据里的 `candidate.consumerSources`。
+ *
+ * B 侧拿这个数组做安装完整性交叉校验，因此**锁里真实的 integrity 必须原样带出去**：
+ * 取值只能是 `verifyConsumerCandidateSource()` 读回来的那条 `package-lock.json`
+ * 记录（`entry.entry`），绝不能从顶层候选声明抄。顶层那个值是 registry 的
+ * `dist.integrity`——"注册表声称的字节"和"消费者实际装进的字节"是两件事，
+ * 抄过来就等于没校验，B 也校验不出真实差异。
+ *
+ * 核对跳过（离线 / 候选未经 registry 声明）时没有锁记录，如实给 null，
+ * 不用顶层值填一个"看起来核对过"的空洞。
+ *
+ * @param {{framework: string; verified: boolean; reason?: string; entry?: object}[]} candidateSources
+ * @returns {{framework: string; verified: boolean; reason: string|null; resolved: string|null; version: string|null; integrity: string|null}[]}
+ */
+export function consumerSourceRecords(candidateSources) {
+  return candidateSources.map((entry) => ({
+    framework: entry.framework,
+    verified: entry.verified,
+    reason: entry.reason ?? null,
+    resolved: entry.entry?.resolved ?? null,
+    version: entry.entry?.version ?? null,
+    integrity: entry.entry?.integrity ?? null,
+  }));
+}
+
+/**
+ * 解析证据输出目录，并在**任何写入之前**完成只读边界校验。
+ *
+ * C 复现的顺序缺陷：`--out` 原先到第 534 行才 `path.resolve`，而
+ * `loadFrozenPolicy()` 早就往 `--consumer-root` 里建好目录了；消费者根更要等到
+ * `createConsumer()` 才被拒。删除/建目录是不可逆的，"先写后报拒绝"等于拒绝没发生。
+ * 因此 main() 在做任何 mkdir 之前就调这里，out 与 consumer-root 一起过闸。
+ *
+ * 两条规则：
+ * ① 显式 `--out` 落在只读边界内 → 直接抛 `PROBE_INPUT`，不写任何东西；
+ * ② 默认输出因为"cwd 就在包里"而落进边界 → 改道到系统临时目录并留痕。
+ *    这是默认值不是用户请求，为它报错太苛，但绝不能顺理成章写进安装包。
+ *
+ * @param {{out?: string; cwd?: string; at?: Date; boundary?: string|null}} options
+ * @returns {{dir: string; substituted: boolean; reason: string}}
+ */
+export function resolveOutputDir({
+  out,
+  cwd = process.cwd(),
+  at = new Date(),
+  boundary = null,
+}) {
+  const explicit = typeof out === 'string' && out.length > 0;
+  const requested = explicit ? path.resolve(out) : defaultOutputDir({ cwd, at });
+  if (!boundary) {
+    return { dir: requested, substituted: false, reason: '' };
+  }
+  const realRequested = resolveRealPath(requested);
+  const realBoundary = resolveRealPath(path.resolve(boundary));
+  if (!isInside(realRequested, realBoundary)) {
+    return { dir: requested, substituted: false, reason: '' };
+  }
+  if (explicit) {
+    throw new Error(
+      `PROBE_INPUT --out ${requested} 位于只读分发边界 ${path.resolve(boundary)} 内部。` +
+        '安装包是只读分发物，往里写证据会污染安装目录；请把 --out 指到包外。',
+    );
+  }
+  const stamp = at.toISOString().replace(/[:.]/g, '-');
+  const substituted = path.join(tmpdir(), 't10-sdk-probes', stamp);
+  return {
+    dir: substituted,
+    substituted: true,
+    reason:
+      `调用者 cwd（${path.resolve(cwd)}）位于安装包内部，默认输出 ${requested} 会写进只读分发物，` +
+      `已改道到 ${substituted}。可用 --out 显式指定包外目录。`,
+  };
 }
 
 const USAGE = `T10 双框架精确版本兼容探针
@@ -433,6 +533,27 @@ async function main(argv) {
   const startedAt = new Date();
   // 布局要在任何路径派生之前定好：资源根同时决定 exampleDir、repoRoot 与默认输出。
   const layout = resolveProbeLayout(HERE);
+  // 写入前统一过闸：**在任何 mkdir / 解包 / 建 staging 之前**就判 out 与 consumer-root。
+  //
+  // C 复现的顺序缺陷：`--out` 原先到很后面才 resolve，而 `loadFrozenPolicy()` 早就往
+  // `--consumer-root` 里建好目录了，消费者根更要等到 `createConsumer()` 才被拒。
+  // 「先写后报拒绝」等于拒绝没发生——目录已经落在不该落的地方。
+  //
+  // out 的只读边界只在**安装形态**下生效：安装包是只读分发物；仓库形态下
+  // `test-results/` 就在仓库里且被 gitignore，那是正常用法。
+  const outputPlan = resolveOutputDir({
+    out: options.out,
+    boundary: layout.packaged ? layout.packageRoot : null,
+    at: startedAt,
+  });
+  const consumerGuard = checkOutsideRepo(options.consumerRoot ?? tmpdir(), layout.packageRoot);
+  if (!consumerGuard.ok) {
+    throw new Error(`PROBE_INPUT ${consumerGuard.reason}`);
+  }
+  const outDir = outputPlan.dir;
+  if (outputPlan.substituted) {
+    log(`[probe] ${outputPlan.reason}`);
+  }
   // 记录「怎么跑的」要用真实 argv，不能用目录名：否则复现命令时少一段 probe.mjs。
   const invokedAs =
     process.argv[1] === undefined
@@ -531,7 +652,7 @@ async function main(argv) {
     }
   }
 
-  const outDir = path.resolve(options.out ?? defaultOutputDir({ at: startedAt }));
+  // outDir 在上面就已经过闸并定好了：这里只是第一次真正落盘。
   await mkdir(outDir, { recursive: true });
   const screenshotDir = path.join(outDir, 'screenshots');
 
@@ -560,9 +681,9 @@ async function main(argv) {
     const consumer = await createConsumer({
       framework,
       exampleDir: path.join(layout.examplesDir, framework),
-      // 只读边界是安装目录（仓库形态下就是仓库根）；资源位置单独给，
+      // 只读边界是**整个安装包**（仓库形态下就是仓库根）；资源位置单独给，
       // 打包形态下它在 installRoot 的 resources/ 子目录里。
-      repoRoot: layout.installRoot,
+      repoRoot: layout.packageRoot,
       fixturesDir: layout.fixturesDir,
       baseTsconfig: layout.baseTsconfig,
       tarballs,
@@ -884,6 +1005,11 @@ async function main(argv) {
       // 否则"从安装包外部启动"这件事无法从证据里复核。
       resourceRoot: layout.resourceRoot,
       installRoot: layout.installRoot,
+      // 只读边界（整个安装包）与输出目录的裁决结果一起留痕：改道发生时，
+      // 证据里必须能看出"默认输出原本想写哪儿、为什么换了地方"。
+      packageRoot: layout.packageRoot,
+      outputSubstituted: outputPlan.substituted,
+      outputSubstitutionReason: outputPlan.substituted ? outputPlan.reason : null,
       packaged: layout.packaged,
       command,
       node: process.version,
@@ -923,13 +1049,7 @@ async function main(argv) {
       resolution: candidateResolution,
       integrityVerified: candidateIntegrityVerified,
       declaredByRegistry: candidateDeclaredByRegistry,
-      consumerSources: candidateSources.map((entry) => ({
-        framework: entry.framework,
-        verified: entry.verified,
-        reason: entry.reason ?? null,
-        resolved: entry.entry?.resolved ?? null,
-        version: entry.entry?.version ?? null,
-      })),
+      consumerSources: consumerSourceRecords(candidateSources),
     },
     requestedEchartsVersion: requestedEcharts,
     baselineEchartsVersion: baselineEcharts,

@@ -425,6 +425,32 @@ function realPathOrSelf(target) {
   }
 }
 
+/**
+ * 取**真实路径**；路径不存在时先解析到最近的已存在祖先，再把后续段拼回去。
+ *
+ * 为什么需要"不存在"这一支：`--out` 与消费者根常常是"还不存在的目录"
+ * （例如 `--consumer-root "/tmp/xxx/not yet created"`）。直接 realpath 会抛，
+ * 于是这条路径逃过所有链接检查——而它恰好是最该被查的那条。
+ *
+ * @param {string} target
+ * @returns {string}
+ */
+export function resolveRealPath(target) {
+  const absolute = path.resolve(target);
+  const tail = [];
+  let current = absolute;
+  while (true) {
+    if (existsSync(current)) {
+      const real = realPathOrSelf(current);
+      return tail.length === 0 ? real : path.join(real, ...tail.reverse());
+    }
+    const parent = path.dirname(current);
+    if (parent === current) return absolute;
+    tail.push(path.basename(current));
+    current = parent;
+  }
+}
+
 /** 向上找最近的已存在祖先：用于判断「尚不存在的路径」究竟会落在哪里。 */
 function nearestExisting(target) {
   let current = path.resolve(target);
@@ -479,7 +505,6 @@ export function checkOutsideRepo(consumerRoot, repoRoot) {
   }
   return { ok: true };
 }
-
 /** 读回消费者 `node_modules` 里真实安装的版本——「声称的版本」不算证据。 */
 export async function readResolvedVersions(consumerRoot, names) {
   const resolved = {};
