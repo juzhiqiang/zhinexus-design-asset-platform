@@ -45,3 +45,12 @@
 ## 未验收门槛
 
 公司 OIDC/PKCE/撤权、生产独立预览域/TLS、真实 Vue/React 业务试点、跨版本兼容记录落库均不因本地测试自动通过。完整 G2/T10/T11/T12 保持开放。
+
+## 追加复核：修正交付前的实际失败
+
+下列失败发生于 A 未提交草稿或 B 固定提交，不覆盖上面的首轮记录；均已反馈各自负责人，修正后的通过结果另记。
+
+- A Windows 真实浏览器 smoke：`measureFontFingerprint` 在 `page.evaluate` 中引用 Node 外层常量，抛 `ReferenceError: FONT_MEASUREMENT_SOURCE is not defined`；浏览器 revision 读取先后遇到缺失 `fileURLToPath` 和 pnpm 包路径解析失败。C 从真实 `@playwright/test → playwright → playwright-core` 依赖链解析 `browsers.json`，读到 Chromium revision `1254`，已给 A 可复现的定位方法。
+- A `nativePlatformNote` 必须进 `scopeNotes`，不能让本机完整验证因“其他操作系统未复验”永远 hold。默认 strict 安装失败不得自动重试 legacy；只有显式选择 legacy 才允许继续测量。消费者来源需与真实 npm lock 的版本、integrity、resolved 和非链接状态核对。
+- B `0ee149a` 独立窄测 3 文件、24/24 通过，但额外临时反例复现四项 P2：组合实际 ECharts/框架版本未绑定、resolver integrity/source 被丢弃、畸形 `failures` 引发未捕获异常、Windows junction 可越出冻结根目录。该提交暂不合并第二阶段；后续固定 head 另行复核。
+- C 已完成根脚本接线草稿：`test:t10` 与 `probe:t10`，根 `test` 将在服务构建后运行探针 Node 单测，再运行 Vitest；仍不进入 Turbo 缓存。冻结安装与工作区边界检查实际通过，锁文件未变。A 源码尚未导入时不运行或宣称根最终门禁通过。
