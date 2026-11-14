@@ -64,3 +64,33 @@
 - A 侧 `packages/component-cli/scripts/package-probe.mjs` 与真实打包探针产物 `dist/probe/probe.mjs` 尚未合入本分支，因此**真实 `dist/probe/probe.mjs` 驱动 Playwright Chromium 在无源码外部安装的端到端实测**待 A 交付并与 C 集成后统一验证；
 - 因未改 `pnpm-lock.yaml`，修改 `packages/component-cli/package.json` 新增运行时依赖后的锁文件更新待 C 统一 `pnpm install` 收口；
 - 公司 OIDC、生产域名、真实业务试点项目仍保持未覆盖开放状态。
+
+
+---
+
+## 六、C 独立审查 5 项复核修正补充记录（2026-11-14）
+
+- **代码修正提交**：`4a2ac286617873199fade24c55a35d080a8849a5` — `fix(compatibility): 严控完整嵌套探针证据校验、目标组件与双框架矩阵及 URL/投影隔离`
+
+### 1. 5 项修正详情
+1. **P1 #1（完整嵌套执行证据校验与结论重算）**：
+   - `apps/api/src/compatibility/service.ts` 新增对 `evidence.probe`、`candidate.consumerSources`、`combinations[].consumer` 与 `combinations[].evidence`（`typecheck` 含 `Bundler`+`NodeNext`、`build.exitCode===0`、`ssrImport` 无 `window`/`document`、`lifecycle.status==='passed'`、`browser` 与 `visual` 一一对应且全 `PASS`、`hostCount===1`、`pageErrors` 空、`checks>=4` 全 `passed`、`click` 非空、`clickError===null`、`screenshot` sha256/bytes 合法）的完整校验。
+   - 服务端使用 `@company/contracts` 的 `environmentKey`、`environmentProjection`、`canonicalJson` 与 `fontFingerprint` 规则重算 `environmentKey` 与 `fontDigest`（绝不读取客户端本机路径或执行组件代码），并独立重算通过结论。
+2. **P1 #2（目标组件与全展示组合覆盖）**：
+   - 核对 `bundle.variants`（如提供）及 `combinations[].evidence.browser` / `visual`，强制要求权威 `row.component_id` 在双框架下均完成 `light-canvas`、`dark-canvas`、`light-svg`、`dark-svg` 全部 4 个展示组合的实测与 `PASS`，杜绝 `bar`-only 报告扩散到 `line-vue`。
+3. **P1 #3（双框架矩阵与权威版本精确对齐）**：
+   - 不轻信 `policy.hasDualFrameworkCoverage` 布尔，从权威 `release_jobs.manifest.variants[].compatibility` 提取 `vue` / `react` 的目标 `frameworkVersion`；强制 `combinations` 恰好包含且仅包含一条 `vue` 与一条 `react` 记录、双方版本精确匹配、双方四维全部 `passed` 且 `failures` 为空，拒绝缺失框架、重复框架、`runtime=failed` 或 `frameworkVersion='banana'`。
+4. **P2 #4（`candidate.source` URL 净化与公开/私有投影隔离）**：
+   - 新增 `isCleanHttpsRegistryUrl()`，强制 `candidate.source` 与 `consumerSources[].resolved` 仅允许纯净 `https://` URL，拒绝内嵌 `username:password`、`?query`、`#hash`、非 HTTPS、空白或反斜杠。
+   - `GET /v1/variant-releases/:id/compatibility`（公开）及普通 `reader` 访问 `GET /v1/me/variant-releases/:id/compatibility` 均不返回 `reason` 与 `subject` 等内部审计字段；仅对目标组件具备 `can_maintain=true` 的 `maintainer` 在 `/v1/me/...` 返回 `reason` 与 `subject`。
+5. **P2 #5（CLI 缺失探针测试解耦与打包构建说明）**：
+   - 更新 `tests/unit/echarts-cli.test.ts`，不再假设真实仓库 `packages/component-cli/dist/probe/probe.mjs` 不存在；改为在独占临时安装包副本中显式移除 `dist/probe` 验证 `PROBE_ENTRY_NOT_FOUND` 与浏览器提示，并在放回后验证 `ok: true`。
+   - **给 C 的集成提醒**：当前 B 分支尚未合入 A 侧 `scripts/package-probe.mjs`，因此 `packages/component-cli/package.json` 暂保留存在性保护以保证本分支独立可构建；C 集成 A+B 后请将 `build` 脚本改为无条件执行 `node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node scripts/package-probe.mjs`，确保缺脚本或打包产物失败时立即报错。
+   - **给 C 的 contracts 建议**：后续可将 `ProbeEvidence` 嵌套结构校验与 `createCompatibilityRequest` / `createCompatibilityResponse` / `variantCompatibilityResponse` 统一收口到 `packages/contracts`，避免 CLI 与 API 各自维护校验副本。
+
+### 2. RED → GREEN 与全套本地校验结果
+- **RED**：更新 `tests/integration/compatibility-api.test.ts` 后运行 `.\scripts\pnpm.ps1 vitest run tests/integration/compatibility-api.test.ts` → `summary-only` 返回 `201`（预期 `400`），按预期失败。
+- **GREEN（最终编辑后实跑）**：
+  - `.\scripts\pnpm.ps1 typecheck` → **14 successful, 14 total** + 根 `tsc --noEmit` 通过。
+  - `.\scripts\pnpm.ps1 verify:workspace` → **passed**（`10 members, no cycles, four publishable shells, safe service graph`）。
+  - `.\scripts\pnpm.ps1 vitest run tests/unit/echarts-cli.test.ts tests/unit/baseline-compare.test.ts tests/unit/baseline-cli.test.ts tests/integration/compatibility-api.test.ts` → **4 files passed, 27/27 passed**（`echarts-cli.test.ts` 9/9、`baseline-cli.test.ts` 7/7、`baseline-compare.test.ts` 10/10、`compatibility-api.test.ts` 1/1）。
