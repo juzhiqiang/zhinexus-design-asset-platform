@@ -63,3 +63,12 @@
 - 合入后设置 `NEXT_PUBLIC_SITE_URL=https://gallery.test`，实跑 `scripts/pnpm.ps1 -PnpmArgs @('exec','turbo','run','build','typecheck','--force')`：20/20、0 cached、5.952s、exit 0；`scripts/pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`：exit 0。日志分别为 `.tools/c-final-build-types-2026-11-14.log` 与 `.tools/c-final-root-tsc-2026-11-14.log`。
 - 独立逐文件复核原冻结批次：199 文件、14 实现，大小与 SHA-256 差异均为 0；证据 `.tools/c-final-frozen-audit-2026-11-14.json`。冻结安装和工作区图检查通过，锁文件未改。
 - A 修正交付前，C 只读检查另发现消费者成功路径引用 try 内的 `rewritten`、离线 registry 被直接构造 URL；均已反馈 A，尚不当作修正通过。真实 Windows 新指纹矩阵、A/B adopt 联动与最终根 test 仍待执行。
+
+## A 第二版固定交付：单测通过，真实消费者仍拒绝采用
+
+- 固定头 `fc047103564fd8869953aa3e84afd547b7ea1a8e`，交接 Git bundle SHA-256 `f0b7a98f1e0d208b23621eaffbda248c47c5423cdbdc029af0cb321a16f9c4a3`。`git bundle verify` 通过，A 干净 Windows 工作树以 `--ff-only` 导入；C 使用 `77b95e3` 合入集成分支，尚未合 main。
+- 显式配置 `A10_FROZEN_BUNDLE` 后，用固定 Windows Node 26.13.0 运行 `node --test tests/acceptance/t10-sdk/probe.test.mjs`：104/104、0 fail、0 skip，11.61s。随后根 `scripts/pnpm.ps1 test` 实际执行服务构建、104/104 Node 用例与 42 文件 719/719 Vitest，182.89s（Vitest），exit 0。日志 `.tools/a-t10-final-windows-unit-2026-11-14.log`、`.tools/c-final-integrated-test-2026-11-14.log`。
+- 使用编译后的真实 CLI 执行 `echarts verify --version 6.1.0 --consumer-root <本次独占外部且带空格的新目录> --keep --out test-results/t10-sdk-probes/windows-final-initial --label windows-final-initial --json`，产生两框架共 56 次运行。类型/构建/SSR/运行/交互通过、无视觉基线保持 not-run；但消费者 lock 的 ECharts 条目没有 `resolved` / `integrity`，CLI 以 `CANDIDATE_INTEGRITY_UNVERIFIED`、exit 1 拒绝，探针自身 exit 0。**本轮不是干净消费者验收通过，也不是期望的纯视觉 PROBE_HOLD。**
+- 定位为 `cp(exampleDir, ...)` 未排除 Windows 示例目录中已有的 `node_modules`、`dist` 和 `.turbo`，使本地依赖状态进入外部消费者。已向 A 派发复制边界和 dirty-source 回归；另两项独立复核问题为显式 `--font-digest` 被实测值覆盖、宿主缺失时空环境投影崩溃。须在下一固定头上复验，不能用当前单测通过掩盖此失败。
+- 首轮错误报告、56 张截图及两份 lock 诊断副本保留在 ignored 本地证据；未改报告。独立审计器亦 exit 1 拒绝该证据。失败消费者仅在核对随机运行 ID、双份 ownership marker、真实路径、直接父子关系及完整双消费者集合后清理，未触碰其它工作树。
+- C 本地审计/回退辅助工具的两项审查问题已修：全部类型检查必须成功且四维完整；adopt 的 failures 必须为空；清理必须证明本次运行所有权。独立反例中，三项原审计反例及空 checks/click、visual DIFF 均拒绝，10 项路径/marker/junction 反例拒绝；清理采用 mock 删除接口，合法集合仅安排两个 staging 与一个父目录，第二消费者非法时安排删除数为 0。辅助工具本身不替代真实锁文件恢复实跑。

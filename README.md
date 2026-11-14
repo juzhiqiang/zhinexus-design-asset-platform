@@ -35,6 +35,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 | `.\scripts\pnpm.ps1 infra:up` / `infra:stop` | 启停隔离本地 PostgreSQL、Verdaccio、MinIO，保留卷和凭证 |
 | `.\scripts\pnpm.ps1 test:infra` | 三存储真实写读、权限、精确安装、重启及隔离备份恢复；不缓存 |
 | `.\scripts\pnpm.ps1 test:platform` | 自建并清理独立三存储，验证 Nest 上传/发布、租约并发、恢复、基线 CAS、SDK 发布和精确安装；需 Docker 与本机锁定镜像，不缓存 |
+| `.\scripts\pnpm.ps1 test:t10` | 本地兼容探针的 Node 回归测试；根 `test` 同时执行，不进入 Turbo 缓存 |
+| `.\scripts\pnpm.ps1 probe:t10 --bundle <冻结目录> --echarts <精确版本>` | 在工作区外消费者运行双框架类型、构建、SSR、浏览器和视觉探针；无同环境基线时保持 hold |
 | `.\scripts\pnpm.ps1 --filter @company/platform-api worker` | 独立发布 worker；显式迁移并注入存储/注册表服务凭证后运行，见 API 接入说明 |
 | `.\scripts\pnpm.ps1 infra:check-access` | OIDC/独立预览域前置检查；当前缺配置退出 2 |
 
@@ -50,6 +52,10 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 | CLI | `.\scripts\pnpm.ps1 component --help`；不支持的业务命令返回非零 |
 
 后端单独构建使用 `.\scripts\pnpm.ps1 build:services`，只含 API、preview-gateway 与 contracts。组件构建、示例运行和截图保持在开发者电脑。根全量 build 用于本地开发，不作为服务端组件执行入口。
+
+本地 CLI 支持 `component echarts check --bundle <冻结目录> --version <精确版本>` 查询候选，也可用 `--latest`；`component echarts verify` 调用本地兼容探针，只有证据与本次冻结包和候选一致、双框架四维检查齐全时才建议采用。首次无基线的截图留作人工审查输入，复验时通过 `--baseline <证据JSON>` 显式指定；程序退出 0 不替代报告中的 `recommendation`。`check --registry offline` 仅查询冻结支持矩阵，不证明候选来源或实际兼容。当前 `verify` 默认读取工作区 `tests/acceptance/t10-sdk/probe.mjs`，独立安装 CLI 的探针分发尚未验收；可用 `--probe-entry` 指定已有工作区入口。探针不改 SDK peer、不重新 pack 冻结包、不写线上兼容记录。
+
+验收冻结兼容策略时显式设置 `A10_FROZEN_BUNDLE` 为与 `--bundle` 相同的权威目录，再运行 `test:t10` 或根 `test`。没有提供真实冻结目录时，依赖该目录的策略用例明确跳过，不以合成策略替代，也不计为冻结兼容验收通过。完整消费者与浏览器测量仍由 `probe:t10` / `component echarts verify` 执行。
 
 ## 工作区职责
 
