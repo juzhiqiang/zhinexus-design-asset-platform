@@ -111,3 +111,19 @@
     - `.\scripts\pnpm.ps1 typecheck` → **14/14** 通过。
     - `.\scripts\pnpm.ps1 verify:workspace` → **10 members, no cycles, four publishable shells, safe service graph** 通过。
     - `.\scripts\pnpm.ps1 vitest run tests/unit/echarts-cli.test.ts tests/unit/baseline-compare.test.ts tests/unit/baseline-cli.test.ts tests/integration/compatibility-api.test.ts` → **4 files passed, 27/27 passed**（`echarts-cli.test.ts` 9/9、`baseline-cli.test.ts` 7/7、`baseline-compare.test.ts` 10/10、`compatibility-api.test.ts` 1/1）。
+
+
+## 8. `34b22bdc` 复核阻断修复：按 `combo.framework` 校验对应 wrapper 与 A 真实 `resolved` 形状
+
+- 对应代码提交：`d6e1de91b80581f05daa7a66dea20bfeba0157f6`（`fix: 按 combo.framework 校验对应框架 wrapper 版本并允许对端为 null`）。
+- 问题与修复（[service.ts](file:///C:/Users/10208/.codex/worktrees/b-cli-compatibility/zhinexus-design-asset-platform/apps/api/src/compatibility/service.ts)）：
+  - `extractAuthoritativeReleaseMatrix` 收集 `manifest.packages` 中的 `@company/charts-core`、`@company/charts-vue`、`@company/charts-react` 版本映射。
+  - `CompatibilityService.accept` 按每个组合的 `combo.framework` 选择对应 wrapper 包名（`vue` → `@company/charts-vue`，`react` → `@company/charts-react`）与权威 manifest 版本比对，允许并校验对端 wrapper 为 `null`/`undefined`（禁止伪造对端 wrapper 字符串绕过），同时继续校验 `@company/charts-core` 版本。
+  - 更新 [compatibility-api.test.ts](file:///C:/Users/10208/.codex/worktrees/b-cli-compatibility/zhinexus-design-asset-platform/tests/integration/compatibility-api.test.ts) 正例 `resolved` 为 A 真实形状（本框架 wrapper 已安装、另一框架 `null`），并新增对端 wrapper 错版本（`charts-react = '0.0.1'` 且伪造保留 `charts-vue`）拒绝用例。
+- RED → GREEN 与窄验证结果：
+  - **RED**：补充上述回归用例后运行 `.\scripts\pnpm.ps1 vitest run tests/integration/compatibility-api.test.ts` 失败（伪造目标包键且 React wrapper 为 `0.0.1` 返回 `201`，预期 `400`）。
+  - **GREEN**：
+    - `.\scripts\pnpm.ps1 build:services` → 通过。
+    - `.\scripts\pnpm.ps1 typecheck` → **14/14** 通过。
+    - `.\scripts\pnpm.ps1 verify:workspace` → 通过。
+    - `.\scripts\pnpm.ps1 vitest run tests/integration/compatibility-api.test.ts` → **1 file passed, 1/1 passed**。
