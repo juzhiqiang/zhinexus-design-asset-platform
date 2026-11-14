@@ -163,8 +163,34 @@ export function readBrowserRevision(importMetaUrl) {
   }
   throw new Error(
     'PROBE_ENVIRONMENT 读不到 playwright-core/browsers.json 的 chromium 修订号。' +
-      'browserRevision 进 environmentKey，不能用占位值冒充；请确认仓库根已 pnpm install。',
+      'browserRevision 进 environmentKey，不能用占位值冒充。' +
+      browserMissingDiagnostic(importMetaUrl),
   );
+}
+
+/**
+ * 缺浏览器工具链时的可行动诊断。
+ *
+ * 探针随 CLI 分发后，"去仓库根 pnpm install" 这句提示是错的：安装形态下根本没有仓库，
+ * 缺的是 CLI 包的运行依赖闭包（`@playwright/test@1.65.0`）与 Playwright 浏览器本体。
+ * 两种形态给不同处方，否则安装用户按仓库那套做法排查半天。
+ *
+ * @param {string} importMetaUrl 调用方模块的 import.meta.url
+ */
+export function browserMissingDiagnostic(importMetaUrl) {
+  // browser.mjs 与 resources/ 在打包形态下是**同级**：都在 dist/probe/ 下。
+  const packaged = existsSync(
+    path.join(path.dirname(fileURLToPath(importMetaUrl)), 'resources', 'examples'),
+  );
+  if (packaged) {
+    return (
+      '当前是随 CLI 安装的副本：请确认 @company/component-cli 的依赖闭包含 ' +
+      '@playwright/test@1.65.0（B 侧运行依赖），并已执行 ' +
+      '`npx playwright install chromium` 或设置 PLAYWRIGHT_BROWSERS_PATH 指向已有浏览器。' +
+      '若确实不跑浏览器维度，请显式传 --skip-browser（类型/构建/SSR 仍会跑）。'
+    );
+  }
+  return '请在仓库根执行 pnpm install（@playwright/test 是根 devDependency，精确 1.65.0）。';
 }
 
 const MIME = {
