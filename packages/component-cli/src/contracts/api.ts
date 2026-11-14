@@ -2,7 +2,7 @@ import type { ArtifactRef, Framework, PackageRef, ReleaseManifestV1, ValidationR
 import type { ApiError } from './errors.js';
 import type { CheckReportV1 } from './reports.js';
 import { API_ERROR_CODES, CONTRACT_ERROR_CODES } from './errors.js';
-import { array, artifactPath, choice, hash, integer, object, text, timestamp, validateSchema } from './schema.js';
+import { array, artifactPath, choice, exactVersion, hash, integer, object, text, timestamp, validateSchema } from './schema.js';
 import type { Schema } from './schema.js';
 import { artifactSchema, manifestSchema, packageSchema, variantSchema, reportSchema } from './schemas.js';
 import { validateManifest } from './validation.js';
@@ -13,6 +13,11 @@ export const PUBLISHING_CHECKPOINTS = ['FINALIZE_OBJECTS', 'ENSURE_PACKAGES', 'R
 export type ReleaseState = typeof RELEASE_STATES[number];
 export type PublishingCheckpoint = typeof PUBLISHING_CHECKPOINTS[number];
 export type PublicVariantSummary = { variantReleaseId: string; variantId: string; framework: Framework; packageName: string; packageVersion: string };
+export type AcceptedCompatibilityRecord = {
+  compatibilityId: string; variantReleaseId: string; packageName: string; packageVersion: string;
+  packageSha256: string; framework: Framework; frameworkVersion: string; echartsVersion: string;
+  candidateIntegrity: string; candidateSource: string; status: 'passed'; evidenceSha256: string; createdAt: string;
+};
 export type ApiMessages = {
   createUploadRequest: { manifestDigest: string; files: ArtifactRef[] };
   createUploadResponse: { uploadSessionId: string; files: { path: string; uploadUrl: string; expiresAt: string; multipart?: { uploadId: string; partSize: number; parts: { partNumber: number; uploadUrl: string; expiresAt: string }[] } }[] };
@@ -28,6 +33,11 @@ export type ApiMessages = {
   variantReportsResponse: { variantReleaseId: string; reports: CheckReportV1[] };
   createBaselineRequest: { variantId: string; exampleId: string; environmentKey: string; screenshotId: string; reason: string; expectedRevision?: string };
   createBaselineResponse: { revisionId: string };
+  /** Shape only. Evidence remains untrusted until the compatibility service checks the release and execution details. */
+  createCompatibilityRequest: { packageSha256: string; reason: string; candidate: { version: string; integrity: string; source: string }; evidence: Record<string, unknown> };
+  createCompatibilityResponse: AcceptedCompatibilityRecord & { variantId: string; reason: string; subject: string };
+  variantCompatibilityResponse: { variantReleaseId: string; items: AcceptedCompatibilityRecord[] };
+  myVariantCompatibilityResponse: { variantReleaseId: string; items: (AcceptedCompatibilityRecord & { reason?: string; subject?: string })[] };
   deprecateRequest: { reason: string };
   deprecateResponse: { variantReleaseId: string; status: 'DEPRECATED' };
   previewGrantRequest: { variantReleaseId: string };
@@ -39,6 +49,12 @@ const url: Schema = { ...text, pattern: '^https?://[^\\s]+$' };
 const release = object({ jobId: identifier, state: choice(...RELEASE_STATES) });
 const issue = object({ code: choice(...CONTRACT_ERROR_CODES), path: { type: 'string', pattern: '^(?:/.*)?$' }, message: text });
 const error = object({ code: choice(...API_ERROR_CODES), message: text, details: array(issue), requestId: identifier });
+const compatibilityFields = {
+  compatibilityId: identifier, variantReleaseId: identifier, packageName: packageSchema.properties!.name!,
+  packageVersion: exactVersion, packageSha256: hash, framework: choice('vue', 'react'), frameworkVersion: exactVersion,
+  echartsVersion: exactVersion, candidateIntegrity: text, candidateSource: url,
+  status: choice('passed'), evidenceSha256: hash, createdAt: timestamp,
+};
 const schemas: Record<keyof ApiMessages, Schema> = {
   createUploadRequest: object({ manifestDigest: hash, files: array(artifactSchema, 1) }),
   createUploadResponse: object({ uploadSessionId: identifier, files: array(object({ path: artifactPath, uploadUrl: url, expiresAt: timestamp, multipart: object({ uploadId: text, partSize: integer(5242880), parts: array(object({ partNumber: integer(1, 10000), uploadUrl: url, expiresAt: timestamp }), 1) }) }, ['multipart']), 1) }),
@@ -54,6 +70,10 @@ const schemas: Record<keyof ApiMessages, Schema> = {
   variantReportsResponse: object({ variantReleaseId: identifier, reports: array(reportSchema) }),
   createBaselineRequest: object({ variantId: identifier, exampleId: identifier, environmentKey: hash, screenshotId: identifier, reason: text, expectedRevision: identifier }, ['expectedRevision']),
   createBaselineResponse: object({ revisionId: identifier }),
+  createCompatibilityRequest: object({ packageSha256: hash, reason: { ...text, maxLength: 2000 }, candidate: object({ version: exactVersion, integrity: text, source: url }), evidence: { type: 'object', additionalProperties: true } }),
+  createCompatibilityResponse: object({ ...compatibilityFields, variantId: identifier, reason: text, subject: text }),
+  variantCompatibilityResponse: object({ variantReleaseId: identifier, items: array(object(compatibilityFields)) }),
+  myVariantCompatibilityResponse: object({ variantReleaseId: identifier, items: array(object({ ...compatibilityFields, reason: text, subject: text }, ['reason', 'subject'])) }),
   deprecateRequest: object({ reason: text }),
   deprecateResponse: object({ variantReleaseId: identifier, status: { type: 'string', const: 'DEPRECATED' } }),
   previewGrantRequest: object({ variantReleaseId: identifier }),
@@ -67,6 +87,13 @@ export function validateApiMessage<K extends keyof ApiMessages>(name: K, input: 
   if (!Object.hasOwn(schemas, name)) return { ok: false, issues: [{ code: 'INVALID_SCHEMA', path: '', message: 'Unknown API contract' }] };
   const result = validateSchema<ApiMessages[K]>(schemas[name], input);
   if (!result.ok) return result;
+  if (name === 'createCompatibilityRequest') {
+    const source = (result.value as ApiMessages['createCompatibilityRequest']).candidate.source;
+    try {
+      const parsed = new URL(source);
+      if (parsed.protocol !== 'https:' || parsed.username || parsed.password || /[\s\\?#\u0000-\u001f\u007f]/u.test(source)) throw new Error();
+    } catch { return { ok: false, issues: [{ code: 'INVALID_SCHEMA', path: '/candidate/source', message: 'Expected HTTPS registry URL without credentials, query or fragment' }] }; }
+  }
   if (name === 'createReleaseRequest') {
     const manifest = validateManifest((result.value as ApiMessages['createReleaseRequest']).manifest, context);
     if (!manifest.ok) return { ok: false, issues: manifest.issues.map(issue => ({ ...issue, path: `/manifest${issue.path}` })) };

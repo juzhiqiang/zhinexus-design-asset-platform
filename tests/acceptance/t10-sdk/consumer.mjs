@@ -413,7 +413,7 @@ export async function createConsumer({
  */
 export function isInside(a, b) {
   const relative = path.relative(b, a);
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 /** 取真实路径；不存在或取不到就原样返回（调用方负责后续判断）。 */

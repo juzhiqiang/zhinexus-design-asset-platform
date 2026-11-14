@@ -17,6 +17,11 @@
         "dist/**"
       ]
     },
+    "@company/component-cli#build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**"],
+      "cache": false
+    },
     "@company/gallery#build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**"],

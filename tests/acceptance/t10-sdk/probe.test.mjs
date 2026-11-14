@@ -105,7 +105,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
  */
 const LAYOUT = resolveProbeLayout(HERE);
 /** 只读边界：仓库形态是仓库根，安装形态是整个已安装包。 */
-const REPO_ROOT = LAYOUT.installRoot;
+const REPO_ROOT = LAYOUT.packageRoot;
 /** 双框架模板目录的父目录（`examples/` 或 `resources/examples/`）。 */
 const EXAMPLES_DIR = LAYOUT.examplesDir;
 /** fixtures 目录。 */
@@ -1929,6 +1929,8 @@ describe('createConsumer 成功路径', () => {
         framework: 'vue',
         exampleDir: path.join(EXAMPLES_DIR, 'vue'),
         repoRoot: REPO_ROOT,
+        fixturesDir: LAYOUT.fixturesDir,
+        baseTsconfig: LAYOUT.baseTsconfig,
         tarballs,
         echartsVersion: '6.1.0',
         consumerRoot,
@@ -2025,6 +2027,8 @@ describe('注入的注册表必须自身可类型检查（阻断四）', () => {
         framework,
         exampleDir: path.join(EXAMPLES_DIR, framework),
         repoRoot: REPO_ROOT,
+        fixturesDir: LAYOUT.fixturesDir,
+        baseTsconfig: LAYOUT.baseTsconfig,
         tarballs,
         echartsVersion: '6.1.0',
         consumerRoot,

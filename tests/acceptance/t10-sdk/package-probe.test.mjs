@@ -22,7 +22,7 @@
  */
 
 import assert from 'node:assert/strict';
-import { existsSync } from 'node:fs';
+import { existsSync, symlinkSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -100,7 +100,7 @@ const makeLink = (target, linkPath) => {
     return result.status === 0 ? 'junction' : null;
   }
   try {
-    symlink(target, linkPath, 'dir');
+    symlinkSync(target, linkPath, 'dir');
     return 'symlink';
   } catch {
     return null;
@@ -126,6 +126,24 @@ const makeInstalledPackage = async (work) => {
 };
 
 describe('打包材料完整性（逐文件白名单）', () => {
+  it('源码的 pnpm node_modules 链接不进入白名单产物，也不阻断正常构建', async (t) => {
+    const work = await mkdtemp(path.join(tmpdir(), 'c-probe-pnpm-links-'));
+    t.after(() => rm(work, { recursive: true, force: true }));
+    const repo = await makeWhitelistedRepo(path.join(work, 'repo'));
+    const dependency = path.join(work, 'dependency');
+    await mkdir(dependency);
+    await writeFile(path.join(dependency, 'secret-sentinel.txt'), 'must not ship');
+    const dependencies = path.join(repo, 'examples', 'vue', 'node_modules');
+    await mkdir(dependencies);
+    await symlink(dependency, path.join(dependencies, 'vue'), process.platform === 'win32' ? 'junction' : 'dir');
+    const out = path.join(work, 'output');
+    const result = await packager.packageProbe({ repoRoot: repo, out });
+    assert.equal(result.verification.ok, true);
+    const found = await packager.enumerateArtifact(out);
+    assert.deepEqual(found.links, []);
+    assert.equal(found.files.some((file) => file.includes('node_modules') || file.includes('secret-sentinel')), false);
+  });
+
   it('dist/probe 必须包含白名单内的每一项，且一项都不多', async (t) => {
     const work = await mkdtemp(path.join(tmpdir(), 'a-t10-pack-'));
     t.after(() => rm(work, { recursive: true, force: true }));
@@ -529,6 +547,21 @@ describe('复核必须无过滤枚举', () => {
 });
 
 describe('安装包只读与任意 cwd', () => {
+  it('以两个点开头的普通包内目录仍受只读边界保护', async (t) => {
+    const work = await mkdtemp(path.join(tmpdir(), 'c-probe-dotdot-name-'));
+    t.after(() => rm(work, { recursive: true, force: true }));
+    const boundary = path.join(work, 'installed-cli');
+    await mkdir(boundary);
+    const inside = path.join(boundary, '..output');
+    const probe = await import(pathToFileURL(path.join(PROBE_DIR, 'probe.mjs')).href);
+    const consumer = await import(pathToFileURL(path.join(PROBE_DIR, 'consumer.mjs')).href);
+    assert.equal(packager.isInside(inside, boundary), true);
+    assert.equal(consumer.checkOutsideRepo(inside, boundary).ok, false);
+    assert.throws(() => probe.resolveOutputDir({ out: inside, boundary }), /PROBE_INPUT/);
+    assert.equal(existsSync(inside), false);
+    assert.equal(consumer.checkOutsideRepo(path.join(work, '..outside'), boundary).ok, true);
+  });
+
   it('默认输出落在调用者 cwd，绝不落在安装包目录内', async (t) => {
     const work = await mkdtemp(path.join(tmpdir(), 'a-t10-out-'));
     t.after(() => rm(work, { recursive: true, force: true }));

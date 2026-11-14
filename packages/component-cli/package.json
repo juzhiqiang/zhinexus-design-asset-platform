@@ -7,7 +7,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node -e \"import('node:fs').then(async fs => { if (fs.existsSync('scripts/package-probe.mjs')) { const { execFileSync } = await import('node:child_process'); execFileSync(process.execPath, ['scripts/package-probe.mjs'], { stdio: 'inherit' }); } })\"",
+    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node scripts/package-probe.mjs && node scripts/package-probe.mjs --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.build.json --watch"
   },

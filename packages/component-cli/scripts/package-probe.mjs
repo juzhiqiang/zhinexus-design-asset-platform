@@ -228,7 +228,7 @@ function comparable(target) {
 /** `a` 是否等于 `b` 或位于 `b` 内部（两者都应已 resolve）。 */
 export function isInside(a, b) {
   const relative = path.relative(comparable(b), comparable(a));
-  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+  return relative === '' || (relative !== '..' && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
 /**
@@ -301,11 +301,11 @@ export async function enumerateArtifact(root, prefix = '') {
 /**
  * 从源目录里按**逐文件白名单**收集材料。
  *
- * 四条判据全部无过滤执行：
+ * 逐文件白名单决定入包内容，本机构建状态始终不入包：
  * ① 白名单里的文件必须都在——缺一个就是打包漏东西，失败并点名；
  * ② 白名单之外的文件必须一个都没有——密钥、临时脚本、手滑生成的源码，
  *    失败并点名，不静默跳过、也不往黑名单里加规则；
- * ③ 不得出现符号链接——产物里的链接在安装后会指向不存在的地方；
+ * ③ 除已知本机构建状态（例如 pnpm node_modules）外不得出现符号链接；
  * ④ `knownNotShipped` 里的文件是"同目录但不分发"的已知项，跳过；不在这份
  *    显式名单里的一律按 ② 处理。
  *
@@ -317,9 +317,10 @@ export async function enumerateArtifact(root, prefix = '') {
  */
 async function collectWhitelisted(dir, allowed, label, knownNotShipped = []) {
   const found = await enumerateArtifact(dir);
-  if (found.links.length > 0) {
+  const sourceLinks = found.links.filter((rel) => !isKnownLocalState(rel));
+  if (sourceLinks.length > 0) {
     throw new Error(
-      `PROBE_INPUT ${label} 下出现符号链接：${found.links.join(', ')}。` +
+      `PROBE_INPUT ${label} 下出现符号链接：${sourceLinks.join(', ')}。` +
         '产物里不得有链接（安装后会断），请改成实体文件。',
     );
   }
