@@ -1,6 +1,8 @@
 # Zhinexus 组件资产平台
 
-Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；组件侧支持 Vue/React 双框架。现有折线/柱状/饼图 SDK、本地冻结 Bundle 与消费者截图、T05 身份/上传/基线 API，以及 T06 持久化发布 worker。配置并启动独立 worker 后，合法 PENDING 作业可通过三存储校验进入 Ready；未启动 worker 则保留待处理状态。T07 目录/隔离预览后端已提供；当前 SDK 完整 CLI/画廊联调材料及公司 OIDC 等完整验收仍待完成。
+Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；SDK 提供折线、柱状、饼图、散点、趋势卡、排名和占比共 14 个 Vue/React 实现。已有冻结 Bundle、消费者截图、网页手动发布、身份/上传/基线 API、持久化发布 worker 与隔离静态预览。合法 PENDING 作业须由独立 worker 通过三存储校验后进入 Ready。
+
+2026-11-14：本地平台专项改为每轮自建随机端口和凭据的三存储环境，无需启动共享 G2。当前 SDK 0.0.10 与画廊手动发布已有本地真实证据；公司 OIDC、生产独立预览域、真实 Vue/React 业务试点仍未验收，不能据此宣布完整 G2/T10/T11/T12 或生产就绪。下一轮分工和集成门槛见 [执行计划](docs/superpowers/plans/2026-11-13-next-round-execution.md)。
 
 ## 开始开发（Windows x64）
 
@@ -32,7 +34,7 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 | `.\scripts\pnpm.ps1 versions:resolve` | 刷新官方候选版本报告 |
 | `.\scripts\pnpm.ps1 infra:up` / `infra:stop` | 启停隔离本地 PostgreSQL、Verdaccio、MinIO，保留卷和凭证 |
 | `.\scripts\pnpm.ps1 test:infra` | 三存储真实写读、权限、精确安装、重启及隔离备份恢复；不缓存 |
-| `.\scripts\pnpm.ps1 test:platform` | T05/T06 真 Nest/PG/MinIO/Verdaccio、租约并发、恢复、基线 CAS、真实 SDK 历史材料发布及精确安装；本机执行，不缓存 |
+| `.\scripts\pnpm.ps1 test:platform` | 自建并清理独立三存储，验证 Nest 上传/发布、租约并发、恢复、基线 CAS、SDK 发布和精确安装；需 Docker 与本机锁定镜像，不缓存 |
 | `.\scripts\pnpm.ps1 --filter @company/platform-api worker` | 独立发布 worker；显式迁移并注入存储/注册表服务凭证后运行，见 API 接入说明 |
 | `.\scripts\pnpm.ps1 infra:check-access` | OIDC/独立预览域前置检查；当前缺配置退出 2 |
 
@@ -56,7 +58,7 @@ apps/api                 NestJS 身份/上传/基线 API 与独立 T06 发布 wo
 apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
 apps/preview-gateway     NestJS 独立域静态预览网关（短期授权、逐请求撤权与摘要核查）
 packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）
-packages/charts-core     ECharts 折线/柱状核心
+packages/charts-core     ECharts 七类组件核心与兼容策略
 packages/charts-vue       Vue 适配 → core
 packages/charts-react     React 适配 → core
 packages/component-cli  本地冻结、消费者检查、截图与 Bundle 生成

@@ -1,6 +1,18 @@
 # 本地三存储与接入检查（C / T01 / G2）
 
-用户确认目前没有 OIDC 和独立预览域，本轮交付隔离开发环境及后续接入检查工具。三存储探针已真实验证；完整 G2/T01、业务迁移、发布状态机和生产部署仍未完成。历史接入计划见 [G1/G2 清单](../docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)，本轮证据见 [本地设施验证](../docs/verification/g2-local-infra-2026-11-12.md)。
+当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划见 [G1/G2 清单](../docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)，早期设施证据见 [本地设施验证](../docs/verification/g2-local-infra-2026-11-12.md)。
+
+## 独立平台专项（2026-11-14）
+
+`test:platform` 和 `rehearse:recovery` 通过 Vitest global setup 创建带唯一所有权标签的 `RecoveryStack`，使用随机回环端口和随机凭据。服务配置通过 Vitest 内存上下文传入 worker；未注入时直接失败，不读取共享 `.tools/g2-local/credentials.json`。测试结束验证容器/卷所有权后清理自有资源；`rehearse:backup` 的源/目标也各自独立。共享 Compose 数据不参与这些测试。测试中模拟的 OIDC 与预览域不能替代真实接入。
+
+干净工作树缺少 `.tools/g2-local/images.json` 时，只探测 `versions.json` 指定的本机 MinIO 标签，核对 `linux/amd64` 及源码 revision、release、source 标签，然后以不可变 image ID 原子登记。已有登记优先使用且同样核查；坏登记或不匹配镜像失败关闭，不覆盖已有记录。此检查核对本机镜像元数据，不是供应链签名证明。缺少镜像时先执行 `infra:up` 构建锁定源码；这一步会启动共享本地设施，平台专项本身不会隐式执行它。
+
+```powershell
+.\scripts\pnpm.ps1 test:platform
+.\scripts\pnpm.ps1 rehearse:recovery
+.\scripts\pnpm.ps1 rehearse:backup
+```
 
 ## 启动与验证
 

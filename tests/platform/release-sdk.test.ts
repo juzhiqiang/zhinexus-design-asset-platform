@@ -9,6 +9,7 @@ import { sha256, type ReleaseManifestV1 } from '@company/contracts';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { platformHarness, grant, upload, release } from './http-support.js';
 import { realRegistry, registryToken } from './t06-support.js';
+import { localServices } from './support.js';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 async function child(args: string[], env: NodeJS.ProcessEnv, cwd = root): Promise<void> {
@@ -36,7 +37,7 @@ it('publishes unchanged historical real SDK evidence, resumes in a new OS proces
     const env = { ...process.env, PLATFORM_DATABASE_URL: h.db.pool.options.connectionString,
       PLATFORM_S3_ENDPOINT: h.store.config.endpoint, PLATFORM_S3_REGION: h.store.config.region, PLATFORM_S3_BUCKET: h.store.config.bucket,
       PLATFORM_S3_ACCESS_KEY: h.store.config.accessKeyId, PLATFORM_S3_SECRET_KEY: h.store.config.secretAccessKey,
-      PLATFORM_REGISTRY_ORIGIN: 'http://127.0.0.1:14873', PLATFORM_REGISTRY_TOKEN: await registryToken(), PLATFORM_WORKER_JOB_ID: jobId as string };
+      PLATFORM_REGISTRY_ORIGIN: localServices().registryOrigin, PLATFORM_REGISTRY_TOKEN: await registryToken(), PLATFORM_WORKER_JOB_ID: jobId as string };
     const runner = join(root, 'apps/api/dist/releases/runner.js');
     // No CLI remains running. First OS process persists a failure after object finalization.
     await child([runner, '--once'], { ...env, PLATFORM_REGISTRY_ORIGIN: 'http://127.0.0.1:1' });
@@ -55,7 +56,8 @@ it('publishes unchanged historical real SDK evidence, resumes in a new OS proces
       const temp = await mkdtemp(join(tmpdir(), 't06-registry-consumer-'));
       try {
         await writeFile(join(temp, 'package.json'), JSON.stringify({ name: `t06-${framework}-consumer`, version: '1.0.0', private: true }));
-        await writeFile(join(temp, '.npmrc'), `registry=http://127.0.0.1:14873/\n//127.0.0.1:14873/:_authToken=${reader}\nignore-scripts=true\naudit=false\nfund=false\n`, { mode: 0o600 });
+        const registry = new URL(localServices().registryOrigin);
+        await writeFile(join(temp, '.npmrc'), `registry=${registry.origin}/\n//${registry.host}/:_authToken=${reader}\nignore-scripts=true\naudit=false\nfund=false\n`, { mode: 0o600 });
         // Peer/runtime rendering was recorded with this exact frozen evidence in T05.
         // This independently proves registry install and dependency resolution, not a new browser run.
         await child([join(dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js'), 'install', `@company/charts-${framework}@0.0.2`, '--ignore-scripts', '--legacy-peer-deps', '--no-audit', '--no-fund'], process.env, temp);

@@ -12,10 +12,12 @@ import { PlatformEvents } from '../../apps/api/dist/observability/events.js';
 import { faultProxy, responseLossProxy } from './fault-proxy.js';
 import { platformHarness } from './http-support.js';
 import { workerHarness, registryToken, realRegistry } from './t06-support.js';
+import { localServices } from './support.js';
 
 it.each(['postgres','minio','verdaccio'] as const)('recovers after a real %s transport outage without modifying persisted job state', async storage => {
   const h = await workerHarness();
-  const port = { postgres: 15432, minio: 19000, verdaccio: 14873 }[storage];
+  const services = localServices();
+  const port = { postgres: services.postgresPort, minio: Number(new URL(services.storageEndpoint).port), verdaccio: Number(new URL(services.registryOrigin).port) }[storage];
   const proxy = await faultProxy(port); const events = new PlatformEvents(() => {});
   const dbUrl = new URL(h.options.databaseUrl); dbUrl.port = String(proxy.port);
   const db = storage === 'postgres' ? new Database(dbUrl.href) : h.db;
@@ -40,7 +42,7 @@ it.each(['postgres','minio','verdaccio'] as const)('recovers after a real %s tra
 });
 
 it('verifies an accepted npm publish after its HTTP response is lost instead of resending the package', async () => {
-  const h = await workerHarness(); const proxy = await responseLossProxy(14873);
+  const h = await workerHarness(); const proxy = await responseLossProxy(Number(new URL(localServices().registryOrigin).port));
   try {
     const registry = new RegistryClient({ origin: proxy.origin, token: await registryToken() });
     await new ReleaseWorker(h.db, h.store, registry).runOnce(h.jobId);
@@ -97,7 +99,7 @@ it('resumes a killed worker with a naturally expired lease and preserves already
       child.on('exit', code => { clearTimeout(timer); code === 0 ? reject(new Error('Expected process termination')) : resolve(); });
     });
     child.stdout.resume(); child.stderr.resume();
-    child.stdin.end(JSON.stringify({ databaseUrl: h.options.databaseUrl, storage: h.store.config, jobId: h.jobId, token }));
+    child.stdin.end(JSON.stringify({ databaseUrl: h.options.databaseUrl, storage: h.store.config, jobId: h.jobId, token, registryOrigin: localServices().registryOrigin }));
     await exited;
     const stopped = (await h.db.query('SELECT state,stage FROM release_jobs')).rows[0];
     expect(stopped).toEqual({ state: 'PUBLISHING', stage: 'REGISTER_ASSETS' });

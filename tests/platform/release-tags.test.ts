@@ -4,9 +4,10 @@ import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { packageBytes, replaceBundleArtifact } from '../fixtures/t05-artifacts.js';
 import { realRegistry, registryToken, workerHarness } from './t06-support.js';
 import { upload, release } from './http-support.js';
+import { localServices } from './support.js';
 
 async function latest(name: string): Promise<string | undefined> {
-  const response = await fetch(`http://127.0.0.1:14873/-/package/${encodeURIComponent(name)}/dist-tags`, {
+  const response = await fetch(`${localServices().registryOrigin}/-/package/${encodeURIComponent(name)}/dist-tags`, {
     headers: { authorization: `Bearer ${await registryToken('g2reader')}` }, redirect: 'error', signal: AbortSignal.timeout(10_000),
   });
   expect(response.status).toBe(200); return (await response.json()).latest as string | undefined;
