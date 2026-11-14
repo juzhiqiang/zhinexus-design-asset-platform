@@ -511,35 +511,32 @@ export default function WebUploadConsole() {
     setIsSubmitting(true);
     setStatusMessage('正在执行提交前最终快照完整性核验...');
 
-    // 核心门禁：即使 UI 状态未显示异常，也必须对当前 manifest 与 filesMap 快照同步重跑真实校验
-    const finalScreenshotRes = validateVariantScreenshots(manifest.variants, manifest.packages);
-    if (!finalScreenshotRes.ok) {
-      setValidation(finalScreenshotRes);
-      setIsSubmitting(false);
-      setStatusMessage('提交前变体截图核验未通过，阻断发布');
-      return;
-    }
-
-    const finalFileRes = await validateUploadFiles(manifest, filesMap);
-    if (!finalFileRes.ok || finalFileRes.issues.length > 0) {
-      setFileIssues(finalFileRes.issues);
-      setIsSubmitting(false);
-      setStatusMessage(
-        `提交前文件核验失败: 存在 ${finalFileRes.issues.length} 处哈希或尺寸异常 (${finalFileRes.issues[0]?.message})，阻断发布`,
-      );
-      return;
-    }
-
-    if (manifest.variants.length === 0 || manifest.files.length === 0) {
-      setIsSubmitting(false);
-      setStatusMessage('发布清单变体或产物文件列表不能为空，阻断发布');
-      return;
-    }
-
-    setStatusMessage('正在初始化真实文件上传流水线...');
-    setUploadProgress(10);
-
     try {
+      // 核心门禁：即使 UI 状态未显示异常，也必须对当前 manifest 与 filesMap 快照同步重跑真实校验
+      const finalScreenshotRes = validateVariantScreenshots(manifest.variants, manifest.packages);
+      if (!finalScreenshotRes.ok) {
+        setValidation(finalScreenshotRes);
+        setStatusMessage('提交前变体截图核验未通过，阻断发布');
+        return;
+      }
+
+      const finalFileRes = await validateUploadFiles(manifest, filesMap);
+      if (!finalFileRes.ok || finalFileRes.issues.length > 0) {
+        setFileIssues(finalFileRes.issues);
+        setStatusMessage(
+          `提交前文件核验失败: 存在 ${finalFileRes.issues.length} 处哈希或尺寸异常 (${finalFileRes.issues[0]?.message})，阻断发布`,
+        );
+        return;
+      }
+
+      if (manifest.variants.length === 0 || manifest.files.length === 0) {
+        setStatusMessage('发布清单变体或产物文件列表不能为空，阻断发布');
+        return;
+      }
+
+      setStatusMessage('正在初始化真实文件上传流水线...');
+      setUploadProgress(10);
+
       const targetApiUrl = apiUrl.trim() || 'http://127.0.0.1:3000';
       const result = await executeWebUploadWorkflow({
         apiUrl: targetApiUrl,
@@ -558,7 +555,7 @@ export default function WebUploadConsole() {
       setStatusMessage(`作业已成功创建 (${result.jobId})，正在持续轮询状态机...`);
     } catch (err: any) {
       // 核心要求：上传或核验失败必须停止并报错，严禁吞错继续
-      setStatusMessage(`发布失败: ${err.message}`);
+      setStatusMessage(`发布失败: ${err?.message || String(err)}`);
     } finally {
       setIsSubmitting(false);
     }

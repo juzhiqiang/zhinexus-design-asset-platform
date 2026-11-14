@@ -7,15 +7,19 @@ import { createServer, type ViteDevServer } from 'vite';
 import { freezePackageRelease, verifyFrozenTarball, type FrozenArtifact } from '../local/freeze.js';
 import { resolvePnpmExecutable } from '../local/pack.js';
 import { captureExample, type CaptureResult } from '../local/capture.js';
+import { compareBaseline, type CompareBaselineResult } from '../local/compare.js';
 import { buildCheckReport } from '../local/report.js';
 import { validateCheckReport } from '../contracts/validation.js';
-import type { CheckReportV1 } from '../contracts/reports.js';
+import { validateSchema, object } from '../contracts/schema.js';
+import { environmentSchema } from '../contracts/schemas.js';
+import type { CheckReportV1, EnvironmentV1 } from '../contracts/reports.js';
 import type { Framework } from '../contracts/release-manifest.js';
 
 export type CheckCommandOptions = {
   framework?: 'vue' | 'react' | 'all';
   repoRoot?: string;
   stagingDir?: string;
+  baselineDir?: string;
   timeoutMs?: number;
 };
 
@@ -27,6 +31,8 @@ export type CheckFrameworkResult = {
   report: CheckReportV1;
   reportPath: string;
   screenshots: string[];
+  baselineComparison?: CompareBaselineResult;
+  diffImagePath?: string;
 };
 
 export type CheckCommandResult = {
@@ -244,7 +250,68 @@ export async function runCheckCommand(
       await viteServer.close();
       viteServer = null;
 
-      // 6. 生成并校验 CheckReportV1 报告
+      // 6. 可选视觉基线对比
+      let baselineResult: 'PASS' | 'DIFF' | 'NEW' | 'INCOMPATIBLE' = 'NEW';
+      let baselineComparison: CompareBaselineResult | undefined;
+      let diffImagePath: string | undefined;
+
+      if (options.baselineDir && captureResult.screenshots.length > 0) {
+        const variantId = `line-${framework}`;
+        const exampleId = 'line-default';
+        const shotFile = captureResult.screenshots[0]!.image.path;
+        const absShotPath = path.isAbsolute(shotFile) ? shotFile : path.join(screenshotsDir, path.basename(shotFile));
+        const currentPng = await fs.promises.readFile(absShotPath);
+
+        const baseDir = path.join(options.baselineDir, variantId, exampleId);
+        const basePngPath = path.join(baseDir, 'baseline.png');
+        const baseMetaPath = path.join(baseDir, 'baseline.json');
+
+        let baselineInput: { environment: EnvironmentV1; environmentKey?: string; imageBuffer: Buffer } | null = null;
+        if (fs.existsSync(basePngPath) && fs.existsSync(baseMetaPath)) {
+          const basePng = await fs.promises.readFile(basePngPath);
+          const rawMeta: unknown = JSON.parse(await fs.promises.readFile(baseMetaPath, 'utf8'));
+          const baselineMetaSchema = object(
+            {
+              environment: environmentSchema,
+              environmentKey: { type: 'string', pattern: '^(?:[a-f0-9]{64}|unknown-manual)$' },
+            },
+            ['environmentKey'],
+          );
+          const metaChecked = validateSchema<{ environment: EnvironmentV1; environmentKey?: string }>(
+            baselineMetaSchema,
+            rawMeta,
+          );
+          if (!metaChecked.ok) {
+            throw new Error(
+              `INVALID_BASELINE_METADATA: ${baseMetaPath} 契约校验失败: ${metaChecked.issues.map((i) => `${i.path}: ${i.message}`).join('; ')}`,
+            );
+          }
+          baselineInput = {
+            environment: metaChecked.value.environment,
+            environmentKey: metaChecked.value.environmentKey,
+            imageBuffer: basePng,
+          };
+        }
+
+        baselineComparison = compareBaseline(
+          {
+            environment: captureResult.environment,
+            environmentKey: captureResult.environmentKey,
+            imageBuffer: currentPng,
+          },
+          baselineInput,
+        );
+        baselineResult = baselineComparison.result;
+
+        if (baselineComparison.result === 'DIFF' && baselineComparison.diffImage) {
+          const diffsDir = path.join(stagingDir, 'diffs');
+          await fs.promises.mkdir(diffsDir, { recursive: true });
+          diffImagePath = path.join(diffsDir, `${variantId}-diff.png`);
+          await fs.promises.writeFile(diffImagePath, baselineComparison.diffImage);
+        }
+      }
+
+      // 7. 生成并校验 CheckReportV1 报告
       const reportId = `rep-${framework}-${crypto.randomBytes(6).toString('hex')}`;
       const report = buildCheckReport({
         id: reportId,
@@ -259,7 +326,7 @@ export async function runCheckCommand(
           status: c.status,
         })),
         screenshots: captureResult.screenshots,
-        baselineResult: 'NEW',
+        baselineResult,
       });
 
       const validation = validateCheckReport(report);
@@ -282,7 +349,15 @@ export async function runCheckCommand(
         report,
         reportPath,
         screenshots: captureResult.screenshots.map((s) => s.image.path),
+        baselineComparison,
+        diffImagePath,
       });
+
+      if (baselineComparison && (baselineComparison.result === 'DIFF' || baselineComparison.result === 'INCOMPATIBLE')) {
+        errors.push(
+          `[${framework}] 视觉基线比对未通过 (${baselineComparison.result}, diffRatio=${baselineComparison.diffRatio.toFixed(6)}${diffImagePath ? `, diffImage=${diffImagePath}` : ''}): ${baselineComparison.reason ?? ''}`,
+        );
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       errors.push(`[${framework}] 验证失败: ${msg}`);

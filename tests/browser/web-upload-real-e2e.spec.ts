@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto';
-import { readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
@@ -18,7 +18,21 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
   // 设置合理超时时间（覆盖独立随机端口三存储启动与 14 实现真实流转）
   test.setTimeout(240_000);
 
-  const CURRENT_SDK_DIR = resolve('D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/69443f97-8b73-4ecb-91aa-d8835a0b58dc');
+  function resolveSdkBundleDir(): string {
+    const raw = process.env.ZHINEXUS_SDK_BUNDLE_DIR?.trim();
+    if (!raw) {
+      throw new Error(
+        'MISSING_ENV_ZHINEXUS_SDK_BUNDLE_DIR: 请显式设置环境变量 ZHINEXUS_SDK_BUNDLE_DIR 指向已冻结的 SDK Bundle 目录（包含 manifest.json 与 packages/），严禁自动重 pack 权威批次。',
+      );
+    }
+    const dir = resolve(raw);
+    if (!existsSync(dir) || !existsSync(join(dir, 'manifest.json'))) {
+      throw new Error(
+        `INVALID_SDK_BUNDLE_DIR: 环境变量 ZHINEXUS_SDK_BUNDLE_DIR 指向的目录不存在或缺少 manifest.json (${dir})`,
+      );
+    }
+    return dir;
+  }
 
   function getAllFiles(dir: string, fileList: string[] = []): string[] {
     const entries = readdirSync(dir, { withFileTypes: true });
@@ -60,11 +74,11 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
     await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
 
     // 2. 真实目录导入本地预构建产物（借助 webkitdirectory 选择实际文件夹，获取真实的 File.webkitRelativePath）
-    await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
+    await page.locator('#import-files-input').setInputFiles(sdkBundleDir);
     await expect(page.locator('#upload-status-message')).toContainText('成功导入');
 
     // 3. 真实目录导入 14 张有效展示截图（来源固定为 manual-upload）
-    await page.locator('#import-screenshots-input').setInputFiles(join(CURRENT_SDK_DIR, 'screenshots'));
+    await page.locator('#import-screenshots-input').setInputFiles(join(sdkBundleDir, 'screenshots'));
     await expect(page.locator('#upload-status-message')).toContainText('成功批量关联 14 张有效展示截图');
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
@@ -196,17 +210,21 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
 
   let mainEnv: Awaited<ReturnType<typeof setupIsolatedPlatform>> | undefined;
   let tempArtifactsDir: string | undefined;
+  let sdkBundleDir = '';
+  let rawSdkManifest: any;
   let webManifestPath = '';
   let webManifestFileCount = 0;
 
   test.beforeAll(async () => {
+    sdkBundleDir = resolveSdkBundleDir();
+    rawSdkManifest = JSON.parse(await readFile(join(sdkBundleDir, 'manifest.json'), 'utf8'));
+
     mainEnv = await setupIsolatedPlatform();
     tempArtifactsDir = await mkdtemp(join(tmpdir(), 't08-e2e-artifacts-'));
 
     // 预备网页合规 Manifest（清洗 CLI 自动报告与签名）
-    const rawManifest = JSON.parse(await readFile(join(CURRENT_SDK_DIR, 'manifest.json'), 'utf8'));
-    const webManifest = sanitizeWebManifest(rawManifest);
-    webManifestFileCount = webManifest.files.length; // 恰好为 185
+    const webManifest = sanitizeWebManifest(rawSdkManifest);
+    webManifestFileCount = webManifest.files.length;
     webManifestPath = join(tempArtifactsDir, 'web-manifest.json');
     await writeFile(webManifestPath, JSON.stringify(webManifest));
   });
@@ -223,20 +241,11 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
   test('真实三存储全链路：选择真实产物和逐实现手动截图，经 Nest API/MinIO/Worker 推进至 READY', async ({
     page,
   }) => {
-    // 1. 核验 3 个真实包的 SHA-256（只读复用 C 的 69443f97-8b73-4ecb-91aa-d8835a0b58dc 目录）
-    const coreTarball = await readFile(join(CURRENT_SDK_DIR, 'packages/company-charts-core-0.0.6.tgz'));
-    const vueTarball = await readFile(join(CURRENT_SDK_DIR, 'packages/company-charts-vue-0.0.6.tgz'));
-    const reactTarball = await readFile(join(CURRENT_SDK_DIR, 'packages/company-charts-react-0.0.6.tgz'));
-
-    expect(createHash('sha256').update(coreTarball).digest('hex')).toBe(
-      '7af91861c7ddb4786d1f98669a819625504ce5ad2a00bfee2b311a6f47e4e4eb',
-    );
-    expect(createHash('sha256').update(vueTarball).digest('hex')).toBe(
-      'aa20d821f9a6369c5ec0968049a2eb056f4ea2fd78c62bc1c5b046f55759955f',
-    );
-    expect(createHash('sha256').update(reactTarball).digest('hex')).toBe(
-      '91a2f9de25927e062f0f6205d16d4ab881981f9365af41a321ffb04f2f5ffdc4',
-    );
+    // 1. 核验给定冻结 Bundle 中所有包的 SHA-256 与清单声明完全一致
+    for (const pkg of rawSdkManifest.packages as Array<{ name: string; version: string; tarball: { path: string; sha256: string } }>) {
+      const tarballBytes = await readFile(join(sdkBundleDir, pkg.tarball.path));
+      expect(createHash('sha256').update(tarballBytes).digest('hex')).toBe(pkg.tarball.sha256);
+    }
 
     // 2. 访问网页控制台（不带 URL query token，通过 localStorage 注入）
     await loginToUploadConsole(page, mainEnv!.token, mainEnv!.apiOrigin);
@@ -295,14 +304,15 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
     await expect(page.locator('.status-card .value.ready')).toContainText('READY');
     await expect(page.locator('body')).toContainText('发布成功！ 版本状态已原子写入 Ready。');
 
-    // 7. 验证 Verdaccio 真实存在三个包的候选发布
-    for (const pkg of ['@company%2fcharts-core', '@company%2fcharts-vue', '@company%2fcharts-react']) {
-      const verdaccioRes = await fetch(`http://127.0.0.1:${mainEnv!.stack.ports.verdaccio}/${pkg}`, {
+    // 7. 验证 Verdaccio 真实存在清单内三个包的候选发布
+    for (const pkg of rawSdkManifest.packages as Array<{ name: string; version: string }>) {
+      const encodedName = pkg.name.replace('/', '%2f');
+      const verdaccioRes = await fetch(`http://127.0.0.1:${mainEnv!.stack.ports.verdaccio}/${encodedName}`, {
         headers: { authorization: `Bearer ${mainEnv!.verdaccioToken}` },
       });
       expect(verdaccioRes.status).toBe(200);
       const pkgData = await verdaccioRes.json();
-      expect(pkgData.versions['0.0.6']).toBeTruthy();
+      expect(pkgData.versions[pkg.version]).toBeTruthy();
     }
   });
 
@@ -329,7 +339,7 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
     await expect(page.locator('.tag:has-text("未就绪")')).toContainText('缺图 1 项');
 
     // 4. 重新为 ranking-react 上传有效展示截图后，提交按钮重新恢复可用
-    const realShotBytes = readFileSync(join(CURRENT_SDK_DIR, 'screenshots/ranking-react-default.png'));
+    const realShotBytes = readFileSync(join(sdkBundleDir, 'screenshots/ranking-react-default.png'));
     const uploadInput = page.locator('input[data-upload-shot="ranking-react"]');
     await uploadInput.setInputFiles({
       name: 'screenshots/ranking-react-default.png',
@@ -510,16 +520,19 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
   }) => {
     await loginToUploadConsole(page, mainEnv!.token, mainEnv!.apiOrigin);
 
-    // 1. 导入合规的 0.0.6 网页清单
+    // 1. 导入合规的冻结网页清单
     await page.locator('#import-manifest-input').setInputFiles(webManifestPath);
     await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
 
     // 2. 复制真实 SDK 目录到临时目录，并只篡改其中同名 tarball 字节内容（保持长度相同，精确触发 DIGEST_MISMATCH）
+    const corePkg = (rawSdkManifest.packages as Array<{ name: string; tarball: { path: string } }>).find(
+      (p) => p.name === '@company/charts-core',
+    )!;
     const corruptedDir = await mkdtemp(join(tmpdir(), 't08-corrupted-bundle-'));
     try {
       const { cp } = await import('node:fs/promises');
-      await cp(CURRENT_SDK_DIR, corruptedDir, { recursive: true });
-      const corruptedCoreTarball = join(corruptedDir, 'packages/company-charts-core-0.0.6.tgz');
+      await cp(sdkBundleDir, corruptedDir, { recursive: true });
+      const corruptedCoreTarball = join(corruptedDir, corePkg.tarball.path);
       const originalTarballBytes = await readFile(corruptedCoreTarball);
       const flippedBytes = Buffer.from(originalTarballBytes);
       flippedBytes[100] = (flippedBytes[100]! + 1) % 256;
@@ -537,7 +550,7 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
       await expect(submitBtn).toBeDisabled();
       const blockerAlert = page.locator('.blocker-alert');
       await expect(blockerAlert).toContainText('DIGEST_MISMATCH');
-      await expect(blockerAlert).toContainText('packages/company-charts-core-0.0.6.tgz');
+      await expect(blockerAlert).toContainText(corePkg.tarball.path);
     } finally {
       await rm(corruptedDir, { recursive: true, force: true });
     }
