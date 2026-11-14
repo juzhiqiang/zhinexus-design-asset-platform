@@ -10,6 +10,29 @@ const EXACT_SEMVER_RE =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const VALID_DIMENSIONS = new Set(['passed', 'failed', 'not-run']);
 const REQUIRED_PRESENTATIONS = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const;
+const PRESENTATION_TO_ENV: Record<
+  string,
+  { theme: 'light' | 'dark'; renderer: 'canvas' | 'svg'; canvases: number; svgs: number }
+> = {
+  'light-canvas': { theme: 'light', renderer: 'canvas', canvases: 1, svgs: 0 },
+  'dark-canvas': { theme: 'dark', renderer: 'canvas', canvases: 1, svgs: 0 },
+  'light-svg': { theme: 'light', renderer: 'svg', canvases: 0, svgs: 1 },
+  'dark-svg': { theme: 'dark', renderer: 'svg', canvases: 0, svgs: 1 },
+};
+const REQUIRED_CHECK_NAMES = ['single-instance', 'no-page-error', 'series-match', 'renderer-match'] as const;
+const REQUIRED_CHECK_SET = new Set<string>(REQUIRED_CHECK_NAMES);
+
+function hasExactPassedChecks(checks: Array<{ name: string; status: string }>): boolean {
+  if (checks.length !== REQUIRED_CHECK_NAMES.length) return false;
+  const seen = new Set<string>();
+  for (const ch of checks) {
+    if (ch.status !== 'passed' || !REQUIRED_CHECK_SET.has(ch.name) || seen.has(ch.name)) {
+      return false;
+    }
+    seen.add(ch.name);
+  }
+  return seen.size === REQUIRED_CHECK_NAMES.length;
+}
 const EXPECTED_FIRST_CLICK: Record<string, { seriesId: string; dataIndex: number; value: unknown[]; nativeType: string }> = {
   line: { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
   bar: { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
@@ -90,7 +113,14 @@ type ValidatedProbeEvidence = {
       typecheck: Array<{ resolution: string; exitCode: number }>;
       build: { exitCode: number };
       ssrImport: { exitCode: number; windowDefined: boolean; documentDefined: boolean };
-      lifecycle: { status: string };
+      lifecycle: {
+        component: string;
+        status: string;
+        before: { hasHost: boolean; hasInstance: boolean };
+        disposed: { aliveBeforeUnmount: boolean; staleInstanceAlive: boolean };
+        after: { canvases: number; svgs: number; checks: Array<{ name: string; status: string }> };
+        pageErrors: unknown[];
+      };
       browser: BrowserRun[];
       visual: Array<{
         component: string;
@@ -253,7 +283,27 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
       typeof ev.ssrImport.windowDefined !== 'boolean' ||
       typeof ev.ssrImport.documentDefined !== 'boolean' ||
       !isPlainObject(ev.lifecycle) ||
+      typeof ev.lifecycle.component !== 'string' ||
+      !ev.lifecycle.component ||
       typeof ev.lifecycle.status !== 'string' ||
+      !isPlainObject(ev.lifecycle.before) ||
+      typeof ev.lifecycle.before.hasHost !== 'boolean' ||
+      typeof ev.lifecycle.before.hasInstance !== 'boolean' ||
+      !isPlainObject(ev.lifecycle.disposed) ||
+      typeof ev.lifecycle.disposed.aliveBeforeUnmount !== 'boolean' ||
+      typeof ev.lifecycle.disposed.staleInstanceAlive !== 'boolean' ||
+      !isPlainObject(ev.lifecycle.after) ||
+      typeof ev.lifecycle.after.canvases !== 'number' ||
+      !Number.isInteger(ev.lifecycle.after.canvases) ||
+      ev.lifecycle.after.canvases < 0 ||
+      typeof ev.lifecycle.after.svgs !== 'number' ||
+      !Number.isInteger(ev.lifecycle.after.svgs) ||
+      ev.lifecycle.after.svgs < 0 ||
+      !Array.isArray(ev.lifecycle.after.checks) ||
+      ev.lifecycle.after.checks.some(
+        (ch) => !isPlainObject(ch) || typeof ch.name !== 'string' || !ch.name || typeof ch.status !== 'string',
+      ) ||
+      !Array.isArray(ev.lifecycle.pageErrors) ||
       !Array.isArray(ev.browser) ||
       ev.browser.length === 0 ||
       !Array.isArray(ev.visual) ||
@@ -308,8 +358,20 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
         typeof run.environmentAudit.canonical !== 'string' ||
         !isPlainObject(run.environmentAudit.fontFingerprint) ||
         typeof run.environmentAudit.fontFingerprint.stack !== 'string' ||
+        !run.environmentAudit.fontFingerprint.stack.trim() ||
         !Array.isArray(run.environmentAudit.fontFingerprint.families) ||
+        run.environmentAudit.fontFingerprint.families.length === 0 ||
+        run.environmentAudit.fontFingerprint.families.some(
+          (fam) =>
+            !isPlainObject(fam) ||
+            typeof fam.family !== 'string' ||
+            !fam.family.trim() ||
+            typeof fam.available !== 'boolean' ||
+            !Array.isArray(fam.advances) ||
+            fam.advances.some((a) => typeof a !== 'number' || !Number.isFinite(a)),
+        ) ||
         !Array.isArray(run.environmentAudit.fontFingerprint.loadedFonts) ||
+        run.environmentAudit.fontFingerprint.loadedFonts.some((f) => typeof f !== 'string' || !f.trim()) ||
         typeof run.hostCount !== 'number' ||
         !isPlainObject(run.appliedPresentation) ||
         typeof run.appliedPresentation.canvases !== 'number' ||
@@ -355,12 +417,14 @@ type AuthoritativeReleaseMatrix = {
   baselineEchartsVersion: string | null;
   peerEcharts: string | null;
   sdkPackages: Map<string, string>;
+  bundlePackages: Map<string, { name: string; version: string; sha256: string; bytes: number }>;
 };
 
 function extractAuthoritativeReleaseMatrix(manifest: unknown, packageName: string): AuthoritativeReleaseMatrix {
   const supportedMap = new Map<string, { framework: 'vue' | 'react'; frameworkVersion: string; echartsVersion: string }>();
   const baselineVersions = new Set<string>();
   const sdkPackages = new Map<string, string>();
+  const bundlePackages = new Map<string, { name: string; version: string; sha256: string; bytes: number }>();
   const peerVersions = new Set<string>();
 
   if (isPlainObject(manifest) && Array.isArray(manifest.variants)) {
@@ -394,6 +458,21 @@ function extractAuthoritativeReleaseMatrix(manifest: unknown, packageName: strin
     for (const pkg of manifest.packages) {
       if (!isPlainObject(pkg) || typeof pkg.name !== 'string' || typeof pkg.version !== 'string') continue;
       if (
+        isPlainObject(pkg.tarball) &&
+        typeof pkg.tarball.sha256 === 'string' &&
+        SHA256_RE.test(pkg.tarball.sha256) &&
+        typeof pkg.tarball.bytes === 'number' &&
+        Number.isInteger(pkg.tarball.bytes) &&
+        pkg.tarball.bytes > 0
+      ) {
+        bundlePackages.set(pkg.name, {
+          name: pkg.name,
+          version: pkg.version,
+          sha256: pkg.tarball.sha256,
+          bytes: pkg.tarball.bytes,
+        });
+      }
+      if (
         pkg.name === packageName ||
         pkg.name === '@company/charts-core' ||
         pkg.name === '@company/charts-vue' ||
@@ -416,6 +495,7 @@ function extractAuthoritativeReleaseMatrix(manifest: unknown, packageName: strin
     baselineEchartsVersion: baselineVersions.size === 1 ? ([...baselineVersions][0] ?? null) : null,
     peerEcharts: peerVersions.size === 1 ? ([...peerVersions][0] ?? null) : null,
     sdkPackages,
+    bundlePackages,
   };
 }
 
@@ -529,8 +609,29 @@ export class CompatibilityService {
         throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
       }
 
-      // 精确核对双框架权威支持矩阵、peer 策略与实际安装版本（禁止缺失、额外、重复或伪造）
+      // 精确核对双框架权威支持矩阵、完整 SDK 包集合、peer 策略与实际安装版本（禁止缺失、额外、重复或伪造）
       const matrix = extractAuthoritativeReleaseMatrix(row.manifest, row.package_name);
+      if (
+        matrix.bundlePackages.size === 0 ||
+        evidence.bundle.packages.length !== matrix.bundlePackages.size
+      ) {
+        throw new PlatformError('DIGEST_MISMATCH');
+      }
+      const seenBundlePkgs = new Set<string>();
+      for (const pkg of evidence.bundle.packages) {
+        const authPkg = matrix.bundlePackages.get(pkg.name);
+        if (
+          !authPkg ||
+          seenBundlePkgs.has(pkg.name) ||
+          pkg.version !== authPkg.version ||
+          pkg.sha256 !== authPkg.sha256 ||
+          pkg.bytes !== authPkg.bytes
+        ) {
+          throw new PlatformError('DIGEST_MISMATCH');
+        }
+        seenBundlePkgs.add(pkg.name);
+      }
+
       if (
         matrix.supported.length === 0 ||
         !matrix.baselineEchartsVersion ||
@@ -600,7 +701,14 @@ export class CompatibilityService {
           ev.ssrImport.exitCode !== 0 ||
           ev.ssrImport.windowDefined !== false ||
           ev.ssrImport.documentDefined !== false ||
-          ev.lifecycle.status !== 'passed'
+          ev.lifecycle.status !== 'passed' ||
+          !ev.lifecycle.before.hasHost ||
+          !ev.lifecycle.before.hasInstance ||
+          !ev.lifecycle.disposed.aliveBeforeUnmount ||
+          ev.lifecycle.disposed.staleInstanceAlive ||
+          ev.lifecycle.after.canvases + ev.lifecycle.after.svgs !== 1 ||
+          !hasExactPassedChecks(ev.lifecycle.after.checks) ||
+          ev.lifecycle.pageErrors.length > 0
         ) {
           throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
         }
@@ -638,15 +746,13 @@ export class CompatibilityService {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
           }
 
-          const expectedRenderer = run.presentation.endsWith('-svg')
-            ? { canvases: 0, svgs: 1 }
-            : run.presentation.endsWith('-canvas')
-              ? { canvases: 1, svgs: 0 }
-              : null;
+          const expectedPresentation = PRESENTATION_TO_ENV[run.presentation];
           if (
-            !expectedRenderer ||
-            run.appliedPresentation.canvases !== expectedRenderer.canvases ||
-            run.appliedPresentation.svgs !== expectedRenderer.svgs
+            !expectedPresentation ||
+            run.environment.theme !== expectedPresentation.theme ||
+            run.environment.renderer !== expectedPresentation.renderer ||
+            run.appliedPresentation.canvases !== expectedPresentation.canvases ||
+            run.appliedPresentation.svgs !== expectedPresentation.svgs
           ) {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
           }
@@ -667,8 +773,7 @@ export class CompatibilityService {
           if (
             run.hostCount !== 1 ||
             run.pageErrors.length > 0 ||
-            run.checks.length < 4 ||
-            run.checks.some((ch) => ch.status !== 'passed') ||
+            !hasExactPassedChecks(run.checks) ||
             run.clickError !== null
           ) {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
@@ -747,7 +852,7 @@ export class CompatibilityService {
       }
 
       const compatibilityId = randomUUID();
-      const evidenceSha256 = sha256Hex(JSON.stringify(input.evidence));
+      const evidenceSha256 = sha256Hex(canonicalJson(input.evidence));
       const targetCombo = evidence.combinations.find((c) => c.framework === row.framework)!;
 
       const inserted = (
