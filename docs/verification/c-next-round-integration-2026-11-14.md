@@ -54,3 +54,12 @@
 - A `nativePlatformNote` 必须进 `scopeNotes`，不能让本机完整验证因“其他操作系统未复验”永远 hold。默认 strict 安装失败不得自动重试 legacy；只有显式选择 legacy 才允许继续测量。消费者来源需与真实 npm lock 的版本、integrity、resolved 和非链接状态核对。
 - B `0ee149a` 独立窄测 3 文件、24/24 通过，但额外临时反例复现四项 P2：组合实际 ECharts/框架版本未绑定、resolver integrity/source 被丢弃、畸形 `failures` 引发未捕获异常、Windows junction 可越出冻结根目录。该提交暂不合并第二阶段；后续固定 head 另行复核。
 - C 已完成根脚本接线草稿：`test:t10` 与 `probe:t10`，根 `test` 将在服务构建后运行探针 Node 单测，再运行 Vitest；仍不进入 Turbo 缓存。冻结安装与工作区边界检查实际通过，锁文件未变。A 源码尚未导入时不运行或宣称根最终门禁通过。
+
+## B 第二阶段复核通过与集成
+
+- 固定交付头 `8cbc8b7d296390b45a88a4a31ecde842d7ca80e5`：`d8433a9` 修正四类 P2，`8cbc8b7` 追加独立记录。独立复核直接读取固定 Git 对象，并非活跃草稿；3 文件、25/25、3.22s，四项原问题全部关闭，无剩余代码阻断。
+- 反例覆盖组合实际 ECharts/框架版本、候选 integrity/source/验证标记、畸形 failures 与 Windows junction 越界；合法显式版本/latest 控制输入通过，离线 check 可查询、离线 verify 拒绝采用。具体错误码和边界见 [B 修正记录](b-next-echarts-p2-2026-11-14.md)。
+- C 按用户授权以 `30c0a88` 本地合入 `chore/c-next-round-integration`；保留 C 自有三项脚本/文档草稿及 B 工作树原有四项差异，未推送。
+- 合入后设置 `NEXT_PUBLIC_SITE_URL=https://gallery.test`，实跑 `scripts/pnpm.ps1 -PnpmArgs @('exec','turbo','run','build','typecheck','--force')`：20/20、0 cached、5.952s、exit 0；`scripts/pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`：exit 0。日志分别为 `.tools/c-final-build-types-2026-11-14.log` 与 `.tools/c-final-root-tsc-2026-11-14.log`。
+- 独立逐文件复核原冻结批次：199 文件、14 实现，大小与 SHA-256 差异均为 0；证据 `.tools/c-final-frozen-audit-2026-11-14.json`。冻结安装和工作区图检查通过，锁文件未改。
+- A 修正交付前，C 只读检查另发现消费者成功路径引用 try 内的 `rewritten`、离线 registry 被直接构造 URL；均已反馈 A，尚不当作修正通过。真实 Windows 新指纹矩阵、A/B adopt 联动与最终根 test 仍待执行。
