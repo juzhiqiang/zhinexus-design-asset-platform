@@ -113,11 +113,17 @@ function decodePngRgba(buffer: Buffer): DecodedPng {
     } else if (type === 'IHDR') {
       throw new Error('INVALID_PNG: 存在重复的 IHDR chunk');
     } else if (type === 'PLTE') {
+      if (idatChunks.length > 0) {
+        throw new Error('INVALID_PNG: PLTE 不能出现在 IDAT 之后');
+      }
       if (data.length === 0 || data.length % 3 !== 0 || data.length > 256 * 3) {
         throw new Error('INVALID_PNG: PLTE chunk 长度无效');
       }
       plte = data;
     } else if (type === 'tRNS') {
+      if (idatChunks.length > 0) {
+        throw new Error('INVALID_PNG: tRNS 不能出现在 IDAT 之后');
+      }
       trns = data;
     } else if (type === 'IDAT') {
       idatChunks.push(data);
@@ -128,6 +134,8 @@ function decodePngRgba(buffer: Buffer): DecodedPng {
       seenIend = true;
       offset = dataEnd + 4;
       break;
+    } else if ((typeBuf[0]! & 0x20) === 0) {
+      throw new Error(`UNSUPPORTED_PNG: 不支持未知的关键 PNG chunk ${type}`);
     }
 
     offset = dataEnd + 4;

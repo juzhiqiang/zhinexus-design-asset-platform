@@ -55,6 +55,20 @@ function validateApiUrl(rawUrl: string): { ok: true; url: string } | { ok: false
  * 3. 若指定 --job-id，则先读取 GET /v1/releases/:jobId 并按本地截图 ID 匹配 releaseJob.baselineCandidates 中的服务端 screenshotId（不以服务端 UUID 反筛本地数组）；
  * 4. 调用 POST /v1/baselines（带超时与 redirect:'error' 防凭证泄露），并使用 validateApiMessage('createBaselineResponse') 严格校验响应。
  */
+function parseApiError(
+  raw: unknown,
+  status: number,
+  statusText: string,
+  fallbackMessage: string,
+): { errorCode: string; errorMsg: string } {
+  const errObj =
+    raw !== null && typeof raw === 'object' && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  return {
+    errorCode: typeof errObj.code === 'string' && errObj.code.length > 0 ? errObj.code : `HTTP_${status}`,
+    errorMsg: typeof errObj.message === 'string' && errObj.message.length > 0 ? errObj.message : statusText || fallbackMessage,
+  };
+}
+
 export async function acceptBaseline(options: AcceptBaselineOptions): Promise<AcceptBaselineResult> {
   const reason = options.reason?.trim() ?? '';
   if (!reason || reason.length > 2000) {
@@ -221,9 +235,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
     }
 
     if (!jobRes.ok) {
-      const errObj = jobRaw as Record<string, unknown>;
-      const errorCode = typeof errObj.code === 'string' ? errObj.code : `HTTP_${jobRes.status}`;
-      const errorMsg = typeof errObj.message === 'string' ? errObj.message : jobRes.statusText || '查询作业失败';
+      const { errorCode, errorMsg } = parseApiError(jobRaw, jobRes.status, jobRes.statusText, '查询作业失败');
       return {
         ok: false,
         status: jobRes.status,
@@ -297,9 +309,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
   }
 
   if (!response.ok) {
-    const errObj = (bodyJson && typeof bodyJson === 'object' ? bodyJson : {}) as Record<string, unknown>;
-    const errorCode = typeof errObj.code === 'string' ? errObj.code : `HTTP_${response.status}`;
-    const errorMsg = typeof errObj.message === 'string' ? errObj.message : response.statusText || '请求失败';
+    const { errorCode, errorMsg } = parseApiError(bodyJson, response.status, response.statusText, '请求失败');
     return {
       ok: false,
       status: response.status,

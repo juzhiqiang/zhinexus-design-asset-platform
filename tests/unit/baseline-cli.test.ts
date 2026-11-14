@@ -311,4 +311,45 @@ describe('T04: component baseline accept CLI 与权限/CAS 闭环', () => {
     const postReq = api.requests.find((r) => r.url === '/v1/baselines')!;
     expect(postReq.body.screenshotId).toBe(serverShotUuid);
   });
+
+  it('非 2xx 响应体为 JSON null、数组或标量时不可抛出 TypeError，应稳定返回 HTTP_<status> 错误分类', async () => {
+    const { reportPath } = await writeReportFixture();
+
+    for (const [label, bodyText, status] of [
+      ['null', 'null', 502],
+      ['array', '["bad"]', 400],
+      ['scalar', '"plain-error"', 500],
+    ] as const) {
+      // 1) POST /v1/baselines 非 2xx
+      const postApi = await startStubApi((_req, _body, res) => {
+        res.writeHead(status, { 'content-type': 'application/json' });
+        res.end(bodyText);
+      });
+      const postRes = await acceptBaseline({
+        reportPath,
+        reason: `非对象错误体 ${label}`,
+        apiUrl: postApi.url,
+        token: 'jwt-maintainer',
+      });
+      expect(postRes.ok).toBe(false);
+      expect(postRes.status).toBe(status);
+      expect(postRes.errorCode).toBe(`HTTP_${status}`);
+
+      // 2) GET /v1/releases/:jobId 非 2xx
+      const jobApi = await startStubApi((_req, _body, res) => {
+        res.writeHead(status, { 'content-type': 'application/json' });
+        res.end(bodyText);
+      });
+      const jobRes = await acceptBaseline({
+        reportPath,
+        reason: `查询作业非对象错误体 ${label}`,
+        apiUrl: jobApi.url,
+        token: 'jwt-maintainer',
+        jobId: 'job-non-object',
+      });
+      expect(jobRes.ok).toBe(false);
+      expect(jobRes.status).toBe(status);
+      expect(jobRes.errorCode).toBe(`HTTP_${status}`);
+    }
+  });
 });

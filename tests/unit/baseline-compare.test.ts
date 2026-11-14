@@ -256,4 +256,39 @@ describe('T04: compareBaseline 本地视觉基线比对', () => {
     expect(resAlphaDiff.result).toBe('DIFF');
     expect(resAlphaDiff.diffPixelCount).toBe(1);
   });
+
+  it('PNG 解码必须拒绝 IDAT 之后的 tRNS 与未知 critical chunk（即使 CRC 合法也不得忽略判 PASS）', () => {
+    const signature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    const ihdr = Buffer.alloc(13);
+    ihdr.writeUInt32BE(2, 0);
+    ihdr.writeUInt32BE(1, 4);
+    ihdr[8] = 8;
+    ihdr[9] = 2;
+    const raw = Buffer.from([0, 0, 0, 0, 255, 0, 0]);
+    const trns = Buffer.from([0x00, 0x00, 0x00, 0x00, 0x00, 0x00]);
+
+    const trnsAfterIdat = Buffer.concat([
+      signature,
+      makePngChunk('IHDR', ihdr),
+      makePngChunk('IDAT', zlib.deflateSync(raw)),
+      makePngChunk('tRNS', trns),
+      makePngChunk('IEND', Buffer.alloc(0)),
+    ]);
+
+    expect(() =>
+      compareBaseline({ environment: baseEnv, imageBuffer: trnsAfterIdat }, { environment: baseEnv, imageBuffer: trnsAfterIdat }),
+    ).toThrow(/INVALID_PNG|tRNS/);
+
+    const unknownCritical = Buffer.concat([
+      signature,
+      makePngChunk('IHDR', ihdr),
+      makePngChunk('CRIT', Buffer.from([1, 2, 3, 4])),
+      makePngChunk('IDAT', zlib.deflateSync(raw)),
+      makePngChunk('IEND', Buffer.alloc(0)),
+    ]);
+
+    expect(() =>
+      compareBaseline({ environment: baseEnv, imageBuffer: unknownCritical }, { environment: baseEnv, imageBuffer: unknownCritical }),
+    ).toThrow(/UNSUPPORTED_PNG|INVALID_PNG|CRIT/);
+  });
 });
