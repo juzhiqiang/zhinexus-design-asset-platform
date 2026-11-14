@@ -26,11 +26,14 @@ const EXPECTED_FIRST_CLICK: Record<string, { seriesId: string; dataIndex: number
 const VALID_INTEGRITY =
   'sha512-q0yaFPggC9FUdsWH4blavRWFmxdrIodbkoKNAjJudAI6CA9gNPxHtV2RcZNEepZVlk4yvBYkOkbk6HIVpIyHZA==';
 
+const REQUIRED_CHECK_NAMES = ['single-instance', 'no-page-error', 'series-match', 'renderer-match'] as const;
+
 async function buildValidProbeEvidence(params: {
   packageName: string;
   packageVersion: string;
   packageSha256: string;
   packageBytes: number;
+  bundlePackages?: Array<{ name: string; version: string; sha256: string; bytes: number }>;
   variantId: string;
   components?: string[];
   candidateVersion?: string;
@@ -109,7 +112,7 @@ async function buildValidProbeEvidence(params: {
           },
           hostCount: 1,
           pageErrors: [],
-          checks: ['mounted', 'data', 'resize', 'events'].map((name) => ({ name, status: 'passed' })),
+          checks: REQUIRED_CHECK_NAMES.map((name) => ({ name, status: 'passed' })),
           clickError: null,
           click: [expectedClick],
           screenshot: { file: 'fixture.png', bytes: screenshotBytes.length, sha256: screenshotSha },
@@ -147,7 +150,18 @@ async function buildValidProbeEvidence(params: {
         ],
         build: { exitCode: 0 },
         ssrImport: { exitCode: 0, windowDefined: false, documentDefined: false },
-        lifecycle: { status: 'passed' },
+        lifecycle: {
+          component: 'bar',
+          status: 'passed',
+          before: { hasHost: true, hasInstance: true },
+          disposed: { aliveBeforeUnmount: true, staleInstanceAlive: false },
+          after: {
+            canvases: 1,
+            svgs: 0,
+            checks: REQUIRED_CHECK_NAMES.map((name) => ({ name, status: 'passed' })),
+          },
+          pageErrors: [],
+        },
         browser: browserRuns,
         visual: visualRuns,
       },
@@ -166,18 +180,12 @@ async function buildValidProbeEvidence(params: {
     },
     bundle: {
       version: params.packageVersion,
-      packages: [
+      packages: params.bundlePackages ?? [
         {
           name: params.packageName,
           version: params.packageVersion,
           sha256: params.packageSha256,
           bytes: params.packageBytes,
-        },
-        {
-          name: '@company/charts-core',
-          version: params.packageVersion,
-          sha256: 'a'.repeat(64),
-          bytes: 123,
         },
       ],
       variants: [{ variantId: params.variantId }],
@@ -316,24 +324,35 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
           package_version: string;
           package_sha256: string;
           pkg_bytes: string;
+          manifest: {
+            packages: Array<{ name: string; version: string; tarball: { sha256: string; bytes: number } }>;
+          };
         }>(
           `SELECT vr.id, pr.job_id, vr.variant_id, v.component_id, v.framework, pr.name AS package_name, pr.version AS package_version, pr.sha256 AS package_sha256,
-                  COALESCE(pr.metadata->'tarball'->>'bytes', '0') AS pkg_bytes
+                  COALESCE(pr.metadata->'tarball'->>'bytes', '0') AS pkg_bytes, rj.manifest
              FROM variant_releases vr
              JOIN variants v ON v.id = vr.variant_id
              JOIN package_releases pr ON pr.id = vr.package_release_id
+             JOIN release_jobs rj ON rj.id = pr.job_id
             WHERE v.component_id = 'line' AND v.framework = 'vue'
             LIMIT 1`,
         )
       ).rows[0]!;
       expect(vrRow).toBeTruthy();
 
+      const bundlePackages = vrRow.manifest.packages.map((p) => ({
+        name: p.name,
+        version: p.version,
+        sha256: p.tarball.sha256,
+        bytes: p.tarball.bytes,
+      }));
       const pkgBytes = Number(vrRow.pkg_bytes) || 100;
       const validEvidence = await buildValidProbeEvidence({
         packageName: vrRow.package_name,
         packageVersion: vrRow.package_version,
         packageSha256: vrRow.package_sha256,
         packageBytes: pkgBytes,
+        bundlePackages,
         variantId: vrRow.variant_id,
         components: [vrRow.component_id],
       });
@@ -428,12 +447,67 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         400,
       );
 
+      // 5. 最终复核 4 项闭环反例（完整 bundle.packages、presentation<->theme/renderer、4 项检查名与 lifecycle 明细、畸形 fontFingerprint）
+      const coreDigestTampered = structuredClone(validEvidence);
+      coreDigestTampered.bundle.packages.find((p) => p.name === '@company/charts-core')!.sha256 = 'f'.repeat(64);
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: coreDigestTampered }, aliceToken)).status).toBe(
+        400,
+      );
+
+      const omittedPackages = structuredClone(validEvidence);
+      omittedPackages.bundle.packages = omittedPackages.bundle.packages.filter((p) => p.name === vrRow.package_name);
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: omittedPackages }, aliceToken)).status).toBe(400);
+
+      const relabelledLightCanvas = structuredClone(validEvidence);
+      for (const c of relabelledLightCanvas.combinations) {
+        const light = c.evidence.browser.find((r) => r.presentation === 'light-canvas')!;
+        c.evidence.browser = (['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const).map((p) => ({
+          ...structuredClone(light),
+          presentation: p,
+          appliedPresentation: p.endsWith('svg') ? { canvases: 0, svgs: 1 } : { canvases: 1, svgs: 0 },
+        }));
+        c.evidence.visual = c.evidence.browser.map((r) => ({
+          component: r.component,
+          presentation: r.presentation,
+          result: 'PASS',
+          environmentKey: r.environmentKey,
+          screenshotSha256: r.screenshot.sha256,
+        }));
+      }
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: relabelledLightCanvas }, aliceToken)).status).toBe(
+        400,
+      );
+
+      const duplicateChecksEv = structuredClone(validEvidence);
+      for (const c of duplicateChecksEv.combinations) {
+        for (const r of c.evidence.browser) {
+          r.checks = Array.from({ length: 4 }, () => ({
+            name: 'irrelevant',
+            status: 'passed',
+          })) as unknown as typeof r.checks;
+        }
+      }
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: duplicateChecksEv }, aliceToken)).status).toBe(
+        400,
+      );
+
+      const badLifecycleEv = structuredClone(validEvidence);
+      badLifecycleEv.combinations[0]!.evidence.lifecycle.disposed.staleInstanceAlive = true;
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badLifecycleEv }, aliceToken)).status).toBe(400);
+
+      const malformedFontEv = structuredClone(validEvidence) as Record<string, unknown>;
+      ((malformedFontEv.combinations as Array<Record<string, unknown>>)[0]!.evidence as {
+        browser: Array<{ environmentAudit: { fontFingerprint: { families: unknown[] } } }>;
+      }).browser[0]!.environmentAudit.fontFingerprint.families = [null];
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: malformedFontEv }, aliceToken)).status).toBe(400);
+
       // 候选 6.0.0 vs 权威 peer 6.1.0 -> 拒绝
       const outsidePeerEv = await buildValidProbeEvidence({
         packageName: vrRow.package_name,
         packageVersion: vrRow.package_version,
         packageSha256: vrRow.package_sha256,
         packageBytes: pkgBytes,
+        bundlePackages,
         variantId: vrRow.variant_id,
         components: [vrRow.component_id],
         candidateVersion: '6.0.0',
@@ -486,7 +560,17 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         evidenceSha256: string;
       };
       expect(created.status).toBe('passed');
-      expect(created.evidenceSha256).toBe(sha256(JSON.stringify(validEvidence)));
+      expect(created.evidenceSha256).toBe(sha256(canonicalJson(validEvidence)));
+
+      // 验证 PostgreSQL jsonb 往返（键序重排）后使用 canonicalJson 重算的摘要与存储/返回一致
+      const storedRow = (
+        await h.db.query<{ evidence: unknown; evidence_sha256: string }>(
+          'SELECT evidence, evidence_sha256 FROM compatibility_evidences WHERE id = $1',
+          [created.compatibilityId],
+        )
+      ).rows[0]!;
+      expect(storedRow.evidence_sha256).toBe(created.evidenceSha256);
+      expect(sha256(canonicalJson(storedRow.evidence))).toBe(storedRow.evidence_sha256);
 
       const dupRes = await postCompat(vrRow.id, validPayload, aliceToken);
       expect(dupRes.status).toBe(409);
