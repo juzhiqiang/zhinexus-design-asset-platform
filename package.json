@@ -22,6 +22,8 @@
     "test:infra": "tsx infra/scripts/check.ts",
     "test:platform": "pnpm build:services && pnpm --filter @company/charts-core --filter @company/charts-vue --filter @company/charts-react build && vitest run --config tests/platform/vitest.config.ts",
     "verify:deployment": "pnpm build:services && tsx scripts/verify-deployment.ts",
+    "preflight:production": "pnpm build:services && tsx scripts/production-preflight.ts",
+    "verify:service-staging": "tsx scripts/verify-service-staging.ts",
     "verify:consistency": "pnpm build:services && tsx scripts/verify-consistency.ts",
     "ops:retention": "node apps/api/dist/operations/retention.js",
     "rehearse:backup": "pnpm build:services && tsx scripts/rehearse-backup.ts",

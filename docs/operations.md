@@ -8,6 +8,10 @@ API每次响应输出HTTP_COMPLETED，使用服务端生成的requestId、status
 
 ## 部署准备
 
+先执行 `.\scripts\pnpm.ps1 preflight:production`：离线检查模板，输出必填变量名和待验收项目，不连接 OIDC 或部署服务。当前无公司资源时报告为 `environment.status=unconfigured`、`exitCode=2`。准备好私有环境变量后使用 `preflight:production --environment`；空白参数、非法 OIDC 客户端组合、非 HTTPS 地址和 API/预览复用数据库身份都会拒绝。报告只包含变量名与固定错误，不输出变量值。
+
+报告的退出码含义：`0` 为请求的准备检查通过，`1` 为模板或配置非法，`2` 为资源未配置。pnpm 的脚本和 exec 包装会将子进程的 `2` 归一成外层 `1`；CI 若要区分未配置与非法配置，应读取 JSON 的 `exitCode`，或在服务构建后以固定 Node 直接调用 `node node_modules/tsx/dist/cli.mjs scripts/production-preflight.ts`。所有状态均保留 `productionAcceptance:false`，真实登录/撤权、DNS/TLS/浏览器隔离、镜像与最小权限、告警送达、等量备份容量和双业务试点需要另行验收。
+
 `infra/compose.production.yaml` 是六服务准备模板，包含API/worker/网关与三存储，不包含B负责的画廊部署。所有业务服务只运行编译产物；MinIO须使用infra/versions.json对应固定源码构建后的审查摘要。API/preview镜像由组织镜像仓库提供实际digest，不能填示例hash上线。
 
 Linux CI以固定工具链完成 frozen install、`build:services`、服务检查后，将运行时闭包导出到独立目录：
@@ -15,11 +19,14 @@ Linux CI以固定工具链完成 frozen install、`build:services`、服务检�
 ```text
 pnpm --filter @company/platform-api deploy --prod --legacy <staging>/api
 pnpm --filter @company/preview-gateway deploy --prod --legacy <staging>/preview
+pnpm verify:service-staging <staging>
 docker build -f infra/production/Dockerfile --target api --build-arg NODE_RUNTIME_IMAGE=<node:26.13.0-bookworm-slim@sha256:审查摘要> <staging>
 docker build -f infra/production/Dockerfile --target preview --build-arg NODE_RUNTIME_IMAGE=<同一摘要> <staging>
 ```
 
-这些是待生产CI验证的打包步骤，本轮没有构建/发布生产镜像。staging中不能包含SDK、CLI、gallery、examples、浏览器、源码或开发依赖。模板运行在非root、只读根目录、无额外capability模式。`PLATFORM_BIND_HOST=0.0.0.0`供容器内部使用，本机默认loopback；Compose不发布裸端口。
+`verify:service-staging` 只读遍历实际导出目录，不执行其中的模块或脚本。它核对服务身份、API/worker/迁移入口、非空 SQL、contracts 入口、必需依赖闭包，拒绝越界链接、客户端/开发工具包、非发布根目录内容及常见敏感文件。检查失败返回非零，不修复或删除产物。它不能替代依赖漏洞审查、恶意代码分析或 Linux 镜像运行测试。
+
+Windows 上已实跑两个服务的生产依赖导出与检查；Linux CI 和生产镜像构建/发布仍待验收。每次使用新的 staging 目录。staging中不能包含SDK、CLI、gallery、examples、浏览器、服务源码或开发依赖。模板运行在非root、只读根目录、无额外capability模式。`PLATFORM_BIND_HOST=0.0.0.0`供容器内部使用，本机默认loopback；Compose不发布裸端口。
 
 从私有环境文件/密钥管理注入模板全部必填项，先运行 `verify:deployment --environment` 和 `docker compose -f infra/compose.production.yaml config --quiet`（不要打印完整config）。单独执行向前迁移：`docker compose -f infra/compose.production.yaml run --rm api node dist/db/migrate.js`；迁移权限由专用临时身份授予，运行身份不应拥有DDL权限。再由经过授权的发布流程启动应用。
 

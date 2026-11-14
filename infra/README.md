@@ -2,6 +2,8 @@
 
 当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划见 [G1/G2 清单](../docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)，早期设施证据见 [本地设施验证](../docs/verification/g2-local-infra-2026-11-12.md)。
 
+暂无公司资源时，可先运行 `.\scripts\pnpm.ps1 preflight:production` 完成离线模板预检。报告列出缺失变量与外部待验收项，始终 `productionAcceptance:false`；资源缺失的报告退出码为 2，pnpm 包装的外层退出码为 1。配置齐全后加 `--environment` 校验实际环境变量；该命令仍不发出网络请求。两个服务导出后运行 `verify:service-staging <staging>` 检查实际发布材料。完整命令、退出码和适用边界见 [运维部署准备](../docs/operations.md#部署准备)。
+
 ## 独立平台专项（2026-11-14）
 
 `test:platform` 和 `rehearse:recovery` 通过 Vitest global setup 创建带唯一所有权标签的 `RecoveryStack`，使用随机回环端口和随机凭据。服务配置通过 Vitest 内存上下文传入 worker；未注入时直接失败，不读取共享 `.tools/g2-local/credentials.json`。测试结束验证容器/卷所有权后清理自有资源；`rehearse:backup` 的源/目标也各自独立。共享 Compose 数据不参与这些测试。测试中模拟的 OIDC 与预览域不能替代真实接入。
