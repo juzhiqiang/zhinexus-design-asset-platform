@@ -99,3 +99,25 @@
 | `verify:workspace` | 10 成员、安全依赖图，退出 0 | 实际命令输出 |
 
 这次 C 根测试未传 `A10_FROZEN_BUNDLE`，因此 7 项冻结消费者测试按设计跳过，不计作通过；上文安装后自检 121/121 和首次根测试 166/166 的证据仍有效。合并后主分支复验须显式传入冻结目录，后续另记实际结果。
+
+## 本地 main 合并与最终验收
+
+2026-11-15，按用户已有授权将 C 分支 `d63330ef6e8e2bf137d8a9d769148f74640451a1` 合入本地 main，合并提交为 `2c3ec76e0634fb0d13def4f47817eb724950ab44`。合并前 main 仍为原基线且工作区干净；A/B 最终提交均为 C 的祖先；合并后的 Git tree 与 C 完全一致，没有冲突。
+
+在主工作区 `D:/project/zhinexus-design-asset-platform` 使用固定工具链重新执行：
+
+| 主分支检查 | 结果 | 主工作区日志 |
+| --- | --- | --- |
+| `scripts/pnpm.ps1 install --frozen-lockfile` | 锁文件有效、退出 0 | `.tools/round2-main-install.log` |
+| `scripts/pnpm.ps1 exec turbo run build typecheck --cache=local:w` | 20/20，0 cached | `.tools/round2-main-build-types.log` |
+| 根 `tsc -p tsconfig.json --noEmit` | 无输出、退出 0 | `.tools/round2-main-root-tsc.log`（执行回执） |
+| `scripts/pnpm.ps1 verify:workspace` | 10 成员、无环、安全服务依赖图，退出 0 | `.tools/round2-main-workspace.log` |
+| `scripts/pnpm.ps1 test` | Node **166/166、0 skip**；Vitest **46 文件 740/740**；退出 0 | `.tools/round2-main-root-test.log` |
+
+最后一项显式设置 `A10_FROZEN_BUNDLE` 为上述原始冻结目录，`npm_config_registry=https://registry.npmjs.org`，上次跳过的七项均实际执行。测试的服务构建前置可读取本次刚写入的缓存；此前主分支 20 项构建/类型检查均强制执行。C 的最终完整浏览器 195/195、实际安装报告 API 1/1 覆盖同一源码树，未以合并重复修改源码。
+
+最终逐文件比较再次确认冻结 SDK 201 文件、已安装 CLI 183 文件均无新增、缺失或摘要变化；adopt 报告 SHA256 仍为 `081b931b1e57784bc4ace096451b7002f1bbc52f952bbfcdc106e6a92a251e28`。原始架构文档和三个 SDK 包源码相对基线无差异。主工作区和 A/B/C 工作树均干净；独占 `zhrec-*` 容器/卷为零，5173–5176 无监听。共享 G2 基础设施不属于本次临时资源，保持运行。
+
+证据归档保留原 139 文件且逐项校验未改动，补入最终日志、审查复现脚本与摘要/清理回执后共 **163 文件**（不含清单本身）。`archive-sha256.json` 重算并逐项复核通过，其 SHA256 为 `dac8c6eb20e551766952035ebff1ce85c48745a13df606991406b1c8046c9fc9`。归档仍位于主工作区 `.tools/operations/cli-distribution-2026-11-15/`；分支、工作树及原始安装目录保留。
+
+本轮代码、独立分发、本地兼容记录闭环、预检与部署准备已完成；没有执行 push、npm 发布或生产部署。公司 OIDC/域名环境、Linux 镜像实际运行、真实双业务试点及生产 SLA 等外部验收保持开放，不能据此宣布完整一期或生产上线验收通过。
