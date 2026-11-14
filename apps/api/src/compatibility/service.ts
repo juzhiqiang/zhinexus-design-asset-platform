@@ -82,7 +82,7 @@ type ValidatedProbeEvidence = {
     baselineEchartsVersion?: string;
     consumer: {
       peerMode: string;
-      resolved: Record<string, string>;
+      resolved: Record<string, string | null>;
     };
     dimensions: { typecheck: string; runtime: string; interaction: string; visual: string };
     failures: Array<{ dimension?: string; reason?: string; detail?: string }>;
@@ -393,9 +393,18 @@ function extractAuthoritativeReleaseMatrix(manifest: unknown, packageName: strin
   if (isPlainObject(manifest) && Array.isArray(manifest.packages)) {
     for (const pkg of manifest.packages) {
       if (!isPlainObject(pkg) || typeof pkg.name !== 'string' || typeof pkg.version !== 'string') continue;
-      if (pkg.name === packageName || pkg.name === '@company/charts-core') {
+      if (
+        pkg.name === packageName ||
+        pkg.name === '@company/charts-core' ||
+        pkg.name === '@company/charts-vue' ||
+        pkg.name === '@company/charts-react'
+      ) {
         sdkPackages.set(pkg.name, pkg.version);
-        if (isPlainObject(pkg.peerDependencies) && typeof pkg.peerDependencies.echarts === 'string') {
+        if (
+          (pkg.name === packageName || pkg.name === '@company/charts-core') &&
+          isPlainObject(pkg.peerDependencies) &&
+          typeof pkg.peerDependencies.echarts === 'string'
+        ) {
           peerVersions.add(pkg.peerDependencies.echarts);
         }
       }
@@ -551,11 +560,18 @@ export class CompatibilityService {
           throw new PlatformError('REPORT_MISMATCH');
         }
         const resolved = combo.consumer.resolved;
+        const frameworkPkgName = combo.framework === 'vue' ? '@company/charts-vue' : '@company/charts-react';
+        const otherFrameworkPkgName = combo.framework === 'vue' ? '@company/charts-react' : '@company/charts-vue';
+        const expectedWrapperVersion =
+          matrix.sdkPackages.get(frameworkPkgName) ??
+          (frameworkPkgName === row.package_name ? row.package_version : undefined);
         if (
           combo.consumer.peerMode !== 'strict' ||
           resolved.echarts !== candVersion ||
           resolved[combo.framework] !== combo.frameworkVersion ||
-          resolved[row.package_name] !== row.package_version
+          !expectedWrapperVersion ||
+          resolved[frameworkPkgName] !== expectedWrapperVersion ||
+          (resolved[otherFrameworkPkgName] !== undefined && resolved[otherFrameworkPkgName] !== null)
         ) {
           throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
         }

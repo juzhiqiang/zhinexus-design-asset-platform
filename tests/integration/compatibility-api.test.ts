@@ -134,7 +134,8 @@ async function buildValidProbeEvidence(params: {
           echarts: candidateVersion,
           [framework]: frameworkVersion,
           '@company/charts-core': params.packageVersion,
-          [params.packageName]: params.packageVersion,
+          '@company/charts-vue': framework === 'vue' ? params.packageVersion : null,
+          '@company/charts-react': framework === 'react' ? params.packageVersion : null,
         },
       },
       dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
@@ -418,6 +419,14 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
       const wrongSdkEv = structuredClone(validEvidence);
       wrongSdkEv.combinations[0]!.consumer.resolved['@company/charts-core'] = '0.0.1';
       expect((await postCompat(vrRow.id, { ...validPayload, evidence: wrongSdkEv }, aliceToken)).status).toBe(400);
+
+      // 即使伪造保留目标包键，另一框架（React）wrapper 版本错误也必须拒绝
+      const wrongOtherWrapperEv = structuredClone(validEvidence);
+      wrongOtherWrapperEv.combinations[1]!.consumer.resolved['@company/charts-vue'] = vrRow.package_version;
+      wrongOtherWrapperEv.combinations[1]!.consumer.resolved['@company/charts-react'] = '0.0.1';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: wrongOtherWrapperEv }, aliceToken)).status).toBe(
+        400,
+      );
 
       // 候选 6.0.0 vs 权威 peer 6.1.0 -> 拒绝
       const outsidePeerEv = await buildValidProbeEvidence({
