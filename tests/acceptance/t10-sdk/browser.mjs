@@ -303,6 +303,68 @@ function contextOptions(theme) {
   };
 }
 
+/**
+ * 构造可复核的环境审计块。
+ *
+ * 宿主数不是 1 时拿不到环境投影，整个审计块必须是 `null`。原先这里无条件调
+ * `environmentProjection(environment)`，`environment` 为 null 时直接抛
+ * TypeError——探针不崩在出具证据之前是硬要求，一次截图失败不该带走整轮运行。
+ *
+ * @returns {object|null} `null` 表示本次没有环境投影，调用方应记为运行失败
+ */
+export function environmentAuditFor({
+  environment,
+  fontDigest,
+  fontDigestSource,
+  measuredFontDigest = null,
+  fontFingerprint = null,
+}) {
+  if (environment === null || environment === undefined) return null;
+  const projection = environmentProjection(environment);
+  return {
+    projection,
+    canonical: canonicalJson(projection),
+    fontDigest,
+    fontDigestSource,
+    measuredFontDigest,
+    fontFingerprint: fontFingerprintAudit(fontFingerprint),
+  };
+}
+
+/**
+ * 解析**生效**的字体摘要：操作者显式值优先，否则用浏览器实测值。
+ *
+ * 这条规则原先散落在调用链里没人负责：浏览器侧无条件拿实测值覆盖，`probe.mjs` 顶层
+ * 却按"有没有传 --font-digest"记 `operator-supplied`，于是签名与留痕可以对不上。
+ * 抽成纯函数后，三方（生效值、来源、覆盖事实）一起返回，缺一不可。
+ *
+ * @param {{operator?: string|null; measured?: string|null}} input
+ * @returns {{fontDigest: string; fontDigestSource: 'operator-supplied'|'measured'; measuredFontDigest: string|null; override: {requested: string; measured: string}|null}}
+ */
+export function resolveEffectiveFontDigest({ operator = null, measured = null } = {}) {
+  if (operator) {
+    return {
+      fontDigest: operator,
+      fontDigestSource: 'operator-supplied',
+      measuredFontDigest: measured,
+      override: measured && measured !== operator ? { requested: operator, measured } : null,
+    };
+  }
+  if (measured) {
+    return {
+      fontDigest: measured,
+      fontDigestSource: 'measured',
+      measuredFontDigest: measured,
+      override: null,
+    };
+  }
+  // 两者都没有：不伪造签名。调用方必须把它当运行时失败处理，而不是兜一个常量。
+  throw new Error(
+    'PROBE_INTERNAL 既没有 --font-digest 也没有实测字体指纹，无法出具环境签名。' +
+      '请改用 --skip-browser 明确放弃视觉维度，不要用常量顶替。',
+  );
+}
+
 /** 对单个 (框架, 组件, 展示组合) 跑运行 / 交互 / 截图。 */
 async function probeCombination({
   browser,
@@ -315,6 +377,8 @@ async function probeCombination({
   environmentBase,
   screenshotDir,
   fontDigest,
+  measuredFontDigest,
+  fontDigestSource,
   fontFingerprint,
 }) {
   const url = `http://127.0.0.1:${port}${PAGE_PATH[component]}?theme=${presentation.theme}&renderer=${presentation.renderer}`;
@@ -358,7 +422,8 @@ async function probeCombination({
         echartsVersion,
         width: size.width,
         height: size.height,
-        // 字体摘要由本页真实度量算出；缺它就不出环境签名，也不出截图结论
+        // 字体摘要取"实际生效"的那个值：操作者显式给了 --font-digest 就用它，
+        // 否则用本页真实度量值。两者都在 environmentAudit 里分开留痕，可复核。
         fontDigest,
       });
       const problems = validateEnvironment(environment);
@@ -394,12 +459,14 @@ async function probeCombination({
       environmentKey,
       // 让审核方能**重算** environmentKey，而不是只能看到一个 64 位摘要：
       // 规范化投影、被哈希的规范化 JSON、字体度量的原始依据一并留下。
-      environmentAudit: {
-        projection: environmentProjection(environment),
-        canonical: canonicalJson(environmentProjection(environment)),
+      // 宿主数不是 1 时拿不到环境投影，审计块整体为 null——不能拿半个投影糊上去。
+      environmentAudit: environmentAuditFor({
+        environment,
         fontDigest,
-        fontFingerprint: fontFingerprintAudit(fontFingerprint),
-      },
+        fontDigestSource,
+        measuredFontDigest,
+        fontFingerprint,
+      }),
     };
   } finally {
     await context.close();
@@ -498,6 +565,13 @@ export async function runBrowserProbe(options) {
       component: options.components[0],
       digest: fontDigestFromMeasurements,
     });
+    // 操作者显式给了 --font-digest 时，环境签名必须用那个值；实测值照样保留在审计里，
+    // 但不得悄悄覆盖显式声明。没给就用实测值。两者都不能缺：缺了就不出环境签名。
+    const resolved = resolveEffectiveFontDigest({
+      operator: options.fontDigest ?? null,
+      measured: fontFingerprint.fontDigest,
+    });
+    const { fontDigest, fontDigestSource, measuredFontDigest, override: fontDigestOverride } = resolved;
     for (const component of options.components) {
       for (const presentation of options.presentations) {
         // eslint-disable-next-line no-await-in-loop -- 顺序执行避免并行浏览器上下文互相拖慢
@@ -512,14 +586,16 @@ export async function runBrowserProbe(options) {
             presentation,
             environmentBase: options.environmentBase,
             screenshotDir: options.screenshotDir,
-            fontDigest: fontFingerprint.fontDigest,
+            fontDigest,
+            measuredFontDigest,
+            fontDigestSource,
             fontFingerprint,
           }),
         );
       }
     }
     const lifecycle = await probeLifecycle({ browser: options.browser, port, framework: options.framework });
-    return { runs, lifecycle, fontFingerprint };
+    return { runs, lifecycle, fontFingerprint, fontDigest, fontDigestSource, measuredFontDigest, fontDigestOverride };
   } finally {
     await close(server);
   }

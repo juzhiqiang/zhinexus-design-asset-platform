@@ -25,7 +25,6 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import {
   COMPONENTS,
-  DEFAULT_FONT_DIGEST,
   RENDERERS,
   THEMES,
   formatPresentation,
@@ -79,8 +78,10 @@ const USAGE = `T10 双框架精确版本兼容探针
 输出与消费者：
   --out <dir>               证据输出目录。缺省 test-results/t10-sdk-probes/<UTC 时间戳>
   --label <name>            证据文件名后缀（probe-evidence-<name>.json），用于分片跑同一批矩阵
-  --font-digest <sha256>    显式指定字体摘要（64 位十六进制）。缺省在浏览器里实测；
-                            实测不可用而必须出图时，没有可信字体签名会直接失败而非用常量顶替
+  --font-digest <sha256>    显式指定字体摘要（64 位十六进制）。给了就由它决定 environmentKey，
+                            浏览器实测值仍会测量并另行留痕（environmentAudit.measuredFontDigest），
+                            两者不一致时证据里记 fontDigestOverride 并进 scopeNotes；
+                            不给则用浏览器实测值，实测不可得时直接失败而非用常量顶替
   --consumer-root <dir>     干净消费者根目录。缺省系统临时目录
   --baseline <file>[,<file>]  上一次探针证据 JSON（可逗号分隔多份，分片跑矩阵后合并比对）
   --keep                    保留消费者目录（调试用）
@@ -470,6 +471,9 @@ async function main(argv) {
   const candidateSources = [];
   // 浏览器里实测出的字体指纹（--font-digest 显式指定时为 null）
   let measuredFontDigest = null;
+  // 显式 --font-digest 与实测值不一致时必须留痕：环境签名用的是显式值，
+  // 但审核方有权知道"这个签名并不是本机实测环境"。null = 没有覆盖。
+  let fontDigestOverride = null;
   // 字体指纹：显式指定 > 浏览器实测。都不做且要出截图时，下面的 browser 分支会抛错。
   const fontDigest = options.fontDigest ?? null;
   const fontDigestSource = options.fontDigest ? 'operator-supplied' : options.skipBrowser ? 'not-measured' : 'measured';
@@ -596,7 +600,11 @@ async function main(argv) {
           // browserRevision 必须来自 playwright 自己的 browsers.json。原先硬编码 '1000'
           // （契约示例里的占位值），于是签名声称的环境与真实跑的环境不是同一个。
           browserRevision: browserRevision,
-          fontDigest: fontDigest ?? DEFAULT_FONT_DIGEST,
+          // 这里只放操作者显式提供的值（没有就是 null）。生效值由 runBrowserProbe 解析
+          // （显式值优先，否则用浏览器实测），并作为显式参数传给 buildEnvironment，
+          // 一定会覆盖这个 base 字段。原先这里兜一个 DEFAULT_FONT_DIGEST 常量，
+          // 看着像有默认值，实际永远走不到——那正是"常量冒充实测"的入口，删掉。
+          fontDigest,
           locale: 'zh-CN',
           timezone: 'Asia/Shanghai',
           deviceScaleFactor: 1,
@@ -611,6 +619,10 @@ async function main(argv) {
           presentations: options.presentations.map((literal) => parsePresentation(literal)),
           environmentBase,
           screenshotDir,
+          // 显式提供的字体摘要必须一路生效到 environmentKey；不传才是"用实测值"。
+          // 原先这里不传，浏览器侧无条件拿实测值覆盖，顶层却记 operator-supplied——
+          // 签名与留痕对不上，等于拿一个没测过的环境出了视觉结论。
+          fontDigest,
         });
         for (const run of browserResult.runs) {
           const problems = summariseRuntime(run);
@@ -619,8 +631,19 @@ async function main(argv) {
         }
         log(`[probe] 浏览器维度：${browserResult.runs.length} 次运行，生命周期=${browserResult.lifecycle?.status}`);
         if (browserResult.fontFingerprint) {
-          measuredFontDigest = browserResult.fontFingerprint.fontDigest;
-          log(`[probe] 字体指纹（实测）：${measuredFontDigest.slice(0, 16)}…`);
+          measuredFontDigest = browserResult.measuredFontDigest ?? browserResult.fontFingerprint.fontDigest;
+          log(
+            `[probe] 字体指纹：实测 ${measuredFontDigest.slice(0, 16)}…，` +
+              `生效 ${browserResult.fontDigest.slice(0, 16)}…（${browserResult.fontDigestSource}）`,
+          );
+          if (browserResult.fontDigestOverride) {
+            fontDigestOverride = browserResult.fontDigestOverride;
+            log(
+              `[probe] 警告：--font-digest 与实测不一致（显式 ${browserResult.fontDigestOverride.requested.slice(0, 16)}…，` +
+                `实测 ${browserResult.fontDigestOverride.measured.slice(0, 16)}…），` +
+                '环境签名按显式值计算，实测值保留在 environmentAudit.measuredFontDigest。',
+            );
+          }
         }
       } finally {
         await browser.close();
@@ -756,6 +779,12 @@ async function main(argv) {
       ...(fontDigestSource === 'operator-supplied'
         ? ['字体摘要由 --font-digest 显式指定，非本机实测：视觉结论的可信度取决于该值的来源']
         : []),
+      ...(fontDigestOverride
+        ? [
+            `--font-digest 与本机实测不一致（显式 ${fontDigestOverride.requested}，实测 ${fontDigestOverride.measured}）：` +
+              'environmentKey 按显式值计算，跨该值的视觉对比不成立',
+          ]
+        : []),
       ...(fontDigestSource === 'not-measured'
         ? ['未测量字体指纹（--skip-browser）：未产出截图，视觉维度无结论']
         : []),
@@ -783,7 +812,11 @@ async function main(argv) {
       browserRevision: browserInfo.browserRevision,
       playwright: browserInfo.playwright,
       fontDigestSource,
+      // 生效值与来源必须自洽：给了 --font-digest 就记 operator-supplied 且值为那个值，
+      // 否则记 measured 且值为浏览器实测值。实测值单独留一份，覆盖时差异可查。
       fontDigest: options.fontDigest ?? measuredFontDigest,
+      measuredFontDigest,
+      fontDigestOverride,
     },
     bundle: {
       root: bundle.root,
