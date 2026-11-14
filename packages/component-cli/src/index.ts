@@ -11,9 +11,11 @@ export * from './local/freeze.js';
 export * from './local/consumer.js';
 export * from './local/environment.js';
 export * from './local/report.js';
+export * from './local/compare.js';
 export * from './local/capture.js';
 export * from './local/manifest.js';
 export * from './commands/check.js';
+export * from './commands/baseline.js';
 
 const isDirectRun =
   process.argv[1] &&

@@ -116,8 +116,8 @@ describe('T04: component check command end-to-end local closed loop', () => {
       try {
         const result = await runCli(['check', '--framework', 'all', '--staging-dir', stagingDir], '0.0.1');
         expect(result.exitCode).toBe(0);
-        expect(result.stdout).toContain('[vue] 验证通过');
-        expect(result.stdout).toContain('[react] 验证通过');
+        expect(result.stdout).toContain('[vue] 验证完成');
+        expect(result.stdout).toContain('[react] 验证完成');
         expect(result.stdout).toContain('所有指定框架本地验证完成');
       } finally {
         fs.rmSync(stagingDir, { recursive: true, force: true });
