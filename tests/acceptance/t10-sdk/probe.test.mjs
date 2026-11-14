@@ -1657,7 +1657,10 @@ describe('消费者源目录不得带入本地状态（阻断一）', () => {
     assert.ok(dirty.includes('node_modules'));
     assert.ok(dirty.includes('.turbo'));
     assert.ok(dirty.includes('dist'));
-    assert.ok(dirty.includes('src/node_modules'), '嵌套项也要检出');
+    // findDirtySourceEntries 返回的是 path.relative 的原生分隔符：Windows 上是
+    // `src\node_modules`，POSIX 上是 `src/node_modules`。断言必须用 path.join 拼，
+    // 否则在 Windows 上必然失败——这是 C 在 Windows 固定 Node 下单测 114/115 的唯一败例。
+    assert.ok(dirty.includes(path.join('src', 'node_modules')), '嵌套项也要检出');
     assert.ok(dirty.includes('tsconfig.tsbuildinfo'));
     // 带上 filter 后同一函数对同一棵树应报干净——RED/GREEN 成对
     const clean = path.join(work, 'consumer-with-filter');
