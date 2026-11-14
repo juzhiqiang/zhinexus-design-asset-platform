@@ -1,5 +1,6 @@
 import { runCheckCommand } from './commands/check.js';
 import { acceptBaseline } from './commands/baseline.js';
+import { checkEchartsBundle, verifyEchartsCandidate } from './commands/echarts.js';
 import { prepareReleaseBundle, verifyReleaseBundle } from './local/manifest.js';
 import {
   executeReleaseCommand,
@@ -24,6 +25,8 @@ export async function runCli(
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
   component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]
+  component echarts check --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--registry <url|offline>] [--json]
+  component echarts verify --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--frameworks <vue,react>] [--components <list>] [--presentations <list>] [--registry <url|offline>] [--peer <strict|legacy|strict-only>] [--baseline <files>] [--out <dir>] [--label <name>] [--probe-entry <path>] [--json]
   component --version
   component --help
 
@@ -396,6 +399,145 @@ export async function runCli(
     stdout += `  - 变体 / 示例: ${result.variantId} / ${result.exampleId}\n`;
     stdout += `  - 环境签名: ${result.environmentKey}\n`;
     stdout += `  - 截图 ID: ${result.screenshotId}\n`;
+    return { exitCode: 0, stdout, stderr: '' };
+  }
+
+  if (command === 'echarts') {
+    const [subcommand, ...subRest] = rest;
+    if (subcommand !== 'check' && subcommand !== 'verify') {
+      return {
+        exitCode: 1,
+        stdout: '',
+        stderr: `错误: 未知 echarts 子命令 ${subcommand ?? '(空)'}\n用法: component echarts <check|verify> --bundle <dir> [选项]\n`,
+      };
+    }
+
+    let bundleDir = '';
+    let echartsVersion: string | undefined;
+    let candidateVersion: string | undefined;
+    let latest = false;
+    let frameworks: string | undefined;
+    let components: string | undefined;
+    let presentations: string | undefined;
+    let registry: string | undefined;
+    let peer: string | undefined;
+    let outDir: string | undefined;
+    let label: string | undefined;
+    let consumerRoot: string | undefined;
+    let baseline: string | undefined;
+    let probeEntry: string | undefined;
+    let timeoutMs: number | undefined;
+    let keep = false;
+    let skipBrowser = false;
+    let jsonOutput = false;
+
+    for (let i = 0; i < subRest.length; i++) {
+      const arg = subRest[i];
+      if (arg === '--bundle') {
+        bundleDir = subRest[++i] ?? '';
+      } else if (arg === '--echarts') {
+        echartsVersion = subRest[++i];
+      } else if (arg === '--version') {
+        candidateVersion = subRest[++i];
+      } else if (arg === '--latest') {
+        latest = true;
+      } else if (arg === '--frameworks') {
+        frameworks = subRest[++i];
+      } else if (arg === '--components') {
+        components = subRest[++i];
+      } else if (arg === '--presentations') {
+        presentations = subRest[++i];
+      } else if (arg === '--registry') {
+        registry = subRest[++i];
+      } else if (arg === '--peer') {
+        peer = subRest[++i];
+      } else if (arg === '--out') {
+        outDir = subRest[++i];
+      } else if (arg === '--label') {
+        label = subRest[++i];
+      } else if (arg === '--consumer-root') {
+        consumerRoot = subRest[++i];
+      } else if (arg === '--baseline') {
+        const nextVal = subRest[++i] ?? '';
+        baseline = baseline ? `${baseline},${nextVal}` : nextVal;
+      } else if (arg === '--probe-entry') {
+        probeEntry = subRest[++i];
+      } else if (arg === '--timeout') {
+        timeoutMs = Number(subRest[++i]);
+      } else if (arg === '--keep') {
+        keep = true;
+      } else if (arg === '--skip-browser') {
+        skipBrowser = true;
+      } else if (arg === '--json') {
+        jsonOutput = true;
+      } else {
+        return {
+          exitCode: 1,
+          stdout: '',
+          stderr: `错误: 未知参数 ${arg}\n用法: component echarts ${subcommand} --bundle <dir> [选项]\n`,
+        };
+      }
+    }
+
+    if (subcommand === 'check') {
+      const result = await checkEchartsBundle({ bundleDir, echartsVersion, version: candidateVersion, latest, registry });
+      if (!result.ok) {
+        return {
+          exitCode: 1,
+          stdout: jsonOutput ? `${JSON.stringify(result, null, 2)}\n` : '',
+          stderr: `✖ ECharts 兼容查询未通过 [${result.errorCode ?? 'ERROR'}]: ${result.error ?? '未知错误'}\n`,
+        };
+      }
+      if (jsonOutput) {
+        return { exitCode: 0, stdout: `${JSON.stringify(result, null, 2)}\n`, stderr: '' };
+      }
+      let stdout = `✔ ECharts 兼容查询通过！\n`;
+      stdout += `  - 冻结 Bundle 版本: ${result.bundleVersion}\n`;
+      stdout += `  - 基线 / 候选 ECharts: ${result.baselineEchartsVersion} / ${result.candidateEchartsVersion}\n`;
+      if (result.candidateIntegrity) {
+        stdout += `  - 候选 Integrity: ${result.candidateIntegrity}\n`;
+      }
+      if (result.registryProxyNote) {
+        stdout += `  - Registry 说明: ${result.registryProxyNote}\n`;
+      }
+      stdout += `  - 双框架覆盖: ${result.hasDualFrameworkCoverage} (supported=${result.supported?.length ?? 0})\n`;
+      return { exitCode: 0, stdout, stderr: '' };
+    }
+
+    const verifyResult = await verifyEchartsCandidate({
+      bundleDir,
+      echartsVersion,
+      version: candidateVersion,
+      latest,
+      frameworks,
+      components,
+      presentations,
+      registry,
+      peer,
+      outDir,
+      label,
+      consumerRoot,
+      baseline,
+      keep,
+      skipBrowser,
+      probeEntry,
+      timeoutMs,
+    });
+
+    if (!verifyResult.ok) {
+      return {
+        exitCode: 1,
+        stdout: jsonOutput ? `${JSON.stringify(verifyResult, null, 2)}\n` : '',
+        stderr: `✖ ECharts 兼容实测未通过 [${verifyResult.errorCode ?? 'ERROR'}]: ${verifyResult.error ?? '未知错误'}\n`,
+      };
+    }
+
+    if (jsonOutput) {
+      return { exitCode: 0, stdout: `${JSON.stringify(verifyResult, null, 2)}\n`, stderr: '' };
+    }
+    let stdout = `✔ ECharts 兼容实测通过 (recommendation=${verifyResult.recommendation})！\n`;
+    stdout += `  - 候选 ECharts: ${verifyResult.evidence?.candidate.version}\n`;
+    stdout += `  - 双框架组合数: ${verifyResult.evidence?.combinations.length ?? 0}\n`;
     return { exitCode: 0, stdout, stderr: '' };
   }
 
