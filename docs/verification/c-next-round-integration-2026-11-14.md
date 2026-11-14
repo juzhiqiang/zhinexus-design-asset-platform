@@ -135,3 +135,21 @@
 4. 只对验收进程统一官方 npm 下载源，保留来源不一致拒绝，不改全局。代价：每次复现需显式环境配置。
 5. C 临时接管 A 新测试 helper，按消费者精确声明的本地编译器检查。代价：新增安装后版本/入口校验，失配会明确失败。
 6. 平台 88/88 与应用浏览器 195/195 按未变源码的覆盖范围沿用，最终探针矩阵和真实回退由 C 重跑。代价：这些结果不能外推为公司 OIDC、生产域/TLS 或业务试点已完成。
+
+## 本地合 main 与合并后完整验证
+
+- C 修正与 r5 证据提交 `448ae7a4020dd5872dccbd89d5de63b891b4bbbb`：`test: 锁定消费者本地编译器并记录最终兼容回退验收`。仅测试与记录，不变更公开 SDK 版本。
+- 确认干净集成树、main 未移动且 main/A/B 均为集成头祖先后，在 C 工作树切换 main，按用户已授权执行 `git merge --no-ff chore/c-next-round-integration`。合并提交 `299f9b8393f844c2c0ddae4248b652604cabfb01`；与集成头的 tree 完全一致：`05622704b349ca7bf4750c32ce810e665c6cf210`。未推送，未去有既存修改的 B 目录切分支。
+- 以下检查在合并后的 main 实际重新执行，均完整读回 exit 0；最终浏览器结论已由本次重跑覆盖，先前沿用决策仅保留为过程记录。
+
+| main 命令 | 实际结果 | 本地完整日志 |
+| --- | --- | --- |
+| `scripts/pnpm.ps1 verify:workspace` | 10 成员、无环、4 个公开包、服务端安全依赖图通过 | `.tools/c-r5-main-workspace-2026-11-14.log` |
+| `scripts/pnpm.ps1 -PnpmArgs @('exec','turbo','run','build','typecheck','--cache=local:w')` | 20/20，0 cached，5.528s | `.tools/c-r5-main-build-types-2026-11-14.log` |
+| `scripts/pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')` | 根类型检查通过 | `.tools/c-r5-main-root-tsc-2026-11-14.log` |
+| `scripts/pnpm.ps1 test` | Node 138/138，0 fail、0 skip、25.63s；Vitest 42 文件 719/719，176.50s | `.tools/c-r5-main-root-test-2026-11-14.log` |
+| `scripts/pnpm.ps1 test:browser` | 195/195，1.1m；含 6 项真实三存储网页 E2E；运行前后 5173–5176 均无监听 | `.tools/c-r5-main-browser-2026-11-14.log` |
+
+合并后逐文件再次复核冻结 199 文件 / 14 实现，摘要与大小差异 0；原架构与锁 SHA 未变。Docker 查询 `org.zhinexus.recovery` 标签的容器与卷均为 0，未清理其它资源。B 原四项文件与合并前逐字节 SHA 相同，A Windows 工作树干净，三方原分支与工作树均保留。已通过 Claude 与 Antigravity 桌面消息将接收、合并和边界回执发回 A/B，要求只确认，不再修改源码或文档。
+
+本轮执行计划的三个本地任务关闭；这不是整个平台投产验收。公司 OIDC/PKCE/撤权、生产独立预览域/TLS、真实 Vue/React 业务双项目、独立安装 CLI 分发与兼容记录落库仍未在本轮验收，完整 G2/T10/T11/T12 保持开放。既有 Windows `DEP0190`/浏览器运行告警保留在日志，没有记为零告警。
