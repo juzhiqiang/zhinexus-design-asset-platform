@@ -12,7 +12,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, readdirSync, realpathSync } from 'node:fs';
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -35,6 +35,74 @@ export const CONSUMER_DEV_DEPENDENCIES = /** @type {const} */ ({
     '@types/react-dom': '19.3.0',
   },
 });
+
+/**
+ * 复制示例源码时必须排除的本地状态。
+ *
+ * C 在 Windows 实跑 56 组合时定位到：`examples/<framework>` 在本机已被构建过，
+ * 目录里带着 `node_modules` / `.turbo` / `dist`。原先的 `cp` 不带 filter，把它们
+ * 一并复制到工作区外，npm 于是复用了 pnpm 留下的符号链接，`package-lock.json` 里
+ * 的 echarts 条目既没有 `resolved` 也没有 `integrity`，CLI 只能给出
+ * `CANDIDATE_INTEGRITY_UNVERIFIED`——这不是候选包的问题，是消费者本身不干净。
+ *
+ * 名单与仓库根 `.gitignore` 的语义一致：这些都是本地产物，不属于示例源码。
+ */
+export const CONSUMER_SOURCE_EXCLUSIONS = /** @type {const} */ ([
+  'node_modules',
+  'dist',
+  '.turbo',
+  '.git',
+  'coverage',
+  'test-results',
+  'playwright-report',
+  '.release',
+]);
+
+/** 复制后仍被发现即视为脏源：宁可 fail-closed，也不拿一个被污染的消费者出具证据。 */
+export const CONSUMER_SOURCE_SENTINELS = /** @type {const} */ ([...CONSUMER_SOURCE_EXCLUSIONS]);
+
+/**
+ * `fs.cp` 的 filter：按 basename 排除本地状态目录与 tsbuildinfo。
+ * 目录名匹配而非路径匹配，因此嵌套在任何层级的 `node_modules` 都会被排除。
+ */
+export function consumerSourceFilter(excluded = CONSUMER_SOURCE_EXCLUSIONS) {
+  const names = new Set(excluded);
+  return (source) => {
+    const base = path.basename(source);
+    if (names.has(base)) return false;
+    if (base.endsWith('.tsbuildinfo')) return false;
+    return true;
+  };
+}
+
+/**
+ * 脏源哨兵：复制完成后扫描一次，确认示例源码没有把本地状态带进消费者。
+ * 返回被发现的条目（空数组 = 干净）。纯函数，可单测。
+ */
+export function findDirtySourceEntries(root, sentinels = CONSUMER_SOURCE_SENTINELS) {
+  const names = new Set(sentinels);
+  const found = [];
+  const walk = (dir, depth) => {
+    if (depth > 4) return;
+    let entries;
+    try {
+      entries = readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const full = path.join(dir, entry.name);
+      const dirty = names.has(entry.name) || entry.name.endsWith('.tsbuildinfo');
+      if (dirty) {
+        found.push(path.relative(root, full));
+        continue;
+      }
+      if (entry.isDirectory()) walk(full, depth + 1);
+    }
+  };
+  walk(root, 0);
+  return found.sort();
+}
 
 /**
  * 把示例 `package.json` 改写成干净消费者 `package.json`。
@@ -227,10 +295,26 @@ export async function createConsumer({
   try {
     const dir = path.join(staging, `a-t10-consumer-${framework}`);
     await mkdir(dir, { recursive: true });
-    exampleRoot = await cp(path.resolve(exampleDir), dir, { recursive: true, force: true }).then(() => dir);
+    // filter 是硬要求：不带它就会把本机 node_modules / .turbo / dist 一并复制出来，
+    // npm 复用 pnpm 链接、锁文件缺 resolved/integrity，干净消费者名不副实。
+    exampleRoot = await cp(path.resolve(exampleDir), dir, {
+      recursive: true,
+      force: true,
+      filter: consumerSourceFilter(),
+    }).then(() => dir);
+    // 哨兵复核：万一 filter 被绕过（不同 Node 版本的 cp filter 语义、符号链接等），
+    // 也要在装依赖之前炸掉，而不是产出一个看起来正常的脏消费者。
+    const dirty = findDirtySourceEntries(exampleRoot);
+    if (dirty.length > 0) {
+      throw new Error(
+        `PROBE_INPUT 消费者源目录不干净：复制后仍检出本地状态 ${dirty.join(', ')}。` +
+          '请先清理 examples 下的构建产物，或确认 consumerSourceFilter 生效。',
+      );
+    }
     await cp(path.resolve(repoRoot, 'examples', 'fixtures'), path.join(staging, 'fixtures'), {
       recursive: true,
       force: true,
+      filter: consumerSourceFilter(),
     });
     // `examples/*/tsconfig.json` 继承仓库根的 `tsconfig.base.json`，同样会断链；
     // 把它搬进消费者并把 extends 改成消费者内相对路径，编译器设置与仓库完全一致。
@@ -264,7 +348,10 @@ export async function createConsumer({
         throw new Error(
           `PROBE_PEER_REJECTED 严格 peer 安装被拒绝（${classified.reason}）。` +
             `当前 peer 模式为 ${peer}，按纪律不得自动放宽：候选未落在已锁定的 peer 精确版本上时，` +
-            '放宽只会让「绕过 peer 后能不能用」冒充成「兼容」。需要测量请显式传 --peer legacy。',
+            '放宽只会让「绕过 peer 后能不能用」冒充成「兼容」。需要测量请显式传 --peer legacy。' +
+            // npm 原始输出必须带上：否则「安装被拒」这件事本身无法诊断，
+            // 只能看到一句结论，分不清是 peer、是 registry 还是磁盘。
+            `\nnpm 输出：\n${classified.detail}`,
         );
       }
       // 只有显式 --peer legacy 才走到这里：目的是测量「绕过 peer 后到底能不能用」，
