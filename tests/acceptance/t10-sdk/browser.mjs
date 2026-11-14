@@ -15,13 +15,21 @@ import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
+import { createRequire } from 'node:module';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
+  FONT_PROBE_STRINGS,
+  FONT_REFERENCE_FAMILIES,
   PAGE_PATH,
   buildEnvironment,
+  canonicalJson,
   chartHostSelector,
   computeEnvironmentKey,
+  environmentProjection,
+  fontDigestFromMeasurements,
+  fontFingerprintCanonical,
   formatPresentation,
   validateEnvironment,
 } from './environment.mjs';
@@ -59,6 +67,105 @@ export const HOST_BACKGROUND = { light: '#ffffff', dark: '#0f172a' };
 
 /** 固定视口。deviceScaleFactor / locale / timezone 一并固定，全部进 environmentKey。 */
 export const FIXED_VIEWPORT = { width: 1000, height: 600 };
+
+/**
+ * 在页面里测量字体指纹。
+ *
+ * 测量的是**真正参与渲染的字形**，不是字体族名——同一个族名在不同机器上可能落到完全不同
+ * 的字体文件（尤其是中文字形）。因此取三样东西：
+ * 1. 宿主元素上真实生效的 `font-family` 栈（`getComputedStyle`）；
+ * 2. 每个族的 `document.fonts.check` 可用性 + 固定探针串的 canvas 前进宽度；
+ * 3. 页面已加载的 Web 字体清单（`document.fonts` 条目）。
+ *
+ * 任意一项测不到就抛错，不退回常量：没有可信字体签名的截图不构成视觉证据。
+ */
+export const FONT_MEASUREMENT_SOURCE = (hostSelector, probeStrings, referenceFamilies) => {
+  const host = document.querySelector(hostSelector);
+  if (!host) throw new Error(`未找到图表宿主 ${hostSelector}，无法测量字体`);
+  const stack = getComputedStyle(host).fontFamily;
+  const families = [];
+  const seen = new Set();
+  const add = (family) => {
+    const name = family.trim().replace(/^["']|["']$/g, '');
+    if (name.length === 0 || seen.has(name)) return;
+    seen.add(name);
+    const canvas = document.createElement('canvas');
+    const context = canvas.getContext('2d');
+    if (!context) throw new Error('拿不到 2d context，无法测量字形前进宽度');
+    context.font = `16px ${JSON.stringify(name)}`;
+    families.push({
+      family: name,
+      available: document.fonts.check(`16px ${JSON.stringify(name)}`),
+      advances: probeStrings.map((text) => context.measureText(text).width),
+    });
+  };
+  for (const family of String(stack).split(',')) add(family);
+  for (const family of referenceFamilies) add(family);
+  const loadedFonts = [];
+  document.fonts.forEach((face) => {
+    loadedFonts.push(`${face.family} ${face.style} ${face.weight} ${face.status}`);
+  });
+  return { stack, families, loadedFonts };
+};
+
+/**
+ * 读 Playwright 自己声明的浏览器修订号。
+ *
+ * 原先把 `browserRevision` 硬编码成 `'1000'`——那是契约示例里的占位值，不是本机事实。
+ * 修订号进 environmentKey，写错的后果是「签名声称的环境与真实跑的环境不是同一个」。
+ *
+ * 定位 `playwright-core/browsers.json` 必须**沿依赖链解析**，不能按 node_modules 固定层数找：
+ * pnpm 工作区里仓库根并不是 `playwright-core` 的直接依赖，`require.resolve` 从探针文件出发
+ * 会直接抛 `ERR_PACKAGE_PATH_NOT_EXPORTED` / `MODULE_NOT_FOUND`。真正可达的路径是
+ * `@playwright/test` → `playwright` → `playwright-core`（pnpm 给每个包自己的 node_modules）。
+ * 每一步单独 try：某一步失败不能跳过其余候选。
+ */
+export function readBrowserRevision(importMetaUrl) {
+  const candidates = [];
+  // 沿依赖链逐级解析：从探针文件出发 → @playwright/test → playwright → playwright-core。
+  // 每一级的 createRequire 以上一级**已解析出的 package.json 路径**为基准，
+  // 因此不受 node_modules 固定层数影响，pnpm 与 npm 布局都能走通。
+  let previous = null;
+  for (const spec of ['@playwright/test/package.json', 'playwright/package.json', 'playwright-core/package.json']) {
+    try {
+      const base = previous === null ? createRequire(importMetaUrl) : createRequire(previous);
+      const resolved = base.resolve(spec);
+      candidates.push(path.join(path.dirname(resolved), 'browsers.json'));
+      previous = resolved;
+    } catch {
+      // 单独失败不中断：换下一级
+    }
+  }
+  // 兜底：仓库根的 node_modules 与 Node 发行版自带布局
+  try {
+    const rootRequire = createRequire(
+      path.join(path.dirname(fileURLToPath(importMetaUrl)), '..', '..', '..', 'package.json'),
+    );
+    const resolved = rootRequire.resolve('playwright-core/package.json');
+    candidates.push(path.join(path.dirname(resolved), 'browsers.json'));
+  } catch {
+    // 忽略
+  }
+  candidates.push(
+    path.resolve(path.dirname(fileURLToPath(importMetaUrl)), '..', '..', '..', 'node_modules', 'playwright-core', 'browsers.json'),
+    path.join(path.dirname(process.execPath), '..', 'lib', 'node_modules', 'playwright-core', 'browsers.json'),
+    path.join(path.dirname(process.execPath), 'node_modules', 'playwright-core', 'browsers.json'),
+  );
+  for (const candidate of candidates) {
+    if (!existsSync(candidate)) continue;
+    try {
+      const manifest = JSON.parse(readFileSync(candidate, 'utf8'));
+      const entry = (manifest.browsers ?? []).find((browser) => browser.name === 'chromium');
+      if (entry && /^\d+$/.test(String(entry.revision))) return String(entry.revision);
+    } catch {
+      // 读了解析不了就试下一个候选，不猜
+    }
+  }
+  throw new Error(
+    'PROBE_ENVIRONMENT 读不到 playwright-core/browsers.json 的 chromium 修订号。' +
+      'browserRevision 进 environmentKey，不能用占位值冒充；请确认仓库根已 pnpm install。',
+  );
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -207,6 +314,8 @@ async function probeCombination({
   presentation,
   environmentBase,
   screenshotDir,
+  fontDigest,
+  fontFingerprint,
 }) {
   const url = `http://127.0.0.1:${port}${PAGE_PATH[component]}?theme=${presentation.theme}&renderer=${presentation.renderer}`;
   const host = chartHostSelector(component);
@@ -249,6 +358,8 @@ async function probeCombination({
         echartsVersion,
         width: size.width,
         height: size.height,
+        // 字体摘要由本页真实度量算出；缺它就不出环境签名，也不出截图结论
+        fontDigest,
       });
       const problems = validateEnvironment(environment);
       if (problems.length > 0) throw new Error(`PROBE_INTERNAL 环境字段非法：${problems.join('; ')}`);
@@ -281,6 +392,14 @@ async function probeCombination({
       screenshot,
       environment,
       environmentKey,
+      // 让审核方能**重算** environmentKey，而不是只能看到一个 64 位摘要：
+      // 规范化投影、被哈希的规范化 JSON、字体度量的原始依据一并留下。
+      environmentAudit: {
+        projection: environmentProjection(environment),
+        canonical: canonicalJson(environmentProjection(environment)),
+        fontDigest,
+        fontFingerprint: fontFingerprintAudit(fontFingerprint),
+      },
     };
   } finally {
     await context.close();
@@ -371,6 +490,14 @@ export async function runBrowserProbe(options) {
   const port = await listen(server);
   const runs = [];
   try {
+    // 字体指纹只测一次：同一台机器同一次运行里，各页面的字体栈相同。
+    // 测不到就抛错——没有可信字体签名的截图不构成视觉证据，不用常量顶替。
+    const fontFingerprint = await measureFontFingerprint({
+      browser: options.browser,
+      port,
+      component: options.components[0],
+      digest: fontDigestFromMeasurements,
+    });
     for (const component of options.components) {
       for (const presentation of options.presentations) {
         // eslint-disable-next-line no-await-in-loop -- 顺序执行避免并行浏览器上下文互相拖慢
@@ -385,15 +512,78 @@ export async function runBrowserProbe(options) {
             presentation,
             environmentBase: options.environmentBase,
             screenshotDir: options.screenshotDir,
+            fontDigest: fontFingerprint.fontDigest,
+            fontFingerprint,
           }),
         );
       }
     }
     const lifecycle = await probeLifecycle({ browser: options.browser, port, framework: options.framework });
-    return { runs, lifecycle };
+    return { runs, lifecycle, fontFingerprint };
   } finally {
     await close(server);
   }
+}
+
+/**
+ * 打开示例页测量字体指纹。
+ *
+ * @param {{browser: object; port: number; component: string; digest: (m: unknown) => string}} options
+ * @returns {Promise<{fontDigest: string; source: 'measured'; details: object}>}
+ */
+export async function measureFontFingerprint({ browser, port, component, digest }) {
+  const hostSelector = chartHostSelector(component);
+  const context = await browser.newContext(contextOptions('light'));
+  const page = await context.newPage();
+  try {
+    const problems = [];
+    page.on('pageerror', (error) => problems.push(error.message));
+    await page.goto(`http://127.0.0.1:${port}${PAGE_PATH[component]}`, { waitUntil: 'load' });
+    await page.waitForFunction(() => window.__COMPONENT_EXAMPLE__ !== undefined, undefined, { timeout: 30_000 });
+    await page.evaluate(() => window.__COMPONENT_EXAMPLE__.ready);
+    const measurements = await page.evaluate(
+      // 回调体只能引用**自己的参数**：page.evaluate 会把函数源码序列化后送进浏览器执行，
+      // Node 模块作用域里的常量（FONT_MEASUREMENT_SOURCE）在页面里不存在。
+      // 因此把源码字符串当参数传进去，页面内再用 new Function 还原成函数。
+      ([fnSource, selector, probes, references]) => {
+        const measure = new Function(`return (${fnSource})`)();
+        return measure(selector, probes, references);
+      },
+      [
+        `(${FONT_MEASUREMENT_SOURCE.toString()})`,
+        hostSelector,
+        [...FONT_PROBE_STRINGS],
+        [...FONT_REFERENCE_FAMILIES],
+      ],
+    );
+    if (problems.length > 0) {
+      throw new Error(`PROBE_ENVIRONMENT 字体测量页面报错：${problems.join('; ')}`);
+    }
+    return {
+      fontDigest: digest(measurements),
+      source: 'measured',
+      details: measurements,
+      canonical: fontFingerprintCanonical(measurements),
+    };
+  } finally {
+    await context.close();
+  }
+}
+
+/**
+ * 字体指纹的可审核依据：原始度量 + 被哈希的规范化字符串。
+ *
+ * 只给 64 位摘要，审核方无法验证「这个摘要真的来自这些字体」；只给原始度量，
+ * 又得让人去猜规范化规则。两者都留下，重算就是一次 SHA-256。
+ */
+export function fontFingerprintAudit(fingerprint) {
+  return {
+    stack: fingerprint.details.stack,
+    families: fingerprint.details.families,
+    loadedFonts: fingerprint.details.loadedFonts,
+    fontDigest: fingerprint.fontDigest,
+    canonical: fingerprint.canonical,
+  };
 }
 
 /** 运行维度：宿主唯一、无页面错误、自检全过、渲染器真实生效。 */
@@ -453,8 +643,26 @@ export function baselineScreenshots(evidence) {
   return flattened.length > 0 ? flattened : (evidence.screenshots ?? []);
 }
 
+/** 合并基线时留下的冲突清单（见 `probe.mjs` 的 `mergeBaselineEvidence`）。 */
+export function baselineConflicts(evidence) {
+  if (!evidence || Array.isArray(evidence)) return [];
+  return evidence.conflicts ?? [];
+}
+
 /** 视觉维度：与基线的逐字节比对。没有同 environmentKey 的基线时返回 `not-run`。 */
 export function compareWithBaseline(screenshot, evidence) {
+  // 冲突 fail-closed：两份基线对同一组合给了不同字节/environmentKey 时，
+  // 任何一份都不能当判据。原先只打日志保留第一份，比对仍可能判 PASS——
+  // 等于用一份来路不明的基线宣布通过。
+  const conflicts = baselineConflicts(evidence);
+  if (conflicts.length > 0) {
+    return {
+      result: 'INCOMPATIBLE',
+      reason:
+        `基线存在 ${conflicts.length} 处冲突（同一组合在不同证据里字节或 environmentKey 不同），` +
+        '无法确定哪份是判据，按 fail-closed 不判过。',
+    };
+  }
   const baseline = baselineScreenshots(evidence);
   if (baseline.length === 0) {
     return { result: 'NEW', reason: '没有可用的视觉基线（未传 --baseline 或基线里没有截图）' };

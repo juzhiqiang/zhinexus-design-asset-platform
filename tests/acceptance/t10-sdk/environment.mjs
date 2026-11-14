@@ -76,13 +76,105 @@ export function platformName(platform = process.platform) {
 }
 
 /**
- * 确定性字体摘要。与 CLI 的 `DEFAULT_FONT_DIGEST` 同一输入常量：
- * 探针跑在不同机器上时字体确实不同，那时必须显式传 `--font-digest`，
- * 不能用这个默认值冒充本机字体签名。
+ * `component-cli` 的**声明常量**，不是实测值。
+ *
+ * CLI 的 `detectEnvironment` 在拿不到外部指定摘要时用它兜底，输入是固定的
+ * `'system-ui,sans-serif;regular,bold;zh-CN'` 字符串——也就是说它**从来不测量本机字体**。
+ * 探针保留它只有一个用途：复现 C 侧 CLI 产出的 environmentKey（`probe.test.mjs` 里有锁定用例）。
+ *
+ * **探针不得把它当作本机字体签名。** 没装中文字体的机器与装了字体的机器会算出同一个
+ * 常量，于是得到同一个 environmentKey，视觉比对会静默判 PASS。要出截图就必须用
+ * `fontDigestFromMeasurements()` 基于浏览器里的真实度量算摘要，或由操作者显式传
+ * `--font-digest`（证据里记 `operator-supplied`）。
  */
 export const DEFAULT_FONT_DIGEST = createHash('sha256')
   .update('system-ui,sans-serif;regular,bold;zh-CN', 'utf8')
   .digest('hex');
+
+/** 字体度量的固定探针串：ASCII 排版、CJK 覆盖、易混字形。CJK 是跨机器差异最大的一项。 */
+export const FONT_PROBE_STRINGS = /** @type {const} */ ([
+  'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789',
+  '中文图表标签折线柱状饼图散点排行榜占比趋势卡片暂无数据',
+  'iIlL1.,;:!|',
+]);
+
+/** 除宿主字体栈外，始终测量的参考族：保证不同页面结构下签名仍可比。 */
+export const FONT_REFERENCE_FAMILIES = /** @type {const} */ (['sans-serif', 'serif', 'monospace']);
+
+/** 前进宽度保留三位小数：跨 JS 引擎的浮点表示差异不该造成假 DIFF，真实字体差异远大于此。 */
+const ADVANCE_PRECISION = 1000;
+
+/**
+ * 字体指纹的规范化输入：与 `fontDigestFromMeasurements` 用同一套归一化规则。
+ *
+ * 单独导出是为了让证据里能留下**被哈希的那串字符**——审核方据此重算摘要，
+ * 不必去猜规范化规则（键排序、去空白、advance 保留几位）。
+ *
+ * @param {{stack?: unknown; families?: unknown; loadedFonts?: unknown}} measurements
+ * @returns {string}
+ */
+export function fontFingerprintCanonical(measurements) {
+  const stack = measurements?.stack;
+  const families = measurements?.families;
+  const loadedFonts = measurements?.loadedFonts;
+  if (typeof stack !== 'string' || stack.length === 0) {
+    throw new Error('PROBE_ENVIRONMENT 字体度量缺少 stack：无法出具可信的字体摘要');
+  }
+  if (!Array.isArray(families) || families.length === 0) {
+    throw new Error('PROBE_ENVIRONMENT 字体度量缺少 families：无法出具可信的字体摘要');
+  }
+  if (!Array.isArray(loadedFonts)) {
+    throw new Error('PROBE_ENVIRONMENT 字体度量缺少 loadedFonts：无法出具可信的字体摘要');
+  }
+  const normalised = families.map((family, index) => {
+    if (typeof family?.family !== 'string' || family.family.length === 0) {
+      throw new Error(`PROBE_ENVIRONMENT 字体度量第 ${index} 项缺少 family`);
+    }
+    if (!Array.isArray(family.advances) || family.advances.length !== FONT_PROBE_STRINGS.length) {
+      throw new Error(
+        `PROBE_ENVIRONMENT 字体度量第 ${index} 项（${family.family}）的 advances 必须是 ${FONT_PROBE_STRINGS.length} 个数值`,
+      );
+    }
+    for (const advance of family.advances) {
+      if (typeof advance !== 'number' || !Number.isFinite(advance)) {
+        throw new Error(`PROBE_ENVIRONMENT 字体度量第 ${index} 项（${family.family}）的 advances 含非数值`);
+      }
+    }
+    return {
+      family: family.family,
+      available: family.available === true,
+      advances: family.advances.map((advance) => Math.round(advance * ADVANCE_PRECISION) / ADVANCE_PRECISION),
+    };
+  });
+  // 参考族必须全在，否则换个页面结构就能悄悄改签名
+  const present = new Set(normalised.map((entry) => entry.family));
+  for (const reference of FONT_REFERENCE_FAMILIES) {
+    if (!present.has(reference)) {
+      throw new Error(`PROBE_ENVIRONMENT 字体度量缺少参考族 ${reference}：签名不可跨页面比较`);
+    }
+  }
+  return canonicalJson({
+    kind: 'font-fingerprint-v1',
+    stack: stack.trim().normalize('NFC'),
+    families: normalised,
+    loadedFonts: [...loadedFonts].map((entry) => String(entry)).sort(),
+  });
+}
+
+/**
+ * 由浏览器实测的字体度量算出字体摘要。
+ *
+ * 度量的东西是**真正参与渲染的字形**：每个字体族的可用性（`document.fonts.check`）、
+ * 固定探针串的 canvas 前进宽度、页面已加载的 Web 字体清单，以及宿主元素上真实生效的
+ * `font-family` 栈。任何一项变化都会改变摘要，进而改变 environmentKey——于是
+ * 「不同字体的两台机器」在视觉维度上得到的是 `INCOMPATIBLE`，而不是静默的 PASS。
+ *
+ * @param {{stack?: unknown; families?: unknown; loadedFonts?: unknown}} measurements
+ * @returns {string} 64 位小写十六进制
+ */
+export function fontDigestFromMeasurements(measurements) {
+  return sha256Hex(fontFingerprintCanonical(measurements));
+}
 
 /**
  * v1 编码：UTF-8 JSON、递归 UTF-16 键排序、数组顺序不变、无空白。
