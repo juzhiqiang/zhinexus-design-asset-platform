@@ -1,0 +1,5 @@
+/** Ordered runtime migrations; packaging checks consume this same data-only list. */
+export const registryMigrationFiles = [
+  '001_registry.sql', '002_package_permissions.sql', '003_evidence_references.sql',
+  '004_release_worker.sql', '005_catalog.sql', '006_preview.sql', '007_compatibility.sql',
+] as const;

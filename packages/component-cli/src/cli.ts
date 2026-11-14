@@ -1,13 +1,3 @@
-import { runCheckCommand } from './commands/check.js';
-import { acceptBaseline } from './commands/baseline.js';
-import { checkEchartsBundle, verifyEchartsCandidate } from './commands/echarts.js';
-import { prepareReleaseBundle, verifyReleaseBundle } from './local/manifest.js';
-import {
-  executeReleaseCommand,
-  executeStatusCommand,
-  executeResumeCommand,
-} from './local/release.js';
-
 export async function runCli(
   args: readonly string[],
   version: string,
@@ -83,6 +73,7 @@ export async function runCli(
           : ['react'];
 
     try {
+      const { prepareReleaseBundle } = await import('./local/manifest.js');
       const result = await prepareReleaseBundle({
         bundleDir,
         frameworks,
@@ -141,6 +132,7 @@ export async function runCli(
       }
     }
 
+    const { runCheckCommand } = await import('./commands/check.js');
     const checkResult = await runCheckCommand({ framework, stagingDir, baselineDir });
     let stdout = '';
     let stderr = '';
@@ -187,6 +179,7 @@ export async function runCli(
     }
 
     try {
+      const { executeReleaseCommand } = await import('./local/release.js');
       const result = await executeReleaseCommand({
         bundleDir,
         apiUrl,
@@ -240,6 +233,7 @@ export async function runCli(
     }
 
     try {
+      const { executeStatusCommand } = await import('./local/release.js');
       const result = await executeStatusCommand({
         jobId,
         bundleDir,
@@ -295,6 +289,7 @@ export async function runCli(
     }
 
     try {
+      const { executeResumeCommand } = await import('./local/release.js');
       const result = await executeResumeCommand({
         bundleDir,
         apiUrl,
@@ -375,6 +370,7 @@ export async function runCli(
       };
     }
 
+    const { acceptBaseline } = await import('./commands/baseline.js');
     const result = await acceptBaseline({
       reportPath,
       reason,
@@ -478,6 +474,8 @@ export async function runCli(
         };
       }
     }
+
+    const { checkEchartsBundle, verifyEchartsCandidate } = await import('./commands/echarts.js');
 
     if (subcommand === 'check') {
       const result = await checkEchartsBundle({ bundleDir, echartsVersion, version: candidateVersion, latest, registry });

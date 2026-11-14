@@ -4,6 +4,7 @@ import { pathToFileURL } from 'node:url';
 import { parse } from 'yaml';
 import { validatePreviewConfig } from '@company/contracts/preview';
 import { retentionPolicy } from '../apps/api/dist/operations/retention.js';
+import { OidcVerifier } from '../apps/api/dist/auth/oidc.js';
 
 const pinned = (value: unknown) => typeof value==='string' && /^(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}$/.test(value);
 const parameter = (value: unknown) => typeof value==='string' && /^\$\{[A-Z][A-Z0-9_]*:\?[^}]+\}$/.test(value);
@@ -30,12 +31,31 @@ export function validateDeployment(input: unknown, env?: Record<string,string|un
   if (config.networks?.backend?.internal!==true || config.networks?.edge?.external!==true) errors.push('Explicit isolated backend and managed TLS edge required');
   if (env) {
     const raw = JSON.stringify(config);
-    for (const match of raw.matchAll(/\$\{([A-Z][A-Z0-9_]*):\?[^}]+\}/g)) if (!env[match[1]!]) errors.push(`Missing ${match[1]}`);
+    for (const match of raw.matchAll(/\$\{([A-Z][A-Z0-9_]*):\?[^}]+\}/g)) if (!env[match[1]!]?.trim()) errors.push(`Missing ${match[1]}`);
     for (const key of ['PLATFORM_API_IMAGE','PLATFORM_PREVIEW_IMAGE','PLATFORM_MINIO_IMAGE']) if (!pinned(env[key])) errors.push(`Invalid ${key} digest`);
     for (const key of ['PLATFORM_S3_ENDPOINT','PLATFORM_REGISTRY_ORIGIN','PLATFORM_OIDC_ISSUER','PLATFORM_OIDC_JWKS_URI']) {
-      try { const u=new URL(env[key]??''); if(u.protocol!=='https:'||u.username||u.password||u.search||u.hash) throw new Error(); }
+      try { const value=env[key]??''; const u=new URL(value); if(/[\s\\\u0000-\u001f\u007f]/u.test(value)||u.protocol!=='https:'||u.username||u.password||u.search||u.hash) throw new Error(); }
       catch {errors.push(`Invalid ${key} HTTPS configuration`);}
     }
+    try {
+      // Construction validates the same identifiers as the service; it does not fetch keys.
+      const clients = (key: string) => (env[key] ?? '').split(',').map(value => value.trim()).filter(Boolean);
+      new OidcVerifier({
+        issuer: env.PLATFORM_OIDC_ISSUER ?? '', audience: env.PLATFORM_OIDC_AUDIENCE ?? '',
+        jwksUri: env.PLATFORM_OIDC_JWKS_URI ?? '',
+        webClientIds: clients('PLATFORM_OIDC_WEB_CLIENT_IDS'), cliClientIds: clients('PLATFORM_OIDC_CLI_CLIENT_IDS'),
+      });
+    } catch { errors.push('Invalid OIDC issuer, audience or distinct web/CLI clients'); }
+    const databaseRoles: string[] = [];
+    for (const key of ['PLATFORM_DATABASE_URL','PREVIEW_DATABASE_URL']) {
+      try {
+        const value = env[key] ?? ''; const url = new URL(value);
+        if (!['postgres:', 'postgresql:'].includes(url.protocol) || !url.hostname || !url.username ||
+          url.pathname.length < 2 || url.hash || url.searchParams.has('user') || /[\s\\\u0000-\u001f\u007f]/u.test(value)) throw new Error();
+        databaseRoles.push(decodeURIComponent(url.username));
+      } catch { errors.push(`Invalid ${key} database configuration`); }
+    }
+    if (databaseRoles.length === 2 && databaseRoles[0] === databaseRoles[1]) errors.push('Preview requires a distinct database role');
     try {validatePreviewConfig({previewOrigin:env.PLATFORM_PREVIEW_ORIGIN??'',platformOrigin:env.PLATFORM_GALLERY_ORIGIN??'',apiOrigin:env.PLATFORM_API_ORIGIN??''});}
     catch {errors.push('Invalid independent preview domain configuration');}
     if (!/^[A-Za-z0-9_-]{32,256}$/.test(env.PLATFORM_METRICS_TOKEN??'')) errors.push('Invalid metrics token');

@@ -671,4 +671,96 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
       await fs.rm(outsideDir, { recursive: true, force: true });
     }
   });
+
+  it('B1: 发布安装后默认使用包内 dist/probe/probe.mjs（不依赖仓库 cwd），缺失时明确报错并提示 @playwright/test@1.65.0 与浏览器要求，保留环境变量/显式覆盖', async () => {
+    const cliPkgPath = path.resolve(process.cwd(), 'packages/component-cli/package.json');
+    const cliPkg = JSON.parse(await fs.readFile(cliPkgPath, 'utf8')) as {
+      files?: string[];
+      dependencies?: Record<string, string>;
+    };
+    expect(cliPkg.files).toContain('dist');
+    expect(cliPkg.dependencies?.['@playwright/test']).toBe('1.65.0');
+
+    const bundleDir = await createFrozenBundleFixture();
+    const registryUrl = await startMockRegistry({
+      'dist-tags': { latest: '6.1.0' },
+      versions: { '6.1.0': { dist: { integrity: 'sha512-registry-610==' } } },
+    });
+
+    // 1. 环境变量 ZHINEXUS_ECHARTS_PROBE_ENTRY 覆盖默认包内探针
+    const prevEnv = process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY;
+    const validEv = await validProbeEvidenceForBundle(bundleDir, {
+      candidate: { version: '6.1.0', integrity: 'sha512-registry-610==', source: registryUrl, integrityVerified: true },
+    });
+    const envProbe = await createMockProbeScript(`process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});`);
+    process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY = envProbe;
+    try {
+      const envRes = await runCli(
+        ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--json'],
+        '0.0.8',
+      );
+      expect(envRes.exitCode, envRes.stderr).toBe(0);
+      expect(JSON.parse(envRes.stdout).ok).toBe(true);
+    } finally {
+      if (prevEnv !== undefined) process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY = prevEnv;
+      else delete process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY;
+    }
+
+    // 3. 真实无源码外部安装：pack CLI dist 解压到仓库外临时目录，在无源码 cwd 下运行
+    const { execFileSync, execFile } = await import('node:child_process');
+    const { promisify } = await import('node:util');
+    const execFileAsync = promisify(execFile);
+    const packOut = await makeTempDir('b1-cli-pack-');
+    const extConsumer = await makeTempDir('b1-ext-consumer-');
+    const installedPkgDir = path.join(extConsumer, 'node_modules', '@company', 'component-cli');
+    await fs.mkdir(installedPkgDir, { recursive: true });
+
+    const cliDir = path.resolve(process.cwd(), 'packages/component-cli');
+    execFileSync(process.execPath, [path.resolve(cliDir, 'scripts/sync-contracts.mjs')], { cwd: cliDir, stdio: 'pipe' });
+    const tscBin = path.resolve(process.cwd(), 'node_modules/typescript/bin/tsc');
+    execFileSync(process.execPath, [tscBin, '-p', 'tsconfig.build.json'], { cwd: cliDir, stdio: 'pipe' });
+    const tarPath = path.join(packOut, 'component-cli.tgz');
+    execFileSync('tar', ['-czf', tarPath, '-C', cliDir, 'package.json', 'dist'], { stdio: 'pipe' });
+    execFileSync('tar', ['-xzf', tarPath, '-C', installedPkgDir], { stdio: 'pipe' });
+
+    const installedPkgJson = JSON.parse(
+      await fs.readFile(path.join(installedPkgDir, 'package.json'), 'utf8'),
+    ) as { bin: { component: string } };
+    const binPath = path.join(installedPkgDir, installedPkgJson.bin.component);
+    // 2a. 在独占临时安装包副本中显式移除 dist/probe（不依赖真实仓库 dist 是否存在），验证缺失时失败关闭并提示浏览器要求
+    const packagedProbeDir = path.join(installedPkgDir, 'dist', 'probe');
+    await fs.rm(packagedProbeDir, { recursive: true, force: true });
+    let missingExtExit = 0;
+    let missingExtStderr = '';
+    try {
+      await execFileAsync(process.execPath, [binPath, 'echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl], {
+        cwd: extConsumer,
+        encoding: 'utf8',
+      });
+    } catch (err: unknown) {
+      const e = err as { code?: number; stderr?: string };
+      missingExtExit = typeof e.code === 'number' ? e.code : 1;
+      missingExtStderr = e.stderr ?? '';
+    }
+    expect(missingExtExit).toBe(1);
+    expect(missingExtStderr).toContain('PROBE_ENTRY_NOT_FOUND');
+    expect(missingExtStderr).toContain('probe.mjs');
+    expect(missingExtStderr).toContain('@playwright/test@1.65.0');
+    expect(missingExtStderr).toContain('playwright install chromium');
+    expect(missingExtStderr).not.toContain(path.join('tests', 'acceptance', 't10-sdk', 'probe.mjs'));
+
+    // 2b. 外部安装存在 dist/probe/probe.mjs 时，不传 --probe-entry 默认使用包内探针通过
+    await fs.mkdir(packagedProbeDir, { recursive: true });
+    await fs.writeFile(
+      path.join(packagedProbeDir, 'probe.mjs'),
+      `process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});\n`,
+      'utf8',
+    );
+    const { stdout: okOut } = await execFileAsync(
+      process.execPath,
+      [binPath, 'echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--json'],
+      { cwd: extConsumer, encoding: 'utf8' },
+    );
+    expect(JSON.parse(okOut).ok).toBe(true);
+  });
 });

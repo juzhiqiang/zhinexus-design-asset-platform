@@ -60,6 +60,7 @@ import {
 import {
   applyIntegrityGate,
   candidateResolutionLabel,
+  consumerSourceRecords,
   evidenceName,
   fontDigestSourceLabel,
   mergeBaselineEvidence,
@@ -67,6 +68,8 @@ import {
   parseBaselineOption,
   parseFontDigestOption,
   registryHostOf,
+  resolveProbeLayout,
+  resolveOutputDir,
   runTeardown,
   sanitiseLabel,
   teardown,
@@ -91,7 +94,22 @@ import {
 } from './evidence.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(HERE, '..', '..', '..');
+
+/**
+ * 同一份测试要能在仓库里跑、也要能随 CLI 安装后跑，因此**所有资源位置都从
+ * `resolveProbeLayout()` 推导**，不再写死 `HERE/../../..` 与 `examples/fixtures`。
+ *
+ * 这是 C 实跑出来的缺陷：安装形态下 `HERE/../../..` 指向 node_modules 里面某处，
+ * `examples/fixtures` 根本不存在，`--test-name-pattern fixture` 跑出 0 pass / 2 ENOENT，
+ * 而同一份文件在源码树里是 2 pass——"随包自检"名不副实。
+ */
+const LAYOUT = resolveProbeLayout(HERE);
+/** 只读边界：仓库形态是仓库根，安装形态是整个已安装包。 */
+const REPO_ROOT = LAYOUT.packageRoot;
+/** 双框架模板目录的父目录（`examples/` 或 `resources/examples/`）。 */
+const EXAMPLES_DIR = LAYOUT.examplesDir;
+/** fixtures 目录。 */
+const FIXTURES_DIR = LAYOUT.fixturesDir;
 
 /**
  * C 冻结的 0.0.10 bundle 目录。真实策略测试从这里的 tarball 加载，
@@ -821,7 +839,7 @@ describe('干净消费者必须建在仓库之外', () => {
 
 describe('期望点击载荷与真实 fixture 对齐', () => {
   const readFixture = (component) =>
-    JSON.parse(readFileSync(path.join(REPO_ROOT, 'examples', 'fixtures', `${component}.json`), 'utf8'));
+    JSON.parse(readFileSync(path.join(FIXTURES_DIR, `${component}.json`), 'utf8'));
 
   it('排行榜：期望载荷按降序 + limit 推导，不是输入顺序的第一项', () => {
     const fixture = readFixture('ranking');
@@ -1481,6 +1499,119 @@ describe('registry 主机名解析', () => {
     assert.equal(registryHostOf('http://127.0.0.1:4873'), '127.0.0.1:4873');
   });
 });
+describe('候选来源证据必须带出锁里真实的 integrity', () => {
+  // B 侧要拿 `candidate.consumerSources` 做安装完整性交叉校验。原先每行只有
+  // verified/reason/resolved/version，没有 integrity——B 只能看到"核对过了"，
+  // 看不到核对用的到底是哪个摘要。补齐的取值只能来自
+  // `verifyConsumerCandidateSource()` 读回的那条 package-lock.json 记录。
+  const LOCK_INTEGRITY = 'sha512-lockreal0000000000000000000000000000000000000000000000000000';
+  const REGISTRY_INTEGRITY = 'sha512-registrydeclared000000000000000000000000000000000000000000';
+
+  /** 造一个带真实 package-lock.json 的消费者目录，走**真的**核对函数。 */
+  const makeLockedConsumer = async (t, { lockIntegrity, lockResolved, lockVersion = '6.1.0' }) => {
+    const root = await mkdtemp(path.join(tmpdir(), 'a-t10-lock-'));
+    t.after(() => rm(root, { recursive: true, force: true }));
+    await writeFile(
+      path.join(root, 'package-lock.json'),
+      `${JSON.stringify(
+        {
+          name: 'a-t10-consumer',
+          lockfileVersion: 3,
+          packages: {
+            '': { name: 'a-t10-consumer' },
+            'node_modules/echarts': {
+              version: lockVersion,
+              resolved: lockResolved,
+              integrity: lockIntegrity,
+            },
+          },
+        },
+        null,
+        2,
+      )}\n`,
+    );
+    return root;
+  };
+
+  it('核对通过时，证据行带出的就是锁里那个 integrity', async (t) => {
+    const root = await makeLockedConsumer(t, {
+      lockIntegrity: LOCK_INTEGRITY,
+      lockResolved: 'https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz',
+    });
+    const source = await verifyConsumerCandidateSource(root, {
+      packageName: 'echarts',
+      version: '6.1.0',
+      integrity: LOCK_INTEGRITY,
+      registryHost: 'registry.npmjs.org',
+    });
+    assert.equal(source.verified, true, source.reason);
+
+    const records = consumerSourceRecords([{ framework: 'vue', ...source }]);
+    assert.equal(records.length, 1);
+    assert.equal(records[0].framework, 'vue');
+    assert.equal(records[0].verified, true);
+    assert.equal(records[0].version, '6.1.0');
+    assert.equal(records[0].resolved, 'https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz');
+    // 关键：integrity 来自锁记录，且是真实形状
+    assert.equal(records[0].integrity, LOCK_INTEGRITY);
+    assert.match(records[0].integrity, /^sha512-/);
+  });
+
+  it('锁里的 integrity 与 registry 不一致时，证据行带出锁里的真值并判未通过', async (t) => {
+    const root = await makeLockedConsumer(t, {
+      lockIntegrity: LOCK_INTEGRITY,
+      lockResolved: 'https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz',
+    });
+    // registry 声明的是另一个摘要：消费者装进来的字节与注册表声称的不一致
+    const source = await verifyConsumerCandidateSource(root, {
+      packageName: 'echarts',
+      version: '6.1.0',
+      integrity: REGISTRY_INTEGRITY,
+      registryHost: 'registry.npmjs.org',
+    });
+    assert.equal(source.verified, false);
+    assert.match(source.reason ?? '', /integrity/);
+
+    const records = consumerSourceRecords([{ framework: 'react', ...source }]);
+    // 不得因为"未通过"就改填 registry 的声明值——那会把差异抹掉，
+    // B 侧校验时看到的仍是"一致"，正好是最该被发现的事故被藏起来。
+    assert.equal(records[0].verified, false);
+    assert.equal(records[0].integrity, LOCK_INTEGRITY);
+    assert.notEqual(records[0].integrity, REGISTRY_INTEGRITY);
+  });
+
+  it('核对跳过（没有锁记录）时 integrity 必须是 null，不能用顶层候选值填洞', async (t) => {
+    // 离线 / 候选未经 registry 声明时会走这条分支：没有任何锁记录可引。
+    const records = consumerSourceRecords([
+      { framework: 'vue', verified: false, reason: 'registry 为 offline，无法确定官方源主机，跳过 lock 核对' },
+    ]);
+    assert.equal(records[0].integrity, null);
+    assert.equal(records[0].resolved, null);
+    assert.equal(records[0].version, null);
+    assert.equal(records[0].verified, false);
+    assert.match(records[0].reason, /跳过 lock 核对/);
+  });
+
+  it('证据行字段集合稳定：B 侧按字段名取值，不能随时增减', async (t) => {
+    const root = await makeLockedConsumer(t, {
+      lockIntegrity: LOCK_INTEGRITY,
+      lockResolved: 'https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz',
+    });
+    const source = await verifyConsumerCandidateSource(root, {
+      packageName: 'echarts',
+      version: '6.1.0',
+      integrity: LOCK_INTEGRITY,
+      registryHost: 'registry.npmjs.org',
+    });
+    const [record] = consumerSourceRecords([{ framework: 'vue', ...source }]);
+    assert.deepEqual(
+      Object.keys(record).sort(),
+      ['framework', 'integrity', 'reason', 'resolved', 'verified', 'version'],
+      'consumerSources 行的字段集合必须固定',
+    );
+  });
+});
+
 describe('入口自身健全性', () => {
   it('入口文件与纯逻辑模块都存在且可被 node 解析', async () => {
     for (const name of ['probe.mjs', 'environment.mjs', 'bundle.mjs', 'policy.mjs', 'consumer.mjs', 'browser.mjs', 'evidence.mjs']) {
@@ -1796,8 +1927,10 @@ describe('createConsumer 成功路径', () => {
     try {
       consumer = await createConsumer({
         framework: 'vue',
-        exampleDir: path.join(REPO_ROOT, 'examples', 'vue'),
+        exampleDir: path.join(EXAMPLES_DIR, 'vue'),
         repoRoot: REPO_ROOT,
+        fixturesDir: LAYOUT.fixturesDir,
+        baseTsconfig: LAYOUT.baseTsconfig,
         tarballs,
         echartsVersion: '6.1.0',
         consumerRoot,
@@ -1853,7 +1986,7 @@ describe('createConsumer 成功路径', () => {
       () =>
         createConsumer({
           framework: 'vue',
-          exampleDir: path.join(REPO_ROOT, 'examples', 'vue'),
+          exampleDir: path.join(EXAMPLES_DIR, 'vue'),
           repoRoot: REPO_ROOT,
           tarballs,
           echartsVersion: '6.1.0',
@@ -1892,8 +2025,10 @@ describe('注入的注册表必须自身可类型检查（阻断四）', () => {
     try {
       consumer = await createConsumer({
         framework,
-        exampleDir: path.join(REPO_ROOT, 'examples', framework),
+        exampleDir: path.join(EXAMPLES_DIR, framework),
         repoRoot: REPO_ROOT,
+        fixturesDir: LAYOUT.fixturesDir,
+        baseTsconfig: LAYOUT.baseTsconfig,
         tarballs,
         echartsVersion: '6.1.0',
         consumerRoot,

@@ -7,7 +7,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node scripts/package-probe.mjs && node scripts/package-probe.mjs --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.build.json --watch"
   },
@@ -20,7 +20,11 @@
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
   "bin": {
-    "component": "./dist/index.js"
+    "component": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@playwright/test": "1.65.0",
+    "vite": "8.3.8"
   },
   "devDependencies": {
     "@company/contracts": "workspace:*"

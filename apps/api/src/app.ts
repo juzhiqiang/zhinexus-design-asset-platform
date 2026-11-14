@@ -7,12 +7,13 @@ import { randomUUID } from 'node:crypto';
 import { Platform, environmentOptions, type PlatformOptions } from './platform.js';
 import { ErrorFilter, PlatformController } from './http.js';
 import { CatalogController } from './catalog/routes.js';
+import { CompatibilityController } from './compatibility/controller.js';
 import { MetricsController } from './observability/http.js';
 import type { ServerResponse } from 'node:http';
 
 export async function buildServer(options: PlatformOptions = environmentOptions()): Promise<INestApplication> {
   const platform = new Platform(options);
-  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, MetricsController], providers: [{ provide: Platform, useValue: platform }] })
+  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController], providers: [{ provide: Platform, useValue: platform }] })
   class ConfiguredModule {}
   try {
     const app = await NestFactory.create<NestExpressApplication>(ConfiguredModule, { logger: false, abortOnError: false, bodyParser: false });
