@@ -96,3 +96,42 @@
 - 但是恢复后的类型复检失败：`src/a-t10-echarts-registry.ts:9` 把 `document.querySelector()` 返回的 `Element` 传入要求 `HTMLElement` 的 `getInstanceByDom`，Vue 报 TS2345、React 报 TS2740。此文件由 `browser.mjs` 注入，而初轮类型检查先于注入，所以先前类型结果没有覆盖它。**回退脚本 exit 1，证据 `passed: false`，不得记回退完成。**
 - 原失败证据和清单/锁副本保留；两个自有临时消费者已按 ownership 安全清理。已派 A 仅修生成 helper 的宿主类型、补生成后真实类型回归并提供新固定交付，随后 C 必须用新首轮的原消费者再演练，不能用新建恢复消费者替代。Task 3 与本轮 main 合并仍未完成。
 - 本轮只读审查对 `bfa34f3` 未发现 Critical / Important，11 项新 A 回归与 21 项 C 回归独立通过。该短测不代替真实回退；新发现阻断按上条返修。平台隔离代码相对本轮 main 未变，先前独立 88/88 验证仍保留，不从短测推断外部 G2 已完成。
+
+## A 第五版固定交付与 C 编译器回归收口
+
+- A 固定头 `c42dcc7c4324c79f34a0829710c5f700f6c3a8cf`，交接 bundle SHA-256 `faf5287b390f71ba568380e1f745695a5530223ddb432b1b0a8c10249163cce7`。摘要、`git bundle verify` 和 Windows 干净工作树快进导入均通过；C 以 `3d0dcf1` 合入。生成注册表先检查 `element instanceof HTMLElement` 再调用 ECharts，避免用类型断言掩盖实际宿主类型。
+- Windows 独立 `node --test tests/acceptance/t10-sdk/probe.test.mjs`：117/117、0 fail、0 skip、35.29s、exit 0；日志 `.tools/a-t10-r5-windows-unit-2026-11-14.log`。新增回归覆盖注入后的辅助文件，不再只检查注入前消费者。
+- C 进一步发现新增测试 helper 无条件使用 `vue-tsc`，React 消费者并未声明该工具，`npm exec` 可能隐式下载。已从 Claude UI 通知 A 冻结固定头并由 C 临时接管该测试文件。先加入本地声明/安装版本/编译器入口校验，实测 RED：`react: 编译器 vue-tsc 必须由消费者精确声明`；随后按框架选择本地 `vue-tsc` / `typescript` 的 `tsc`，直接用当前 Node 执行本地 bin，禁止隐式 npx 安装。
+- `scripts/pnpm.ps1 test:t10`：138/138、0 fail、0 skip、18.17s、exit 0；`git diff --check` exit 0。RED/GREEN 日志分别为 `.tools/c-registry-compiler-red-2026-11-14.log` 与 `.tools/c-registry-compiler-green-2026-11-14.log`。纯测试修正不单独升版。
+- 最终集成树 `scripts/pnpm.ps1 test` 完整执行服务构建、Node 138/138（0 fail、0 skip、21.18s）及 Vitest 42 文件 719/719（184.45s），exit 0；日志 `.tools/c-r5-final-root-test-2026-11-14.log`。仍有既有 Windows 子进程 `DEP0190` 警告，未宣称零告警。
+
+## 最终固定源码 Windows 真实复验（r5）
+
+以下结果均在 A 第五版和 C 编译器测试修正后的集成树上执行。仍使用原冻结 SDK 0.0.10，不修改 peer、不重新 pack、不写线上兼容记录；仅验收进程设置官方 npm 下载源。
+
+| 实际命令/场景 | 结果与独立证据 |
+| --- | --- |
+| 6.1.0 首轮：`component echarts verify --bundle <冻结目录> --version 6.1.0 --consumer-root <本次随机独占目录> --keep --out test-results/t10-sdk-probes/windows-r5-initial --label windows-r5-initial --json` | CLI exit 1 / `PROBE_HOLD`；两框架各 28 组合，类型/构建/SSR/生命周期/运行/交互通过，候选来源均 verified，视觉 not-run。`audit-t10-evidence.mjs <首轮报告> hold 56` exit 0；两框架 contact sheet 已实际查看。 |
+| 6.1.0 全新消费者：显式 `--baseline <r5 首轮报告> --out test-results/t10-sdk-probes/windows-r5-visual --label windows-r5-visual` | CLI exit 0 / `adopt`，uncovered 空、四维全过、56/56 视觉 PASS。独立 `audit-t10-evidence.mjs <复验报告> adopt 56` exit 0，重算 56 个环境键及截图 SHA；复验消费者自动清理。 |
+| 6.0.0 默认 strict 与显式 `--peer strict-only` | 两次真实安装均 npm ERESOLVE / `PROBE_PEER_REJECTED`；CLI `PROBE_FAILED`，CLI 与 probe 均 exit 1，没有自动放宽。日志 `.tools/c-cli-r5-600-default-2026-11-14.*` 与 `strict-only`。 |
+| 6.0.0 显式 `--peer legacy --baseline <r5 首轮报告>` | 完整双框架 56 组合；构建/SSR/生命周期/运行/交互与视觉均通过，但两框架 Bundler/NodeNext 类型失败，peer 不符，CLI exit 1 / `PROBE_HOLD`。独立审计重算 56 个环境键、字体与截图 SHA，确认 typecheck failed / 其余三维 passed、supportedRangeUnchanged true；摘要 `.tools/c-t10-r5-legacy-independent-audit-2026-11-14.json`，报告 `windows-r5-600-legacy/`。不扩大支持范围。 |
+| `node scripts/verify-t10-rollback.mjs <r5 首轮报告> test-results/t10-sdk-probes/windows-r5-original-pair-rollback .tools/c-t10-r5-owned-root.json` | 使用首轮保留的原双消费者，6.1.0 → 6.0.0 legacy 安装/构建 → 恢复原 manifest/lock 字节 → 严格 `npm ci` 回 6.1.0。两消费者 SDK 实际版本 0.0.10，4 组类型检查、构建与无 DOM 的 SSR 导入全通过，manifest/lock SHA 完全恢复，errors 空、cleaned true、`passed: true`，脚本 exit 0。日志 `.tools/c-r5-original-pair-rollback-2026-11-14.log`。 |
+
+回退使用的 ownership run ID 为 `6d49c39cb6f8354b86e6ff768cdad16f`。只在完整校验双 marker、真实路径、双 staging 集合及无额外条目后清理这两个消费者；原始失败记录没有被覆盖，不能把最终成功倒填为旧回退已通过。
+
+最终审计 `.tools/c-r5-final-invariants-2026-11-14.json`：冻结 199 文件 / 14 实现，大小和 SHA 差异 0；原架构 SHA 仍为 `E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723`；锁文件 SHA 仍为 `8001977F7DC87FE10E5683B4156B9BCF716EA90F865B6904DF857A3B687BC9D7`。A 工作树干净，B 四项原有空白差异保留，未推送。
+
+## 最终应用构建与浏览器检查的覆盖范围
+
+- 在 `3480f31` 实际执行 `install --frozen-lockfile`、`verify:workspace`，均 exit 0，锁文件未变。`exec turbo run build typecheck --cache=local:w` 为 20/20、0 cached、14.086s，根 `tsc --noEmit` exit 0。日志 `.tools/c-merge-ready-install-2026-11-14.log`、`c-merge-ready-workspace-2026-11-14.log`、`c-merge-ready-build-type-2026-11-14.log`、`c-merge-ready-root-tsc-2026-11-14.log`。
+- 同一阶段完成 `scripts/pnpm.ps1 test:browser`：195/195、1.3m、exit 0，含 6 项真实三存储网页发布/断网恢复；自有设施已 teardown，5173–5176 无监听。日志 `.tools/c-merge-ready-browser-2026-11-14.log`。最初一条无效 Turbo cache flags 及一条 PowerShell 参数绑定失败均保留诊断，改正后实际执行的结果才计为通过。
+- 后续 A 第五版只改探针 `.mjs`、其回归和独立记录；C 仅收口测试 helper，应用与包构建源、浏览器套件被测源码未变。195 项结果按这一精确范围沿用；探针运行时改变则已由上述 r5 全新消费者矩阵及原 pair 回退重新实测，不以应用浏览器测试替代。
+
+## 工程裁决与代价
+
+1. 平台专项使用 Vitest globalSetup 内存 provide/inject；无设施即失败，不回退共享凭据。代价：环境不适配时须修专项设施，不能借共享栈绕过。
+2. 镜像登记先写完整同盘临时文件再以无覆盖硬链接发布，避免 `wx` 暴露半文件。代价：要求文件系统支持该原子发布方式；不支持应明确失败。
+3. 独立 `test:t10` 先构建 contracts，使用包 exports。代价：根 test 重复一次轻量构建。
+4. 只对验收进程统一官方 npm 下载源，保留来源不一致拒绝，不改全局。代价：每次复现需显式环境配置。
+5. C 临时接管 A 新测试 helper，按消费者精确声明的本地编译器检查。代价：新增安装后版本/入口校验，失配会明确失败。
+6. 平台 88/88 与应用浏览器 195/195 按未变源码的覆盖范围沿用，最终探针矩阵和真实回退由 C 重跑。代价：这些结果不能外推为公司 OIDC、生产域/TLS 或业务试点已完成。

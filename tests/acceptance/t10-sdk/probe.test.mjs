@@ -1921,8 +1921,18 @@ describe('注入的注册表必须自身可类型检查（阻断四）', () => {
     };
     const configName = `tsconfig.probe-registry-${resolution}.json`;
     await writeFile(path.join(consumer.root, configName), `${JSON.stringify(config, null, 2)}\n`);
-    return npm(
-      ['exec', '--', 'vue-tsc', '--noEmit', '-p', configName],
+    const tool = consumer.framework === 'vue' ? 'vue-tsc' : 'tsc';
+    const compilerPackage = tool === 'vue-tsc' ? 'vue-tsc' : 'typescript';
+    const manifest = JSON.parse(await readFile(path.join(consumer.root, 'package.json'), 'utf8'));
+    assert.ok(manifest.devDependencies?.[compilerPackage], `${consumer.framework}: 编译器 ${compilerPackage} 必须由消费者精确声明`);
+    const compilerRoot = path.join(consumer.root, 'node_modules', compilerPackage);
+    const compilerManifest = JSON.parse(await readFile(path.join(compilerRoot, 'package.json'), 'utf8'));
+    assert.equal(compilerManifest.version, manifest.devDependencies[compilerPackage]);
+    const entry = path.resolve(compilerRoot, compilerManifest.bin[tool]);
+    assert.ok(existsSync(entry), `${consumer.framework}: 必须使用本地编译器，禁止 npx 隐式安装`);
+    return run(
+      process.execPath,
+      [entry, '--noEmit', '-p', configName],
       consumer.root,
       { production: true },
     );
