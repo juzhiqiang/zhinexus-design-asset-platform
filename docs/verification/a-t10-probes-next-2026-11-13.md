@@ -15,7 +15,7 @@
 | `tests/acceptance/t10-sdk/consumer.mjs` | 工作区外干净消费者的创建、清单改写、类型/构建/SSR |
 | `tests/acceptance/t10-sdk/browser.mjs` | 固定环境浏览器探针（运行/交互/生命周期/视觉） |
 | `tests/acceptance/t10-sdk/evidence.mjs` | 四维结论装配与未覆盖项收集（纯逻辑） |
-| `tests/acceptance/t10-sdk/probe.test.mjs` | 51 例 `node:test` 单测，先红后绿 |
+| `tests/acceptance/t10-sdk/probe.test.mjs` | 104 例 `node:test` 单测，先红后绿 |
 
 **边界（与 `AGENTS.md` 一致，逐条可查）：**
 
@@ -255,7 +255,8 @@ React 侧同构：`tsc/Bundler` 0、`tsc/NodeNext` 0、build 0、SSR 0（`window
 
 安装一律 `strict` peer 模式一次通过（`added 57 packages in 3s`），**没有走到 `--legacy-peer-deps` 路径**。因此 `consumer.installs` 里只有一条 `strict` 记录，`peerMode` 为 `strict`。
 
-单测：`node --test tests/acceptance/t10-sdk/probe.test.mjs` → **51 例全过**（8 个 suite）。
+单测：`node --test tests/acceptance/t10-sdk/probe.test.mjs` → **104 例：97 过 / 0 败 / 7 skip**（14 个 suite）。
+跳过的 7 例原因写明：6 例需 `A10_FROZEN_BUNDLE` 指向真实冻结 bundle（不写死任何机器的绝对路径，C 配置后全跑），1 例因沙箱临时分区空间不足无法完成真实安装（可用 `A10_CONSUMER_ROOT` 指向充足磁盘后重跑）。
 
 ### 6.5 本轮修掉的七个探针自身缺陷（都不是 SDK 缺陷）
 
@@ -271,6 +272,52 @@ React 侧同构：`tsc/Bundler` 0、`tsc/NodeNext` 0、build 0、SSR 0（`window
 5. **临时目录只在成功路径清理**。策略解包目录与消费者暂存根都是探针自建的，一次中途失败（例如没装 `@playwright/test`）就在临时目录留一份；沙箱小分区被填满后每次运行都 `ENOSPC`。改为收尾任务栈，成功失败都跑，单个任务失败不中断其余。同时策略解包目录改随 `--consumer-root`（沙箱里 `os.tmpdir()` 可能只剩几百 MB）。
 6. **证据里记录的 `command` 少了 `probe.mjs`**。原先用目录名拼复现命令，现在用真实 `process.argv[1]`。
 7. **缺 `@playwright/test` 时的报错不可操作**。现在是明确的 `PROBE_DEPENDENCY`，提示先 `pnpm install` 或显式 `--skip-browser`——「没装依赖」与「主动跳过」必须分得清。
+
+## 六之五、2026-11-14 C 在 Windows 实跑后修掉的十二处（全部先红后绿）
+
+C 用真实 Windows Playwright 对草稿做只读 smoke 与 104 例单测，逐条定位后修复。**全部是探针自身缺陷，不是 SDK 缺陷**；每条都有对应 RED 用例。
+
+| # | 缺陷 | 后果 | 修法 |
+| --- | --- | --- | --- |
+| 1 | 合成 bundle 用 `execFileSync('cat'/'tar')` 拼外部工具链 | Windows 上 ENOENT，单测第一处就挂 | 纯 Node 写 ustar + gzip，不依赖任何外部可执行文件 |
+| 2 | `browserRevision` 硬编码 `'1000'`（契约示例占位值） | environmentKey 声称的环境与真实跑的不是同一个 | 沿 `@playwright/test` → `playwright` → `playwright-core` 依赖链解析 `browsers.json`，读不到就抛错 |
+| 3 | 字体摘要用写死常量，从未测量本机字体 | 没装中文字体的机器与装了的机器得到同一个 key，视觉静默判 PASS | 浏览器里测 `document.fonts.check` + canvas 前进宽度 + 已加载 Web 字体 + 宿主真实字体栈；新增 `--font-digest` 供操作者覆盖 |
+| 4 | `measureFontFingerprint` 的 `page.evaluate` 回调引用 Node 作用域常量 | 浏览器执行时报 `ReferenceError` | 页面函数源码作为**参数**传入，回调体只引用自己的参数 |
+| 5 | `mergeBaselineEvidence` 按框架去重 | 同一框架其他展示的基线被整份丢掉，误报成「没基线」 | 按 (框架, 组件, 展示组合) 去重；冲突记入 `conflicts` 并 fail-closed |
+| 6 | 基线冲突只打日志、保留第一份 | 比对仍可能判 PASS，等于用来路不明的基线宣布通过 | 有冲突即 `INCOMPATIBLE`，任何组合都不判过 |
+| 7 | `summariseDimensions` 缺 SSR / 生命周期 / 浏览器证据仍可 `runtime: passed` | 只跑 build 的证据显示全绿 | 缺任一证据即 `not-run` 并记失败原因 |
+| 8 | registry 不可达或候选被拒只写 uncovered，`recommend` 仍可 `adopt` | 「没核对过字节来源就宣布采用」 | integrity 闸门：未核对一律 `hold`；且改为核对**每个消费者 package-lock.json** 的版本 / integrity / https 来源主机 |
+| 9 | 未覆盖项硬编码「只在隔离 Linux 工具链上跑过」 | C 在 Windows 跑完，报告里仍写着 Linux | 按 `process.platform` 事实生成 |
+| 10 | `consumer.frameworkVersion` 取 `supported` 声明值 | 「声称的版本」冒充「实测的版本」 | 取消费者 `node_modules` 里真实解析到的版本，对不上就拒绝出该框架报告 |
+| 11 | `spawnSync` 在 Windows 统一 `shell: true` | 带空格路径被拆开，`Cannot find module C:\t10` | 一律 `shell: false`；npm 走 `npmInvocation` 的 node + npm-cli.js，不直接调 `npm.cmd` |
+| 12 | 默认 `peer=strict` 被拒后自动 `--legacy-peer-deps` | 「默认就绕过 peer」，绕过后的测量被读成兼容 | 只有显式 `--peer legacy` 才允许放宽；`strict` / `strict-only` 一律拒绝 |
+
+另修两处**成功路径必崩**：`rewritten` 在 try 内用 `const` 声明而 try 外要读（ReferenceError，崩在证据出具之前），以及 `new URL(options.registry).host` 在 `--registry offline` 时抛 `Invalid URL`。后者改为诚实 hold 并记原因。
+
+### 6.5.1 与 B 的接口约定（uncovered / scopeNotes 分离）
+
+B 的 `verify` 把 `uncovered` 当**本地必需检查门禁**。因此证据里两个数组严格分工：
+
+- `uncovered`：本地**本该跑而没跑**的项（类型 / 运行 / 交互 / 视觉、候选来源未核对、跨平台未复验）。任一条未清，结论保持 `hold`。
+- `scopeNotes`：与本地能力无关的**范围声明**（peer 范围未改动、三存储不在本地范围、字体摘要由操作者指定、使用 `--peer legacy` 仅为测量）。仅供阅读，不参与门禁。
+
+本机跑齐全部本地检查时结论可以是 `adopt`；跨平台与无基线的诚实性由 `scopeNotes` 与视觉维度的 `not-run` 承载，不靠门禁硬压。
+
+### 6.5.2 可审核的环境证据
+
+截图证据同时留下**完整环境原始投影**、**被哈希的规范化 JSON**、**字体度量原始依据与被哈希的字体规范化串**：
+
+```
+environmentAudit: {
+  projection:   { os, arch, browserVersion, browserRevision, fontDigest, locale, timezone,
+                  deviceScaleFactor, renderer, width, height, theme },
+  canonical:    "{\"arch\":\"x64\",...}",     // SHA-256 这一串即 environmentKey
+  fontDigest:   "154d9215f759c969…",
+  fontFingerprint: { stack, families[{family,available,advances[]}], loadedFonts[], fontDigest, canonical }
+}
+```
+
+只存 64 位 key 无法审核新指纹；有了 `canonical`，审核方重算就是一次 SHA-256。
 
 ## 七、未覆盖项（诚实清单，均标 `pending`）
 
