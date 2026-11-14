@@ -25,8 +25,8 @@ export async function runCli(
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
   component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]
-  component echarts check --bundle <dir> [--echarts <x.y.z>] [--registry <url|offline>] [--json]
-  component echarts verify --bundle <dir> [--echarts <x.y.z>] [--frameworks <vue,react>] [--components <list>] [--presentations <list>] [--registry <url|offline>] [--peer <strict|legacy|strict-only>] [--baseline <files>] [--out <dir>] [--label <name>] [--probe-entry <path>] [--json]
+  component echarts check --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--registry <url|offline>] [--json]
+  component echarts verify --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--frameworks <vue,react>] [--components <list>] [--presentations <list>] [--registry <url|offline>] [--peer <strict|legacy|strict-only>] [--baseline <files>] [--out <dir>] [--label <name>] [--probe-entry <path>] [--json]
   component --version
   component --help
 
@@ -414,6 +414,8 @@ export async function runCli(
 
     let bundleDir = '';
     let echartsVersion: string | undefined;
+    let candidateVersion: string | undefined;
+    let latest = false;
     let frameworks: string | undefined;
     let components: string | undefined;
     let presentations: string | undefined;
@@ -435,6 +437,10 @@ export async function runCli(
         bundleDir = subRest[++i] ?? '';
       } else if (arg === '--echarts') {
         echartsVersion = subRest[++i];
+      } else if (arg === '--version') {
+        candidateVersion = subRest[++i];
+      } else if (arg === '--latest') {
+        latest = true;
       } else if (arg === '--frameworks') {
         frameworks = subRest[++i];
       } else if (arg === '--components') {
@@ -474,7 +480,7 @@ export async function runCli(
     }
 
     if (subcommand === 'check') {
-      const result = await checkEchartsBundle({ bundleDir, echartsVersion, registry });
+      const result = await checkEchartsBundle({ bundleDir, echartsVersion, version: candidateVersion, latest, registry });
       if (!result.ok) {
         return {
           exitCode: 1,
@@ -488,6 +494,12 @@ export async function runCli(
       let stdout = `✔ ECharts 兼容查询通过！\n`;
       stdout += `  - 冻结 Bundle 版本: ${result.bundleVersion}\n`;
       stdout += `  - 基线 / 候选 ECharts: ${result.baselineEchartsVersion} / ${result.candidateEchartsVersion}\n`;
+      if (result.candidateIntegrity) {
+        stdout += `  - 候选 Integrity: ${result.candidateIntegrity}\n`;
+      }
+      if (result.registryProxyNote) {
+        stdout += `  - Registry 说明: ${result.registryProxyNote}\n`;
+      }
       stdout += `  - 双框架覆盖: ${result.hasDualFrameworkCoverage} (supported=${result.supported?.length ?? 0})\n`;
       return { exitCode: 0, stdout, stderr: '' };
     }
@@ -495,6 +507,8 @@ export async function runCli(
     const verifyResult = await verifyEchartsCandidate({
       bundleDir,
       echartsVersion,
+      version: candidateVersion,
+      latest,
       frameworks,
       components,
       presentations,
