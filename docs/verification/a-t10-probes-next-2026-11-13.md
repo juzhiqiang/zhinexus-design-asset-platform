@@ -20,7 +20,7 @@
 | `tests/acceptance/t10-sdk/consumer.mjs` | 工作区外干净消费者的创建、清单改写、类型/构建/SSR |
 | `tests/acceptance/t10-sdk/browser.mjs` | 固定环境浏览器探针（运行/交互/生命周期/视觉） |
 | `tests/acceptance/t10-sdk/evidence.mjs` | 四维结论装配与未覆盖项收集（纯逻辑） |
-| `tests/acceptance/t10-sdk/probe.test.mjs` | 115 例 `node:test` 单测，先红后绿 |
+| `tests/acceptance/t10-sdk/probe.test.mjs` | 117 例 `node:test` 单测，先红后绿 |
 
 **边界（与 `AGENTS.md` 一致，逐条可查）：**
 
@@ -411,6 +411,44 @@ environmentAudit: {
 严格 peer 安装被拒时抛出的 `PROBE_PEER_REJECTED` **不带 npm 原始输出**，只给一句结论，
 分不清是 peer、是 registry 还是磁盘。现在把 `classifyInstallFailure` 的 `detail` 一并附上。
 
+## 六之七、2026-11-14 双消费者锁文件回退里发现的第四个阻断
+
+C 在 6.0 → 6.1 回退复检时定位：原 `manifest` / 锁文件字节与 SHA-256 都恢复成 6.1.0 了，
+复检类型却失败——探针注入生成的 `src/a-t10-echarts-registry.ts:9` 把
+`document.querySelector(hostSelector)` 返回的 `Element` 直接喂给 `getInstanceByDom`，
+而 echarts 6.1.0 的声明是 `getInstanceByDom(dom: HTMLElement)`。
+Vue 报 TS2345、React 报 TS2740（同一处赋值错误，含 JSX 的程序里错误码不同）。
+
+**根因不是选择器写错，是这段代码从来不进任何一次类型检查**：`runTypechecks` 跑在
+`injectEchartsRegistry` **之前**，注入之后只跑 `runBuild`（vite 不做类型检查），
+于是生成物里的类型错误一路漏到回退复检才炸。
+
+| 修法 | 说明 |
+| --- | --- |
+| 宿主经 `instanceof HTMLElement` **真实收窄** | 不用 `querySelector<HTMLElement>` 泛型断言：选择器万一命中非 HTMLElement（例如 svg），泛型只会把类型说错，`instanceof` 在类型和运行时两侧都成立 |
+| 生成器提成纯函数 `echartsRegistrySource()` | 原先内联在 `injectEchartsRegistry` 里，回归测试无法单独取到生成物；提出来后测试才能对**生成物本身**跑真实 `tsc` |
+| 新增回归：真实生成 → 真实 `vue-tsc` / `tsc`，两框架 × 两解析口径 | `include` 只含 `src/a-t10-echarts-registry.ts`，正是真实探针从不 include 的那个文件。四个结果先全部收集再断言，任一组失败都能在一条信息里看全 |
+
+### 6.7.1 RED / GREEN 实录
+
+把生成器改回旧的那一行（`const host = document.querySelector(hostSelector);`）后，
+四组全部失败：
+
+```
+[vue/Bundler]     src/a-t10-echarts-registry.ts(9,44): error TS2345:
+                  Argument of type 'Element' is not assignable to parameter of type 'HTMLElement'.
+[vue/NodeNext]    同上
+[react/Bundler]   同上
+[react/NodeNext]  同上
+```
+
+修复后四组全过。隔离生成物上两个工具链都报 TS2345（生成物无 JSX）；
+C 在 React 全程序里看到的 TS2740 是同一处赋值在含 JSX 的程序里的错误码，
+修的是赋值本身，因此两个码一并解决——React 侧由 C 在 Windows 复跑确认。
+
+**未改探针主管线**（没有把类型检查挪到注入之后）：那属于功能变更，超出本轮范围。
+盲区由回归测试补上，而非改变运行顺序。
+
 ## 七、未覆盖项（诚实清单，均标 `pending`）
 
 以下全部**未跑**，不构成任何通过结论：
@@ -420,7 +458,8 @@ environmentAudit: {
 | Windows 原生验收 | `pending` | 本轮只在隔离 Linux 工具链上跑过。**不把 Linux 证据宣称 Windows 验证。** C 在 Windows 上按第二节命令原样重跑即可。第二轮修掉三个阻断后**尚未在 Windows 复跑**，首轮失败证据由 C 保留 |
 | `compatibility_records` 落库 | `pending` | 真实三存储（Verdaccio / PostgreSQL / MinIO）与 OIDC 不在本机可用范围。契约与落库归 C |
 | 候选差异（非 6.1.0） | `pending` | 需要新候选只能新目录新批次，诚实区分。已知上一轮 `echarts@6.0.0` 的安装层结论是 `ERESOLVE` 直接失败，本轮未重跑 |
-| 回退用例 | `pending` | 同上，需新批次 |
+| 回退用例 | `pending` | 同上，需新批次。6.0 → 6.1 的字节/摘要恢复已由 C 验证，本轮只补了回退复检里的类型检查 |
+| React 侧 TS2740 复跑确认 | `pending` | Linux 隔离生成物上两个工具链都报 TS2345；React 的 TS2740 需 C 在 Windows 真实 React 消费者上确认 |
 | peer 范围改动 | **不做** | 探针只出具报告，不修改任何 `package.json` 的 `peerDependencies`。扩大或缩减范围必须是人在审阅实测报告后的显式动作 |
 | 根 `package.json` 脚本接线 | `pending` | 见第八节，需 C 收口 |
 

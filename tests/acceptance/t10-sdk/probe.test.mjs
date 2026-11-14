@@ -76,7 +76,9 @@ import {
   FONT_MEASUREMENT_SOURCE,
   baselineScreenshots,
   compareWithBaseline,
+  echartsRegistrySource,
   environmentAuditFor,
+  injectEchartsRegistry,
   readBrowserRevision,
   resolveEffectiveFontDigest,
   summariseRuntime,
@@ -1865,5 +1867,104 @@ describe('createConsumer 成功路径', () => {
 
   it('removeConsumer 拒绝删非探针创建的目录', async () => {
     await assert.rejects(() => removeConsumer({ staging: '/tmp' }), /拒绝删除非探针创建的目录/);
+  });
+});
+
+// C 在双消费者锁文件回退里发现的第四个阻断：字节与摘要都恢复成 6.1.0 了，复检类型却失败——
+// 注入生成的 src/a-t10-echarts-registry.ts:9 把 querySelector 返回的 Element 直接喂给
+// getInstanceByDom（它要 HTMLElement），Vue TS2345 / React TS2740。
+// 根因是 runTypechecks 跑在 injectEchartsRegistry **之前**，生成物从来不进任何一次类型检查。
+// 这一组补上那个盲区：真实生成 → 真实 tsc，两种解析口径各跑一遍。
+describe('注入的注册表必须自身可类型检查（阻断四）', () => {
+  /** 建一个真消费者（合成 bundle + echarts 6.1.0 + typescript），返回其描述。 */
+  const buildConsumer = async (t, framework) => {
+    const bundleRoot = await mkdtemp(path.join(tmpdir(), 'a-t10-regbundle-'));
+    t.after(() => rm(bundleRoot, { recursive: true, force: true }));
+    await makeSyntheticBundle(bundleRoot);
+    const bundle = await readFrozenBundle(bundleRoot);
+    const tarballs = Object.fromEntries(bundle.packages.map((entry) => [entry.name, entry.tarballFile]));
+    const consumerRoot = process.env.A10_CONSUMER_ROOT
+      ? path.resolve(process.env.A10_CONSUMER_ROOT, `a-t10-reg-root-${Date.now()}`)
+      : await mkdtemp(path.join(tmpdir(), 'a-t10-reg-root-'));
+    await mkdir(consumerRoot, { recursive: true });
+    t.after(() => rm(consumerRoot, { recursive: true, force: true }));
+    let consumer;
+    try {
+      consumer = await createConsumer({
+        framework,
+        exampleDir: path.join(REPO_ROOT, 'examples', framework),
+        repoRoot: REPO_ROOT,
+        tarballs,
+        echartsVersion: '6.1.0',
+        consumerRoot,
+      });
+    } catch (error) {
+      if (/ENOSPC|no space left/i.test(String(error?.message ?? error))) {
+        return t.skip(
+          `临时分区空间不足，无法完成真实安装：${String(error.message).slice(0, 120)}。` +
+            '可用 A10_CONSUMER_ROOT 指向空间充足的磁盘后重跑。',
+        );
+      }
+      throw error;
+    }
+    t.after(() => removeConsumer(consumer).catch(() => {}));
+    return consumer;
+  };
+
+  /** 只对生成物本身跑一次 tsc；返回 {status, output}。 */
+  const typecheckRegistry = async (consumer, base, resolution) => {
+    const config = {
+      ...buildProbeTsconfig(base, resolution),
+      // 关键：include 只含生成物。真实探针里这个文件从不被 include，
+      // 所以它里的类型错误一路漏到复检阶段才炸。
+      include: ['src/a-t10-echarts-registry.ts'],
+    };
+    const configName = `tsconfig.probe-registry-${resolution}.json`;
+    await writeFile(path.join(consumer.root, configName), `${JSON.stringify(config, null, 2)}\n`);
+    return npm(
+      ['exec', '--', 'vue-tsc', '--noEmit', '-p', configName],
+      consumer.root,
+      { production: true },
+    );
+  };
+
+  it('真实生成后，两个框架 × 两种解析口径都能通过类型检查', async (t) => {
+    // C 报的是 Vue TS2345 与 React TS2740：同一处赋值错误，两个工具链给的错误码不同。
+    // 生成物本身与框架无关（纯 TS、无 JSX、无 SFC），但两个消费者的 tsc 二进制
+    // （vue-tsc / tsc）与 tsconfig 底子不同，因此两边都要真跑一遍才算守住。
+    // 先把四个结果都收集齐再断言：谁失败都能在一条信息里看到，不会第一个断言就中断。
+    const failures = [];
+    for (const framework of ['vue', 'react']) {
+      const consumer = await buildConsumer(t, framework);
+      if (consumer === undefined) return;
+      // 走真实注入函数，不是手抄一份源码
+      await injectEchartsRegistry(consumer.root, [framework === 'vue' ? 'main.ts' : 'main.tsx']);
+      const registryFile = path.join(consumer.root, 'src', 'a-t10-echarts-registry.ts');
+      assert.equal(existsSync(registryFile), true, `${framework}: 注册表必须已生成`);
+      const base = JSON.parse(await readFile(path.join(consumer.root, 'tsconfig.json'), 'utf8'));
+      for (const resolution of ['Bundler', 'NodeNext']) {
+        const result = await typecheckRegistry(consumer, base, resolution);
+        if (result.status !== 0) {
+          failures.push(`[${framework}/${resolution}]\n${result.output}`);
+        }
+      }
+    }
+    assert.equal(failures.length, 0, `生成物类型检查失败：\n${failures.join('\n---\n')}`);
+  }, 300_000);
+
+  it('宿主必须是 HTMLElement 才能喂给 getInstanceByDom（反例）', () => {
+    const source = echartsRegistrySource();
+    // 反例的核心：不能把 Element 直接传给只要 HTMLElement 的 API
+    assert.equal(/getInstanceByDom\(host\)/.test(source), true);
+    assert.match(
+      source,
+      /const host = element instanceof HTMLElement \? element : null;/,
+      '宿主必须经 instanceof 真实收窄，而不是泛型断言',
+    );
+    // 生成物里不得再出现"裸 querySelector 的结果直接进 getInstanceByDom"
+    assert.equal(
+      /const host = document\.querySelector\(hostSelector\);\s*\n\s*const instance = host \? getInstanceByDom\(host\)/.test(source),
+      false,
+    );
   });
 });

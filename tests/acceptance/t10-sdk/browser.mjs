@@ -217,20 +217,15 @@ export function pngSize(bytes) {
 }
 
 /**
- * 给消费者副本注入 ECharts 实例注册表与可点击点搜索。
+ * 注入到消费者副本的注册表源码。
  *
- * 作用有两件，都是「让页面内的真实几何成为判据」：
- * 1. `getInstanceByDom`：让「卸载后实例是否被 dispose」成为可观测断言，而不是只能看到
- *    DOM 节点被移除；
- * 2. `findDataPoint`：多系列柱状图 / 横向条形图的**类目轴中心落在图形之间的空隙里**，
- *    直接点 `convertToPixel` 得到的中心点会落空。这里在理想坐标附近按网格搜索第一个
- *    真正被目标数据元素（`__dataIndex` 对上）覆盖的点，等价于「用户会点到的位置」。
- *
- * 注入的是探针自己的模块与一行 import，改的是工作区外的消费者副本，
- * 不动冻结 tarball、不动仓库里的示例源码。
+ * 单独提成纯函数：这段 TS 是探针**生成**的，而 `runTypechecks` 跑在注入之前，
+ * 生成物从来不进任何一次类型检查——C 在锁文件回退复检时踩到的正是这个盲区
+ * （`getInstanceByDom` 要 `HTMLElement`，`querySelector` 给的是 `Element`，
+ * Vue TS2345 / React TS2740）。提出来后，回归测试才能对生成物本身做真实类型检查。
  */
-export async function injectEchartsRegistry(consumerRoot, mainEntries) {
-  const registry = [
+export function echartsRegistrySource() {
+  return [
     `import { getInstanceByDom } from 'echarts/core.js';`,
     ``,
     `type Point = { x: number; y: number };`,
@@ -238,7 +233,12 @@ export async function injectEchartsRegistry(consumerRoot, mainEntries) {
     ``,
     `function findDataPoint(hostSelector: string, seriesIndex: number, dataIndex: number, ideal: Point): Point | null {`,
     `  void seriesIndex;`,
-    `  const host = document.querySelector(hostSelector);`,
+    // getInstanceByDom 的形参是 HTMLElement，而 document.querySelector 的返回类型是
+    // Element | null。直接传就是 TS2345 / TS2740。用 instanceof 做**真实收窄**而不是
+    // 泛型断言：选择器万一命中非 HTMLElement（例如 svg），泛型会把类型说错，
+    // instanceof 则在运行时也一并挡掉。
+    `  const element = document.querySelector(hostSelector);`,
+    `  const host = element instanceof HTMLElement ? element : null;`,
     `  const instance = host ? getInstanceByDom(host) : null;`,
     `  if (!host || !instance) return null;`,
     `  const rect = host.getBoundingClientRect();`,
@@ -266,6 +266,23 @@ export async function injectEchartsRegistry(consumerRoot, mainEntries) {
     `window.__A10_ECHARTS__ = { getInstanceByDom, findDataPoint };`,
     ``,
   ].join('\n');
+}
+
+/**
+ * 给消费者副本注入 ECharts 实例注册表与可点击点搜索。
+ *
+ * 作用有两件，都是「让页面内的真实几何成为判据」：
+ * 1. `getInstanceByDom`：让「卸载后实例是否被 dispose」成为可观测断言，而不是只能看到
+ *    DOM 节点被移除；
+ * 2. `findDataPoint`：多系列柱状图 / 横向条形图的**类目轴中心落在图形之间的空隙里**，
+ *    直接点 `convertToPixel` 得到的中心点会落空。这里在理想坐标附近按网格搜索第一个
+ *    真正被目标数据元素（`__dataIndex` 对上）覆盖的点，等价于「用户会点到的位置」。
+ *
+ * 注入的是探针自己的模块与一行 import，改的是工作区外的消费者副本，
+ * 不动冻结 tarball、不动仓库里的示例源码。
+ */
+export async function injectEchartsRegistry(consumerRoot, mainEntries) {
+  const registry = echartsRegistrySource();
   await writeFile(path.join(consumerRoot, 'src', 'a-t10-echarts-registry.ts'), registry);
   for (const entry of mainEntries) {
     const file = path.join(consumerRoot, 'src', entry);
