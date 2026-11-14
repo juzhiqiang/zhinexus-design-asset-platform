@@ -7,7 +7,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json",
+    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node -e \"import('node:fs').then(async fs => { if (fs.existsSync('scripts/package-probe.mjs')) { const { execFileSync } = await import('node:child_process'); execFileSync(process.execPath, ['scripts/package-probe.mjs'], { stdio: 'inherit' }); } })\"",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.build.json --watch"
   },
@@ -20,7 +20,11 @@
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
   "bin": {
-    "component": "./dist/index.js"
+    "component": "./dist/bin.js"
+  },
+  "dependencies": {
+    "@playwright/test": "1.65.0",
+    "vite": "8.3.8"
   },
   "devDependencies": {
     "@company/contracts": "workspace:*"
