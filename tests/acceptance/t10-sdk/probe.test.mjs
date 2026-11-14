@@ -15,9 +15,9 @@
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
+import { existsSync, lstatSync, readFileSync } from 'node:fs';
 import { symlink } from 'node:fs/promises';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -40,10 +40,13 @@ import {
 import { dedupeSupported, peerEchartsBaseline, readFrozenBundle, supportedCombinations } from './bundle.mjs';
 import { loadFrozenPolicy, resolveCandidateSafely } from './policy.mjs';
 import {
+  CONSUMER_SOURCE_EXCLUSIONS,
   buildProbeTsconfig,
   checkOutsideRepo,
   classifyInstallFailure,
+  consumerSourceFilter,
   createConsumer,
+  findDirtySourceEntries,
   npm,
   npmInvocation,
   peerRetryPlan,
@@ -68,7 +71,16 @@ import {
   sanitiseLabel,
   teardown,
 } from './probe.mjs';
-import { EXPECTED_FIRST_CLICK, FONT_MEASUREMENT_SOURCE, baselineScreenshots, compareWithBaseline, readBrowserRevision } from './browser.mjs';
+import {
+  EXPECTED_FIRST_CLICK,
+  FONT_MEASUREMENT_SOURCE,
+  baselineScreenshots,
+  compareWithBaseline,
+  environmentAuditFor,
+  readBrowserRevision,
+  resolveEffectiveFontDigest,
+  summariseRuntime,
+} from './browser.mjs';
 import {
   collectUncovered,
   requiresVisualBaselineConfirmation,
@@ -1577,6 +1589,191 @@ describe('入口自身健全性', () => {
 });
 
 // RED：`rewritten` 原先在 try 内用 const 声明，而 try 外的 return 要读它——
+// C 在 Windows 实跑 56 组合时踩到的第一个阻断：examples/<framework> 本机已被构建过，
+// 带着 node_modules/.turbo/dist；原先 cp 不带 filter，把它们复制到工作区外，npm 复用
+// pnpm 链接，锁里的 echarts 缺 resolved/integrity，CLI 只能判
+// CANDIDATE_INTEGRITY_UNVERIFIED。这一组守住"消费者必须从 tarball 全新安装"。
+describe('消费者源目录不得带入本地状态（阻断一）', () => {
+  /** 造一个"本机刚构建过"的脏示例目录。 */
+  const makeDirtyExample = async (root) => {
+    const src = path.join(root, 'src');
+    await mkdir(src, { recursive: true });
+    await writeFile(path.join(root, 'index.html'), '<html></html>\n');
+    await writeFile(path.join(root, 'package.json'), '{"name":"dirty-example"}\n');
+    await writeFile(path.join(src, 'main.ts'), 'export const x = 1;\n');
+    for (const name of CONSUMER_SOURCE_EXCLUSIONS) {
+      await mkdir(path.join(root, name, 'nested'), { recursive: true });
+      await writeFile(path.join(root, name, 'marker.txt'), 'local state\n');
+    }
+    await writeFile(path.join(root, 'tsconfig.tsbuildinfo'), '{}\n');
+    await mkdir(path.join(src, 'node_modules'), { recursive: true });
+    await writeFile(path.join(src, 'node_modules', 'marker.txt'), 'nested link\n');
+    return root;
+  };
+
+  it('filter 拒绝全部本地状态名，放过示例源码', () => {
+    const filter = consumerSourceFilter();
+    for (const name of CONSUMER_SOURCE_EXCLUSIONS) {
+      assert.equal(filter(path.join('/x', name)), false, `${name} 必须被排除`);
+      assert.equal(filter(path.join('/x', 'src', name)), false, `嵌套的 ${name} 也必须被排除`);
+    }
+    assert.equal(filter('/x/index.html'), true);
+    assert.equal(filter('/x/src'), true);
+    assert.equal(filter('/x/src/main.ts'), true);
+    assert.equal(filter('/x/package.json'), true);
+    assert.equal(filter('/x/tsconfig.json'), true);
+    // tsbuildinfo 是增量构建缓存，同样不属于源码
+    assert.equal(filter('/x/tsconfig.tsbuildinfo'), false);
+  });
+
+  it('真实 cp 带 filter：目标目录干净，且源码一件不少', async (t) => {
+    const work = await mkdtemp(path.join(tmpdir(), 'a-t10-dirty-'));
+    t.after(() => rm(work, { recursive: true, force: true }));
+    const source = await makeDirtyExample(path.join(work, 'example'));
+    const target = path.join(work, 'consumer');
+    await cp(source, target, { recursive: true, force: true, filter: consumerSourceFilter() });
+    // 源码必须在
+    for (const rel of ['index.html', 'package.json', path.join('src', 'main.ts')]) {
+      assert.equal(existsSync(path.join(target, rel)), true, `${rel} 不该被过滤掉`);
+    }
+    // 本地状态必须不在
+    for (const name of CONSUMER_SOURCE_EXCLUSIONS) {
+      assert.equal(existsSync(path.join(target, name)), false, `${name} 泄漏进了消费者`);
+    }
+    assert.equal(existsSync(path.join(target, 'src', 'node_modules')), false, '嵌套 node_modules 泄漏');
+    assert.equal(existsSync(path.join(target, 'tsconfig.tsbuildinfo')), false, 'tsbuildinfo 泄漏');
+    // 哨兵复核同一棵树，必须报干净
+    assert.deepEqual(findDirtySourceEntries(target), []);
+  });
+
+  it('哨兵不是空转：不带 filter 复制时它确实能检出', async (t) => {
+    const work = await mkdtemp(path.join(tmpdir(), 'a-t10-dirty-2-'));
+    t.after(() => rm(work, { recursive: true, force: true }));
+    const source = await makeDirtyExample(path.join(work, 'example'));
+    const target = path.join(work, 'consumer-no-filter');
+    await cp(source, target, { recursive: true, force: true });
+    const dirty = findDirtySourceEntries(target);
+    assert.ok(dirty.length >= CONSUMER_SOURCE_EXCLUSIONS.length + 1, `哨兵应检出脏项，实际 ${dirty}`);
+    assert.ok(dirty.includes('node_modules'));
+    assert.ok(dirty.includes('.turbo'));
+    assert.ok(dirty.includes('dist'));
+    // findDirtySourceEntries 返回的是 path.relative 的原生分隔符：Windows 上是
+    // `src\node_modules`，POSIX 上是 `src/node_modules`。断言必须用 path.join 拼，
+    // 否则在 Windows 上必然失败——这是 C 在 Windows 固定 Node 下单测 114/115 的唯一败例。
+    assert.ok(dirty.includes(path.join('src', 'node_modules')), '嵌套项也要检出');
+    assert.ok(dirty.includes('tsconfig.tsbuildinfo'));
+    // 带上 filter 后同一函数对同一棵树应报干净——RED/GREEN 成对
+    const clean = path.join(work, 'consumer-with-filter');
+    await cp(source, clean, { recursive: true, force: true, filter: consumerSourceFilter() });
+    assert.deepEqual(findDirtySourceEntries(clean), []);
+  });
+});
+
+// C 在 Windows 实跑 56 组合时踩到的第二、三个阻断：
+// ② --font-digest 被浏览器实测无条件覆盖，顶层证据却记 operator-supplied——
+//    签名与留痕对不上，等于拿一个没测过的环境出了视觉结论；
+// ③ 宿主数 0 或 >1 时 environment 为 null，browser.mjs 调
+//    environmentProjection(null) 直接 TypeError，一次截图失败带走整轮运行。
+// 两条都抽成纯函数，于是不依赖真实浏览器也能先红后绿。
+describe('字体摘要生效值与留痕（阻断二）', () => {
+  const MEASURED = 'a'.repeat(64);
+  const OPERATOR = 'b'.repeat(64);
+
+  it('没传 --font-digest 时用实测值，来源记 measured', () => {
+    const resolved = resolveEffectiveFontDigest({ operator: null, measured: MEASURED });
+    assert.equal(resolved.fontDigest, MEASURED);
+    assert.equal(resolved.fontDigestSource, 'measured');
+    assert.equal(resolved.measuredFontDigest, MEASURED);
+    assert.equal(resolved.override, null);
+  });
+
+  it('传了 --font-digest 时环境签名用显式值，实测值另行留痕', () => {
+    const resolved = resolveEffectiveFontDigest({ operator: OPERATOR, measured: MEASURED });
+    // 反例的核心：生效值必须是显式值，不是实测值
+    assert.equal(resolved.fontDigest, OPERATOR);
+    assert.notEqual(resolved.fontDigest, MEASURED);
+    assert.equal(resolved.fontDigestSource, 'operator-supplied');
+    // 但实测值不许丢，审核方要能看出两者不一致
+    assert.equal(resolved.measuredFontDigest, MEASURED);
+    assert.deepEqual(resolved.override, { requested: OPERATOR, measured: MEASURED });
+  });
+
+  it('显式值与实测值一致时不算覆盖', () => {
+    const resolved = resolveEffectiveFontDigest({ operator: MEASURED, measured: MEASURED });
+    assert.equal(resolved.fontDigest, MEASURED);
+    assert.equal(resolved.fontDigestSource, 'operator-supplied');
+    assert.equal(resolved.override, null);
+  });
+
+  it('实测值与显式值都缺时抛错，不拿常量伪造签名', () => {
+    assert.throws(() => resolveEffectiveFontDigest({ operator: null, measured: null }), /PROBE_INTERNAL.*无法出具环境签名/s);
+    assert.throws(() => resolveEffectiveFontDigest({}), /PROBE_INTERNAL/);
+  });
+
+  it('environmentAudit 里生效值、来源、实测值三者都在，且投影可由其重算', () => {
+    const environment = {
+      os: 'windows', arch: 'x64', browserVersion: '158.0.8127.18', browserRevision: '1254',
+      fontDigest: OPERATOR, locale: 'zh-CN', timezone: 'Asia/Shanghai', deviceScaleFactor: 1,
+      renderer: 'canvas', width: 800, height: 400, theme: 'light',
+      frameworkVersion: '3.5.45', echartsVersion: '6.1.0',
+    };
+    const audit = environmentAuditFor({
+      environment,
+      fontDigest: OPERATOR,
+      fontDigestSource: 'operator-supplied',
+      measuredFontDigest: MEASURED,
+      fontFingerprint: {
+        fontDigest: MEASURED,
+        canonical: '{"families":["Arial"]}',
+        details: { stack: ['Arial'], families: ['Arial'], loadedFonts: [] },
+      },
+    });
+    assert.equal(audit.fontDigest, OPERATOR, '审计块里的生效值必须与签名用的一致');
+    assert.equal(audit.measuredFontDigest, MEASURED, '实测值必须单独留痕');
+    assert.equal(audit.fontDigestSource, 'operator-supplied');
+    // 投影与 canonical 必须与 environmentKey 同源，否则审核方重算不出来
+    assert.equal(audit.projection.fontDigest, OPERATOR);
+    assert.equal(audit.canonical, canonicalJson(environmentProjection(environment)));
+    assert.equal(computeEnvironmentKey(audit.projection), computeEnvironmentKey(environment));
+  });
+});
+
+// C 在 Windows 实跑时踩到的第三个阻断：宿主数不是 1 时 environment 为 null，
+// 而 environmentAudit 无条件调 environmentProjection(null) → TypeError。
+// 探针不崩在出具证据之前是硬要求：一次截图失败只该让该组合记为运行失败。
+describe('没有环境投影时的审计块（阻断三）', () => {
+  it('environment 为 null 时返回 null，不抛错', () => {
+    const audit = environmentAuditFor({
+      environment: null,
+      fontDigest: 'c'.repeat(64),
+      fontDigestSource: 'measured',
+      measuredFontDigest: 'c'.repeat(64),
+      fontFingerprint: { fontDigest: 'c'.repeat(64), canonical: '{}' },
+    });
+    assert.equal(audit, null);
+  });
+
+  it('environment 缺省（undefined）时同样返回 null', () => {
+    assert.equal(environmentAuditFor({ fontDigest: 'c'.repeat(64), fontDigestSource: 'measured' }), null);
+  });
+
+  it('宿主数不为 1 必须被记为运行失败，而不是静默跳过', () => {
+    for (const hostCount of [0, 2]) {
+      const problems = summariseRuntime({
+        hostCount,
+        pageErrors: [],
+        checks: [],
+        presentation: 'light-canvas',
+        appliedPresentation: null,
+      });
+      assert.ok(
+        problems.some((problem) => problem.includes(`宿主元素数量=${hostCount}`)),
+        `hostCount=${hostCount} 必须进运行时问题`,
+      );
+    }
+  });
+});
+
 // 成功路径直接 ReferenceError，且崩在证据出具之前。真实建一次消费者来守。
 describe('createConsumer 成功路径', () => {
   it('建出可用的干净消费者，manifest 与 digest 都能取到', async (t) => {
@@ -1627,6 +1824,21 @@ describe('createConsumer 成功路径', () => {
     // 清单里不得残留 workspace: 协议
     const manifest = JSON.parse(readFileSync(path.join(consumer.root, 'package.json'), 'utf8'));
     assert.equal(JSON.stringify(manifest).includes('workspace:'), false);
+    // 阻断一的端到端断言：echarts 必须是从 registry 真装进来的，锁条目带 resolved +
+    // integrity；复用 pnpm 链接时这两项会消失，CLI 就会判 CANDIDATE_INTEGRITY_UNVERIFIED。
+    const lock = JSON.parse(readFileSync(path.join(consumer.root, 'package-lock.json'), 'utf8'));
+    const echartsEntry = lock.packages['node_modules/echarts'];
+    assert.ok(echartsEntry, '锁文件必须有 node_modules/echarts 条目');
+    assert.equal(echartsEntry.version, '6.1.0');
+    assert.match(String(echartsEntry.resolved ?? ''), /^https:/, 'echarts 必须带 https resolved');
+    assert.match(String(echartsEntry.integrity ?? ''), /^sha512-/, 'echarts 必须带 integrity');
+    assert.equal(echartsEntry.link, undefined, 'echarts 不得是 link 条目');
+    // node_modules 里的 echarts 必须是实体目录，不能是指回仓库的符号链接
+    assert.equal(
+      lstatSync(path.join(consumer.root, 'node_modules', 'echarts')).isSymbolicLink(),
+      false,
+      'echarts 不得是符号链接（那是复用 pnpm 留下的痕迹）',
+    );
   }, 300_000);
 
   it('拒绝把消费者建在仓库内', async (t) => {

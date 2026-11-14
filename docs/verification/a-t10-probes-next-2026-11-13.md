@@ -1,8 +1,13 @@
 # T10 A 侧交接：双框架精确版本兼容探针（可运行入口 + 接口契约）
 
-日期：2026-11-13（补记于 2026-11-14）。负责人：A（SDK）。分支：`feat/a-t10-probes`。
+日期：2026-11-13（补记于 2026-11-14，共两轮 Windows 实跑后的修正）。负责人：A（SDK）。分支：`feat/a-t10-probes`。
 任务定义见 [T10 实施计划](../superpowers/plans/2026-11-11-component-platform-implementation.md) 与三人分工。
 本文是 A 本轮交付的**入口、输入输出契约、冻结摘要与实测结果**；候选差异与回退用例的后续补充见第七节。
+
+**当前状态（2026-11-14 第二轮）**：C 在 Windows 上跑完真实 56 组合矩阵，单测 104/104、0 skip，
+但矩阵被三处探针缺陷挡住（脏消费者复制、`--font-digest` 覆盖不一致、空环境投影崩溃），
+已在 6.6 节逐条先红后绿修掉。**该版本尚未在 Windows 上复跑**，因此第七节里
+「Windows 原生验收」仍为 `pending`，不因修过就视为通过。
 
 ## 一、交付物与边界
 
@@ -15,7 +20,7 @@
 | `tests/acceptance/t10-sdk/consumer.mjs` | 工作区外干净消费者的创建、清单改写、类型/构建/SSR |
 | `tests/acceptance/t10-sdk/browser.mjs` | 固定环境浏览器探针（运行/交互/生命周期/视觉） |
 | `tests/acceptance/t10-sdk/evidence.mjs` | 四维结论装配与未覆盖项收集（纯逻辑） |
-| `tests/acceptance/t10-sdk/probe.test.mjs` | 104 例 `node:test` 单测，先红后绿 |
+| `tests/acceptance/t10-sdk/probe.test.mjs` | 115 例 `node:test` 单测，先红后绿 |
 
 **边界（与 `AGENTS.md` 一致，逐条可查）：**
 
@@ -255,6 +260,30 @@ React 侧同构：`tsc/Bundler` 0、`tsc/NodeNext` 0、build 0、SSR 0（`window
 
 安装一律 `strict` peer 模式一次通过（`added 57 packages in 3s`），**没有走到 `--legacy-peer-deps` 路径**。因此 `consumer.installs` 里只有一条 `strict` 记录，`peerMode` 为 `strict`。
 
+第二轮（2026-11-14）修掉三个阻断后，用窄矩阵复验阻断二的命令与输出：
+
+```bash
+node tests/acceptance/t10-sdk/probe.mjs \
+  --bundle .tools/operations/current-sdk/dcc49e73-… \
+  --echarts 6.1.0 --frameworks vue --components bar \
+  --presentations light-canvas \
+  --consumer-root "/tmp/t10font/consumers/not yet created" \
+  --out /tmp/t10font/out --label font-override --font-digest aaaa…（64 位）
+```
+
+```
+[probe] 浏览器修订号（playwright-core/browsers.json）：1254
+[probe] 候选来源核对通过：echarts@6.1.0 ← https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz
+[probe] 字体指纹：实测 154d9215f759c969…，生效 aaaaaaaaaaaaaaaa…（operator-supplied）
+[probe] 警告：--font-digest 与实测不一致（显式 aaaa…，实测 154d9215…），环境签名按显式值计算，
+            实测值保留在 environmentAudit.measuredFontDigest。
+[probe] 四维：{"typecheck":"passed","runtime":"passed","interaction":"passed","visual":"not-run"}
+[probe] recommendation=hold dualFrameworkCoverage=false peerSatisfied=true
+```
+
+去掉 `--font-digest` 的对照运行得到 `fontDigestSource=measured`、`override=null`，两次 `environmentKey`
+不同（`2e0eae38…` vs `4db8e726…`）。`visual: not-run` 是因为窄矩阵没有基线，与阻断无关。
+
 单测：`node --test tests/acceptance/t10-sdk/probe.test.mjs` → **104 例：97 过 / 0 败 / 7 skip**（14 个 suite）。
 跳过的 7 例原因写明：6 例需 `A10_FROZEN_BUNDLE` 指向真实冻结 bundle（不写死任何机器的绝对路径，C 配置后全跑），1 例因沙箱临时分区空间不足无法完成真实安装（可用 `A10_CONSUMER_ROOT` 指向充足磁盘后重跑）。
 
@@ -319,13 +348,76 @@ environmentAudit: {
 
 只存 64 位 key 无法审核新指纹；有了 `canonical`，审核方重算就是一次 SHA-256。
 
+## 六之六、2026-11-14 C 在 Windows 实跑 56 组合后发现的三个阻断（全部先红后绿）
+
+C 用真实 Windows Playwright 跑完 2 框架 × 7 组件 × 4 展示 = 56 组合，单测 104/104、0 skip，但矩阵本身被三处探针缺陷挡住。三条同样**都是探针自身缺陷，不是 SDK 缺陷**；Windows 侧类型 / 构建 / SSR / 运行 / 交互 / 卸载重挂全过，`visual` 因无基线诚实 `not-run`。
+
+| # | 缺陷 | 后果 | 修法 |
+| --- | --- | --- | --- |
+| 1 | `createConsumer` 的 `cp(exampleDir, dir)` **不带 filter** | Windows 上 `examples/<framework>` 已被构建过，带着 `node_modules` / `.turbo` / `dist`，被一并复制到工作区外；npm 复用 pnpm 链接，锁里的 echarts 既无 `resolved` 也无 `integrity`，CLI 正确拒绝并给出 `CANDIDATE_INTEGRITY_UNVERIFIED`。**这不是干净消费者，据此出的任何结论都不可信** | 新增 `CONSUMER_SOURCE_EXCLUSIONS`（与仓库根 `.gitignore` 语义一致）+ `consumerSourceFilter()` 按 basename 排除（嵌套的 `node_modules` 也排除，`.tsbuildinfo` 一并排除）；复制完成后 `findDirtySourceEntries()` 哨兵复核，仍检出即抛 `PROBE_INPUT`，不带着脏树进安装 |
+| 2 | `--font-digest` 被浏览器实测**无条件覆盖**，顶层证据却记 `operator-supplied` | 签名与留痕对不上：环境 key 用的是实测字体，报告说用的是操作者指定的字体，等于拿一个没测过的环境出了视觉结论 | 决策提成纯函数 `resolveEffectiveFontDigest({operator, measured})`：显式值优先并真正进入 `environmentKey`，实测值单独留在 `environmentAudit.measuredFontDigest`；不一致时返回 `override`，`probe.mjs` 打警告、证据记 `probe.fontDigestOverride` 并进 `scopeNotes`。同时删掉 `environmentBase` 里那个永远走不到的 `DEFAULT_FONT_DIGEST` 兜底 |
+| 3 | 宿主数为 0 或 >1 时 `environment` 为 `null`，`browser.mjs` 仍调 `environmentProjection(null)` | `TypeError`，一次截图失败带走整轮运行——探针崩在出具证据之前 | 提成纯函数 `environmentAuditFor(...)`，无投影时整体返回 `null`；宿主数不为 1 本就由 `summariseRuntime` 记为运行时失败，不再额外崩溃 |
+
+### 6.6.1 RED / GREEN 实录
+
+三条都先把行为改回旧逻辑跑出红灯，再修复跑出绿灯，而不是只写"应该失败"的断言：
+
+| 用例 | RED（旧逻辑） | GREEN（修复后） |
+| --- | --- | --- |
+| `consumerSourceFilter` 排除本地状态 / `cp` 带 filter 后目标树干净 | 3 例全败（把排除清单清空、filter 改为恒真） | 3 例全过 |
+| 显式 `--font-digest` 必须进入环境签名 | `resolveEffectiveFontDigest` 改为恒取实测值 → 反例败 | 过 |
+| `environmentAuditFor(null)` 不得抛错 | 去掉 null 判断直接投影 → 2 例败（`TypeError`） | 过 |
+
+端到端（真实 Chromium，非 mock）复验阻断二：同一组合跑两次，一次传 `--font-digest aaaa…`，一次不传。
+
+```
+[probe] 字体指纹：实测 154d9215f759c969…，生效 aaaaaaaaaaaaaaaa…（operator-supplied）
+[probe] 警告：--font-digest 与实测不一致（显式 aaaa…，实测 154d9215…），环境签名按显式值计算，
+            实测值保留在 environmentAudit.measuredFontDigest。
+```
+
+两次 `environmentKey` 不同（`2e0eae38…` vs `4db8e726…`）；覆盖运行的
+`environmentAudit.projection.fontDigest` 等于显式值，`measuredFontDigest` 仍是实测值；
+不传时 `fontDigestSource=measured`、`fontDigest === measuredFontDigest`、`override` 为 `null`。
+
+阻断一的端到端证据是成功路径用例里的锁文件断言：`node_modules/echarts` 条目必须带
+`https:` 的 `resolved` 与 `sha512-` 的 `integrity`、不是 `link` 条目、且 `node_modules/echarts`
+不得是符号链接。真实运行里对应的日志是
+`候选来源核对通过：echarts@6.1.0 ← https://registry.npmjs.org/echarts/-/echarts-6.1.0.tgz`。
+
+阻断三由纯函数 RED/GREEN 守住（旧代码在该处确实抛 `TypeError`），并对全部生产调用点做过核对：
+`environmentProjection(` 在 `browser.mjs` 只有一处生产调用，即已加守卫的那处。
+
+### 6.6.2 环境证据 schema 增补
+
+```
+environmentAudit: {
+  projection:         { os, arch, browserVersion, browserRevision, fontDigest, locale, timezone,
+                        deviceScaleFactor, renderer, width, height, theme },
+  canonical:          "{\"arch\":\"x64\",...}",   // SHA-256 这一串即 environmentKey
+  fontDigest:         <生效值：--font-digest 优先，否则实测值>,
+  fontDigestSource:   "measured" | "operator-supplied",
+  measuredFontDigest: <浏览器实测值；--font-digest 未覆盖时与 fontDigest 相同>,
+  fontFingerprint:    { stack, families[{family,available,advances[]}], loadedFonts[], fontDigest, canonical }
+}
+```
+
+宿主数不为 1 时整个 `environmentAudit` 为 `null`，`environment` / `environmentKey` 同为 `null`，
+该组合的运行时维度记失败。证据顶层 `probe` 块同步增补 `measuredFontDigest` 与
+`fontDigestOverride`（`{requested, measured} | null`）。
+
+### 6.6.3 顺带修掉的一处可诊断性缺陷
+
+严格 peer 安装被拒时抛出的 `PROBE_PEER_REJECTED` **不带 npm 原始输出**，只给一句结论，
+分不清是 peer、是 registry 还是磁盘。现在把 `classifyInstallFailure` 的 `detail` 一并附上。
+
 ## 七、未覆盖项（诚实清单，均标 `pending`）
 
 以下全部**未跑**，不构成任何通过结论：
 
 | 项 | 状态 | 说明 |
 | --- | --- | --- |
-| Windows 原生验收 | `pending` | 本轮只在隔离 Linux 工具链上跑过。**不把 Linux 证据宣称 Windows 验证。** C 在 Windows 上按第二节命令原样重跑即可 |
+| Windows 原生验收 | `pending` | 本轮只在隔离 Linux 工具链上跑过。**不把 Linux 证据宣称 Windows 验证。** C 在 Windows 上按第二节命令原样重跑即可。第二轮修掉三个阻断后**尚未在 Windows 复跑**，首轮失败证据由 C 保留 |
 | `compatibility_records` 落库 | `pending` | 真实三存储（Verdaccio / PostgreSQL / MinIO）与 OIDC 不在本机可用范围。契约与落库归 C |
 | 候选差异（非 6.1.0） | `pending` | 需要新候选只能新目录新批次，诚实区分。已知上一轮 `echarts@6.0.0` 的安装层结论是 `ERESOLVE` 直接失败，本轮未重跑 |
 | 回退用例 | `pending` | 同上，需新批次 |

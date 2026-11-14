@@ -85,7 +85,12 @@ export function platformName(platform = process.platform) {
  * **探针不得把它当作本机字体签名。** 没装中文字体的机器与装了字体的机器会算出同一个
  * 常量，于是得到同一个 environmentKey，视觉比对会静默判 PASS。要出截图就必须用
  * `fontDigestFromMeasurements()` 基于浏览器里的真实度量算摘要，或由操作者显式传
- * `--font-digest`（证据里记 `operator-supplied`）。
+ * `--font-digest`（证据里记 `operator-supplied`，实测值另行留痕）。
+ *
+ * 2026-11-14 起 `probe.mjs` 已不再把它兜进 `environmentBase`：原先那里写着
+ * `fontDigest: fontDigest ?? DEFAULT_FONT_DIGEST`，而浏览器侧又总是用实测值覆盖，
+ * 顶层证据却记 `operator-supplied`——常量在这里既是死代码又是误导，
+ * 留着只会让人以为"没实测时有个默认签名"。
  */
 export const DEFAULT_FONT_DIGEST = createHash('sha256')
   .update('system-ui,sans-serif;regular,bold;zh-CN', 'utf8')
