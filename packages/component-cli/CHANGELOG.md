@@ -4,6 +4,11 @@
 
 ## [0.0.8] - 2026-11-14
 
+### Added
+
+- `component echarts check` 查询冻结支持矩阵与注册表候选，支持 `--version`、`--latest` 和 `--echarts` 别名，记录候选 integrity 与来源差异。
+- `component echarts verify` 编排工作区本地探针并校验冻结三包、候选、双框架及四维证据；缺证据、hold、旧报告复用或非法结果均失败关闭。独立安装 CLI 的探针分发仍未验收。
+
 ### Fixed
 
 - 视觉基线对比重新计算环境签名，并在读取 `baseline.json` 时执行运行时契约校验；环境不兼容时保持 `INCOMPATIBLE`。

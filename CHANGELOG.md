@@ -5,6 +5,7 @@
 ### 新增与修复
 
 - CLI 0.0.7 增加本地视觉基线对比与 `component baseline accept`；0.0.8 补强环境签名、PNG 校验、API 响应、权限与基线 CAS，并支持作业截图 ID 消歧。具体变更见 CLI 更新日志。
+- CLI 0.0.8 增加 `component echarts check/verify`，查询精确候选并编排本地双框架兼容探针，绑定冻结三包与候选来源/integrity；缺证据、hold 和非法结果失败关闭。当前采用工作区探针入口，独立分发仍待验收。
 - Gallery 0.0.5 修复 WebCrypto 异常后的提交按钮恢复；真实网页 E2E 支持通过 `ZHINEXUS_SDK_BUNDLE_DIR` 指定同一冻结产物。
 - 补齐 B 分支已完成的独立版本升级记录；根平台、API、网关与 SDK 版本保持各自既有状态。未发布的 CLI 0.0.8 审查修正不重复升版。
 
