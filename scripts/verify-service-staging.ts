@@ -1,9 +1,10 @@
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { registryMigrationFiles } from '../apps/api/src/db/migration-files.js';
 
 type ServiceCheck = { files: number; packages: number; errors: string[] };
-type Manifest = { name: string; dependencies?: Record<string, string>; optionalDependencies?: Record<string, string>; peerDependencies?: Record<string, string>; peerDependenciesMeta?: Record<string, { optional?: boolean }> };
+type Manifest = { name: string; main?: string | false; exports?: unknown; types?: string; typings?: string; dependencies?: Record<string, string>; optionalDependencies?: Record<string, string>; peerDependencies?: Record<string, string>; peerDependenciesMeta?: Record<string, { optional?: boolean }> };
 const serviceNames = { api: '@company/platform-api', preview: '@company/preview-gateway' } as const;
 const packageName = /^(?:@[a-z0-9._-]+\/)?[a-z0-9._-]+$/i;
 const forbiddenPackage = (name: string, expected: string) =>
@@ -20,6 +21,7 @@ function validManifest(value: unknown): value is Manifest {
   if (!record(value)) return false;
   // Nested export metadata can be nameless or use a subpath such as rxjs/ajax.
   if (value.name !== undefined && (typeof value.name !== 'string' || !value.name.trim())) return false;
+  if (value.main !== undefined && value.main !== false && typeof value.main !== 'string') return false;
   for (const key of ['dependencies', 'optionalDependencies', 'peerDependencies']) {
     const entries = value[key];
     if (entries !== undefined && (!record(entries) || Object.entries(entries).some(([name, version]) => !packageName.test(name) || typeof version !== 'string'))) return false;
@@ -83,7 +85,7 @@ async function checkService(directory: string, expected: string, api: boolean): 
       const migrationRoot = await realpath(path.join(root, 'migrations'));
       if (!within(root, migrationRoot)) throw new Error();
       const migrations = (await readdir(migrationRoot)).filter(name => /^\d+.*\.sql$/.test(name));
-      if (!migrations.length) throw new Error();
+      if (registryMigrationFiles.some(name => !migrations.includes(name))) throw new Error();
       for (const name of migrations) {
         const stat = await lstat(path.join(migrationRoot, name));
         if (!stat.isFile() || stat.size === 0) throw new Error();
@@ -101,11 +103,57 @@ async function checkService(directory: string, expected: string, api: boolean): 
     }
   }
   const closure = new Set<string>();
+  // Follow Node import/require condition order without importing staged code.
+  function exportTarget(value: unknown, mode: 'import' | 'require'): string | undefined {
+    if (typeof value === 'string') return value;
+    if (Array.isArray(value)) {
+      for (const option of value) { const selected = exportTarget(option, mode); if (selected !== undefined) return selected; }
+    } else if (record(value)) {
+      for (const [condition, target] of Object.entries(value)) {
+        if (['node', 'node-addons', 'module-sync', mode, 'default'].includes(condition)) {
+          const selected = exportTarget(target, mode); if (selected !== undefined) return selected;
+        }
+      }
+    }
+  }
+  async function runtimeEntries(directory: string, manifest: Manifest): Promise<void> {
+    const targets = new Set<string>();
+    if (manifest.exports !== undefined && manifest.exports !== null) {
+      const mapping = manifest.exports;
+      // Check the root export when offered. Subpath-only packages have no root;
+      // check their concrete declarations. Unused subpath/pattern exports are not
+      // an exhaustive module-import graph; their filesystem boundary is still walked.
+      const choices = record(mapping) && Object.keys(mapping).some(key => key.startsWith('.'))
+        ? ('.' in mapping ? [mapping['.']] : Object.entries(mapping).filter(([key]) => !key.includes('*') && !key.endsWith('/')).map(([, target]) => target))
+        : [mapping];
+      for (const choice of choices) for (const mode of ['import', 'require'] as const) {
+        const target = exportTarget(choice, mode);
+        if (target && !target.includes('*')) targets.add(target);
+      }
+    } else if (manifest.main) targets.add(manifest.main);
+    else if (!manifest.types && !manifest.typings && !manifest.name.startsWith('@types/')) targets.add('index.js');
+    for (const target of targets) {
+      const resolved = path.resolve(directory, target);
+      // Legacy main allows extensionless files and directory index entries.
+      const candidates = target === manifest.main
+        ? [resolved, `${resolved}.js`, `${resolved}.json`, `${resolved}.node`, path.join(resolved, 'index.js'), path.join(resolved, 'index.json'), path.join(resolved, 'index.node')]
+        : [resolved];
+      let found = false;
+      for (const candidate of candidates) {
+        try {
+          const actual = await realpath(candidate);
+          if (within(root, actual) && (await lstat(actual)).isFile()) { found = true; break; }
+        } catch { /* Try the next legacy entry candidate. */ }
+      }
+      if (!found) errors.add(`Missing dependency runtime entry: ${manifest.name} -> ${target}`);
+    }
+  }
   async function dependencies(directory: string): Promise<void> {
     if (closure.has(directory)) return;
     closure.add(directory);
     const manifest = manifests.get(directory);
     if (!manifest) return;
+    if (directory !== root) await runtimeEntries(directory, manifest);
     const mandatory = Object.keys(manifest.dependencies ?? {}).filter(name => !(name in (manifest.optionalDependencies ?? {})));
     const peers = Object.keys(manifest.peerDependencies ?? {}).filter(name => manifest.peerDependenciesMeta?.[name]?.optional !== true);
     const names = new Set([...mandatory, ...peers, ...Object.keys(manifest.optionalDependencies ?? {})]);

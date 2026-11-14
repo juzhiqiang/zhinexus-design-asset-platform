@@ -17,7 +17,9 @@ async function fixture() {
     await file(root, `${service}/node_modules/@company/contracts/dist/index.js`);
   }
   await file(root, 'api/dist/releases/runner.js'); await file(root, 'api/dist/db/migrate.js');
-  await file(root, 'api/migrations/001_base.sql', 'SELECT 1;');
+  for (const name of ['001_registry.sql', '002_package_permissions.sql', '003_evidence_references.sql', '004_release_worker.sql', '005_catalog.sql', '006_preview.sql', '007_compatibility.sql']) {
+    await file(root, `api/migrations/${name}`, 'SELECT 1;');
+  }
   return root;
 }
 
@@ -92,11 +94,41 @@ it('requires nonempty regular SQL migration files', async () => {
   const { verifyServiceStaging } = await import('../../scripts/verify-service-staging.js');
   for (const directory of [false, true]) {
     const root = await fixture();
-    await rm(join(root, 'api/migrations/001_base.sql'));
-    if (directory) await mkdir(join(root, 'api/migrations/001_base.sql'));
-    else await file(root, 'api/migrations/001_base.sql', '');
+    await rm(join(root, 'api/migrations/001_registry.sql'));
+    if (directory) await mkdir(join(root, 'api/migrations/001_registry.sql'));
+    else await file(root, 'api/migrations/001_registry.sql', '');
     expect((await verifyServiceStaging(root)).ok).toBe(false);
   }
+});
+
+it('requires every migration consumed by the runtime, not just one SQL file', async () => {
+  const { verifyServiceStaging } = await import('../../scripts/verify-service-staging.js');
+  const root = await fixture();
+  await rm(join(root, 'api/migrations/007_compatibility.sql'));
+  expect((await verifyServiceStaging(root)).ok).toBe(false);
+});
+
+it('rejects a dependency whose declared runtime entry is absent', async () => {
+  const { verifyServiceStaging } = await import('../../scripts/verify-service-staging.js');
+  for (const fields of [{ main: './lib/index.js' }, { exports: { '.': { import: './lib/index.mjs', require: './lib/index.js' } } }]) {
+    const root = await fixture();
+    await file(root, 'api/node_modules/@company/contracts/package.json', JSON.stringify({ name: '@company/contracts', main: './dist/index.js', dependencies: { pg: '1.0.0' } }));
+    await file(root, 'api/node_modules/pg/package.json', JSON.stringify({ name: 'pg', ...fields }));
+    const result = await verifyServiceStaging(root);
+    expect(result.ok).toBe(false);
+    expect(result.errors.join(' ')).toContain('runtime entry');
+  }
+});
+
+it('uses Node runtime conditions and accepts type-only packages with an empty main', async () => {
+  const { verifyServiceStaging } = await import('../../scripts/verify-service-staging.js');
+  const root = await fixture();
+  await file(root, 'api/node_modules/@company/contracts/package.json', JSON.stringify({ name: '@company/contracts', dependencies: { dual: '1.0.0', declarations: '1.0.0' }, main: './dist/index.js' }));
+  await file(root, 'api/node_modules/dual/package.json', JSON.stringify({ name: 'dual', main: false, exports: { '.': { custom: './src/missing.ts', import: './index.mjs', require: './index.cjs' }, './unused': './missing.js' } }));
+  await file(root, 'api/node_modules/dual/index.mjs'); await file(root, 'api/node_modules/dual/index.cjs');
+  await file(root, 'api/node_modules/declarations/package.json', JSON.stringify({ name: 'declarations', main: '', types: './index.d.ts' }));
+  await file(root, 'api/node_modules/declarations/index.d.ts');
+  expect((await verifyServiceStaging(root)).ok).toBe(true);
 });
 
 it('returns structured failure for malformed dependency manifests', async () => {
