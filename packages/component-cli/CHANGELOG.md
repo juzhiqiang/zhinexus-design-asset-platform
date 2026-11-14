@@ -2,6 +2,22 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.8] - 2026-11-14
+
+### Fixed
+
+- 视觉基线对比重新计算环境签名，并在读取 `baseline.json` 时执行运行时契约校验；环境不兼容时保持 `INCOMPATIBLE`。
+- PNG 解码校验 CRC、关键块顺序、尺寸和解压上限，支持合法调色板与透明块，拒绝 IDAT 后的 PLTE/tRNS 和未知关键块。
+- 基线接受命令校验 API 成功响应，限制 URL、重定向与超时；非 2xx 的 null、数组或标量错误体稳定返回结构化错误。
+- 支持 `--job-id` 按服务端 `baselineCandidates` 消歧截图 ID，保留权限校验与 `expectedRevision` CAS。
+
+## [0.0.7] - 2026-11-13
+
+### Added
+
+- 本地 PNG 视觉基线对比，输出 `PASS` / `DIFF` / `NEW` / `INCOMPATIBLE` 与差异图；`component check --baseline-dir` 可复用已有基线。
+- `component baseline accept --report <path> --reason <text>`，调用真实基线 API；拒绝手动上传截图、失败报告及不兼容环境。
+
 ## [0.0.6] - 2026-11-13
 
 ### Added
