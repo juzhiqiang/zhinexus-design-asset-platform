@@ -8,7 +8,7 @@
  */
 
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -30,7 +30,11 @@ const REQUIRED_EXPORTS = /** @type {const} */ ([
  * @returns {Promise<{ dir: string; module: Record<string, unknown>; cleanup: () => Promise<void> }>}
  */
 export async function loadFrozenPolicy({ tarballFile, packageName = '@company/charts-core', root = null }) {
-  const dir = await mkdtemp(path.join(root ? path.resolve(root) : tmpdir(), 'a-t10-policy-'));
+  const base = root ? path.resolve(root) : tmpdir();
+  // 先确保根目录存在：`--consumer-root` 可以指向一个尚不存在的路径（带空格的新目录），
+  // mkdtemp 对不存在的父目录直接 ENOENT。
+  await mkdir(base, { recursive: true });
+  const dir = await mkdtemp(path.join(base, 'a-t10-policy-'));
   let cleanup = async () => {
     await rm(dir, { recursive: true, force: true });
   };
