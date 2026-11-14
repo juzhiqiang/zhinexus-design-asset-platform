@@ -94,3 +94,20 @@
   - `.\scripts\pnpm.ps1 typecheck` → **14 successful, 14 total** + 根 `tsc --noEmit` 通过。
   - `.\scripts\pnpm.ps1 verify:workspace` → **passed**（`10 members, no cycles, four publishable shells, safe service graph`）。
   - `.\scripts\pnpm.ps1 vitest run tests/unit/echarts-cli.test.ts tests/unit/baseline-compare.test.ts tests/unit/baseline-cli.test.ts tests/integration/compatibility-api.test.ts` → **4 files passed, 27/27 passed**（`echarts-cli.test.ts` 9/9、`baseline-cli.test.ts` 7/7、`baseline-compare.test.ts` 10/10、`compatibility-api.test.ts` 1/1）。
+
+
+## 7. `a06edbc` 三组 P1 复核问题修复（RED → GREEN）
+
+- 对应代码提交：`1832a43dee07e8e23c6560c6d1a76ce99d822eba`（`fix: 补齐候选兼容证据 consumerSources/SRI、A 协议运行交互一致性及权威矩阵校验`）。
+- 仅修改 `apps/api/src/compatibility/service.ts` 与 `tests/integration/compatibility-api.test.ts`，未修改 A/C 文件、`packages/contracts`、根 `package.json` 或 `pnpm-lock.yaml`。
+- 三组 P1 修复项：
+  1. **`candidate.consumerSources` 与合法 SRI `integrity` 强约束**：`evidence.candidate.consumerSources` 必填且必须唯一覆盖 `vue` / `react` 双框架，每项 `verified === true`、`version === candidate.version`、`resolved` 满足安全 HTTPS URL 且 `host === new URL(candidate.source).host`；`input.candidate.integrity`、`evidence.candidate.integrity` 与每项 `cs.integrity` 均须通过 SRI 格式正则（`/^sha(?:256|384|512)-[A-Za-z0-9+/=]{16,}$/`）并完全一致（拒绝缺失、`null`、`banana`、无关 origin 与摘要不一致）。
+  2. **A 协议运行/交互/视觉纯语义校验**：严格对齐 A `browser.mjs` 协议而不执行组件代码——要求 `run.appliedPresentation` 与展示模式一致（`*-canvas` 须 `{ canvases: 1, svgs: 0 }`，`*-svg` 须 `{ canvases: 0, svgs: 1 }`）；要求 `run.clickError === null`、`run.click.length === 1` 且严格匹配对应组件的 `EXPECTED_FIRST_CLICK`（`seriesId`/`dataIndex`/`value`/`nativeType`）；若 `visual` 含 `environmentKey`、`screenshotSha256`/`sha256`、`bytes`，必须与对应 `browser` run 一致。
+  3. **权威矩阵、`bundle.variants`、`consumer.resolved` 与 `peerDependencies` 精确策略**：要求 `evidence.bundle.variants` 非空且包含目标 `row.variant_id`；从 `manifest.variants[].compatibility` 提取全部权威通过组合，要求 `evidence.combinations` 与权威矩阵 1:1 精确匹配（无缺失、无重复、无额外组合，含多版本场景）；要求 `combo.consumer.resolved` 严格匹配 `echarts === candidate.version`、对应 `framework === frameworkVersion`、`row.package_name === row.package_version` 与 `@company/charts-core` 版本；要求 `candidate.version === authoritativePeerEcharts`（拒绝权威 peer 为 `6.1.0` 时接受 `6.0.0`）。
+- RED → GREEN 与全量验证结果：
+  - **RED**：在 `tests/integration/compatibility-api.test.ts` 按真实 `a-t10-sdk-probe` v1 协议构造正例并补充 12 项 P1 反例后，首次运行 `.\scripts\pnpm.ps1 vitest run tests/integration/compatibility-api.test.ts` 失败（`missing-consumerSources` 返回 `201`，预期 `400`）。
+  - **GREEN**：
+    - `.\scripts\pnpm.ps1 build:services` → 通过。
+    - `.\scripts\pnpm.ps1 typecheck` → **14/14** 通过。
+    - `.\scripts\pnpm.ps1 verify:workspace` → **10 members, no cycles, four publishable shells, safe service graph** 通过。
+    - `.\scripts\pnpm.ps1 vitest run tests/unit/echarts-cli.test.ts tests/unit/baseline-compare.test.ts tests/unit/baseline-cli.test.ts tests/integration/compatibility-api.test.ts` → **4 files passed, 27/27 passed**（`echarts-cli.test.ts` 9/9、`baseline-cli.test.ts` 7/7、`baseline-compare.test.ts` 10/10、`compatibility-api.test.ts` 1/1）。
