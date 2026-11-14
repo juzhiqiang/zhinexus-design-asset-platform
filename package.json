@@ -13,7 +13,7 @@
     "typecheck": "pnpm build:services && turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit",
     "dev": "turbo run dev --concurrency=12 --cache=local:rw",
     "test": "pnpm build:services && pnpm test:t10 && vitest run",
-    "test:t10": "node --test tests/acceptance/t10-sdk/probe.test.mjs",
+    "test:t10": "pnpm --filter @company/contracts build && node --test tests/acceptance/t10-sdk/probe.test.mjs tests/unit/t10-evidence.test.mjs",
     "probe:t10": "node tests/acceptance/t10-sdk/probe.mjs",
     "test:browser": "playwright test --config tests/playwright.config.ts",
     "test:gallery-cache": "node tests/integration/gallery-cache.mjs",

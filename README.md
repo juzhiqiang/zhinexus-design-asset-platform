@@ -57,6 +57,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 验收冻结兼容策略时显式设置 `A10_FROZEN_BUNDLE` 为与 `--bundle` 相同的权威目录，再运行 `test:t10` 或根 `test`。没有提供真实冻结目录时，依赖该目录的策略用例明确跳过，不以合成策略替代，也不计为冻结兼容验收通过。完整消费者与浏览器测量仍由 `probe:t10` / `component echarts verify` 执行。
 
+Windows 首轮、独立环境/字体/截图审计、显式基线复验，以及原两消费者清单/锁文件逐字节恢复的步骤见 [T10 本地复验](docs/verification/t10-windows-local-procedure.md)。回退只清理带有本次运行所有权证据的临时消费者。
+
 ## 工作区职责
 
 ```text

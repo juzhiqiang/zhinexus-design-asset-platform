@@ -72,3 +72,11 @@
 - 定位为 `cp(exampleDir, ...)` 未排除 Windows 示例目录中已有的 `node_modules`、`dist` 和 `.turbo`，使本地依赖状态进入外部消费者。已向 A 派发复制边界和 dirty-source 回归；另两项独立复核问题为显式 `--font-digest` 被实测值覆盖、宿主缺失时空环境投影崩溃。须在下一固定头上复验，不能用当前单测通过掩盖此失败。
 - 首轮错误报告、56 张截图及两份 lock 诊断副本保留在 ignored 本地证据；未改报告。独立审计器亦 exit 1 拒绝该证据。失败消费者仅在核对随机运行 ID、双份 ownership marker、真实路径、直接父子关系及完整双消费者集合后清理，未触碰其它工作树。
 - C 本地审计/回退辅助工具的两项审查问题已修：全部类型检查必须成功且四维完整；adopt 的 failures 必须为空；清理必须证明本次运行所有权。独立反例中，三项原审计反例及空 checks/click、visual DIFF 均拒绝，10 项路径/marker/junction 反例拒绝；清理采用 mock 删除接口，合法集合仅安排两个 staging 与一个父目录，第二消费者非法时安排删除数为 0。辅助工具本身不替代真实锁文件恢复实跑。
+
+## C 证据审计与回退工具进入永久回归
+
+- 将已独立审查的本地工具纳入 `scripts/audit-t10-evidence.mjs`、`scripts/t10-consumer-ownership.mjs` 与 `scripts/verify-t10-rollback.mjs`；新增 [Windows 复现步骤](t10-windows-local-procedure.md)。脚本使用 contracts 的包名与 exports，未复制协议实现，也不修改冻结包。
+- 新增 `tests/unit/t10-evidence.test.mjs`：完整双框架 56-run 的 adopt/hold 控制、6 项畸形证据、10 项路径/marker/junction 反例，以及两种 mock 清理调度，共 21 项。只有测试自建 fixture 会真实删除；测试中的报告路径不进入真实递归删除接口。
+- `test:t10` 先构建 contracts，再运行 A 与 C 的 Node 回归；根 `test` 仍先构建服务，所有测试不进 Turbo 缓存。显式配置权威 `A10_FROZEN_BUNDLE` 后，`scripts/pnpm.ps1 test:t10` 实际通过 125/125、0 fail、0 skip、11.04s，exit 0；C 新文件单独执行 21/21、0 skip、exit 0。
+- 当前测试只证明工具对控制输入与反例的行为；真实 Windows 干净消费者、显式基线复验、6.0.0 候选和原双消费者回退仍等 A 下一固定头后执行。没有用 fixture 通过替代上述验收。
+- 本批根 `scripts/pnpm.ps1 test` 已完整读回 exit 0：Node 125/125、0 skip；Vitest 42 文件、719/719、203.10s。运行中出现既有 Windows 子进程 `DEP0190` 警告，没有将警告写成“零告警”。日志 `.tools/c-t10-audit-integration-test-2026-11-14.log`；独立入口最终配置另跑通过，日志 `.tools/c-t10-permanent-entry-2026-11-14.log`。三工具语法检查及 `git diff --check` exit 0。纯测试与复现文档不单独升版。
