@@ -13,6 +13,19 @@ import { executeReleaseCommand } from '../../packages/component-cli/src/local/re
 
 const sha256 = (bytes: string | Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
 
+const EXPECTED_FIRST_CLICK: Record<string, { seriesId: string; dataIndex: number; value: unknown[]; nativeType: string }> = {
+  line: { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+  bar: { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+  pie: { seriesId: 'share', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' },
+  scatter: { seriesId: 'revenue', dataIndex: 0, value: [1, 120], nativeType: 'click' },
+  'trend-card': { seriesId: 'active', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+  ranking: { seriesId: 'hot', dataIndex: 0, value: ['柱状图', 180], nativeType: 'click' },
+  proportion: { seriesId: 'source', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' },
+};
+
+const VALID_INTEGRITY =
+  'sha512-q0yaFPggC9FUdsWH4blavRWFmxdrIodbkoKNAjJudAI6CA9gNPxHtV2RcZNEepZVlk4yvBYkOkbk6HIVpIyHZA==';
+
 async function buildValidProbeEvidence(params: {
   packageName: string;
   packageVersion: string;
@@ -26,8 +39,9 @@ async function buildValidProbeEvidence(params: {
   overrides?: Record<string, unknown>;
 }) {
   const candidateVersion = params.candidateVersion ?? '6.1.0';
-  const candidateIntegrity = params.candidateIntegrity ?? 'sha512-official-610==';
+  const candidateIntegrity = params.candidateIntegrity ?? VALID_INTEGRITY;
   const candidateSource = params.candidateSource ?? 'https://registry.npmjs.org/echarts';
+  const resolvedTarball = `${candidateSource}/-/echarts-${candidateVersion}.tgz`;
   const components = params.components ?? ['line'];
   const presentations = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const;
 
@@ -79,11 +93,14 @@ async function buildValidProbeEvidence(params: {
           frameworkVersion,
           echartsVersion: candidateVersion,
         };
+        const envKey = await environmentKey(environment);
+        const expectedClick = EXPECTED_FIRST_CLICK[component] ?? EXPECTED_FIRST_CLICK.line!;
         browserRuns.push({
           component,
           presentation,
+          appliedPresentation: renderer === 'canvas' ? { canvases: 1, svgs: 0 } : { canvases: 0, svgs: 1 },
           environment,
-          environmentKey: await environmentKey(environment),
+          environmentKey: envKey,
           environmentAudit: {
             projection: environmentProjection(environment),
             canonical: canonicalJson(environmentProjection(environment)),
@@ -94,22 +111,30 @@ async function buildValidProbeEvidence(params: {
           pageErrors: [],
           checks: ['mounted', 'data', 'resize', 'events'].map((name) => ({ name, status: 'passed' })),
           clickError: null,
-          click: [{ seriesId: 'fixture', dataIndex: 0, value: [0, 1], nativeType: 'click' }],
+          click: [expectedClick],
           screenshot: { file: 'fixture.png', bytes: screenshotBytes.length, sha256: screenshotSha },
         });
-        visualRuns.push({ component, presentation, result: 'PASS' });
+        visualRuns.push({
+          component,
+          presentation,
+          result: 'PASS',
+          environmentKey: envKey,
+          screenshotSha256: screenshotSha,
+        });
       }
     }
     combinations.push({
       framework,
       frameworkVersion,
+      baselineEchartsVersion: '6.1.0',
       echartsVersion: candidateVersion,
       consumer: {
         peerMode: 'strict',
         resolved: {
           echarts: candidateVersion,
-          vue: '3.5.45',
-          react: '19.3.1',
+          [framework]: frameworkVersion,
+          '@company/charts-core': params.packageVersion,
+          [params.packageName]: params.packageVersion,
         },
       },
       dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
@@ -162,8 +187,22 @@ async function buildValidProbeEvidence(params: {
       source: candidateSource,
       integrityVerified: true,
       consumerSources: [
-        { framework: 'vue', verified: true, reason: null, resolved: candidateSource, version: candidateVersion },
-        { framework: 'react', verified: true, reason: null, resolved: candidateSource, version: candidateVersion },
+        {
+          framework: 'vue',
+          verified: true,
+          reason: null,
+          resolved: resolvedTarball,
+          version: candidateVersion,
+          integrity: candidateIntegrity,
+        },
+        {
+          framework: 'react',
+          verified: true,
+          reason: null,
+          resolved: resolvedTarball,
+          version: candidateVersion,
+          integrity: candidateIntegrity,
+        },
       ],
     },
     combinations,
@@ -203,7 +242,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
   });
 
   it(
-    '严格验证完整嵌套执行证据、目标组件/全展示、双框架矩阵与版本、URL 净化、公开/私有投影隔离及 409 冲突',
+    '按 A 协议全语义校验 consumerSources/SRI、appliedPresentation/click/visual 一致性、权威矩阵/SDK/peer 与 URL/投影隔离',
     async () => {
       stack = await createRecoveryStack();
       const services = {
@@ -268,6 +307,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
       const vrRow = (
         await h.db.query<{
           id: string;
+          job_id: string;
           variant_id: string;
           component_id: string;
           framework: 'vue' | 'react';
@@ -276,7 +316,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
           package_sha256: string;
           pkg_bytes: string;
         }>(
-          `SELECT vr.id, vr.variant_id, v.component_id, v.framework, pr.name AS package_name, pr.version AS package_version, pr.sha256 AS package_sha256,
+          `SELECT vr.id, pr.job_id, vr.variant_id, v.component_id, v.framework, pr.name AS package_name, pr.version AS package_version, pr.sha256 AS package_sha256,
                   COALESCE(pr.metadata->'tarball'->>'bytes', '0') AS pkg_bytes
              FROM variant_releases vr
              JOIN variants v ON v.id = vr.variant_id
@@ -301,7 +341,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         packageSha256: vrRow.package_sha256,
         candidate: {
           version: '6.1.0',
-          integrity: 'sha512-official-610==',
+          integrity: VALID_INTEGRITY,
           source: 'https://registry.npmjs.org/echarts',
         },
         evidence: validEvidence,
@@ -318,83 +358,117 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         });
       };
 
-      // 1. 权限与基础校验 (401 / 403 / 404 / DIGEST_MISMATCH / INVALID_SCHEMA)
+      // 1. 权限与基础校验
       expect((await postCompat(vrRow.id, validPayload)).status).toBe(401);
       expect((await postCompat(vrRow.id, validPayload, bobToken)).status).toBe(403);
       expect((await postCompat(vrRow.id, validPayload, carolToken)).status).toBe(403);
       expect((await postCompat('99999999-9999-4999-8999-999999999999', validPayload, aliceToken)).status).toBe(404);
+      expect((await postCompat(vrRow.id, { ...validPayload, packageSha256: 'f'.repeat(64) }, aliceToken)).status).toBe(400);
+
+      // 2. P1 #1 (consumerSources / SRI integrity 绑定)
+      const missingCs = structuredClone(validEvidence) as Record<string, unknown>;
+      delete (missingCs.candidate as Record<string, unknown>).consumerSources;
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: missingCs }, aliceToken)).status).toBe(400);
+
+      const badOriginCs = structuredClone(validEvidence);
+      badOriginCs.candidate.consumerSources[0]!.resolved = 'https://evil.example.test/echarts-6.1.0.tgz';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badOriginCs }, aliceToken)).status).toBe(400);
+
+      const bananaIntegrityEv = structuredClone(validEvidence);
+      bananaIntegrityEv.candidate.integrity = 'banana';
+      bananaIntegrityEv.candidate.consumerSources.forEach((s) => (s.integrity = 'banana'));
       expect(
-        (await postCompat(vrRow.id, { ...validPayload, packageSha256: 'f'.repeat(64) }, aliceToken)).status,
+        (
+          await postCompat(
+            vrRow.id,
+            { ...validPayload, candidate: { ...validPayload.candidate, integrity: 'banana' }, evidence: bananaIntegrityEv },
+            aliceToken,
+          )
+        ).status,
       ).toBe(400);
 
-      // 2. P1 #1: 仅四维+policy+adopt、无完整嵌套执行明细 (summary-only) -> 必须拒绝
-      const summaryOnly = {
-        ...validEvidence,
-        probe: undefined,
-        combinations: validEvidence.combinations.map((c) => ({
-          framework: c.framework,
-          frameworkVersion: c.frameworkVersion,
-          echartsVersion: c.echartsVersion,
-          dimensions: c.dimensions,
-          failures: [],
-        })),
-      };
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: summaryOnly }, aliceToken)).status).toBe(400);
+      const mismatchCsIntegrity = structuredClone(validEvidence);
+      mismatchCsIntegrity.candidate.consumerSources[0]!.integrity = 'sha512-different==';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: mismatchCsIntegrity }, aliceToken)).status).toBe(400);
 
-      // P1 #1b: 伪造 environmentKey -> 必须拒绝
-      const badEnvKeyEv = structuredClone(validEvidence);
-      badEnvKeyEv.combinations[0]!.evidence.browser[0]!.environmentKey = '0'.repeat(64);
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badEnvKeyEv }, aliceToken)).status).toBe(400);
+      // 3. P1 #2 (browser.mjs 纯语义校验: appliedPresentation, click, visual digest/key)
+      const badRendererEv = structuredClone(validEvidence);
+      badRendererEv.combinations[0]!.evidence.browser[0]!.appliedPresentation = { canvases: 0, svgs: 0 };
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badRendererEv }, aliceToken)).status).toBe(400);
 
-      // P1 #1c: ssrImport.windowDefined = true -> 必须拒绝
-      const badSsrEv = structuredClone(validEvidence);
-      badSsrEv.combinations[0]!.evidence.ssrImport.windowDefined = true;
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badSsrEv }, aliceToken)).status).toBe(400);
+      const badClickEv = structuredClone(validEvidence);
+      badClickEv.combinations[0]!.evidence.browser[0]!.click = [
+        { seriesId: 'fixture', dataIndex: 0, value: [0, 1], nativeType: 'click' },
+      ];
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badClickEv }, aliceToken)).status).toBe(400);
 
-      // 3. P1 #2: 同包仅 bar-only 证据提交到 line-vue -> 必须拒绝
-      const barOnlyEv = await buildValidProbeEvidence({
+      const badVisualDigestEv = structuredClone(validEvidence);
+      badVisualDigestEv.combinations[0]!.evidence.visual[0]!.screenshotSha256 = 'f'.repeat(64);
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badVisualDigestEv }, aliceToken)).status).toBe(400);
+
+      // 4. P1 #3 (variant 绑定、resolved SDK/框架版本、peer 策略、多 supported 组合)
+      const missingVariantsEv = structuredClone(validEvidence) as Record<string, unknown>;
+      delete (missingVariantsEv.bundle as Record<string, unknown>).variants;
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: missingVariantsEv }, aliceToken)).status).toBe(400);
+
+      const wrongResolvedFw = structuredClone(validEvidence);
+      wrongResolvedFw.combinations[0]!.consumer.resolved.vue = '3.4.0';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: wrongResolvedFw }, aliceToken)).status).toBe(400);
+
+      const wrongSdkEv = structuredClone(validEvidence);
+      wrongSdkEv.combinations[0]!.consumer.resolved['@company/charts-core'] = '0.0.1';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: wrongSdkEv }, aliceToken)).status).toBe(400);
+
+      // 候选 6.0.0 vs 权威 peer 6.1.0 -> 拒绝
+      const outsidePeerEv = await buildValidProbeEvidence({
         packageName: vrRow.package_name,
         packageVersion: vrRow.package_version,
         packageSha256: vrRow.package_sha256,
         packageBytes: pkgBytes,
-        variantId: 'bar-vue',
-        components: ['bar'],
+        variantId: vrRow.variant_id,
+        components: [vrRow.component_id],
+        candidateVersion: '6.0.0',
       });
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: barOnlyEv }, aliceToken)).status).toBe(400);
+      expect(
+        (
+          await postCompat(
+            vrRow.id,
+            {
+              ...validPayload,
+              candidate: { ...validPayload.candidate, version: '6.0.0' },
+              evidence: outsidePeerEv,
+            },
+            aliceToken,
+          )
+        ).status,
+      ).toBe(400);
 
-      // 4. P1 #3: 删 React / React runtime=failed / Vue frameworkVersion=banana -> 必须全部拒绝
-      const noReactEv = structuredClone(validEvidence);
-      noReactEv.combinations = [noReactEv.combinations[0]!];
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: noReactEv }, aliceToken)).status).toBe(400);
-
-      const reactFailedEv = structuredClone(validEvidence);
-      reactFailedEv.combinations[1]!.dimensions.runtime = 'failed';
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: reactFailedEv }, aliceToken)).status).toBe(400);
-
-      const bogusVersionEv = structuredClone(validEvidence);
-      bogusVersionEv.combinations[0]!.frameworkVersion = 'banana';
-      expect((await postCompat(vrRow.id, { ...validPayload, evidence: bogusVersionEv }, aliceToken)).status).toBe(400);
-
-      // 5. P2 #4: candidate.source 含凭据 / query / hash / 非 HTTPS / 反斜杠 -> 必须全部拒绝
-      for (const badSource of [
-        'https://user:password@registry.npmjs.org/echarts',
-        'https://registry.npmjs.org/echarts?token=secret',
-        'https://registry.npmjs.org/echarts#frag',
-        'http://registry.npmjs.org/echarts',
-        'https://registry.npmjs.org/echarts\\bad',
-      ]) {
-        const badEv = structuredClone(validEvidence);
-        badEv.candidate.source = badSource;
-        badEv.candidate.consumerSources = badEv.candidate.consumerSources.map((s) => ({ ...s, resolved: badSource }));
-        const res = await postCompat(
-          vrRow.id,
-          { ...validPayload, candidate: { ...validPayload.candidate, source: badSource }, evidence: badEv },
-          aliceToken,
-        );
-        expect(res.status, `expected 400 for badSource=${badSource}`).toBe(400);
+      // 模拟权威 manifest 中 line-vue 有第二个 supported Vue 版本 (3.5.46) 但探针缺失该组合 -> 拒绝
+      const origManifest = (
+        await h.db.query<{ manifest: Record<string, unknown> }>('SELECT manifest FROM release_jobs WHERE id=$1', [
+          vrRow.job_id,
+        ])
+      ).rows[0]!.manifest;
+      const twoVueManifest = structuredClone(origManifest) as {
+        variants: Array<{ variantId: string; compatibility: Array<Record<string, unknown>> }>;
+      };
+      const lineVueVariant = twoVueManifest.variants.find((v) => v.variantId === vrRow.variant_id)!;
+      lineVueVariant.compatibility.push({
+        framework: 'vue',
+        frameworkVersion: '3.5.46',
+        echartsVersion: '6.1.0',
+        status: 'passed',
+        reportId: 'rep-2',
+        verifiedAt: new Date().toISOString(),
+      });
+      await h.db.query('UPDATE release_jobs SET manifest=$2 WHERE id=$1', [vrRow.job_id, JSON.stringify(twoVueManifest)]);
+      try {
+        expect((await postCompat(vrRow.id, validPayload, aliceToken)).status).toBe(400);
+      } finally {
+        await h.db.query('UPDATE release_jobs SET manifest=$2 WHERE id=$1', [vrRow.job_id, JSON.stringify(origManifest)]);
       }
 
-      // 6. 合法完整证据提交 -> 201 持久化 + 重复提交 409 CONFLICT
+      // 5. 合法真实协议证据提交 -> 201 持久化 + 409 CONFLICT
       const okRes = await postCompat(vrRow.id, validPayload, aliceToken);
       expect(okRes.status).toBe(201);
       const created = (await okRes.json()) as {
@@ -408,7 +482,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
       const dupRes = await postCompat(vrRow.id, validPayload, aliceToken);
       expect(dupRes.status).toBe(409);
 
-      // 7. P2 #4: 公开投影不返回 reason/subject；普通 reader /v1/me/... 不返回 reason/subject；maintainer 可见
+      // 6. 公开与私有审计投影隔离
       await h.db.query("UPDATE components SET public = true WHERE id = 'line'");
       await h.db.query(
         "INSERT INTO component_permissions(subject, component_id, can_read) VALUES ('bob', 'line', true) ON CONFLICT (subject, component_id) DO UPDATE SET can_read = true",

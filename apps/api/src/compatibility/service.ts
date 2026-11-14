@@ -5,10 +5,20 @@ import { audit, requireComponents, uuid, type RequestContext } from '../db/acces
 import { PlatformError } from '../errors.js';
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
+const SRI_RE = /^sha(?:256|384|512)-[A-Za-z0-9+/=]{16,}$/;
 const EXACT_SEMVER_RE =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const VALID_DIMENSIONS = new Set(['passed', 'failed', 'not-run']);
 const REQUIRED_PRESENTATIONS = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const;
+const EXPECTED_FIRST_CLICK: Record<string, { seriesId: string; dataIndex: number; value: unknown[]; nativeType: string }> = {
+  line: { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+  bar: { seriesId: 'revenue', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+  pie: { seriesId: 'share', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' },
+  scatter: { seriesId: 'revenue', dataIndex: 0, value: [1, 120], nativeType: 'click' },
+  'trend-card': { seriesId: 'active', dataIndex: 0, value: ['周一', 120], nativeType: 'click' },
+  ranking: { seriesId: 'hot', dataIndex: 0, value: ['柱状图', 180], nativeType: 'click' },
+  proportion: { seriesId: 'source', dataIndex: 0, value: ['搜索', 120], nativeType: 'click' },
+};
 
 type FontFingerprint = {
   stack: string;
@@ -28,6 +38,7 @@ type BrowserRun = {
     fontFingerprint: FontFingerprint;
   };
   hostCount: number;
+  appliedPresentation: { canvases: number; svgs: number };
   pageErrors: unknown[];
   checks: Array<{ name: string; status: string }>;
   clickError: unknown;
@@ -48,25 +59,27 @@ type ValidatedProbeEvidence = {
   bundle: {
     version: string;
     packages: Array<{ name: string; version: string; sha256: string; bytes: number }>;
-    variants?: Array<{ variantId: string }>;
+    variants: Array<{ variantId: string }>;
   };
   candidate: {
     version: string;
     integrity: string;
     source: string;
     integrityVerified: boolean;
-    consumerSources?: Array<{
+    consumerSources: Array<{
       framework: string;
       verified: boolean;
       reason: string | null;
-      resolved: string | null;
-      version: string | null;
+      resolved: string;
+      version: string;
+      integrity: string;
     }>;
   };
   combinations: Array<{
     framework: 'vue' | 'react';
     frameworkVersion: string;
     echartsVersion: string;
+    baselineEchartsVersion?: string;
     consumer: {
       peerMode: string;
       resolved: Record<string, string>;
@@ -79,7 +92,15 @@ type ValidatedProbeEvidence = {
       ssrImport: { exitCode: number; windowDefined: boolean; documentDefined: boolean };
       lifecycle: { status: string };
       browser: BrowserRun[];
-      visual: Array<{ component: string; presentation: string; result: string }>;
+      visual: Array<{
+        component: string;
+        presentation: string;
+        result: string;
+        environmentKey?: string;
+        screenshotSha256?: string;
+        sha256?: string;
+        bytes?: number;
+      }>;
     };
   }>;
   policy: {
@@ -159,11 +180,9 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
       return null;
     }
   }
-  if (raw.bundle.variants !== undefined) {
-    if (!Array.isArray(raw.bundle.variants)) return null;
-    for (const v of raw.bundle.variants) {
-      if (!isPlainObject(v) || typeof v.variantId !== 'string' || !v.variantId) return null;
-    }
+  if (!Array.isArray(raw.bundle.variants) || raw.bundle.variants.length === 0) return null;
+  for (const v of raw.bundle.variants) {
+    if (!isPlainObject(v) || typeof v.variantId !== 'string' || !v.variantId) return null;
   }
 
   if (
@@ -171,17 +190,25 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
     typeof raw.candidate.version !== 'string' ||
     !EXACT_SEMVER_RE.test(raw.candidate.version) ||
     typeof raw.candidate.integrity !== 'string' ||
-    !raw.candidate.integrity ||
+    !SRI_RE.test(raw.candidate.integrity) ||
     typeof raw.candidate.source !== 'string' ||
     !raw.candidate.source ||
     typeof raw.candidate.integrityVerified !== 'boolean'
   ) {
     return null;
   }
-  if (raw.candidate.consumerSources !== undefined) {
-    if (!Array.isArray(raw.candidate.consumerSources)) return null;
-    for (const cs of raw.candidate.consumerSources) {
-      if (!isPlainObject(cs) || typeof cs.framework !== 'string' || typeof cs.verified !== 'boolean') return null;
+  if (!Array.isArray(raw.candidate.consumerSources) || raw.candidate.consumerSources.length === 0) return null;
+  for (const cs of raw.candidate.consumerSources) {
+    if (
+      !isPlainObject(cs) ||
+      typeof cs.framework !== 'string' ||
+      typeof cs.verified !== 'boolean' ||
+      typeof cs.resolved !== 'string' ||
+      typeof cs.version !== 'string' ||
+      typeof cs.integrity !== 'string' ||
+      !SRI_RE.test(cs.integrity)
+    ) {
+      return null;
     }
   }
 
@@ -237,6 +264,12 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
     for (const tc of ev.typecheck) {
       if (!isPlainObject(tc) || typeof tc.resolution !== 'string' || typeof tc.exitCode !== 'number') return null;
     }
+    if (
+      c.baselineEchartsVersion !== undefined &&
+      (typeof c.baselineEchartsVersion !== 'string' || !EXACT_SEMVER_RE.test(c.baselineEchartsVersion))
+    ) {
+      return null;
+    }
     for (const v of ev.visual) {
       if (
         !isPlainObject(v) ||
@@ -244,6 +277,21 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
         typeof v.presentation !== 'string' ||
         typeof v.result !== 'string'
       ) {
+        return null;
+      }
+      if (v.environmentKey !== undefined && (typeof v.environmentKey !== 'string' || !SHA256_RE.test(v.environmentKey))) {
+        return null;
+      }
+      if (
+        v.screenshotSha256 !== undefined &&
+        (typeof v.screenshotSha256 !== 'string' || !SHA256_RE.test(v.screenshotSha256))
+      ) {
+        return null;
+      }
+      if (v.sha256 !== undefined && (typeof v.sha256 !== 'string' || !SHA256_RE.test(v.sha256))) {
+        return null;
+      }
+      if (v.bytes !== undefined && (typeof v.bytes !== 'number' || !Number.isInteger(v.bytes) || v.bytes <= 0)) {
         return null;
       }
     }
@@ -263,8 +311,17 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
         !Array.isArray(run.environmentAudit.fontFingerprint.families) ||
         !Array.isArray(run.environmentAudit.fontFingerprint.loadedFonts) ||
         typeof run.hostCount !== 'number' ||
+        !isPlainObject(run.appliedPresentation) ||
+        typeof run.appliedPresentation.canvases !== 'number' ||
+        !Number.isInteger(run.appliedPresentation.canvases) ||
+        run.appliedPresentation.canvases < 0 ||
+        typeof run.appliedPresentation.svgs !== 'number' ||
+        !Number.isInteger(run.appliedPresentation.svgs) ||
+        run.appliedPresentation.svgs < 0 ||
         !Array.isArray(run.pageErrors) ||
         !Array.isArray(run.checks) ||
+        run.checks.some((ch) => !isPlainObject(ch) || typeof ch.name !== 'string' || !ch.name || typeof ch.status !== 'string') ||
+        (run.clickError !== null && typeof run.clickError !== 'string') ||
         !Array.isArray(run.click) ||
         !isPlainObject(run.screenshot) ||
         typeof run.screenshot.sha256 !== 'string' ||
@@ -293,24 +350,64 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
   return raw as unknown as ValidatedProbeEvidence;
 }
 
-function extractAuthoritativeFrameworkVersions(
-  manifest: unknown,
-): { vue?: string; react?: string } {
-  const result: { vue?: string; react?: string } = {};
-  if (!isPlainObject(manifest) || !Array.isArray(manifest.variants)) return result;
-  for (const variant of manifest.variants) {
-    if (!isPlainObject(variant) || !Array.isArray(variant.compatibility)) continue;
-    for (const compat of variant.compatibility) {
-      if (!isPlainObject(compat)) continue;
-      if (compat.framework === 'vue' && typeof compat.frameworkVersion === 'string' && !result.vue) {
-        result.vue = compat.frameworkVersion;
-      }
-      if (compat.framework === 'react' && typeof compat.frameworkVersion === 'string' && !result.react) {
-        result.react = compat.frameworkVersion;
+type AuthoritativeReleaseMatrix = {
+  supported: Array<{ framework: 'vue' | 'react'; frameworkVersion: string; echartsVersion: string }>;
+  baselineEchartsVersion: string | null;
+  peerEcharts: string | null;
+  sdkPackages: Map<string, string>;
+};
+
+function extractAuthoritativeReleaseMatrix(manifest: unknown, packageName: string): AuthoritativeReleaseMatrix {
+  const supportedMap = new Map<string, { framework: 'vue' | 'react'; frameworkVersion: string; echartsVersion: string }>();
+  const baselineVersions = new Set<string>();
+  const sdkPackages = new Map<string, string>();
+  const peerVersions = new Set<string>();
+
+  if (isPlainObject(manifest) && Array.isArray(manifest.variants)) {
+    for (const variant of manifest.variants) {
+      if (!isPlainObject(variant) || !Array.isArray(variant.compatibility)) continue;
+      for (const compat of variant.compatibility) {
+        if (!isPlainObject(compat)) continue;
+        if (compat.status !== undefined && compat.status !== 'passed') continue;
+        if (
+          (compat.framework === 'vue' || compat.framework === 'react') &&
+          typeof compat.frameworkVersion === 'string' &&
+          compat.frameworkVersion &&
+          typeof compat.echartsVersion === 'string' &&
+          EXACT_SEMVER_RE.test(compat.echartsVersion)
+        ) {
+          const key = `${compat.framework}@${compat.frameworkVersion}@${compat.echartsVersion}`;
+          if (!supportedMap.has(key)) {
+            supportedMap.set(key, {
+              framework: compat.framework,
+              frameworkVersion: compat.frameworkVersion,
+              echartsVersion: compat.echartsVersion,
+            });
+          }
+          baselineVersions.add(compat.echartsVersion);
+        }
       }
     }
   }
-  return result;
+
+  if (isPlainObject(manifest) && Array.isArray(manifest.packages)) {
+    for (const pkg of manifest.packages) {
+      if (!isPlainObject(pkg) || typeof pkg.name !== 'string' || typeof pkg.version !== 'string') continue;
+      if (pkg.name === packageName || pkg.name === '@company/charts-core') {
+        sdkPackages.set(pkg.name, pkg.version);
+        if (isPlainObject(pkg.peerDependencies) && typeof pkg.peerDependencies.echarts === 'string') {
+          peerVersions.add(pkg.peerDependencies.echarts);
+        }
+      }
+    }
+  }
+
+  return {
+    supported: [...supportedMap.values()],
+    baselineEchartsVersion: baselineVersions.size === 1 ? ([...baselineVersions][0] ?? null) : null,
+    peerEcharts: peerVersions.size === 1 ? ([...peerVersions][0] ?? null) : null,
+    sdkPackages,
+  };
 }
 
 export class CompatibilityService {
@@ -330,7 +427,7 @@ export class CompatibilityService {
     const candVersion = typeof input.candidate.version === 'string' ? input.candidate.version.trim() : '';
     const candIntegrity = typeof input.candidate.integrity === 'string' ? input.candidate.integrity.trim() : '';
     const candSource = typeof input.candidate.source === 'string' ? input.candidate.source.trim() : '';
-    if (!EXACT_SEMVER_RE.test(candVersion) || !candIntegrity || !isCleanHttpsRegistryUrl(candSource)) {
+    if (!EXACT_SEMVER_RE.test(candVersion) || !SRI_RE.test(candIntegrity) || !isCleanHttpsRegistryUrl(candSource)) {
       throw new PlatformError('INVALID_SCHEMA');
     }
 
@@ -387,7 +484,7 @@ export class CompatibilityService {
       if (!matchedPkg) {
         throw new PlatformError('DIGEST_MISMATCH');
       }
-      if (evidence.bundle.variants && !evidence.bundle.variants.some((v) => v.variantId === row.variant_id)) {
+      if (!evidence.bundle.variants.some((v) => v.variantId === row.variant_id)) {
         throw new PlatformError('REPORT_MISMATCH');
       }
 
@@ -403,36 +500,67 @@ export class CompatibilityService {
       if (evidence.candidate.integrityVerified !== true || evidence.policy.candidateIntegrityVerified !== true) {
         throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
       }
-      if (evidence.candidate.consumerSources) {
-        const csFrameworks = new Set(evidence.candidate.consumerSources.map((s) => s.framework));
+      const candHost = new URL(candSource).host;
+      const csFrameworks = new Set<string>();
+      for (const cs of evidence.candidate.consumerSources) {
         if (
-          !csFrameworks.has('vue') ||
-          !csFrameworks.has('react') ||
-          evidence.candidate.consumerSources.some(
-            (s) => !s.verified || s.version !== candVersion || !s.resolved || !isCleanHttpsRegistryUrl(s.resolved),
-          )
+          (cs.framework !== 'vue' && cs.framework !== 'react') ||
+          csFrameworks.has(cs.framework) ||
+          !cs.verified ||
+          cs.version !== candVersion ||
+          cs.integrity !== candIntegrity ||
+          !isCleanHttpsRegistryUrl(cs.resolved) ||
+          new URL(cs.resolved).host !== candHost
         ) {
           throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
         }
+        csFrameworks.add(cs.framework);
+      }
+      if (!csFrameworks.has('vue') || !csFrameworks.has('react')) {
+        throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
       }
 
-      // 精确核对双框架矩阵：必须恰好覆盖 vue 与 react，禁止缺失、重复或伪造框架版本
-      const authVersions = extractAuthoritativeFrameworkVersions(row.manifest);
+      // 精确核对双框架权威支持矩阵、peer 策略与实际安装版本（禁止缺失、额外、重复或伪造）
+      const matrix = extractAuthoritativeReleaseMatrix(row.manifest, row.package_name);
+      if (
+        matrix.supported.length === 0 ||
+        !matrix.baselineEchartsVersion ||
+        !matrix.peerEcharts ||
+        candVersion !== matrix.peerEcharts
+      ) {
+        throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+      }
+      const expectedComboKeys = new Set(
+        matrix.supported.map((s) => `${s.framework}@${s.frameworkVersion}@${s.echartsVersion}`),
+      );
+      if (evidence.combinations.length !== expectedComboKeys.size) {
+        throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+      }
+
+      const seenComboKeys = new Set<string>();
       const seenFrameworks = new Set<string>();
       for (const combo of evidence.combinations) {
-        if (seenFrameworks.has(combo.framework)) {
+        const comboKey = `${combo.framework}@${combo.frameworkVersion}@${combo.baselineEchartsVersion ?? matrix.baselineEchartsVersion}`;
+        if (!expectedComboKeys.has(comboKey) || seenComboKeys.has(comboKey)) {
           throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
         }
+        seenComboKeys.add(comboKey);
         seenFrameworks.add(combo.framework);
 
-        const expectedFwVersion = authVersions[combo.framework];
-        if (!expectedFwVersion || combo.frameworkVersion !== expectedFwVersion) {
-          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
-        }
         if (combo.echartsVersion !== candVersion) {
           throw new PlatformError('REPORT_MISMATCH');
         }
-        if (combo.consumer.peerMode !== 'strict' || combo.consumer.resolved.echarts !== candVersion) {
+        const resolved = combo.consumer.resolved;
+        if (
+          combo.consumer.peerMode !== 'strict' ||
+          resolved.echarts !== candVersion ||
+          resolved[combo.framework] !== combo.frameworkVersion ||
+          resolved[row.package_name] !== row.package_version
+        ) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+        const coreVersion = matrix.sdkPackages.get('@company/charts-core');
+        if (coreVersion && resolved['@company/charts-core'] !== coreVersion) {
           throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
         }
         if (
@@ -464,33 +592,68 @@ export class CompatibilityService {
         if (ev.visual.length !== ev.browser.length) {
           throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
         }
-        const visualKeys = new Set<string>();
+        const visualByKey = new Map<string, (typeof ev.visual)[number]>();
         for (const v of ev.visual) {
           if (v.result !== 'PASS') {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
           }
           const key = `${v.component}/${v.presentation}`;
-          if (visualKeys.has(key)) {
+          if (visualByKey.has(key)) {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
           }
-          visualKeys.add(key);
+          visualByKey.set(key, v);
         }
 
         const browserKeys = new Set<string>();
         for (const run of ev.browser) {
           const key = `${run.component}/${run.presentation}`;
-          if (!visualKeys.has(key) || browserKeys.has(key)) {
+          const visualEntry = visualByKey.get(key);
+          if (!visualEntry || browserKeys.has(key)) {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
           }
           browserKeys.add(key);
+
+          if (
+            (visualEntry.environmentKey !== undefined && visualEntry.environmentKey !== run.environmentKey) ||
+            (visualEntry.screenshotSha256 !== undefined && visualEntry.screenshotSha256 !== run.screenshot.sha256) ||
+            (visualEntry.sha256 !== undefined && visualEntry.sha256 !== run.screenshot.sha256) ||
+            (visualEntry.bytes !== undefined && visualEntry.bytes !== run.screenshot.bytes)
+          ) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+
+          const expectedRenderer = run.presentation.endsWith('-svg')
+            ? { canvases: 0, svgs: 1 }
+            : run.presentation.endsWith('-canvas')
+              ? { canvases: 1, svgs: 0 }
+              : null;
+          if (
+            !expectedRenderer ||
+            run.appliedPresentation.canvases !== expectedRenderer.canvases ||
+            run.appliedPresentation.svgs !== expectedRenderer.svgs
+          ) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+
+          const expectedClick = EXPECTED_FIRST_CLICK[run.component];
+          const firstClick = run.click.length === 1 && isPlainObject(run.click[0]) ? run.click[0] : null;
+          if (
+            !expectedClick ||
+            !firstClick ||
+            firstClick.seriesId !== expectedClick.seriesId ||
+            firstClick.dataIndex !== expectedClick.dataIndex ||
+            firstClick.nativeType !== expectedClick.nativeType ||
+            JSON.stringify(firstClick.value) !== JSON.stringify(expectedClick.value)
+          ) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
 
           if (
             run.hostCount !== 1 ||
             run.pageErrors.length > 0 ||
             run.checks.length < 4 ||
             run.checks.some((ch) => ch.status !== 'passed') ||
-            run.clickError !== null ||
-            run.click.length === 0
+            run.clickError !== null
           ) {
             throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
           }
