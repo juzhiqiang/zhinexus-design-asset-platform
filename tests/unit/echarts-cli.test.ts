@@ -687,25 +687,8 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
       versions: { '6.1.0': { dist: { integrity: 'sha512-registry-610==' } } },
     });
 
-    // 1. 不传 --probe-entry 且无环境变量时，在当前仓库（无 dist/probe/probe.mjs）必须报 PROBE_ENTRY_NOT_FOUND 且不回退到 tests/acceptance/t10-sdk/probe.mjs
+    // 1. 环境变量 ZHINEXUS_ECHARTS_PROBE_ENTRY 覆盖默认包内探针
     const prevEnv = process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY;
-    delete process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY;
-    try {
-      const missingRes = await runCli(
-        ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl],
-        '0.0.8',
-      );
-      expect(missingRes.exitCode).toBe(1);
-      expect(missingRes.stderr).toContain('PROBE_ENTRY_NOT_FOUND');
-      expect(missingRes.stderr).toContain('probe.mjs');
-      expect(missingRes.stderr).toContain('@playwright/test@1.65.0');
-      expect(missingRes.stderr).toContain('playwright install chromium');
-      expect(missingRes.stderr).not.toContain(path.join('tests', 'acceptance', 't10-sdk', 'probe.mjs'));
-    } finally {
-      if (prevEnv !== undefined) process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY = prevEnv;
-    }
-
-    // 2. 环境变量 ZHINEXUS_ECHARTS_PROBE_ENTRY 覆盖默认包内探针
     const validEv = await validProbeEvidenceForBundle(bundleDir, {
       candidate: { version: '6.1.0', integrity: 'sha512-registry-610==', source: registryUrl, integrityVerified: true },
     });
@@ -744,7 +727,9 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
       await fs.readFile(path.join(installedPkgDir, 'package.json'), 'utf8'),
     ) as { bin: { component: string } };
     const binPath = path.join(installedPkgDir, installedPkgJson.bin.component);
-    // 3a. 外部安装缺少 dist/probe/probe.mjs 时失败关闭
+    // 2a. 在独占临时安装包副本中显式移除 dist/probe（不依赖真实仓库 dist 是否存在），验证缺失时失败关闭并提示浏览器要求
+    const packagedProbeDir = path.join(installedPkgDir, 'dist', 'probe');
+    await fs.rm(packagedProbeDir, { recursive: true, force: true });
     let missingExtExit = 0;
     let missingExtStderr = '';
     try {
@@ -759,9 +744,12 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
     }
     expect(missingExtExit).toBe(1);
     expect(missingExtStderr).toContain('PROBE_ENTRY_NOT_FOUND');
+    expect(missingExtStderr).toContain('probe.mjs');
+    expect(missingExtStderr).toContain('@playwright/test@1.65.0');
+    expect(missingExtStderr).toContain('playwright install chromium');
+    expect(missingExtStderr).not.toContain(path.join('tests', 'acceptance', 't10-sdk', 'probe.mjs'));
 
-    // 3b. 外部安装存在 dist/probe/probe.mjs 时，不传 --probe-entry 默认使用包内探针通过
-    const packagedProbeDir = path.join(installedPkgDir, 'dist', 'probe');
+    // 2b. 外部安装存在 dist/probe/probe.mjs 时，不传 --probe-entry 默认使用包内探针通过
     await fs.mkdir(packagedProbeDir, { recursive: true });
     await fs.writeFile(
       path.join(packagedProbeDir, 'probe.mjs'),

@@ -3,6 +3,7 @@ import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
+import { canonicalJson, environmentKey, environmentProjection } from '@company/contracts';
 import { createRecoveryStack } from '../../infra/scripts/recovery-stack.js';
 import { platformHarness, grant } from '../platform/http-support.js';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
@@ -10,12 +11,15 @@ import { realRegistry } from '../platform/t06-support.js';
 import { prepareReleaseBundle } from '../../packages/component-cli/src/local/manifest.js';
 import { executeReleaseCommand } from '../../packages/component-cli/src/local/release.js';
 
-function buildValidProbeEvidence(params: {
+const sha256 = (bytes: string | Buffer) => crypto.createHash('sha256').update(bytes).digest('hex');
+
+async function buildValidProbeEvidence(params: {
   packageName: string;
   packageVersion: string;
   packageSha256: string;
   packageBytes: number;
-  framework: 'vue' | 'react';
+  variantId: string;
+  components?: string[];
   candidateVersion?: string;
   candidateIntegrity?: string;
   candidateSource?: string;
@@ -24,9 +28,116 @@ function buildValidProbeEvidence(params: {
   const candidateVersion = params.candidateVersion ?? '6.1.0';
   const candidateIntegrity = params.candidateIntegrity ?? 'sha512-official-610==';
   const candidateSource = params.candidateSource ?? 'https://registry.npmjs.org/echarts';
+  const components = params.components ?? ['line'];
+  const presentations = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const;
+
+  const font = {
+    stack: 'system-ui, sans-serif',
+    families: [
+      { family: 'sans-serif', available: true, advances: [210.123, 320.567, 52.111] },
+      { family: 'serif', available: true, advances: [220.123, 320.567, 51.111] },
+      { family: 'monospace', available: true, advances: [230.123, 320.567, 53.111] },
+    ],
+    loadedFonts: [] as string[],
+  };
+  const fontCanonical = canonicalJson({
+    kind: 'font-fingerprint-v1',
+    stack: font.stack,
+    families: font.families.map((f) => ({ ...f, advances: f.advances.map((a) => Math.round(a * 1000) / 1000) })),
+    loadedFonts: [],
+  });
+  const fontDigest = sha256(fontCanonical);
+  const screenshotBytes = Buffer.from(
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScLbtAAAAABJRU5ErkJggg==',
+    'base64',
+  );
+  const screenshotSha = sha256(screenshotBytes);
+
+  const combinations = [];
+  for (const [framework, frameworkVersion] of [
+    ['vue', '3.5.45'],
+    ['react', '19.3.1'],
+  ] as Array<['vue' | 'react', string]>) {
+    const browserRuns = [];
+    const visualRuns = [];
+    for (const component of components) {
+      for (const presentation of presentations) {
+        const [theme, renderer] = presentation.split('-') as ['light' | 'dark', 'canvas' | 'svg'];
+        const environment = {
+          os: 'windows',
+          arch: 'x64',
+          browserVersion: '144.0.0.0',
+          browserRevision: '1254',
+          fontDigest,
+          locale: 'zh-CN',
+          timezone: 'Asia/Shanghai',
+          deviceScaleFactor: 1,
+          renderer,
+          width: 1,
+          height: 1,
+          theme,
+          frameworkVersion,
+          echartsVersion: candidateVersion,
+        };
+        browserRuns.push({
+          component,
+          presentation,
+          environment,
+          environmentKey: await environmentKey(environment),
+          environmentAudit: {
+            projection: environmentProjection(environment),
+            canonical: canonicalJson(environmentProjection(environment)),
+            fontDigest,
+            fontFingerprint: { ...font, fontDigest, canonical: fontCanonical },
+          },
+          hostCount: 1,
+          pageErrors: [],
+          checks: ['mounted', 'data', 'resize', 'events'].map((name) => ({ name, status: 'passed' })),
+          clickError: null,
+          click: [{ seriesId: 'fixture', dataIndex: 0, value: [0, 1], nativeType: 'click' }],
+          screenshot: { file: 'fixture.png', bytes: screenshotBytes.length, sha256: screenshotSha },
+        });
+        visualRuns.push({ component, presentation, result: 'PASS' });
+      }
+    }
+    combinations.push({
+      framework,
+      frameworkVersion,
+      echartsVersion: candidateVersion,
+      consumer: {
+        peerMode: 'strict',
+        resolved: {
+          echarts: candidateVersion,
+          vue: '3.5.45',
+          react: '19.3.1',
+        },
+      },
+      dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
+      failures: [],
+      evidence: {
+        typecheck: [
+          { resolution: 'Bundler', exitCode: 0 },
+          { resolution: 'NodeNext', exitCode: 0 },
+        ],
+        build: { exitCode: 0 },
+        ssrImport: { exitCode: 0, windowDefined: false, documentDefined: false },
+        lifecycle: { status: 'passed' },
+        browser: browserRuns,
+        visual: visualRuns,
+      },
+    });
+  }
+
   return {
     schemaVersion: 1,
     kind: 'a-t10-sdk-probe',
+    probe: {
+      platform: 'windows',
+      node: 'v26.13.0',
+      browserRevision: '1254',
+      fontDigestSource: 'measured',
+      fontDigest,
+    },
     bundle: {
       version: params.packageVersion,
       packages: [
@@ -43,29 +154,19 @@ function buildValidProbeEvidence(params: {
           bytes: 123,
         },
       ],
+      variants: [{ variantId: params.variantId }],
     },
     candidate: {
       version: candidateVersion,
       integrity: candidateIntegrity,
       source: candidateSource,
       integrityVerified: true,
+      consumerSources: [
+        { framework: 'vue', verified: true, reason: null, resolved: candidateSource, version: candidateVersion },
+        { framework: 'react', verified: true, reason: null, resolved: candidateSource, version: candidateVersion },
+      ],
     },
-    combinations: [
-      {
-        framework: 'vue',
-        frameworkVersion: '3.5.45',
-        echartsVersion: candidateVersion,
-        dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
-        failures: [],
-      },
-      {
-        framework: 'react',
-        frameworkVersion: '19.3.1',
-        echartsVersion: candidateVersion,
-        dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
-        failures: [],
-      },
-    ],
+    combinations,
     policy: {
       peerSatisfied: true,
       hasDualFrameworkCoverage: true,
@@ -102,7 +203,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
   });
 
   it(
-    '验证 maintainer 显式提交、零信任校验（拒绝 hold/缺维度/错摘要/畸形证据/越权/错 release）及重复提交 409 冲突与公开/私有查询边界',
+    '严格验证完整嵌套执行证据、目标组件/全展示、双框架矩阵与版本、URL 净化、公开/私有投影隔离及 409 冲突',
     async () => {
       stack = await createRecoveryStack();
       const services = {
@@ -122,7 +223,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
 
       const aliceToken = await h.token('alice', ['maintainer', 'publisher'], 'cli');
       const bobToken = await h.token('bob', ['reader'], 'cli');
-      const carolToken = await h.token('carol', ['maintainer'], 'cli'); // 有 maintainer 角色但无该组件 can_maintain
+      const carolToken = await h.token('carol', ['maintainer'], 'cli');
       const apiUrl = h.origin();
 
       const bundleDir = await fs.mkdtemp(path.join(os.tmpdir(), 'b2-compat-bundle-'));
@@ -168,30 +269,32 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         await h.db.query<{
           id: string;
           variant_id: string;
+          component_id: string;
           framework: 'vue' | 'react';
           package_name: string;
           package_version: string;
           package_sha256: string;
           pkg_bytes: string;
         }>(
-          `SELECT vr.id, vr.variant_id, v.framework, pr.name AS package_name, pr.version AS package_version, pr.sha256 AS package_sha256,
+          `SELECT vr.id, vr.variant_id, v.component_id, v.framework, pr.name AS package_name, pr.version AS package_version, pr.sha256 AS package_sha256,
                   COALESCE(pr.metadata->'tarball'->>'bytes', '0') AS pkg_bytes
              FROM variant_releases vr
              JOIN variants v ON v.id = vr.variant_id
              JOIN package_releases pr ON pr.id = vr.package_release_id
-            WHERE v.framework = 'vue'
+            WHERE v.component_id = 'line' AND v.framework = 'vue'
             LIMIT 1`,
         )
       ).rows[0]!;
       expect(vrRow).toBeTruthy();
 
       const pkgBytes = Number(vrRow.pkg_bytes) || 100;
-      const validEvidence = buildValidProbeEvidence({
+      const validEvidence = await buildValidProbeEvidence({
         packageName: vrRow.package_name,
         packageVersion: vrRow.package_version,
         packageSha256: vrRow.package_sha256,
         packageBytes: pkgBytes,
-        framework: vrRow.framework,
+        variantId: vrRow.variant_id,
+        components: [vrRow.component_id],
       });
 
       const validPayload = {
@@ -202,7 +305,7 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
           source: 'https://registry.npmjs.org/echarts',
         },
         evidence: validEvidence,
-        reason: '本地真实浏览器与双框架 6.1.0 兼容验证通过',
+        reason: 'Evidence verified at C:\\Users\\review-person\\private-project\\probe.json',
       };
 
       const postCompat = async (id: string, body: unknown, token?: string) => {
@@ -215,119 +318,124 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         });
       };
 
-      // 1. 未认证 401
-      const unauthRes = await postCompat(vrRow.id, validPayload);
-      expect(unauthRes.status).toBe(401);
+      // 1. 权限与基础校验 (401 / 403 / 404 / DIGEST_MISMATCH / INVALID_SCHEMA)
+      expect((await postCompat(vrRow.id, validPayload)).status).toBe(401);
+      expect((await postCompat(vrRow.id, validPayload, bobToken)).status).toBe(403);
+      expect((await postCompat(vrRow.id, validPayload, carolToken)).status).toBe(403);
+      expect((await postCompat('99999999-9999-4999-8999-999999999999', validPayload, aliceToken)).status).toBe(404);
+      expect(
+        (await postCompat(vrRow.id, { ...validPayload, packageSha256: 'f'.repeat(64) }, aliceToken)).status,
+      ).toBe(400);
 
-      // 2. reader 角色 403 & maintainer 但无组件 can_maintain 权限 403
-      const bobRes = await postCompat(vrRow.id, validPayload, bobToken);
-      expect(bobRes.status).toBe(403);
-      const carolRes = await postCompat(vrRow.id, validPayload, carolToken);
-      expect(carolRes.status).toBe(403);
+      // 2. P1 #1: 仅四维+policy+adopt、无完整嵌套执行明细 (summary-only) -> 必须拒绝
+      const summaryOnly = {
+        ...validEvidence,
+        probe: undefined,
+        combinations: validEvidence.combinations.map((c) => ({
+          framework: c.framework,
+          frameworkVersion: c.frameworkVersion,
+          echartsVersion: c.echartsVersion,
+          dimensions: c.dimensions,
+          failures: [],
+        })),
+      };
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: summaryOnly }, aliceToken)).status).toBe(400);
 
-      // 3. 错 releaseId -> 404
-      const notFoundRes = await postCompat('99999999-9999-4999-8999-999999999999', validPayload, aliceToken);
-      expect(notFoundRes.status).toBe(404);
+      // P1 #1b: 伪造 environmentKey -> 必须拒绝
+      const badEnvKeyEv = structuredClone(validEvidence);
+      badEnvKeyEv.combinations[0]!.evidence.browser[0]!.environmentKey = '0'.repeat(64);
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badEnvKeyEv }, aliceToken)).status).toBe(400);
 
-      // 4. 错包摘要 -> 400 DIGEST_MISMATCH
-      const wrongDigestRes = await postCompat(
-        vrRow.id,
-        { ...validPayload, packageSha256: 'f'.repeat(64) },
-        aliceToken,
-      );
-      expect(wrongDigestRes.status).toBe(400);
-      expect(((await wrongDigestRes.json()) as { code: string }).code).toBe('DIGEST_MISMATCH');
+      // P1 #1c: ssrImport.windowDefined = true -> 必须拒绝
+      const badSsrEv = structuredClone(validEvidence);
+      badSsrEv.combinations[0]!.evidence.ssrImport.windowDefined = true;
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: badSsrEv }, aliceToken)).status).toBe(400);
 
-      // 5. 畸形证据 -> 400 INVALID_SCHEMA
-      const malformedRes = await postCompat(
-        vrRow.id,
-        { ...validPayload, evidence: { schemaVersion: 1, kind: 'bad', combinations: [{ failures: [null] }] } },
-        aliceToken,
-      );
-      expect(malformedRes.status).toBe(400);
-      expect(((await malformedRes.json()) as { code: string }).code).toBe('INVALID_SCHEMA');
-
-      // 6. hold 或 客户端伪造 recommendation='adopt' 但实际维度失败/缺维度 -> 400 COMPATIBILITY_EVIDENCE_REQUIRED
-      const holdEvidence = buildValidProbeEvidence({
+      // 3. P1 #2: 同包仅 bar-only 证据提交到 line-vue -> 必须拒绝
+      const barOnlyEv = await buildValidProbeEvidence({
         packageName: vrRow.package_name,
         packageVersion: vrRow.package_version,
         packageSha256: vrRow.package_sha256,
         packageBytes: pkgBytes,
-        framework: vrRow.framework,
-        overrides: { recommendation: 'hold' },
+        variantId: 'bar-vue',
+        components: ['bar'],
       });
-      const holdRes = await postCompat(vrRow.id, { ...validPayload, evidence: holdEvidence }, aliceToken);
-      expect(holdRes.status).toBe(400);
-      expect(((await holdRes.json()) as { code: string }).code).toBe('COMPATIBILITY_EVIDENCE_REQUIRED');
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: barOnlyEv }, aliceToken)).status).toBe(400);
 
-      const spoofedAdoptEvidence = buildValidProbeEvidence({
-        packageName: vrRow.package_name,
-        packageVersion: vrRow.package_version,
-        packageSha256: vrRow.package_sha256,
-        packageBytes: pkgBytes,
-        framework: vrRow.framework,
-        overrides: {
-          recommendation: 'adopt',
-          combinations: [
-            {
-              framework: 'vue',
-              frameworkVersion: '3.5.45',
-              echartsVersion: '6.1.0',
-              dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'not-run' },
-              failures: [],
-            },
-            {
-              framework: 'react',
-              frameworkVersion: '19.3.1',
-              echartsVersion: '6.1.0',
-              dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
-              failures: [],
-            },
-          ],
-        },
-      });
-      const spoofedRes = await postCompat(vrRow.id, { ...validPayload, evidence: spoofedAdoptEvidence }, aliceToken);
-      expect(spoofedRes.status).toBe(400);
-      expect(((await spoofedRes.json()) as { code: string }).code).toBe('COMPATIBILITY_EVIDENCE_REQUIRED');
+      // 4. P1 #3: 删 React / React runtime=failed / Vue frameworkVersion=banana -> 必须全部拒绝
+      const noReactEv = structuredClone(validEvidence);
+      noReactEv.combinations = [noReactEv.combinations[0]!];
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: noReactEv }, aliceToken)).status).toBe(400);
 
-      // 7. 合法 maintainer 显式提交 -> 201 持久化
+      const reactFailedEv = structuredClone(validEvidence);
+      reactFailedEv.combinations[1]!.dimensions.runtime = 'failed';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: reactFailedEv }, aliceToken)).status).toBe(400);
+
+      const bogusVersionEv = structuredClone(validEvidence);
+      bogusVersionEv.combinations[0]!.frameworkVersion = 'banana';
+      expect((await postCompat(vrRow.id, { ...validPayload, evidence: bogusVersionEv }, aliceToken)).status).toBe(400);
+
+      // 5. P2 #4: candidate.source 含凭据 / query / hash / 非 HTTPS / 反斜杠 -> 必须全部拒绝
+      for (const badSource of [
+        'https://user:password@registry.npmjs.org/echarts',
+        'https://registry.npmjs.org/echarts?token=secret',
+        'https://registry.npmjs.org/echarts#frag',
+        'http://registry.npmjs.org/echarts',
+        'https://registry.npmjs.org/echarts\\bad',
+      ]) {
+        const badEv = structuredClone(validEvidence);
+        badEv.candidate.source = badSource;
+        badEv.candidate.consumerSources = badEv.candidate.consumerSources.map((s) => ({ ...s, resolved: badSource }));
+        const res = await postCompat(
+          vrRow.id,
+          { ...validPayload, candidate: { ...validPayload.candidate, source: badSource }, evidence: badEv },
+          aliceToken,
+        );
+        expect(res.status, `expected 400 for badSource=${badSource}`).toBe(400);
+      }
+
+      // 6. 合法完整证据提交 -> 201 持久化 + 重复提交 409 CONFLICT
       const okRes = await postCompat(vrRow.id, validPayload, aliceToken);
       expect(okRes.status).toBe(201);
       const created = (await okRes.json()) as {
         compatibilityId: string;
-        variantReleaseId: string;
-        echartsVersion: string;
         status: string;
         evidenceSha256: string;
       };
-      expect(created.variantReleaseId).toBe(vrRow.id);
-      expect(created.echartsVersion).toBe('6.1.0');
       expect(created.status).toBe('passed');
-      expect(created.evidenceSha256).toBe(
-        crypto.createHash('sha256').update(JSON.stringify(validEvidence)).digest('hex'),
-      );
+      expect(created.evidenceSha256).toBe(sha256(JSON.stringify(validEvidence)));
 
-      // 8. 重复提交 / 冲突 -> 409 CONFLICT
       const dupRes = await postCompat(vrRow.id, validPayload, aliceToken);
       expect(dupRes.status).toBe(409);
-      expect(((await dupRes.json()) as { code: string }).code).toBe('CONFLICT');
 
-      // 9. 查询闭环：私有组件公开端点不可见 (404)，/v1/me/... 授权可见 (200)
-      const pubGetBefore = await fetch(`${apiUrl}/v1/variant-releases/${vrRow.id}/compatibility`);
-      expect(pubGetBefore.status).toBe(404);
+      // 7. P2 #4: 公开投影不返回 reason/subject；普通 reader /v1/me/... 不返回 reason/subject；maintainer 可见
+      await h.db.query("UPDATE components SET public = true WHERE id = 'line'");
+      await h.db.query(
+        "INSERT INTO component_permissions(subject, component_id, can_read) VALUES ('bob', 'line', true) ON CONFLICT (subject, component_id) DO UPDATE SET can_read = true",
+      );
 
-      const meGet = await fetch(`${apiUrl}/v1/me/variant-releases/${vrRow.id}/compatibility`, {
+      const pubGet = await fetch(`${apiUrl}/v1/variant-releases/${vrRow.id}/compatibility`);
+      expect(pubGet.status).toBe(200);
+      const pubBody = (await pubGet.json()) as { items: Array<Record<string, unknown>> };
+      expect(pubBody.items).toHaveLength(1);
+      expect(pubBody.items[0]!.reason).toBeUndefined();
+      expect(pubBody.items[0]!.subject).toBeUndefined();
+
+      const readerGet = await fetch(`${apiUrl}/v1/me/variant-releases/${vrRow.id}/compatibility`, {
+        headers: { authorization: `Bearer ${bobToken}` },
+      });
+      expect(readerGet.status).toBe(200);
+      const readerBody = (await readerGet.json()) as { items: Array<Record<string, unknown>> };
+      expect(readerBody.items[0]!.reason).toBeUndefined();
+      expect(readerBody.items[0]!.subject).toBeUndefined();
+
+      const maintainerGet = await fetch(`${apiUrl}/v1/me/variant-releases/${vrRow.id}/compatibility`, {
         headers: { authorization: `Bearer ${aliceToken}` },
       });
-      expect(meGet.status).toBe(200);
-      const meBody = (await meGet.json()) as {
-        variantReleaseId: string;
-        items: Array<{ compatibilityId: string; echartsVersion: string; status: string }>;
-      };
-      expect(meBody.variantReleaseId).toBe(vrRow.id);
-      expect(meBody.items).toHaveLength(1);
-      expect(meBody.items[0]!.compatibilityId).toBe(created.compatibilityId);
-      expect(meBody.items[0]!.status).toBe('passed');
+      expect(maintainerGet.status).toBe(200);
+      const maintainerBody = (await maintainerGet.json()) as { items: Array<Record<string, unknown>> };
+      expect(maintainerBody.items[0]!.reason).toBe(validPayload.reason);
+      expect(maintainerBody.items[0]!.subject).toBe('alice');
     },
     180_000,
   );

@@ -34,10 +34,10 @@ export class CompatibilityController {
     if (request.originalUrl.startsWith('/v1/me/')) {
       response.setHeader('X-Robots-Tag', 'noindex, nofollow');
       return this.platform.run(auth, 'read', request.requestId!, (context, _uploads, db) =>
-        new CompatibilityService(db).list(id, context.principal.subject),
+        new CompatibilityService(db).list(id, context.principal.subject, context.principal.roles),
       );
     }
     if (!this.platform.db) throw new PlatformError('INFRA_UNAVAILABLE');
-    return new CompatibilityService(this.platform.db).list(id, null);
+    return new CompatibilityService(this.platform.db).list(id, null, []);
   }
 }

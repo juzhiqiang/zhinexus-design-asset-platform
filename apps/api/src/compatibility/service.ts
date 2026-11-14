@@ -1,31 +1,86 @@
 import { createHash, randomUUID } from 'node:crypto';
+import { canonicalJson, environmentKey, environmentProjection, type EnvironmentV1 } from '@company/contracts';
 import type { Database } from '../db/database.js';
 import { audit, requireComponents, uuid, type RequestContext } from '../db/access.js';
 import { PlatformError } from '../errors.js';
 
 const SHA256_RE = /^[a-f0-9]{64}$/;
-const EXACT_SEMVER_RE = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
+const EXACT_SEMVER_RE =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 const VALID_DIMENSIONS = new Set(['passed', 'failed', 'not-run']);
+const REQUIRED_PRESENTATIONS = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const;
+
+type FontFingerprint = {
+  stack: string;
+  families: Array<{ family: string; available: boolean; advances: number[] }>;
+  loadedFonts: string[];
+};
+
+type BrowserRun = {
+  component: string;
+  presentation: string;
+  environment: EnvironmentV1;
+  environmentKey: string;
+  environmentAudit: {
+    projection: unknown;
+    canonical: string;
+    fontDigest?: string;
+    fontFingerprint: FontFingerprint;
+  };
+  hostCount: number;
+  pageErrors: unknown[];
+  checks: Array<{ name: string; status: string }>;
+  clickError: unknown;
+  click: unknown[];
+  screenshot: { file?: string; bytes: number; sha256: string };
+};
 
 type ValidatedProbeEvidence = {
   schemaVersion: 1;
   kind: 'a-t10-sdk-probe';
+  probe: {
+    platform: string;
+    node: string;
+    browserRevision: string;
+    fontDigestSource: 'measured';
+    fontDigest: string;
+  };
   bundle: {
     version: string;
     packages: Array<{ name: string; version: string; sha256: string; bytes: number }>;
+    variants?: Array<{ variantId: string }>;
   };
   candidate: {
     version: string;
-    integrity?: string;
-    source?: string;
-    integrityVerified?: boolean;
+    integrity: string;
+    source: string;
+    integrityVerified: boolean;
+    consumerSources?: Array<{
+      framework: string;
+      verified: boolean;
+      reason: string | null;
+      resolved: string | null;
+      version: string | null;
+    }>;
   };
   combinations: Array<{
-    framework: string;
+    framework: 'vue' | 'react';
     frameworkVersion: string;
     echartsVersion: string;
+    consumer: {
+      peerMode: string;
+      resolved: Record<string, string>;
+    };
     dimensions: { typecheck: string; runtime: string; interaction: string; visual: string };
     failures: Array<{ dimension?: string; reason?: string; detail?: string }>;
+    evidence: {
+      typecheck: Array<{ resolution: string; exitCode: number }>;
+      build: { exitCode: number };
+      ssrImport: { exitCode: number; windowDefined: boolean; documentDefined: boolean };
+      lifecycle: { status: string };
+      browser: BrowserRun[];
+      visual: Array<{ component: string; presentation: string; result: string }>;
+    };
   }>;
   policy: {
     peerSatisfied: boolean;
@@ -42,10 +97,50 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
   return Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 }
 
+function sha256Hex(input: string | Buffer): string {
+  return createHash('sha256').update(input).digest('hex');
+}
+
+export function isCleanHttpsRegistryUrl(raw: string): boolean {
+  if (!raw || /\s/.test(raw) || raw.includes('\\') || raw.includes('?') || raw.includes('#')) {
+    return false;
+  }
+  try {
+    const parsed = new URL(raw);
+    if (parsed.protocol !== 'https:') return false;
+    if (parsed.username || parsed.password || parsed.search || parsed.hash) return false;
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | null {
   if (!isPlainObject(raw)) return null;
   if (raw.schemaVersion !== 1 || raw.kind !== 'a-t10-sdk-probe') return null;
-  if (!isPlainObject(raw.bundle) || typeof raw.bundle.version !== 'string' || !Array.isArray(raw.bundle.packages) || raw.bundle.packages.length === 0) {
+
+  if (!isPlainObject(raw.probe)) return null;
+  const probe = raw.probe;
+  if (
+    typeof probe.platform !== 'string' ||
+    !probe.platform ||
+    typeof probe.node !== 'string' ||
+    !probe.node ||
+    typeof probe.browserRevision !== 'string' ||
+    !probe.browserRevision ||
+    probe.fontDigestSource !== 'measured' ||
+    typeof probe.fontDigest !== 'string' ||
+    !SHA256_RE.test(probe.fontDigest)
+  ) {
+    return null;
+  }
+
+  if (
+    !isPlainObject(raw.bundle) ||
+    typeof raw.bundle.version !== 'string' ||
+    !Array.isArray(raw.bundle.packages) ||
+    raw.bundle.packages.length === 0
+  ) {
     return null;
   }
   for (const pkg of raw.bundle.packages) {
@@ -64,23 +159,47 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
       return null;
     }
   }
-  if (!isPlainObject(raw.candidate) || typeof raw.candidate.version !== 'string' || !EXACT_SEMVER_RE.test(raw.candidate.version)) {
+  if (raw.bundle.variants !== undefined) {
+    if (!Array.isArray(raw.bundle.variants)) return null;
+    for (const v of raw.bundle.variants) {
+      if (!isPlainObject(v) || typeof v.variantId !== 'string' || !v.variantId) return null;
+    }
+  }
+
+  if (
+    !isPlainObject(raw.candidate) ||
+    typeof raw.candidate.version !== 'string' ||
+    !EXACT_SEMVER_RE.test(raw.candidate.version) ||
+    typeof raw.candidate.integrity !== 'string' ||
+    !raw.candidate.integrity ||
+    typeof raw.candidate.source !== 'string' ||
+    !raw.candidate.source ||
+    typeof raw.candidate.integrityVerified !== 'boolean'
+  ) {
     return null;
   }
-  if (raw.candidate.integrityVerified !== undefined && typeof raw.candidate.integrityVerified !== 'boolean') {
-    return null;
+  if (raw.candidate.consumerSources !== undefined) {
+    if (!Array.isArray(raw.candidate.consumerSources)) return null;
+    for (const cs of raw.candidate.consumerSources) {
+      if (!isPlainObject(cs) || typeof cs.framework !== 'string' || typeof cs.verified !== 'boolean') return null;
+    }
   }
+
   if (!Array.isArray(raw.combinations) || raw.combinations.length === 0) return null;
   for (const c of raw.combinations) {
     if (
       !isPlainObject(c) ||
-      typeof c.framework !== 'string' ||
+      (c.framework !== 'vue' && c.framework !== 'react') ||
       typeof c.frameworkVersion !== 'string' ||
       !c.frameworkVersion ||
       typeof c.echartsVersion !== 'string' ||
       !EXACT_SEMVER_RE.test(c.echartsVersion) ||
+      !isPlainObject(c.consumer) ||
+      typeof c.consumer.peerMode !== 'string' ||
+      !isPlainObject(c.consumer.resolved) ||
       !isPlainObject(c.dimensions) ||
-      !Array.isArray(c.failures)
+      !Array.isArray(c.failures) ||
+      !isPlainObject(c.evidence)
     ) {
       return null;
     }
@@ -95,7 +214,70 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
         if (f[field] !== undefined && typeof f[field] !== 'string') return null;
       }
     }
+
+    const ev = c.evidence;
+    if (
+      !Array.isArray(ev.typecheck) ||
+      ev.typecheck.length === 0 ||
+      !isPlainObject(ev.build) ||
+      typeof ev.build.exitCode !== 'number' ||
+      !isPlainObject(ev.ssrImport) ||
+      typeof ev.ssrImport.exitCode !== 'number' ||
+      typeof ev.ssrImport.windowDefined !== 'boolean' ||
+      typeof ev.ssrImport.documentDefined !== 'boolean' ||
+      !isPlainObject(ev.lifecycle) ||
+      typeof ev.lifecycle.status !== 'string' ||
+      !Array.isArray(ev.browser) ||
+      ev.browser.length === 0 ||
+      !Array.isArray(ev.visual) ||
+      ev.visual.length === 0
+    ) {
+      return null;
+    }
+    for (const tc of ev.typecheck) {
+      if (!isPlainObject(tc) || typeof tc.resolution !== 'string' || typeof tc.exitCode !== 'number') return null;
+    }
+    for (const v of ev.visual) {
+      if (
+        !isPlainObject(v) ||
+        typeof v.component !== 'string' ||
+        typeof v.presentation !== 'string' ||
+        typeof v.result !== 'string'
+      ) {
+        return null;
+      }
+    }
+    for (const run of ev.browser) {
+      if (
+        !isPlainObject(run) ||
+        typeof run.component !== 'string' ||
+        typeof run.presentation !== 'string' ||
+        !isPlainObject(run.environment) ||
+        typeof run.environmentKey !== 'string' ||
+        !SHA256_RE.test(run.environmentKey) ||
+        !isPlainObject(run.environmentAudit) ||
+        !isPlainObject(run.environmentAudit.projection) ||
+        typeof run.environmentAudit.canonical !== 'string' ||
+        !isPlainObject(run.environmentAudit.fontFingerprint) ||
+        typeof run.environmentAudit.fontFingerprint.stack !== 'string' ||
+        !Array.isArray(run.environmentAudit.fontFingerprint.families) ||
+        !Array.isArray(run.environmentAudit.fontFingerprint.loadedFonts) ||
+        typeof run.hostCount !== 'number' ||
+        !Array.isArray(run.pageErrors) ||
+        !Array.isArray(run.checks) ||
+        !Array.isArray(run.click) ||
+        !isPlainObject(run.screenshot) ||
+        typeof run.screenshot.sha256 !== 'string' ||
+        !SHA256_RE.test(run.screenshot.sha256) ||
+        typeof run.screenshot.bytes !== 'number' ||
+        !Number.isInteger(run.screenshot.bytes) ||
+        run.screenshot.bytes <= 0
+      ) {
+        return null;
+      }
+    }
   }
+
   if (!isPlainObject(raw.policy)) return null;
   const p = raw.policy;
   if (
@@ -109,6 +291,26 @@ function validateProbeEvidencePayload(raw: unknown): ValidatedProbeEvidence | nu
   if (typeof raw.recommendation !== 'string' || !raw.recommendation) return null;
   if (!Array.isArray(raw.uncovered) || raw.uncovered.some((u) => typeof u !== 'string')) return null;
   return raw as unknown as ValidatedProbeEvidence;
+}
+
+function extractAuthoritativeFrameworkVersions(
+  manifest: unknown,
+): { vue?: string; react?: string } {
+  const result: { vue?: string; react?: string } = {};
+  if (!isPlainObject(manifest) || !Array.isArray(manifest.variants)) return result;
+  for (const variant of manifest.variants) {
+    if (!isPlainObject(variant) || !Array.isArray(variant.compatibility)) continue;
+    for (const compat of variant.compatibility) {
+      if (!isPlainObject(compat)) continue;
+      if (compat.framework === 'vue' && typeof compat.frameworkVersion === 'string' && !result.vue) {
+        result.vue = compat.frameworkVersion;
+      }
+      if (compat.framework === 'react' && typeof compat.frameworkVersion === 'string' && !result.react) {
+        result.react = compat.frameworkVersion;
+      }
+    }
+  }
+  return result;
 }
 
 export class CompatibilityService {
@@ -128,15 +330,7 @@ export class CompatibilityService {
     const candVersion = typeof input.candidate.version === 'string' ? input.candidate.version.trim() : '';
     const candIntegrity = typeof input.candidate.integrity === 'string' ? input.candidate.integrity.trim() : '';
     const candSource = typeof input.candidate.source === 'string' ? input.candidate.source.trim() : '';
-    if (!EXACT_SEMVER_RE.test(candVersion) || !candIntegrity || !candSource || candSource === 'offline') {
-      throw new PlatformError('INVALID_SCHEMA');
-    }
-    try {
-      const parsedUrl = new URL(candSource);
-      if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
-        throw new PlatformError('INVALID_SCHEMA');
-      }
-    } catch {
+    if (!EXACT_SEMVER_RE.test(candVersion) || !candIntegrity || !isCleanHttpsRegistryUrl(candSource)) {
       throw new PlatformError('INVALID_SCHEMA');
     }
 
@@ -159,10 +353,11 @@ export class CompatibilityService {
           availability: string;
           pkg_state: string;
           job_state: string;
+          manifest: unknown;
         }>(
           `SELECT vr.id, vr.variant_id, v.component_id, v.framework, pr.id AS package_release_id,
                   pr.name AS package_name, pr.version AS package_version, pr.sha256 AS package_sha256,
-                  vr.availability, pr.state AS pkg_state, rj.state AS job_state
+                  vr.availability, pr.state AS pkg_state, rj.state AS job_state, rj.manifest
              FROM variant_releases vr
              JOIN variants v ON v.id = vr.variant_id
              JOIN package_releases pr ON pr.id = vr.package_release_id
@@ -192,11 +387,14 @@ export class CompatibilityService {
       if (!matchedPkg) {
         throw new PlatformError('DIGEST_MISMATCH');
       }
+      if (evidence.bundle.variants && !evidence.bundle.variants.some((v) => v.variantId === row.variant_id)) {
+        throw new PlatformError('REPORT_MISMATCH');
+      }
 
       if (
         evidence.candidate.version !== candVersion ||
         evidence.candidate.integrity !== candIntegrity ||
-        evidence.candidate.source === 'offline' ||
+        !isCleanHttpsRegistryUrl(evidence.candidate.source) ||
         evidence.candidate.source !== candSource
       ) {
         throw new PlatformError('REPORT_MISMATCH');
@@ -205,27 +403,152 @@ export class CompatibilityService {
       if (evidence.candidate.integrityVerified !== true || evidence.policy.candidateIntegrityVerified !== true) {
         throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
       }
-
-      if (evidence.combinations.some((c) => c.echartsVersion !== candVersion)) {
-        throw new PlatformError('REPORT_MISMATCH');
+      if (evidence.candidate.consumerSources) {
+        const csFrameworks = new Set(evidence.candidate.consumerSources.map((s) => s.framework));
+        if (
+          !csFrameworks.has('vue') ||
+          !csFrameworks.has('react') ||
+          evidence.candidate.consumerSources.some(
+            (s) => !s.verified || s.version !== candVersion || !s.resolved || !isCleanHttpsRegistryUrl(s.resolved),
+          )
+        ) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
       }
 
-      const matchingCombos = evidence.combinations.filter((c) => c.framework === row.framework);
-      if (matchingCombos.length === 0) {
+      // 精确核对双框架矩阵：必须恰好覆盖 vue 与 react，禁止缺失、重复或伪造框架版本
+      const authVersions = extractAuthoritativeFrameworkVersions(row.manifest);
+      const seenFrameworks = new Set<string>();
+      for (const combo of evidence.combinations) {
+        if (seenFrameworks.has(combo.framework)) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+        seenFrameworks.add(combo.framework);
+
+        const expectedFwVersion = authVersions[combo.framework];
+        if (!expectedFwVersion || combo.frameworkVersion !== expectedFwVersion) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+        if (combo.echartsVersion !== candVersion) {
+          throw new PlatformError('REPORT_MISMATCH');
+        }
+        if (combo.consumer.peerMode !== 'strict' || combo.consumer.resolved.echarts !== candVersion) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+        if (
+          combo.dimensions.typecheck !== 'passed' ||
+          combo.dimensions.runtime !== 'passed' ||
+          combo.dimensions.interaction !== 'passed' ||
+          combo.dimensions.visual !== 'passed' ||
+          combo.failures.length > 0
+        ) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+
+        // 核对完整嵌套执行明细（不依赖客户端本机路径、不执行任何组件代码）
+        const ev = combo.evidence;
+        const resolutions = new Set(ev.typecheck.map((t) => t.resolution));
+        if (
+          !resolutions.has('Bundler') ||
+          !resolutions.has('NodeNext') ||
+          ev.typecheck.some((t) => t.exitCode !== 0) ||
+          ev.build.exitCode !== 0 ||
+          ev.ssrImport.exitCode !== 0 ||
+          ev.ssrImport.windowDefined !== false ||
+          ev.ssrImport.documentDefined !== false ||
+          ev.lifecycle.status !== 'passed'
+        ) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+
+        if (ev.visual.length !== ev.browser.length) {
+          throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+        }
+        const visualKeys = new Set<string>();
+        for (const v of ev.visual) {
+          if (v.result !== 'PASS') {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+          const key = `${v.component}/${v.presentation}`;
+          if (visualKeys.has(key)) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+          visualKeys.add(key);
+        }
+
+        const browserKeys = new Set<string>();
+        for (const run of ev.browser) {
+          const key = `${run.component}/${run.presentation}`;
+          if (!visualKeys.has(key) || browserKeys.has(key)) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+          browserKeys.add(key);
+
+          if (
+            run.hostCount !== 1 ||
+            run.pageErrors.length > 0 ||
+            run.checks.length < 4 ||
+            run.checks.some((ch) => ch.status !== 'passed') ||
+            run.clickError !== null ||
+            run.click.length === 0
+          ) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+
+          const env = run.environment;
+          if (
+            env.browserRevision !== evidence.probe.browserRevision ||
+            env.fontDigest !== evidence.probe.fontDigest ||
+            env.frameworkVersion !== combo.frameworkVersion ||
+            env.echartsVersion !== candVersion
+          ) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+
+          const computedEnvKey = await environmentKey(env);
+          if (computedEnvKey !== run.environmentKey) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+          const expectedProj = environmentProjection(env);
+          const expectedCanonical = canonicalJson(expectedProj);
+          if (
+            canonicalJson(run.environmentAudit.projection) !== expectedCanonical ||
+            run.environmentAudit.canonical !== expectedCanonical
+          ) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+
+          const ff = run.environmentAudit.fontFingerprint;
+          const computedFontDigest = sha256Hex(
+            canonicalJson({
+              kind: 'font-fingerprint-v1',
+              stack: ff.stack.trim().normalize('NFC'),
+              families: ff.families.map((fam) => ({
+                family: fam.family,
+                available: fam.available === true,
+                advances: fam.advances.map((a) => Math.round(a * 1000) / 1000),
+              })),
+              loadedFonts: ff.loadedFonts.map(String).sort(),
+            }),
+          );
+          if (computedFontDigest !== env.fontDigest) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+        }
+
+        // 核对目标组件及其全部 4 个展示组合均在实测中覆盖并 PASS（防止仅跑 bar 扩散到 line）
+        for (const presentation of REQUIRED_PRESENTATIONS) {
+          if (!browserKeys.has(`${row.component_id}/${presentation}`)) {
+            throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
+          }
+        }
+      }
+
+      if (!seenFrameworks.has('vue') || !seenFrameworks.has('react')) {
         throw new PlatformError('COMPATIBILITY_EVIDENCE_REQUIRED');
       }
 
-      const allDimsPassed = matchingCombos.every(
-        (c) =>
-          c.dimensions.typecheck === 'passed' &&
-          c.dimensions.runtime === 'passed' &&
-          c.dimensions.interaction === 'passed' &&
-          c.dimensions.visual === 'passed' &&
-          c.failures.length === 0,
-      );
-
       if (
-        !allDimsPassed ||
         evidence.uncovered.length > 0 ||
         !evidence.policy.peerSatisfied ||
         !evidence.policy.hasDualFrameworkCoverage ||
@@ -245,8 +568,8 @@ export class CompatibilityService {
       }
 
       const compatibilityId = randomUUID();
-      const evidenceSha256 = createHash('sha256').update(JSON.stringify(input.evidence)).digest('hex');
-      const frameworkVersion = matchingCombos[0]!.frameworkVersion;
+      const evidenceSha256 = sha256Hex(JSON.stringify(input.evidence));
+      const targetCombo = evidence.combinations.find((c) => c.framework === row.framework)!;
 
       const inserted = (
         await client.query<{ created_at: Date }>(
@@ -264,7 +587,7 @@ export class CompatibilityService {
             row.package_version,
             row.package_sha256,
             row.framework,
-            frameworkVersion,
+            targetCombo.frameworkVersion,
             candVersion,
             candIntegrity,
             candSource,
@@ -300,7 +623,7 @@ export class CompatibilityService {
         packageVersion: row.package_version,
         packageSha256: row.package_sha256,
         framework: row.framework,
-        frameworkVersion,
+        frameworkVersion: targetCombo.frameworkVersion,
         echartsVersion: candVersion,
         candidateIntegrity: candIntegrity,
         candidateSource: candSource,
@@ -313,11 +636,11 @@ export class CompatibilityService {
     });
   }
 
-  async list(variantReleaseId: string, subject: string | null = null) {
+  async list(variantReleaseId: string, subject: string | null = null, roles: readonly string[] = []) {
     const id = uuid(variantReleaseId);
     const release = (
-      await this.db.query<{ id: string }>(
-        `SELECT vr.id
+      await this.db.query<{ id: string; component_id: string }>(
+        `SELECT vr.id, v.component_id
            FROM variant_releases vr
            JOIN variants v ON v.id = vr.variant_id
            JOIN components c ON c.id = v.component_id
@@ -330,6 +653,15 @@ export class CompatibilityService {
       )
     ).rows[0];
     if (!release) throw new PlatformError('NOT_FOUND', [], subject !== null);
+
+    let includeAuditFields = false;
+    if (subject !== null && roles.includes('maintainer')) {
+      const perm = await this.db.query(
+        'SELECT 1 FROM component_permissions WHERE subject=$1 AND component_id=$2 AND can_maintain=true',
+        [subject, release.component_id],
+      );
+      includeAuditFields = Boolean(perm.rowCount);
+    }
 
     const rows = (
       await this.db.query<{
@@ -361,23 +693,24 @@ export class CompatibilityService {
 
     return {
       variantReleaseId: id,
-      items: rows.map((r) => ({
-        compatibilityId: r.id,
-        variantReleaseId: r.variant_release_id,
-        packageName: r.package_name,
-        packageVersion: r.package_version,
-        packageSha256: r.package_sha256,
-        framework: r.framework,
-        frameworkVersion: r.framework_version,
-        echartsVersion: r.echarts_version,
-        candidateIntegrity: r.candidate_integrity,
-        candidateSource: r.candidate_source,
-        status: r.status,
-        evidenceSha256: r.evidence_sha256,
-        reason: r.reason,
-        subject: r.subject,
-        createdAt: r.created_at.toISOString(),
-      })),
+      items: rows.map((r) => {
+        const base = {
+          compatibilityId: r.id,
+          variantReleaseId: r.variant_release_id,
+          packageName: r.package_name,
+          packageVersion: r.package_version,
+          packageSha256: r.package_sha256,
+          framework: r.framework,
+          frameworkVersion: r.framework_version,
+          echartsVersion: r.echarts_version,
+          candidateIntegrity: r.candidate_integrity,
+          candidateSource: r.candidate_source,
+          status: r.status,
+          evidenceSha256: r.evidence_sha256,
+          createdAt: r.created_at.toISOString(),
+        };
+        return includeAuditFields ? { ...base, reason: r.reason, subject: r.subject } : base;
+      }),
     };
   }
 }
