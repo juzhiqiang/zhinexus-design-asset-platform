@@ -43,7 +43,7 @@ import {
   runTypechecks,
   verifyConsumerCandidateSource,
 } from './consumer.mjs';
-import { baselineScreenshots, compareWithBaseline, injectEchartsRegistry, measureFontFingerprint, readBrowserRevision, runBrowserProbe, summariseInteraction, summariseRuntime } from './browser.mjs';
+import { baselineScreenshots, browserMissingDiagnostic, compareWithBaseline, injectEchartsRegistry, measureFontFingerprint, readBrowserRevision, runBrowserProbe, summariseInteraction, summariseRuntime } from './browser.mjs';
 import {
   buildCombinationRecord,
   collectUncovered,
@@ -53,8 +53,80 @@ import {
 } from './evidence.mjs';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const REPO_ROOT = path.resolve(HERE, '../../..');
 const EVIDENCE_SCHEMA_VERSION = 1;
+
+/**
+ * 解析探针的运行布局：资源根在哪、是不是已打包形态。
+ *
+ * 两种形态共用同一份 `probe.mjs`：
+ * - **仓库形态**：`<repo>/tests/acceptance/t10-sdk/probe.mjs`，资源根就是仓库根，
+ *   `examples/` 与 `tsconfig.base.json` 都在上一三级；
+ * - **打包形态**：`<cli>/dist/probe/probe.mjs`，资源在旁边的 `resources/` 下
+ *   （`resources/examples/{vue,react,fixtures}` + `resources/tsconfig.base.json`）。
+ *
+ * 为什么两条形态都要认：探针要随 `@company/component-cli` 分发，安装后的目录结构
+ * 与仓库里完全不同，而示例源码写死了 `../../fixtures/*.json` 与
+ * `../../tsconfig.base.json` 两条相对路径，所以打包时必须原样保留
+ * `resources/examples/<framework>` 与 `resources/examples/fixtures` 这对兄弟关系，
+ * 资源路径才能既喂 `exampleDir` 又喂消费者所需的 fixtures / tsconfig。
+ *
+ * `installRoot` 与 `resourceRoot` 在仓库形态下是同一条路径，在打包形态下不是：
+ * 安装目录 `dist/probe` 整体是**只读分发物**，干净消费者与证据输出都不许落在里面，
+ * 而资源只在它的 `resources/` 子目录下。把两者混成一个字段，就会漏掉
+ * 「消费者建在 dist/probe 下但不在 resources 下」这种绕法。
+ *
+ * 探测只看**文件系统事实**（目录是否真的在），不看调用时的工作目录——
+ * 探针必须能从任意 cwd 启动。
+ *
+ * @param {string} here 探针所在目录
+ * @returns {{packaged: boolean; resourceRoot: string; installRoot: string; probeRoot: string; examplesDir: string; fixturesDir: string; baseTsconfig: string}}
+ */
+export function resolveProbeLayout(here = HERE) {
+  const probeRoot = path.resolve(here);
+  const packagedResources = path.join(probeRoot, 'resources');
+  if (existsSync(path.join(packagedResources, 'examples'))) {
+    return {
+      packaged: true,
+      resourceRoot: packagedResources,
+      installRoot: probeRoot,
+      probeRoot,
+      examplesDir: path.join(packagedResources, 'examples'),
+      fixturesDir: path.join(packagedResources, 'examples', 'fixtures'),
+      baseTsconfig: path.join(packagedResources, 'tsconfig.base.json'),
+    };
+  }
+  const repoRoot = path.resolve(probeRoot, '../../..');
+  if (existsSync(path.join(repoRoot, 'examples'))) {
+    return {
+      packaged: false,
+      resourceRoot: repoRoot,
+      installRoot: repoRoot,
+      probeRoot,
+      examplesDir: path.join(repoRoot, 'examples'),
+      fixturesDir: path.join(repoRoot, 'examples', 'fixtures'),
+      baseTsconfig: path.join(repoRoot, 'tsconfig.base.json'),
+    };
+  }
+  throw new Error(
+    'PROBE_INPUT 找不到探针资源根：既没有仓库形态的 examples/，也没有打包形态的 resources/examples/。' +
+      `探针目录：${probeRoot}。` +
+      '若这是随 CLI 安装的副本，说明打包漏了 resources/——请重新执行 ' +
+      'node packages/component-cli/scripts/package-probe.mjs。',
+  );
+}
+
+/**
+ * 默认证据输出目录。
+ *
+ * 必须是**调用者的 cwd** 下，绝不能是安装包目录：安装包是只读分发物，
+ * 往里写证据会污染安装目录，也会让后续安装校验（清单复核）失败。
+ *
+ * @param {{cwd?: string; at?: Date}} options
+ */
+export function defaultOutputDir({ cwd = process.cwd(), at = new Date() } = {}) {
+  const stamp = at.toISOString().replace(/[:.]/g, '-');
+  return path.join(path.resolve(cwd), 'test-results', 't10-sdk-probes', stamp);
+}
 
 const USAGE = `T10 双框架精确版本兼容探针
 
@@ -359,11 +431,13 @@ async function main(argv) {
   }
   const options = parsed.options;
   const startedAt = new Date();
+  // 布局要在任何路径派生之前定好：资源根同时决定 exampleDir、repoRoot 与默认输出。
+  const layout = resolveProbeLayout(HERE);
   // 记录「怎么跑的」要用真实 argv，不能用目录名：否则复现命令时少一段 probe.mjs。
   const invokedAs =
     process.argv[1] === undefined
-      ? path.relative(REPO_ROOT, HERE).replaceAll('\\', '/')
-      : path.relative(REPO_ROOT, process.argv[1]).replaceAll('\\', '/');
+      ? path.relative(layout.probeRoot, HERE).replaceAll('\\', '/')
+      : path.relative(layout.probeRoot, process.argv[1]).replaceAll('\\', '/');
   const command = [process.execPath, invokedAs, ...argv];
 
   const bundle = await readFrozenBundle(options.bundle);
@@ -457,9 +531,7 @@ async function main(argv) {
     }
   }
 
-  const outDir = path.resolve(
-    options.out ?? path.join(REPO_ROOT, 'test-results', 't10-sdk-probes', startedAt.toISOString().replace(/[:.]/g, '-')),
-  );
+  const outDir = path.resolve(options.out ?? defaultOutputDir({ at: startedAt }));
   await mkdir(outDir, { recursive: true });
   const screenshotDir = path.join(outDir, 'screenshots');
 
@@ -487,8 +559,12 @@ async function main(argv) {
   for (const framework of options.frameworks) {
     const consumer = await createConsumer({
       framework,
-      exampleDir: path.join(REPO_ROOT, 'examples', framework),
-      repoRoot: REPO_ROOT,
+      exampleDir: path.join(layout.examplesDir, framework),
+      // 只读边界是安装目录（仓库形态下就是仓库根）；资源位置单独给，
+      // 打包形态下它在 installRoot 的 resources/ 子目录里。
+      repoRoot: layout.installRoot,
+      fixturesDir: layout.fixturesDir,
+      baseTsconfig: layout.baseTsconfig,
       tarballs,
       echartsVersion: requestedEcharts,
       consumerRoot: options.consumerRoot,
@@ -572,10 +648,10 @@ async function main(argv) {
         playwrightModule = await import('@playwright/test');
       } catch (error) {
         // 明确失败而不是静默跳过：浏览器维度不跑就一律 not-run，
-        // 但「没装依赖」和「主动 --skip-browser」必须让人分得清。
+        // 「没装依赖」和「主动 --skip-browser」必须让人分得清，而且处方要按形态给。
         throw new Error(
-          'PROBE_DEPENDENCY 无法加载 @playwright/test（根 devDependency，1.65.0）。' +
-            '请先在仓库根执行 pnpm install；若确实只想跑类型 / 构建 / SSR，请显式传 --skip-browser。' +
+          'PROBE_DEPENDENCY 无法加载 @playwright/test（精确 1.65.0）。' +
+            browserMissingDiagnostic(import.meta.url) +
             `原始错误：${String(error?.message ?? error)}`,
         );
       }
@@ -800,8 +876,15 @@ async function main(argv) {
     kind: 'a-t10-sdk-probe',
     generatedAt: startedAt.toISOString(),
     probe: {
-      entry: path.relative(REPO_ROOT, HERE).replaceAll('\\', '/'),
-      repoRoot: REPO_ROOT,
+      // 入口按「相对安装根」记：仓库形态是 tests/acceptance/t10-sdk/probe.mjs，
+      // 打包形态就是 probe.mjs。相对 probeRoot 会得到空串（probe.mjs 就在 probeRoot 里），
+      // 于是证据里看不出这个证据到底是谁产出的。
+      entry: path.relative(layout.installRoot, path.join(HERE, 'probe.mjs')).replaceAll('\\', '/'),
+      // 资源根与形态一起留痕：同一份证据要能分清是仓库里跑的还是安装后跑的，
+      // 否则"从安装包外部启动"这件事无法从证据里复核。
+      resourceRoot: layout.resourceRoot,
+      installRoot: layout.installRoot,
+      packaged: layout.packaged,
       command,
       node: process.version,
       npm: process.env.npm_config_user_agent ?? null,

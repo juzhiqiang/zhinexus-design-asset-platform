@@ -252,6 +252,12 @@ export function classifyInstallFailure(output) {
 /**
  * 创建干净消费者：复制示例源码、改写清单、安装依赖。
  *
+ * `repoRoot` 是**只读边界**（消费者不许落在它里面），`fixturesDir` / `baseTsconfig`
+ * 是**资源位置**。仓库形态下两者重合（都是仓库根）；打包形态下不重合——
+ * 只读边界是整个安装目录 `dist/probe`，而 fixtures 与 tsconfig 在它的
+ * `resources/` 子目录下。把两者硬绑成一个参数，就会漏掉
+ * 「消费者建在安装目录里但不在 resources 里」这种绕法。
+ *
  * @returns {Promise<object>} 消费者描述（含两次安装的结果与解析到的精确版本）
  */
 export async function createConsumer({
@@ -262,6 +268,8 @@ export async function createConsumer({
   echartsVersion,
   consumerRoot,
   peer = 'strict',
+  fixturesDir = path.join(repoRoot, 'examples', 'fixtures'),
+  baseTsconfig = path.join(repoRoot, 'tsconfig.base.json'),
 }) {
   // 硬约束：干净消费者必须建在仓库之外。三种绕法（直接写仓库内、`..` 折回、
   // 符号链接 / Junction 指向仓库内）都在 checkOutsideRepo 里拦。
@@ -311,14 +319,14 @@ export async function createConsumer({
           '请先清理 examples 下的构建产物，或确认 consumerSourceFilter 生效。',
       );
     }
-    await cp(path.resolve(repoRoot, 'examples', 'fixtures'), path.join(staging, 'fixtures'), {
+    await cp(path.resolve(fixturesDir), path.join(staging, 'fixtures'), {
       recursive: true,
       force: true,
       filter: consumerSourceFilter(),
     });
     // `examples/*/tsconfig.json` 继承仓库根的 `tsconfig.base.json`，同样会断链；
     // 把它搬进消费者并把 extends 改成消费者内相对路径，编译器设置与仓库完全一致。
-    await cp(path.resolve(repoRoot, 'tsconfig.base.json'), path.join(exampleRoot, 'tsconfig.base.json'), {
+    await cp(path.resolve(baseTsconfig), path.join(exampleRoot, 'tsconfig.base.json'), {
       force: true,
     });
     const exampleTsconfig = path.join(exampleRoot, 'tsconfig.json');
