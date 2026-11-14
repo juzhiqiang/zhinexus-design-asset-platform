@@ -3,6 +3,7 @@ import * as crypto from 'node:crypto';
 import * as fs from 'node:fs/promises';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 export type ProbeDimensionStatus = 'passed' | 'failed' | 'not-run';
 
@@ -755,6 +756,12 @@ function runProbeSubprocess(
   });
 }
 
+function resolveDefaultProbeEntry(): string {
+  const selfPath = fileURLToPath(import.meta.url);
+  const inSrc = path.basename(path.dirname(path.dirname(selfPath))) === 'src';
+  return fileURLToPath(new URL(inSrc ? '../../dist/probe/probe.mjs' : '../probe/probe.mjs', import.meta.url));
+}
+
 export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Promise<EchartsVerifyResult> {
   if (!options.bundleDir) {
     return { ok: false, errorCode: 'MISSING_BUNDLE', error: '缺少必填参数 --bundle <dir>' };
@@ -822,7 +829,7 @@ export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Pro
   const probeEntry = path.resolve(
     options.probeEntry?.trim() ||
       process.env.ZHINEXUS_ECHARTS_PROBE_ENTRY?.trim() ||
-      path.join(process.cwd(), 'tests/acceptance/t10-sdk/probe.mjs'),
+      resolveDefaultProbeEntry(),
   );
 
   try {
@@ -831,7 +838,7 @@ export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Pro
     return {
       ok: false,
       errorCode: 'PROBE_ENTRY_NOT_FOUND',
-      error: `找不到探针入口文件: ${probeEntry}（可通过 --probe-entry 或环境变量 ZHINEXUS_ECHARTS_PROBE_ENTRY 指定）`,
+      error: `找不到探针入口文件: ${probeEntry}（默认使用包内 dist/probe/probe.mjs；可通过 --probe-entry 或环境变量 ZHINEXUS_ECHARTS_PROBE_ENTRY 覆盖；运行真实浏览器探针需 @playwright/test@1.65.0 与 Chromium：npx playwright install chromium 或配置 PLAYWRIGHT_BROWSERS_PATH）`,
     };
   }
 
@@ -873,12 +880,18 @@ export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Pro
 
     const proc = await runProbeSubprocess(probeEntry, probeArgs, options.timeoutMs ?? 600_000);
     if (proc.spawnError || proc.exitCode !== 0) {
+      const rawErr = proc.spawnError ?? (proc.stderr.trim() || '未知错误');
+      const isPlaywrightMissing =
+        /Executable doesn't exist|playwright|@playwright\/test|browserType\.launch/i.test(rawErr);
+      const browserHint = isPlaywrightMissing
+        ? '（提示：浏览器探针需要 @playwright/test@1.65.0 与 Chromium，请确认已安装依赖并执行 npx playwright install chromium 或配置 PLAYWRIGHT_BROWSERS_PATH）'
+        : '';
       return {
         ok: false,
         errorCode: 'PROBE_FAILED',
         probeExitCode: proc.exitCode,
         stderr: proc.stderr,
-        error: `探针执行失败 (exitCode=${proc.exitCode}): ${proc.spawnError ?? (proc.stderr.trim() || '未知错误')}`,
+        error: `探针执行失败 (exitCode=${proc.exitCode}): ${rawErr}${browserHint}`,
       };
     }
 
