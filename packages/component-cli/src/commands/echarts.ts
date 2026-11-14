@@ -44,15 +44,15 @@ export interface EchartsCheckResult {
 
 export interface ProbeCombinationRecord {
   framework: string;
-  frameworkVersion?: string;
-  echartsVersion?: string;
+  frameworkVersion: string;
+  echartsVersion: string;
   dimensions: {
     typecheck: ProbeDimensionStatus;
     runtime: ProbeDimensionStatus;
     interaction: ProbeDimensionStatus;
     visual: ProbeDimensionStatus;
   };
-  failures?: Array<{ dimension?: string; reason?: string; detail?: string }>;
+  failures: Array<{ dimension?: string; reason?: string; detail?: string }>;
 }
 
 export interface ProbeEvidence {
@@ -66,6 +66,7 @@ export interface ProbeEvidence {
   candidate: {
     version: string;
     integrity?: string;
+    integrityVerified?: boolean;
     source?: string;
     resolution?: string;
   };
@@ -75,6 +76,7 @@ export interface ProbeEvidence {
     supportedRangeUnchanged?: boolean;
     requiresVisualBaselineConfirmation: boolean;
     hasDualFrameworkCoverage: boolean;
+    candidateIntegrityVerified?: boolean;
   };
   recommendation: string;
   uncovered: string[];
@@ -144,6 +146,25 @@ async function readAndVerifyFrozenBundle(bundleDir: string): Promise<
 > {
   const resolvedDir = path.resolve(bundleDir);
   const manifestPath = path.join(resolvedDir, 'manifest.json');
+
+  let realBundleDir: string;
+  try {
+    realBundleDir = await fs.realpath(resolvedDir);
+    const realManifestPath = await fs.realpath(manifestPath);
+    if (!isInsideDir(realBundleDir, realManifestPath)) {
+      return {
+        ok: false,
+        errorCode: 'INVALID_BUNDLE_PATH',
+        error: 'manifest.json 真实路径越出冻结 bundle 根目录',
+      };
+    }
+  } catch (err: unknown) {
+    return {
+      ok: false,
+      errorCode: 'INVALID_BUNDLE_MANIFEST',
+      error: `无法读取冻结 bundle manifest (${manifestPath}): ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 
   let rawManifest: unknown;
   try {
@@ -249,6 +270,24 @@ async function readAndVerifyFrozenBundle(bundleDir: string): Promise<
         ok: false,
         errorCode: 'INVALID_BUNDLE_PATH',
         error: `${name} tarballPath 越界或无效: ${tarballPath}`,
+      };
+    }
+
+    let realTarballPath: string;
+    try {
+      realTarballPath = await fs.realpath(absTarball);
+    } catch (err: unknown) {
+      return {
+        ok: false,
+        errorCode: 'BUNDLE_FILE_MISSING',
+        error: `缺少冻结 tarball ${tarballPath}: ${err instanceof Error ? err.message : String(err)}`,
+      };
+    }
+    if (!isInsideDir(realBundleDir, realTarballPath)) {
+      return {
+        ok: false,
+        errorCode: 'INVALID_BUNDLE_PATH',
+        error: `${name} tarball 真实路径越出冻结 bundle 根目录 (symlink/junction 逃逸): ${tarballPath}`,
       };
     }
 
@@ -601,6 +640,9 @@ export function validateProbeEvidence(raw: unknown): { ok: true; value: ProbeEvi
   if (typeof candObj.version !== 'string' || !candObj.version) {
     return { ok: false, error: '探针输出缺少 candidate.version' };
   }
+  if (candObj.integrityVerified !== undefined && typeof candObj.integrityVerified !== 'boolean') {
+    return { ok: false, error: '探针输出 candidate.integrityVerified 必须为布尔值' };
+  }
   if (!Array.isArray(obj.combinations) || obj.combinations.length === 0) {
     return { ok: false, error: '探针输出 combinations 必须为非空数组' };
   }
@@ -611,6 +653,26 @@ export function validateProbeEvidence(raw: unknown): { ok: true; value: ProbeEvi
     const c = item as Record<string, unknown>;
     if (typeof c.framework !== 'string' || !c.dimensions || typeof c.dimensions !== 'object' || Array.isArray(c.dimensions)) {
       return { ok: false, error: 'combinations[] 缺少 framework 或 dimensions' };
+    }
+    if (typeof c.frameworkVersion !== 'string' || !c.frameworkVersion) {
+      return { ok: false, error: 'combinations[] 缺少有效的 frameworkVersion' };
+    }
+    if (typeof c.echartsVersion !== 'string' || !EXACT_SEMVER_RE.test(c.echartsVersion)) {
+      return { ok: false, error: `combinations[].echartsVersion 必须为精确语义化版本: ${String(c.echartsVersion)}` };
+    }
+    if (!Array.isArray(c.failures)) {
+      return { ok: false, error: 'combinations[].failures 必须为数组' };
+    }
+    for (const f of c.failures) {
+      if (!f || typeof f !== 'object' || Array.isArray(f)) {
+        return { ok: false, error: 'combinations[].failures[] 元素必须为非空对象' };
+      }
+      const fObj = f as Record<string, unknown>;
+      for (const field of ['dimension', 'reason', 'detail'] as const) {
+        if (fObj[field] !== undefined && typeof fObj[field] !== 'string') {
+          return { ok: false, error: `combinations[].failures[].${field} 必须为字符串` };
+        }
+      }
     }
     const d = c.dimensions as Record<string, unknown>;
     for (const key of ['typecheck', 'runtime', 'interaction', 'visual'] as const) {
@@ -626,9 +688,10 @@ export function validateProbeEvidence(raw: unknown): { ok: true; value: ProbeEvi
   if (
     typeof p.peerSatisfied !== 'boolean' ||
     typeof p.hasDualFrameworkCoverage !== 'boolean' ||
-    typeof p.requiresVisualBaselineConfirmation !== 'boolean'
+    typeof p.requiresVisualBaselineConfirmation !== 'boolean' ||
+    (p.candidateIntegrityVerified !== undefined && typeof p.candidateIntegrityVerified !== 'boolean')
   ) {
-    return { ok: false, error: '探针输出 policy 布尔字段缺失' };
+    return { ok: false, error: '探针输出 policy 布尔字段缺失或类型错误' };
   }
   if (typeof obj.recommendation !== 'string' || !obj.recommendation) {
     return { ok: false, error: '探针输出缺少 recommendation' };
@@ -735,18 +798,26 @@ export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Pro
     };
   }
 
-  if (options.latest) {
-    const resolvedLatest = await resolveCandidateFromRegistry({
-      baselineEchartsVersion: bundleCheck.baselineEchartsVersion,
-      latest: true,
-      registry: options.registry,
-      fetchImpl: options.fetchImpl,
-    });
-    if (!resolvedLatest.ok) {
-      return resolvedLatest;
-    }
-    requestedCandidateVersion = resolvedLatest.version;
+  if ((options.registry ?? OFFICIAL_ECHARTS_REGISTRY).trim() === 'offline') {
+    return {
+      ok: false,
+      errorCode: 'OFFLINE_VERIFY_CANNOT_ADOPT',
+      error: '离线模式 (--registry offline) 仅支持 check 查询，verify 不得判定 adopt',
+    };
   }
+
+  const resolvedCandidate = await resolveCandidateFromRegistry({
+    baselineEchartsVersion: bundleCheck.baselineEchartsVersion,
+    echartsVersion: explicitE,
+    version: explicitV,
+    latest: options.latest,
+    registry: options.registry,
+    fetchImpl: options.fetchImpl,
+  });
+  if (!resolvedCandidate.ok) {
+    return resolvedCandidate;
+  }
+  requestedCandidateVersion = resolvedCandidate.version;
 
   const probeEntry = path.resolve(
     options.probeEntry?.trim() ||
@@ -884,19 +955,45 @@ export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Pro
       }
     }
 
-    // 绑定请求候选版本
-    const expectedCandidate = requestedCandidateVersion ?? bundleCheck.baselineEchartsVersion;
-    if (evidence.candidate.version !== expectedCandidate) {
+    // 绑定请求候选版本、integrity、source 与完整性验证标志
+    if (evidence.candidate.version !== resolvedCandidate.version) {
       return {
         ok: false,
         errorCode: 'CANDIDATE_MISMATCH',
         probeExitCode: proc.exitCode,
         evidence,
-        error: `探针证据候选版本 (${evidence.candidate.version}) 与请求候选 (${expectedCandidate}) 不一致`,
+        error: `探针证据候选版本 (${evidence.candidate.version}) 与请求候选 (${resolvedCandidate.version}) 不一致`,
+      };
+    }
+    if (!resolvedCandidate.integrity || evidence.candidate.integrity !== resolvedCandidate.integrity) {
+      return {
+        ok: false,
+        errorCode: 'CANDIDATE_INTEGRITY_MISMATCH',
+        probeExitCode: proc.exitCode,
+        evidence,
+        error: `探针证据候选 integrity (${evidence.candidate.integrity ?? 'none'}) 与官方解析结果 (${resolvedCandidate.integrity ?? 'none'}) 不一致`,
+      };
+    }
+    if (evidence.candidate.source === 'offline' || evidence.candidate.source !== resolvedCandidate.source) {
+      return {
+        ok: false,
+        errorCode: 'CANDIDATE_SOURCE_MISMATCH',
+        probeExitCode: proc.exitCode,
+        evidence,
+        error: `探针证据候选来源 (${evidence.candidate.source ?? 'none'}) 与解析来源 (${resolvedCandidate.source}) 不一致或为 offline`,
+      };
+    }
+    if (evidence.candidate.integrityVerified !== true || evidence.policy.candidateIntegrityVerified !== true) {
+      return {
+        ok: false,
+        errorCode: 'CANDIDATE_INTEGRITY_UNVERIFIED',
+        probeExitCode: proc.exitCode,
+        evidence,
+        error: '探针证据未完成 candidate integrity 校验 (candidate.integrityVerified / policy.candidateIntegrityVerified 必须为 true)',
       };
     }
 
-    // 检查真实 vue + react 组合记录，不能只信 policy 布尔
+    // 检查真实 vue + react 组合记录及每条组合的 echartsVersion / frameworkVersion 对齐
     const seenFrameworks = new Set<string>();
     for (const combo of evidence.combinations) {
       if (combo.framework !== 'vue' && combo.framework !== 'react') {
@@ -906,6 +1003,27 @@ export async function verifyEchartsCandidate(options: EchartsVerifyOptions): Pro
           probeExitCode: proc.exitCode,
           evidence,
           error: `探针证据包含未知框架记录: ${combo.framework}`,
+        };
+      }
+      if (combo.echartsVersion !== resolvedCandidate.version) {
+        return {
+          ok: false,
+          errorCode: 'CANDIDATE_MISMATCH',
+          probeExitCode: proc.exitCode,
+          evidence,
+          error: `组合 ${combo.framework} 实测 echartsVersion (${combo.echartsVersion}) 与候选 (${resolvedCandidate.version}) 不一致`,
+        };
+      }
+      const supportedMatch = bundleCheck.supported.some(
+        (s) => s.framework === combo.framework && s.frameworkVersion === combo.frameworkVersion,
+      );
+      if (!supportedMatch) {
+        return {
+          ok: false,
+          errorCode: 'FRAMEWORK_VERSION_MISMATCH',
+          probeExitCode: proc.exitCode,
+          evidence,
+          error: `组合 ${combo.framework} 实测 frameworkVersion (${combo.frameworkVersion}) 与冻结 bundle supported 不一致`,
         };
       }
       seenFrameworks.add(combo.framework);

@@ -153,7 +153,13 @@ function validProbeEvidence(overrides?: Record<string, unknown>) {
         { name: '@company/charts-react', version: '0.0.10', sha256: 'c'.repeat(64), bytes: 10 },
       ],
     },
-    candidate: { version: '6.1.0', integrity: 'sha512-mock', source: 'offline', resolution: 'exact' },
+    candidate: {
+      version: '6.1.0',
+      integrity: 'sha512-registry-610==',
+      integrityVerified: true,
+      source: 'http://127.0.0.1:0/echarts',
+      resolution: 'exact',
+    },
     requestedEchartsVersion: '6.1.0',
     baselineEchartsVersion: '6.1.0',
     supported: [
@@ -183,6 +189,7 @@ function validProbeEvidence(overrides?: Record<string, unknown>) {
       supportedRangeUnchanged: true,
       requiresVisualBaselineConfirmation: false,
       hasDualFrameworkCoverage: true,
+      candidateIntegrityVerified: true,
     },
     recommendation: 'adopt',
     uncovered: [],
@@ -242,8 +249,20 @@ describe('T10: component echarts check / verify CLI 集成与失败关闭约束'
 
   it('component echarts verify 透传冻结 --bundle 与完整探针参数，仅在 adopt + 无未覆盖项 + 四维全过时返回 0', async () => {
     const bundleDir = await createFrozenBundleFixture();
+    const registryUrl = await startMockRegistry({
+      'dist-tags': { latest: '6.1.0' },
+      versions: { '6.1.0': { dist: { integrity: 'sha512-registry-610==' } } },
+    });
     const argsCapturePath = path.join(await makeTempDir('t10-args-'), 'args.json');
-    const evidence = await validProbeEvidenceForBundle(bundleDir);
+    const evidence = await validProbeEvidenceForBundle(bundleDir, {
+      candidate: {
+        version: '6.1.0',
+        integrity: 'sha512-registry-610==',
+        integrityVerified: true,
+        source: registryUrl,
+        resolution: 'exact',
+      },
+    });
     const probeScript = await createMockProbeScript(`
 import fs from 'node:fs/promises';
 await fs.writeFile(${JSON.stringify(argsCapturePath)}, JSON.stringify(process.argv.slice(2)));
@@ -266,7 +285,7 @@ process.exit(0);
         '--presentations',
         'light-canvas',
         '--registry',
-        'offline',
+        registryUrl,
         '--peer',
         'strict',
         '--label',
@@ -293,7 +312,7 @@ process.exit(0);
     expect(forwarded).toContain('--presentations');
     expect(forwarded).toContain('light-canvas');
     expect(forwarded).toContain('--registry');
-    expect(forwarded).toContain('offline');
+    expect(forwarded).toContain(registryUrl);
     expect(forwarded).toContain('--peer');
     expect(forwarded).toContain('strict');
     expect(forwarded).toContain('--label');
@@ -309,23 +328,27 @@ process.exit(0);
 
   it('退出码 0 但 recommendation=hold、存在 uncovered/not-run 或 schema 非法时必须失败关闭', async () => {
     const bundleDir = await createFrozenBundleFixture();
+    const registryUrl = await startMockRegistry({
+      'dist-tags': { latest: '6.1.0' },
+      versions: { '6.1.0': { dist: { integrity: 'sha512-registry-610==' } } },
+    });
 
     // 1. 退出码 0 但 recommendation === 'hold'
     const holdProbe = await createMockProbeScript(`
-process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { recommendation: 'hold' })))});
+process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { recommendation: 'hold', candidate: { version: '6.1.0', integrity: 'sha512-registry-610==', source: registryUrl, integrityVerified: true } })))});
 process.exit(0);
 `);
-    const holdRes = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', holdProbe], '0.0.8');
+    const holdRes = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', holdProbe], '0.0.8');
     expect(holdRes.exitCode).toBe(1);
     expect(holdRes.stderr).toContain('PROBE_HOLD');
 
     // 2. 退出码 0、recommendation === 'adopt' 但缺证据 (uncovered 非空)
     const uncoveredProbe = await createMockProbeScript(`
-process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { uncovered: ['react/visual: NEW'] })))});
+process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { uncovered: ['react/visual: NEW'], candidate: { version: '6.1.0', integrity: 'sha512-registry-610==', source: registryUrl, integrityVerified: true } })))});
 process.exit(0);
 `);
     const uncoveredRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', uncoveredProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', uncoveredProbe],
       '0.0.8',
     );
     expect(uncoveredRes.exitCode).toBe(1);
@@ -337,7 +360,7 @@ process.stdout.write('{}');
 process.exit(0);
 `);
     const invalidRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', invalidSchemaProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', invalidSchemaProbe],
       '0.0.8',
     );
     expect(invalidRes.exitCode).toBe(1);
@@ -349,7 +372,7 @@ process.stderr.write('PROBE_FAILED boom');
 process.exit(1);
 `);
     const failedRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', failedProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', failedProbe],
       '0.0.8',
     );
     expect(failedRes.exitCode).toBe(1);
@@ -358,8 +381,20 @@ process.exit(1);
 
   it('兼容探针 stdout 带 [probe] 日志前缀与 --out 目录 probe-evidence-<label>.json 文件读取', async () => {
     const bundleDir = await createFrozenBundleFixture();
+    const registryUrl = await startMockRegistry({
+      'dist-tags': { latest: '6.1.0' },
+      versions: { '6.1.0': { dist: { integrity: 'sha512-registry-610==' } } },
+    });
     const outDir = await makeTempDir('t10-probe-out-');
-    const evidence = await validProbeEvidenceForBundle(bundleDir);
+    const evidence = await validProbeEvidenceForBundle(bundleDir, {
+      candidate: {
+        version: '6.1.0',
+        integrity: 'sha512-registry-610==',
+        integrityVerified: true,
+        source: registryUrl,
+        resolution: 'exact',
+      },
+    });
     const probeWithLogs = await createMockProbeScript(`
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -375,7 +410,21 @@ process.stdout.write(JSON.stringify(${JSON.stringify(evidence)}));
 `);
 
     const res = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--out', outDir, '--label', 'with-logs', '--probe-entry', probeWithLogs, '--json'],
+      [
+        'echarts',
+        'verify',
+        '--bundle',
+        bundleDir,
+        '--registry',
+        registryUrl,
+        '--out',
+        outDir,
+        '--label',
+        'with-logs',
+        '--probe-entry',
+        probeWithLogs,
+        '--json',
+      ],
       '0.0.8',
     );
     expect(res.exitCode).toBe(0);
@@ -421,7 +470,15 @@ process.stdout.write(JSON.stringify(${JSON.stringify(evidence)}));
 
     // 1) --latest 解析为 6.1.0 并透传给探针
     const argsCapturePath = path.join(await makeTempDir('t10-latest-args-'), 'args.json');
-    const validEv = await validProbeEvidenceForBundle(bundleDir);
+    const validEv = await validProbeEvidenceForBundle(bundleDir, {
+      candidate: {
+        version: '6.1.0',
+        integrity: 'sha512-registry-610==',
+        integrityVerified: true,
+        source: registryUrl,
+        resolution: 'exact',
+      },
+    });
     const okProbe = await createMockProbeScript(`
 import fs from 'node:fs/promises';
 await fs.writeFile(${JSON.stringify(argsCapturePath)}, JSON.stringify(process.argv.slice(2)));
@@ -438,18 +495,18 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
 
     // 2) 空 packages[] 或错误 sha256 -> 拒绝
     const emptyPkgProbe = await createMockProbeScript(
-      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { bundle: { version: '0.0.10', packages: [] } })))});`,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { bundle: { version: '0.0.10', packages: [] }, candidate: validEv.candidate })))});`,
     );
-    const emptyPkgRes = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', emptyPkgProbe], '0.0.8');
+    const emptyPkgRes = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', emptyPkgProbe], '0.0.8');
     expect(emptyPkgRes.exitCode).toBe(1);
     expect(emptyPkgRes.stderr).toContain('BUNDLE_EVIDENCE_MISMATCH');
 
     // 3) 候选版本不匹配 -> 拒绝
     const wrongCandProbe = await createMockProbeScript(
-      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: { version: '6.2.0' } })))});`,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: { ...validEv.candidate, version: '6.2.0' } })))});`,
     );
     const wrongCandRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--version', '6.1.0', '--probe-entry', wrongCandProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--version', '6.1.0', '--registry', registryUrl, '--probe-entry', wrongCandProbe],
       '0.0.8',
     );
     expect(wrongCandRes.exitCode).toBe(1);
@@ -458,10 +515,10 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
     // 4) combinations 缺 react（即使 policy.hasDualFrameworkCoverage=true）或未知框架 -> 拒绝
     const singleCombo = (validEv.combinations as Array<Record<string, unknown>>).slice(0, 1);
     const missingReactProbe = await createMockProbeScript(
-      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { combinations: singleCombo })))});`,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, combinations: singleCombo })))});`,
     );
     const missingReactRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', missingReactProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', missingReactProbe],
       '0.0.8',
     );
     expect(missingReactRes.exitCode).toBe(1);
@@ -472,10 +529,10 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
       idx === 0 ? { ...c, failures: [{ dimension: 'visual', reason: 'DIFF' }] } : c,
     );
     const failureAdoptProbe = await createMockProbeScript(
-      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { combinations: combosWithFailure })))});`,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, combinations: combosWithFailure })))});`,
     );
     const failureAdoptRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', failureAdoptProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', failureAdoptProbe],
       '0.0.8',
     );
     expect(failureAdoptRes.exitCode).toBe(1);
@@ -483,10 +540,10 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
 
     // 6) supportedRangeUnchanged !== true -> 拒绝
     const rangeChangedProbe = await createMockProbeScript(
-      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { policy: { ...validEv.policy, supportedRangeUnchanged: false } })))});`,
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, policy: { ...validEv.policy, supportedRangeUnchanged: false } })))});`,
     );
     const rangeChangedRes = await runCli(
-      ['echarts', 'verify', '--bundle', bundleDir, '--probe-entry', rangeChangedProbe],
+      ['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', rangeChangedProbe],
       '0.0.8',
     );
     expect(rangeChangedRes.exitCode).toBe(1);
@@ -508,5 +565,110 @@ process.stdout.write(${JSON.stringify(JSON.stringify(validEv))});
     );
     expect(reuseRes.exitCode).toBe(1);
     expect(reuseRes.stderr).toContain('OUTPUT_ALREADY_EXISTS');
+  });
+
+  it('P2 复核回归：拒绝组合版本错配/缺字段、integrity/source 篡改、离线 verify adopt、畸形 failures 与 Windows junction 越界', async () => {
+    const bundleDir = await createFrozenBundleFixture();
+    const registryUrl = await startMockRegistry({
+      'dist-tags': { latest: '6.1.0' },
+      versions: { '6.1.0': { dist: { integrity: 'sha512-NEW-610==' } } },
+    });
+    const validEv = await validProbeEvidenceForBundle(bundleDir, {
+      candidate: {
+        version: '6.1.0',
+        integrity: 'sha512-NEW-610==',
+        integrityVerified: true,
+        source: registryUrl,
+        resolution: 'exact',
+      },
+    });
+
+    // P2-1a: 顶层 candidate.version=6.1.0 但组合 echartsVersion=5.0.0 -> 拒绝
+    const mismatchedComboEcharts = (validEv.combinations as Array<Record<string, unknown>>).map((c, idx) =>
+      idx === 0 ? { ...c, echartsVersion: '5.0.0' } : c,
+    );
+    const p2_1a = await createMockProbeScript(
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, combinations: mismatchedComboEcharts })))});`,
+    );
+    const r1a = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', p2_1a], '0.0.8');
+    expect(r1a.exitCode).toBe(1);
+    expect(r1a.stderr).toContain('CANDIDATE_MISMATCH');
+
+    // P2-1b: 删除组合 frameworkVersion / echartsVersion -> 拒绝 (INVALID_PROBE_EVIDENCE)
+    const strippedCombo = (validEv.combinations as Array<Record<string, unknown>>).map((c, idx) => {
+      if (idx !== 0) return c;
+      const copy = { ...c };
+      delete copy.frameworkVersion;
+      delete copy.echartsVersion;
+      return copy;
+    });
+    const p2_1b = await createMockProbeScript(
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, combinations: strippedCombo })))});`,
+    );
+    const r1b = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', p2_1b], '0.0.8');
+    expect(r1b.exitCode).toBe(1);
+    expect(r1b.stderr).toContain('INVALID_PROBE_EVIDENCE');
+
+    // P2-1c: 组合 frameworkVersion 与冻结 supported 不对齐 -> 拒绝
+    const wrongFwVer = (validEv.combinations as Array<Record<string, unknown>>).map((c, idx) =>
+      idx === 0 ? { ...c, frameworkVersion: '2.7.14' } : c,
+    );
+    const p2_1c = await createMockProbeScript(
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, combinations: wrongFwVer })))});`,
+    );
+    const r1c = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', p2_1c], '0.0.8');
+    expect(r1c.exitCode).toBe(1);
+    expect(r1c.stderr).toContain('FRAMEWORK_VERSION_MISMATCH');
+
+    // P2-2a: --latest 官方 resolver 得 sha512-NEW-610==，但证据为 sha512-old 或 source=offline -> 拒绝
+    const staleIntegrityProbe = await createMockProbeScript(
+      `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: { ...validEv.candidate, integrity: 'sha512-old', source: 'offline' } })))});`,
+    );
+    const r2a = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--latest', '--registry', registryUrl, '--probe-entry', staleIntegrityProbe], '0.0.8');
+    expect(r2a.exitCode).toBe(1);
+    expect(r2a.stderr).toMatch(/CANDIDATE_INTEGRITY_MISMATCH|CANDIDATE_SOURCE_MISMATCH/);
+
+    // P2-2b: 离线模式 verify 不得 adopt
+    const offlineVerifyRes = await runCli(
+      ['echarts', 'verify', '--bundle', bundleDir, '--echarts', '6.1.0', '--registry', 'offline', '--probe-entry', staleIntegrityProbe],
+      '0.0.8',
+    );
+    expect(offlineVerifyRes.exitCode).toBe(1);
+    expect(offlineVerifyRes.stderr).toContain('OFFLINE_VERIFY_CANNOT_ADOPT');
+
+    // P2-3: failures={} 或 failures=[null] -> 结构化 INVALID_PROBE_EVIDENCE（不抛 TypeError）
+    for (const badFailures of [{}, [null]]) {
+      const badCombo = (validEv.combinations as Array<Record<string, unknown>>).map((c, idx) =>
+        idx === 0 ? { ...c, failures: badFailures } : c,
+      );
+      const p2_3 = await createMockProbeScript(
+        `process.stdout.write(${JSON.stringify(JSON.stringify(await validProbeEvidenceForBundle(bundleDir, { candidate: validEv.candidate, combinations: badCombo })))});`,
+      );
+      const r3 = await runCli(['echarts', 'verify', '--bundle', bundleDir, '--registry', registryUrl, '--probe-entry', p2_3], '0.0.8');
+      expect(r3.exitCode).toBe(1);
+      expect(r3.stderr).toContain('INVALID_PROBE_EVIDENCE');
+    }
+
+    // P2-4: Windows packages 目录 junction 指向 bundle 外 -> 拒绝 (INVALID_BUNDLE_PATH)
+    const outsideDir = await fs.mkdtemp(path.join(os.tmpdir(), 't10-junction-outside-'));
+    const junctionBundle = await fs.mkdtemp(path.join(os.tmpdir(), 't10-junction-bundle-'));
+    try {
+      const originalPkgsDir = path.join(bundleDir, 'packages');
+      for (const file of await fs.readdir(originalPkgsDir)) {
+        await fs.copyFile(path.join(originalPkgsDir, file), path.join(outsideDir, file));
+      }
+      await fs.copyFile(path.join(bundleDir, 'manifest.json'), path.join(junctionBundle, 'manifest.json'));
+      await fs.symlink(outsideDir, path.join(junctionBundle, 'packages'), 'junction');
+
+      const junctionCheck = await runCli(
+        ['echarts', 'check', '--bundle', junctionBundle, '--echarts', '6.1.0', '--registry', 'offline'],
+        '0.0.8',
+      );
+      expect(junctionCheck.exitCode).toBe(1);
+      expect(junctionCheck.stderr).toContain('INVALID_BUNDLE_PATH');
+    } finally {
+      await fs.rm(junctionBundle, { recursive: true, force: true });
+      await fs.rm(outsideDir, { recursive: true, force: true });
+    }
   });
 });
