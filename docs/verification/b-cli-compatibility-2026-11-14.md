@@ -127,3 +127,22 @@
     - `.\scripts\pnpm.ps1 typecheck` → **14/14** 通过。
     - `.\scripts\pnpm.ps1 verify:workspace` → 通过。
     - `.\scripts\pnpm.ps1 vitest run tests/integration/compatibility-api.test.ts` → **1 file passed, 1/1 passed**。
+
+
+## 9. 最终独立审查 5 项证据关系闭环修复（RED → GREEN）
+
+- 对应代码提交：`bedb385d3973f47ea282b92a2e18787744af4ca5`（`fix: 闭环 bundle 全包校验、展示环境绑定、4 项检查名/生命周期明细、字体校验及 canonical jsonb 摘要`）。
+- 5 项修复（[service.ts](file:///C:/Users/10208/.codex/worktrees/b-cli-compatibility/zhinexus-design-asset-platform/apps/api/src/compatibility/service.ts) 与 [compatibility-api.test.ts](file:///C:/Users/10208/.codex/worktrees/b-cli-compatibility/zhinexus-design-asset-platform/tests/integration/compatibility-api.test.ts)）：
+  1. **`evidence.bundle.packages` 完整 SDK 包集合校验**：从权威 `manifest.packages` 提取全部包（`@company/charts-core`、`@company/charts-vue`、`@company/charts-react`）的 `name`/`version`/`tarball.sha256`/`tarball.bytes`，要求 `evidence.bundle.packages` 数量、唯一性与各字段精确一致，拒绝缺失、重复、错摘要或错大小；集成测试正例改为直接取自 PostgreSQL `release_jobs.manifest.packages`。
+  2. **`run.presentation` 与 `environment.theme`/`renderer` 绑定**：通过 `PRESENTATION_TO_ENV` 仅接受 4 个合法展示（`light-canvas`、`dark-canvas`、`light-svg`、`dark-svg`），严格绑定 `run.environment.theme`、`run.environment.renderer` 与 `run.appliedPresentation`，防止将 `light-canvas` 复制冒充四展示。
+  3. **A 协议 4 项唯一检查名与 `lifecycle` 原始明细**：新增 `REQUIRED_CHECK_NAMES`（`single-instance`、`no-page-error`、`series-match`、`renderer-match`）与 `hasExactPassedChecks` 校验，要求 `browser[].checks` 与 `lifecycle.after.checks` 唯一覆盖全部 4 项且全部 `passed`；同时校验 `lifecycle.component`、`before`（`hasHost`/`hasInstance`）、`disposed`（`aliveBeforeUnmount: true`、`staleInstanceAlive: false`）、`after.canvases + after.svgs === 1` 与 `pageErrors.length === 0`。
+  4. **`fontFingerprint` 入参预检防 `TypeError`**：在 `validateProbeEvidencePayload` 中先严格校验 `stack` 非空、`families` 非空且每项为合法对象（非空 `family`、布尔 `available`、有限数字数组 `advances`）以及 `loadedFonts` 为非空字符串数组，使 `[null]` 等畸形输入稳定返回 `400 INVALID_SCHEMA`。
+  5. **`canonicalJson` 规范化 `evidenceSha256` 与真实 PostgreSQL `jsonb` 往返验证**：`CompatibilityService.accept` 改用 `sha256Hex(canonicalJson(input.evidence))` 计算存储与返回的 `evidenceSha256`，并在集成测试中读取 PostgreSQL `jsonb` 往返后的 `evidence` 重算 `sha256(canonicalJson(storedRow.evidence))`，验证与 `storedRow.evidence_sha256` 及响应 `created.evidenceSha256` 完全一致。
+- RED → GREEN 与验证结果：
+  - **RED**：运行 C 复现脚本 `service.mjs` 显示前 4 项反例通过、畸形 `families=[null]` 抛 `TypeError`；更新 `compatibility-api.test.ts` 后首次运行失败（`coreDigestTampered` 返回 `201`，预期 `400`）。
+  - **GREEN**：
+    - `.\scripts\pnpm.ps1 build:services` → 通过。
+    - `.\scripts\pnpm.ps1 typecheck` → **14/14** 通过。
+    - `.\scripts\pnpm.ps1 verify:workspace` → 通过。
+    - `.\.tools\node-v26.13.0-win-x64\node.exe C:/Users/10208/AppData/Local/Temp/zh-review-final-2637676407a642759755350b6d8f7f73/service.mjs .` → 真实报告 `passed`（`inserted: true`），5 项反例全部拦截（`DIGEST_MISMATCH` / `COMPATIBILITY_EVIDENCE_REQUIRED` / `INVALID_SCHEMA`，`inserted: false` 且无 `TypeError`）。
+    - `.\scripts\pnpm.ps1 vitest run tests/unit/echarts-cli.test.ts tests/unit/baseline-compare.test.ts tests/unit/baseline-cli.test.ts tests/integration/compatibility-api.test.ts` → **4 files passed, 27/27 passed**（含 PostgreSQL `jsonb` 往返摘要重算一致断言）。
