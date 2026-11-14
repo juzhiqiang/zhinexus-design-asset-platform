@@ -6,6 +6,7 @@
 
 - 经 `scripts/bootstrap.ps1` 安装项目固定工具链；工作区依赖、服务声明和 CLI 已构建，Playwright Chromium 已安装。
 - 通过 `scripts/pnpm.ps1` 执行命令，或在当前进程将 `.tools/bin`、`.tools/node-v26.13.0-win-x64` 放到 PATH 最前，并设置 `PLAYWRIGHT_BROWSERS_PATH=<仓库>/.tools/playwright`。npm 的子进程也必须使用固定 Node。
+- `component echarts verify --registry` 接受候选发现与来源审计的 **ECharts 包元数据端点**（官方值为 `https://registry.npmjs.org/echarts`），npm 安装仍继承进程的下载源配置。使用官方元数据时，在当前验收 PowerShell 进程设置 `$env:npm_config_registry='https://registry.npmjs.org'`，使新消费者锁文件的下载来源与审计源一致；不修改用户全局 npm 配置。官方元数据与镜像 lock 主机不一致时应安全拒绝，不能绕过来源校验。不要将 registry 根地址误作包元数据端点。
 - 权威冻结目录包含 manifest、14 个实现及三个 SDK 0.0.10 tarball；不得覆盖或重新 pack。候选 ECharts 采用明确的精确版本。
 - `scripts/audit-t10-evidence.mjs` 是本轮 **Windows / Node 26.13.0 / Chromium revision 1254 / 实测字体** 的独立审计器，默认检查双框架共 56 个组合。它重算 contracts 环境键、字体摘要和截图 SHA，不接受操作者覆盖字体摘要来替代本轮实测。
 

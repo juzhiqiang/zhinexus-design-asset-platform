@@ -80,3 +80,19 @@
 - `test:t10` 先构建 contracts，再运行 A 与 C 的 Node 回归；根 `test` 仍先构建服务，所有测试不进 Turbo 缓存。显式配置权威 `A10_FROZEN_BUNDLE` 后，`scripts/pnpm.ps1 test:t10` 实际通过 125/125、0 fail、0 skip、11.04s，exit 0；C 新文件单独执行 21/21、0 skip、exit 0。
 - 当前测试只证明工具对控制输入与反例的行为；真实 Windows 干净消费者、显式基线复验、6.0.0 候选和原双消费者回退仍等 A 下一固定头后执行。没有用 fixture 通过替代上述验收。
 - 本批根 `scripts/pnpm.ps1 test` 已完整读回 exit 0：Node 125/125、0 skip；Vitest 42 文件、719/719、203.10s。运行中出现既有 Windows 子进程 `DEP0190` 警告，没有将警告写成“零告警”。日志 `.tools/c-t10-audit-integration-test-2026-11-14.log`；独立入口最终配置另跑通过，日志 `.tools/c-t10-permanent-entry-2026-11-14.log`。三工具语法检查及 `git diff --check` exit 0。纯测试与复现文档不单独升版。
+
+## A 第四版与官方源 Windows 真实验收
+
+- A 固定头 `faf0a6485c71d865230e98384237ab27dc2dcfcf`，新目录 bundle SHA-256 `c4ce277b4c7bacdfdb4e5a895912f22a9860d5c99d2f00a68b819b433a3b9d8a`，摘要与 `git bundle verify` 均通过。相对第三版仅将脏源哨兵路径断言改为 `path.join`；Windows 固定 Node、权威冻结材料下 115/115、0 skip、exit 0，6.21s。日志 `.tools/a-t10-r4-windows-unit-2026-11-14.log`。C 以 `bfa34f3` 合入。
+- 新干净消费者的第一轮仍以 `CANDIDATE_INTEGRITY_UNVERIFIED` 拒绝：这次不是复制污染，而是本机 npm 配置将包下载到 `registry.npmmirror.com`，候选元数据来自 `registry.npmjs.org/echarts`，锁文件来源主机不一致。报告保留为 `test-results/t10-sdk-probes/windows-clean-initial/`，两个消费者经完整 ownership 验证后清理，没有绕过来源闸门。
+- 后续仅对验收进程设置 `npm_config_registry=https://registry.npmjs.org`，不改用户全局配置。`--registry` 是包元数据端点，不能误传 registry 根地址；一次根地址误传被 `UNKNOWN_VERSION` 拒绝，尚未创建消费者，诊断另存 `.tools/c-cli-invalid-registry-endpoint-2026-11-14.*`。[复现步骤](t10-windows-local-procedure.md) 已补充两层配置的区别。
+- 首轮真实 CLI：`component echarts verify --bundle <同一冻结目录> --version 6.1.0 --registry https://registry.npmjs.org/echarts --consumer-root <随机独占外部目录> --keep --out test-results/t10-sdk-probes/windows-official-initial --label windows-official-initial --json`。两框架各 28 次运行，类型、构建、SSR、生命周期、运行与交互通过；候选来源两者 verified，视觉无基线为 not-run，CLI exit 1 / `PROBE_HOLD`。独立 `audit-t10-evidence.mjs <首轮报告> hold 56` exit 0，重算 56 个环境键和截图摘要；两份 contact sheet 已实际查看。
+- 显式传 `--baseline <首轮报告>`，以全新消费者执行 `windows-official-visual`，CLI exit 0、recommendation `adopt`、uncovered 空、四维全过、56/56 视觉 PASS。独立 `audit-t10-evidence.mjs <复验报告> adopt 56` exit 0。第二轮消费者已自动清理；没有重新 pack 或更换 SDK tarball。
+- ECharts 6.0.0 的默认 strict 与显式 strict-only 都实际以 npm ERESOLVE / `PROBE_PEER_REJECTED` 拒绝，探针及 CLI exit 1，未自动 legacy。显式 `--peer legacy --baseline <首轮报告>` 才执行双框架 56 次测量：构建、SSR、运行、交互及 56 张视觉对比通过，但两框架 Bundler / NodeNext 类型均失败（TS1203、TS2305 等），peer 不匹配，因此 CLI exit 1 / `PROBE_HOLD`，未扩大兼容范围。独立本地审计重算 56 个环境键、实测字体及截图摘要，并确认该失败结论；报告在 `windows-600-legacy/`，审计摘要 `.tools/c-t10-legacy-independent-audit-2026-11-14.json`。
+
+## 原消费者回退发现的生成代码类型阻断
+
+- 用 `windows-official-initial` **原来的两份保留消费者**执行 `verify-t10-rollback.mjs <首轮报告> test-results/t10-sdk-probes/windows-original-pair-rollback <ownership 文件>`。两个消费者确实从 6.1.0 改到 6.0.0、显式 legacy 安装并构建，再恢复原 manifest / lock 字节并严格 `npm ci` 回到 6.1.0；清单与锁 SHA 均完全恢复。
+- 但是恢复后的类型复检失败：`src/a-t10-echarts-registry.ts:9` 把 `document.querySelector()` 返回的 `Element` 传入要求 `HTMLElement` 的 `getInstanceByDom`，Vue 报 TS2345、React 报 TS2740。此文件由 `browser.mjs` 注入，而初轮类型检查先于注入，所以先前类型结果没有覆盖它。**回退脚本 exit 1，证据 `passed: false`，不得记回退完成。**
+- 原失败证据和清单/锁副本保留；两个自有临时消费者已按 ownership 安全清理。已派 A 仅修生成 helper 的宿主类型、补生成后真实类型回归并提供新固定交付，随后 C 必须用新首轮的原消费者再演练，不能用新建恢复消费者替代。Task 3 与本轮 main 合并仍未完成。
+- 本轮只读审查对 `bfa34f3` 未发现 Critical / Important，11 项新 A 回归与 21 项 C 回归独立通过。该短测不代替真实回退；新发现阻断按上条返修。平台隔离代码相对本轮 main 未变，先前独立 88/88 验证仍保留，不从短测推断外部 G2 已完成。
