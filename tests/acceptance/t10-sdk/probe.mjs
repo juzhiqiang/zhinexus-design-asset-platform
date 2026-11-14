@@ -42,8 +42,9 @@ import {
   runBuild,
   runSsrImport,
   runTypechecks,
+  verifyConsumerCandidateSource,
 } from './consumer.mjs';
-import { baselineScreenshots, compareWithBaseline, injectEchartsRegistry, runBrowserProbe, summariseInteraction, summariseRuntime } from './browser.mjs';
+import { baselineScreenshots, compareWithBaseline, injectEchartsRegistry, measureFontFingerprint, readBrowserRevision, runBrowserProbe, summariseInteraction, summariseRuntime } from './browser.mjs';
 import {
   buildCombinationRecord,
   collectUncovered,
@@ -70,12 +71,16 @@ const USAGE = `T10 双框架精确版本兼容探针
   --presentations <列表>    ${THEMES.map((t) => RENDERERS.map((r) => `${t}-${r}`).join(',')).join(',')}（缺省全部）
   --registry <url|offline>  官方 registry，缺省 https://registry.npmjs.org/echarts；offline 跳过核对
   --peer <strict|legacy|strict-only>
-                            缺省 strict：先严格安装，被 ERESOLVE 拒绝时记录并改用
-                            legacy 继续测量（不改变 SDK 声明）；strict-only 则直接失败。
+                            缺省 strict。strict 与 strict-only 在严格 peer 安装被拒时
+                            **都直接失败，不会自动放宽**；只有显式 legacy 才用
+                            --legacy-peer-deps 重试，以测量「绕过 peer 后能不能用」
+                            （不改变 SDK 声明，也不构成通过结论）。
 
 输出与消费者：
   --out <dir>               证据输出目录。缺省 test-results/t10-sdk-probes/<UTC 时间戳>
   --label <name>            证据文件名后缀（probe-evidence-<name>.json），用于分片跑同一批矩阵
+  --font-digest <sha256>    显式指定字体摘要（64 位十六进制）。缺省在浏览器里实测；
+                            实测不可用而必须出图时，没有可信字体签名会直接失败而非用常量顶替
   --consumer-root <dir>     干净消费者根目录。缺省系统临时目录
   --baseline <file>[,<file>]  上一次探针证据 JSON（可逗号分隔多份，分片跑矩阵后合并比对）
   --keep                    保留消费者目录（调试用）
@@ -96,6 +101,7 @@ function parseArguments(argv) {
     peer: 'strict',
     out: null,
     label: null,
+    fontDigest: null,
     consumerRoot: null,
     baseline: null,
     keep: false,
@@ -154,6 +160,9 @@ function parseArguments(argv) {
         break;
       case '--out':
         options.out = next();
+        break;
+      case '--font-digest':
+        options.fontDigest = parseFontDigestOption(next());
         break;
       case '--label':
         options.label = sanitiseLabel(next());
@@ -235,6 +244,65 @@ export function sanitiseLabel(raw) {
 /** 证据文件名：`<base>[-<label>].<ext>`。 */
 export function evidenceName(base, label, extension) {
   return label ? `${base}-${label}.${extension}` : `${base}.${extension}`;
+}
+
+/** `--font-digest` 只接受 64 位小写十六进制；空串或非十六进制一律拒绝。 */
+export function parseFontDigestOption(value) {
+  const digest = String(value ?? '').trim();
+  if (!/^[0-9a-f]{64}$/.test(digest)) {
+    throw new Error('--font-digest 必须是 64 位小写十六进制的 SHA-256');
+  }
+  return digest;
+}
+
+/** 字体摘要来源标签，进证据：让人分得清「实测」「操作者指定」「没测」。 */
+export function fontDigestSourceLabel(source) {
+  if (['measured', 'operator-supplied', 'not-measured'].includes(source)) return source;
+  throw new Error(`未知的字体摘要来源：${source}`);
+}
+
+/** 候选解析结果标签，进证据：区分显式请求、registry 拒绝与 peer 基线兜底。 */
+export function candidateResolutionLabel(requested, resolution) {
+  if (requested === null || requested === undefined) return resolution;
+  return resolution;
+}
+
+/**
+ * registry 主机名；`offline` 或无法解析时返回 `null`。
+ *
+ * 不能直接 `new URL(registry).host`：`--registry offline` 会抛 `Invalid URL`，
+ * 于是「离线」这种正当用法变成意外崩溃。离线应当**诚实 hold**（候选来源无从核对），
+ * 而不是崩在报告出具之前。
+ */
+export function registryHostOf(registry) {
+  const value = String(registry ?? '').trim();
+  if (value.length === 0 || value === 'offline') return null;
+  try {
+    return new URL(value).host;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * 本机平台陈述：按 `process.platform` 事实生成，不写死某一台机器的经历。
+ *
+ * 原先硬编码「只在隔离 Linux 工具链上跑过」——C 在 Windows 上跑完，报告里仍写着 Linux。
+ * 未覆盖项是承诺，必须可按本机事实核查。
+ */
+export function nativePlatformNoteFor(hostPlatform) {
+  return hostPlatform === 'windows'
+    ? '本机即 Windows：本次结论来自 Windows 原生运行，但跨操作系统（Linux / macOS）未复验'
+    : `本机为 ${hostPlatform}：本次结论不代表 Windows 原生验收，需在 Windows 上复跑同一条命令`;
+}
+
+/**
+ * integrity 闸门：候选未经官方源核对时，四维再好看也不判 adopt。
+ *
+ * 策略层的 `recommend` 只看四维与覆盖，不知道字节来源；这一层补上「没核对就不采用」。
+ */
+export function applyIntegrityGate(policyRecommendation, integrityVerified) {
+  return policyRecommendation === 'adopt' && !integrityVerified ? 'hold' : policyRecommendation;
 }
 
 /**
@@ -339,6 +407,23 @@ async function main(argv) {
       log(`[probe] registry 不可达（${String(error?.message ?? error)}）；候选按本地请求处理，integrity 未核对`);
     }
   }
+  // 候选的 registry 声明侧自检：dist.integrity 必须存在且来自官方源。
+  // 这只是**必要条件**——充分条件还要看每个消费者的 package-lock.json（见下面
+  // `verifyConsumerCandidateSource`）：官方源怎么声明是一回事，消费者装进来的字节
+  // 是不是那些字节是另一回事。
+  const candidateDeclaredByRegistry =
+    !registryUnavailable &&
+    candidateResolution !== 'frozen-peer-baseline' &&
+    !candidateResolution.startsWith('registry-rejected') &&
+    typeof candidate.integrity === 'string' &&
+    candidate.integrity.startsWith('sha512-') &&
+    String(candidate.source ?? '').length > 0;
+  if (!candidateDeclaredByRegistry) {
+    log(
+      '[probe] 候选未经 registry 声明（' +
+        `${candidateResolution}），按纪律不判 adopt：本次只出具测量报告，不建议采用`,
+    );
+  }
 
   const supported = await supportedCombinations(bundle);
   if (supported.length === 0) {
@@ -380,12 +465,22 @@ async function main(argv) {
   const tarballs = Object.fromEntries(bundle.packages.map((entry) => [entry.name, entry.tarballFile]));
   const combinations = [];
   const consumers = [];
-  const browserInfo = { browserVersion: null, playwright: null };
+  const browserInfo = { browserVersion: null, playwright: null, browserRevision: null };
+  // 每个消费者对候选来源的核对结果；全部通过才认 integrity 已核实
+  const candidateSources = [];
+  // 浏览器里实测出的字体指纹（--font-digest 显式指定时为 null）
+  let measuredFontDigest = null;
+  // 字体指纹：显式指定 > 浏览器实测。都不做且要出截图时，下面的 browser 分支会抛错。
+  const fontDigest = options.fontDigest ?? null;
+  const fontDigestSource = options.fontDigest ? 'operator-supplied' : options.skipBrowser ? 'not-measured' : 'measured';
+  // browserRevision 读一次就够：同一次运行里浏览器不会变
+  const browserRevision = options.skipBrowser ? null : readBrowserRevision(import.meta.url);
+  if (browserRevision !== null) {
+    browserInfo.browserRevision = browserRevision;
+    log(`[probe] 浏览器修订号（playwright-core/browsers.json）：${browserRevision}`);
+  }
 
   for (const framework of options.frameworks) {
-    const frameworkVersion =
-      framework === 'vue' ? supported.find((row) => row.framework === 'vue').frameworkVersion : supported.find((row) => row.framework === 'react').frameworkVersion;
-    log(`[probe] === ${framework}@${frameworkVersion} × echarts ${requestedEcharts} ===`);
     const consumer = await createConsumer({
       framework,
       exampleDir: path.join(REPO_ROOT, 'examples', framework),
@@ -407,6 +502,52 @@ async function main(argv) {
     }
     log(`[probe] 消费者目录 ${consumer.root}（peer=${consumer.applied}）`);
     log(`[probe] 解析到 echarts=${consumer.resolved.echarts} zrender=${consumer.resolved.zrender} vue=${consumer.resolved.vue} react=${consumer.resolved.react}`);
+
+    // 框架版本必须取**消费者里真实解析到的精确版本**，不能取 supported 里的声明值。
+    // 原先直接用 supported：万一装到的版本与声明不符，报告会把声明值当真值写上去，
+    // 「声称的版本」冒充了「实测的版本」。对不上就拒绝出这一框架的报告。
+    const frameworkVersion = framework === 'vue' ? consumer.resolved.vue : consumer.resolved.react;
+    const declaredVersion = supported.find((row) => row.framework === framework).frameworkVersion;
+    if (!frameworkVersion) {
+      throw new Error(
+        `PROBE_INPUT 消费者里读不到 ${framework} 的已安装版本，无法出具报告：` +
+          '「声称的版本」不算证据。',
+      );
+    }
+    if (frameworkVersion !== declaredVersion) {
+      throw new Error(
+        `PROBE_INPUT ${framework} 实际安装版本 ${frameworkVersion} 与 supported 声明的 ${declaredVersion} 不一致。` +
+          '按纪律不得用声明值冒充实测值，本次不出具该框架的报告。',
+      );
+    }
+    log(`[probe] === ${framework}@${frameworkVersion}（实测） × echarts ${requestedEcharts} ===`);
+
+    // 候选来源核对：读消费者自己的 package-lock.json，核对 echarts 的版本、integrity
+    // 与来源主机。只看「版本号相等 + integrity 以 sha512- 开头」证明不了字节来自官方源。
+    // registry 离线或地址无法解析时无从核对：记下原因、判未核实，让结论保持 hold，
+    // 而不是抛 Invalid URL 崩掉。
+    const registryHost = registryHostOf(options.registry);
+    if (registryHost === null || !candidateDeclaredByRegistry) {
+      const reason =
+        registryHost === null
+          ? `registry 为 ${options.registry}，无法确定官方源主机，跳过 lock 核对`
+          : '候选未经 registry 声明（无 dist.integrity），跳过 lock 核对';
+      candidateSources.push({ framework, verified: false, reason });
+      log(`[probe] 候选来源核对跳过（${framework}）：${reason}`);
+    } else {
+      const candidateSource = await verifyConsumerCandidateSource(consumer.root, {
+        packageName: 'echarts',
+        version: requestedEcharts,
+        integrity: candidate.integrity,
+        registryHost,
+      });
+      candidateSources.push({ framework, ...candidateSource });
+      if (candidateSource.verified) {
+        log(`[probe] 候选来源核对通过：echarts@${candidateSource.entry.version} ← ${candidateSource.entry.resolved}`);
+      } else {
+        log(`[probe] 候选来源核对未通过（${framework}）：${candidateSource.reason}`);
+      }
+    }
 
     const packageName = `@company/charts-${framework}`;
     const typecheckRuns = await runTypechecks(consumer, { packageName, subpaths: PUBLIC_SUBPATHS });
@@ -452,8 +593,10 @@ async function main(argv) {
           os: platformName(),
           arch: process.arch,
           browserVersion: browser.version(),
-          browserRevision: '1000',
-          fontDigest: DEFAULT_FONT_DIGEST,
+          // browserRevision 必须来自 playwright 自己的 browsers.json。原先硬编码 '1000'
+          // （契约示例里的占位值），于是签名声称的环境与真实跑的环境不是同一个。
+          browserRevision: browserRevision,
+          fontDigest: fontDigest ?? DEFAULT_FONT_DIGEST,
           locale: 'zh-CN',
           timezone: 'Asia/Shanghai',
           deviceScaleFactor: 1,
@@ -475,6 +618,10 @@ async function main(argv) {
           run.interactionProblems = summariseInteraction(run, run.component);
         }
         log(`[probe] 浏览器维度：${browserResult.runs.length} 次运行，生命周期=${browserResult.lifecycle?.status}`);
+        if (browserResult.fontFingerprint) {
+          measuredFontDigest = browserResult.fontFingerprint.fontDigest;
+          log(`[probe] 字体指纹（实测）：${measuredFontDigest.slice(0, 16)}…`);
+        }
       } finally {
         await browser.close();
       }
@@ -562,7 +709,17 @@ async function main(argv) {
     ),
   };
   const dualCoverage = policy.hasDualFrameworkCoverage(report, policySupported);
-  const recommendation = policy.recommend(report, policySupported);
+  const policyRecommendation = policy.recommend(report, policySupported);
+  // 闸门：候选 integrity 未经官方源核对时，无论四多维好看都判 hold。
+  // 策略层的 recommend 只看四维与覆盖，不知道字节来源；这一层补上「没核对就不采用」。
+  const candidateIntegrityVerified =
+    candidateDeclaredByRegistry &&
+    candidateSources.length === options.frameworks.length &&
+    candidateSources.every((entry) => entry.verified === true);
+  const recommendation = applyIntegrityGate(policyRecommendation, candidateIntegrityVerified);
+  if (recommendation !== policyRecommendation) {
+    log(`[probe] 策略层建议 ${policyRecommendation}，但候选 integrity 未核对，最终结论改为 ${recommendation}`);
+  }
 
   const visualNotRunReasons = [];
   const lifecycleNotRunReasons = [];
@@ -577,18 +734,37 @@ async function main(argv) {
     }
   }
 
-  const uncovered = collectUncovered({
+  // 未覆盖项按**本机事实**生成。原先硬编码一句「只在隔离 Linux 工具链上跑过」，
+  // 于是 C 在 Windows 上跑完，报告里仍写着 Linux——未覆盖项必须是可核查的陈述。
+  const hostPlatform = platformName();
+  const nativePlatformNote = nativePlatformNoteFor(hostPlatform);
+
+  const uncoveredResult = collectUncovered({
     browserSkipped: options.skipBrowser,
     visualNotRunReasons,
     lifecycleNotRunReasons,
     registryUnavailable,
-    candidateNotRegistryVerified: candidateResolution.startsWith('registry-rejected'),
-    extra: [
-      '本机原生验证未执行：探针只在当前会话的隔离 Linux 工具链上跑过，不代表 Windows 原生验收',
-      '真实三存储（Verdaccio / PostgreSQL / MinIO）与 OIDC 不在本机可用范围，compatibility_records 无法落库',
+    candidateNotRegistryVerified: !candidateIntegrityVerified,
+    // 本地真没跑的项才进门禁。跨平台复验是范围声明而非本地检查失败：
+    // 本机跑齐了就是跑齐了，把它塞进 uncovered 会让每一台机器都永远 hold。
+    uncoveredExtra: [],
+    // 范围说明单独放：B 的 verify 只把 uncovered 当门禁，范围声明不该让结论无端 hold
+    scopeNotes: [
+      nativePlatformNote,
       'peer 范围未改动：探针只出具报告，不修改任何 package.json 的 peerDependencies',
+      'compatibility_records 落库需要 Verdaccio / PostgreSQL / MinIO 与 OIDC，不在本次本地范围内',
+      ...(fontDigestSource === 'operator-supplied'
+        ? ['字体摘要由 --font-digest 显式指定，非本机实测：视觉结论的可信度取决于该值的来源']
+        : []),
+      ...(fontDigestSource === 'not-measured'
+        ? ['未测量字体指纹（--skip-browser）：未产出截图，视觉维度无结论']
+        : []),
+      ...(options.peer === 'legacy'
+        ? ['使用 --peer legacy 放宽安装：peer 不符合已被记录，本次仅为测量，不构成通过结论，也未改变任何 peerDependencies']
+        : []),
     ],
   });
+  const { uncovered, scopeNotes } = uncoveredResult;
 
   const evidence = {
     schemaVersion: EVIDENCE_SCHEMA_VERSION,
@@ -604,7 +780,10 @@ async function main(argv) {
       arch: process.arch,
       hostIsWindows: process.platform === 'win32',
       browserVersion: browserInfo.browserVersion,
+      browserRevision: browserInfo.browserRevision,
       playwright: browserInfo.playwright,
+      fontDigestSource,
+      fontDigest: options.fontDigest ?? measuredFontDigest,
     },
     bundle: {
       root: bundle.root,
@@ -623,7 +802,19 @@ async function main(argv) {
       })),
       variants: [...digests.entries()].map(([variantId, digest]) => ({ variantId, ...digest })),
     },
-    candidate: { ...candidate, resolution: candidateResolution },
+    candidate: {
+      ...candidate,
+      resolution: candidateResolution,
+      integrityVerified: candidateIntegrityVerified,
+      declaredByRegistry: candidateDeclaredByRegistry,
+      consumerSources: candidateSources.map((entry) => ({
+        framework: entry.framework,
+        verified: entry.verified,
+        reason: entry.reason ?? null,
+        resolved: entry.entry?.resolved ?? null,
+        version: entry.entry?.version ?? null,
+      })),
+    },
     requestedEchartsVersion: requestedEcharts,
     baselineEchartsVersion: baselineEcharts,
     supported: supported,
@@ -633,9 +824,15 @@ async function main(argv) {
       supportedRangeUnchanged: true,
       requiresVisualBaselineConfirmation: report.requiresVisualBaselineConfirmation,
       hasDualFrameworkCoverage: dualCoverage,
+      // 策略层的原始建议与最终结论分开记：被 integrity 闸门改过就必须看得见
+      policyRecommendation: policyRecommendation,
+      recommendationOverriddenBy: recommendation === policyRecommendation ? null : 'candidate-integrity-unverified',
+      candidateIntegrityVerified,
+      fontDigestSource,
     },
     recommendation,
     uncovered,
+    scopeNotes,
   };
 
   const evidenceFile = path.join(outDir, evidenceName('probe-evidence', options.label, 'json'));
@@ -688,8 +885,11 @@ function renderSummary(evidence) {
     }
   }
   lines.push('');
-  lines.push('## 未覆盖项');
+  lines.push('## 未覆盖项（本地必需检查门禁，任一未跑即 hold）');
   for (const item of evidence.uncovered) lines.push(`- ${item}`);
+  lines.push('');
+  lines.push('## 范围说明（不参与门禁）');
+  for (const item of evidence.scopeNotes ?? []) lines.push(`- ${item}`);
   lines.push('');
   return `${lines.join('\n')}\n`;
 }

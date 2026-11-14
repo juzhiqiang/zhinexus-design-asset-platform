@@ -124,6 +124,22 @@ export function summariseDimensions(input) {
     runtime = PASSED;
   }
 
+  // 「缺证据」不是「通过」。SSR 导入、生命周期、浏览器运行任一项没有采集到，
+  // runtime 就必须是 not-run——否则一份只跑了 build 的证据会显示 runtime: passed。
+  if (runtime === PASSED) {
+    const missing = [];
+    if (input.ssrRun === null || input.ssrRun === undefined) missing.push('SSR 安全导入');
+    if (input.lifecycle === null || input.lifecycle === undefined) missing.push('生命周期');
+    if (input.lifecycle && input.lifecycle.status === 'not-run') missing.push(`生命周期未实测（${input.lifecycle.reason ?? '未说明'}）`);
+    if (browserRuns.length === 0) missing.push('浏览器运行');
+    if (missing.length > 0) {
+      runtime = NOT_RUN;
+      for (const item of missing) {
+        failures.push({ dimension: 'runtime', reason: `缺少 ${item} 证据，runtime 不判通过` });
+      }
+    }
+  }
+
   const interaction = browserRuns.length === 0 ? NOT_RUN : interactionFailures.length > 0 ? FAILED : PASSED;
 
   let visual;
@@ -237,6 +253,10 @@ export function buildCombinationRecord({
         clickError: run.clickError,
         screenshot: run.screenshot,
         environmentKey: run.environmentKey,
+        // 完整环境原始投影 + 被哈希的规范化 JSON + 字体度量依据：
+        // 只存 64 位 key 无法审核新指纹，审核方必须能自己重算一遍。
+        environment: run.environment ?? null,
+        environmentAudit: run.environmentAudit ?? null,
       })),
       visual: visualComparisons ?? [],
     },
@@ -258,16 +278,28 @@ export function buildCombinationRecord({
   };
 }
 
-/** 未覆盖项收集：把「没跑」与「跑了但没证据」分开列，避免把跳过写成通过。 */
+/**
+ * 未覆盖项与范围说明**必须分开**。
+ *
+ * B 的 `verify` 把 `uncovered` 当本地必需检查门禁：任何一条未跑项都会让结论保持 hold。
+ * 如果把「peer 范围未改动」「三存储不在本地范围」这类**范围说明**也塞进 `uncovered`，
+ * 每次运行都会无端 hold——范围说明不是缺陷。因此：
+ * - `uncovered`：本地**本该跑而没跑**的项（类型 / 运行 / 交互 / 视觉、候选来源未核对）；
+ * - `scopeNotes`：与本地能力无关的范围声明，仅供阅读，不参与门禁。
+ *
+ * @returns {{uncovered: string[]; scopeNotes: string[]}}
+ */
 export function collectUncovered({
   browserSkipped,
   visualNotRunReasons,
   lifecycleNotRunReasons,
   registryUnavailable,
   candidateNotRegistryVerified,
-  extra = [],
+  uncoveredExtra = [],
+  scopeNotes = [],
 }) {
   const uncovered = [];
+  const notes = [];
   if (browserSkipped) {
     uncovered.push('浏览器维度被 --skip-browser 跳过：runtime / interaction / visual 均为 not-run，不构成任何通过结论');
   }
@@ -279,6 +311,7 @@ export function collectUncovered({
   if (candidateNotRegistryVerified) {
     uncovered.push('候选版本未在官方源核对：resolveCandidate 的 registry 拒绝路径未覆盖');
   }
-  uncovered.push(...extra);
-  return uncovered;
+  uncovered.push(...(uncoveredExtra ?? []));
+  notes.push(...(scopeNotes ?? []));
+  return { uncovered, scopeNotes: notes };
 }
