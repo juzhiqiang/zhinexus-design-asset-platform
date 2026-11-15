@@ -15,6 +15,7 @@ export * from './bundle.js';
 export * from './api.js';
 export * from './project-context.js';
 export * from './search.js';
+export * from './design-id.js';
 export { CONTRACT_SCHEMAS } from './schemas.js';
 export const MANIFEST_SCHEMA_VERSION = 1 as const;
 export type BootstrapHealth = {

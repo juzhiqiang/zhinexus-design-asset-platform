@@ -32,11 +32,11 @@
 
 **Interfaces:** spec 中的三个 V1 类型；`validateDesignIdMapping(input:unknown)`、`validateDesignIdInput(input:unknown)` 返回既有 `ValidationResult<T>`。
 
-- [ ] 新增失败测试：两框架映射、重复映射/实例、同设计多实例、不透明 ID 原样保留、非法/未知字段、schema 注册。
-- [ ] 基线构建 contracts，运行 `exec vitest run tests/contracts/design-id.test.ts` 确认缺导出的 RED。
-- [ ] 实现 schema 与跨字段唯一性；不访问目录，不声称匹配成功。
-- [ ] 运行 `--filter @company/contracts schemas:generate`、contracts 测试、全图强制构建/类型、根 tsc、CLI 内联检查、contracts 浏览器冒烟与 workspace 检查。
-- [ ] 独立审查、新增验证记录，提交配置契约。
+- [x] 新增失败测试：两框架映射、重复映射/实例、同设计多实例、不透明 ID 原样保留、非法/未知字段、schema 注册。
+- [x] 基线构建 contracts，运行 `exec vitest run tests/contracts/design-id.test.ts` 确认缺导出的 RED（36 项失败）。
+- [x] 实现 schema 与跨字段唯一性；不访问目录，不声称匹配成功。
+- [x] 运行 `--filter @company/contracts schemas:generate`、contracts 测试、全图强制构建/类型、根 tsc、CLI 内联检查、contracts 浏览器冒烟与 workspace 检查；根回归 931 项通过。
+- [x] 独立审查无阻断，新增 [验证记录](../../verification/phase2-id-contracts-2026-11-15.md)，提交配置契约。
 
 ## Task 2：C 发布解析与方案（Task 1 后）
 

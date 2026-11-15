@@ -1,4 +1,5 @@
 import { projectContextSchema } from './project-context.js';
+import { designIdMappingSchema, designIdInputSchema } from './design-id.js';
 import { candidateSchema, searchCandidatesResponseSchema, searchCandidatesRequestSchema } from './search.js';
 import { array, artifactPath, choice, exactVersion, hash, integer, object, text, timestamp } from './schema.js';
 import type { Schema } from './schema.js';
@@ -43,4 +44,5 @@ export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Objec
   'project-context-v1': projectContextSchema,
   'candidate-v1': candidateSchema, 'search-candidates-response-v1': searchCandidatesResponseSchema,
   'search-candidates-request-v1': searchCandidatesRequestSchema,
+  'design-id-mapping-v1': designIdMappingSchema, 'design-id-input-v1': designIdInputSchema,
 }).map(([name, schema]) => [name, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: name, ...schema }]));

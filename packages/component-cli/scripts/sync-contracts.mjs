@@ -23,6 +23,7 @@ const filesToSync = [
   'api.ts',
   'project-context.ts',
   'search.ts',
+  'design-id.ts',
   'index.ts',
 ];
 
