@@ -1,5 +1,6 @@
 import type { ValidationIssue } from './errors.js';
 import type { ValidationResult } from './release-manifest.js';
+import { projectContextSchema, type ProjectContext } from './project-context.js';
 import { array, artifactPath, choice, exactVersion, hash, object, text, validateSchema } from './schema.js';
 
 /** Shape validation does not authenticate evidence or prove compatibility. */
@@ -12,6 +13,11 @@ export type Candidate = {
   gaps: string[];
 };
 export type SearchCandidatesResponse = { candidates: Candidate[]; gaps: string[] };
+export type SearchCandidatesRequest = { query: string; context: ProjectContext; reactDomVersion?: string };
+export const searchCandidatesRequestSchema = object({ query: text, context: projectContextSchema, reactDomVersion: exactVersion }, ['reactDomVersion']);
+export function validateSearchCandidatesRequest(input: unknown): ValidationResult<SearchCandidatesRequest> {
+  return validateSchema<SearchCandidatesRequest>(searchCandidatesRequestSchema, input);
+}
 
 const score = { type: 'number', minimum: 0, maximum: 1 } as const;
 export const candidateSchema = object({
