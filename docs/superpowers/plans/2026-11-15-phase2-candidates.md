@@ -50,9 +50,9 @@ type SearchCandidatesResponse = { candidates: Candidate[]; gaps: string[] };
 
 - [x] 契约失败测试 RED → GREEN，schema 生成一致性、CLI 内联镜像完整（e0a7f5ee，198 契约测试）。
 - [x] 契约验证提交后原样交 B；接收者逐文件 blob 核对（dcb4d52e，12 文件一致）。
-- [ ] `filterEligibleCandidates(context, hits, loadCurrent, hostPeers?)` 异步过滤，loadCurrent 由未来持久化检索层提供；对命中先读、返回前复读，失败关闭。
-- [ ] 测试 Vue-only/非Ready/权限拒绝/废弃/索引过期/peer 不符/缺 peer/旧摘要证据/撤权/重复命中/缺组合为 unverified；校验来自真实编译 dist，明确未接 PG/HTTP。
-- [ ] 运行 contracts/服务构建、窄测试、根类型与测试、全图构建和边界检查，独立审查后聚焦提交。
+- [x] `filterEligibleCandidates(context, hits, loadCurrent, hostPeers?)` 异步过滤，loadCurrent 由未来持久化检索层提供；对命中先读、返回前复读，失败关闭。
+- [x] 测试 Vue-only/非Ready/权限拒绝/废弃/索引过期/peer 不符/缺 peer/旧摘要证据/撤权/重复命中/缺组合为 unverified；校验来自真实编译 dist，明确未接 PG/HTTP。
+- [x] 运行 contracts/服务构建、窄测试、根类型与测试、全图构建和边界检查，独立审查后聚焦提交。
 
 ## A2：离线评分器
 
@@ -60,11 +60,11 @@ type SearchCandidatesResponse = { candidates: Candidate[]; gaps: string[] };
 
 Interfaces: 导出 `scoreEvaluation(cases, observations)`，case 最小字段 caseId/origin(real|synthetic)/category/acceptableVariantIds/requiredGapFields；observation 为 caseId/top5VariantIds/gapFields/hardViolations:string[]。这是测试工具内部类型，不是公共 DTO，不声称自动检测语义硬违规。
 
-- [ ] TDD：all matchable groundTruth 非空案例作 Top5 分母（不限 category）；gapRecall 按所需字段计，去重不重复加分；硬违规按案例计；每例输出失败原因。
-- [ ] real 与 synthetic 分开；空分母指标为 null/N/A，passed false；real>=30 且陷阱类>=10，加上硬违规0、Top5>=0.8、gapRecall>=0.9 才能 passed。
-- [ ] 缺 observation 算失败；重复 caseId/未知 observation/重复 observation/非法数据抛明确错误，防静默漏计；仅取前5候选。
-- [ ] 人工构造测试全部注明 synthetic 验证输入（即使为覆盖统计而模拟 origin=real，也不是真实评估集）；不新建虚构30真实样本文件。
-- [ ] 实跑窄测试/根类型、记录边界，中文提交并独立审查。
+- [x] TDD：all matchable groundTruth 非空案例作 Top5 分母（不限 category）；gapRecall 按所需字段计，去重不重复加分；硬违规按案例计；每例输出失败原因。
+- [x] real 与 synthetic 分开；空分母指标为 null/N/A，passed false；real>=30 且陷阱类>=10，加上硬违规0、Top5>=0.8、gapRecall>=0.9 才能 passed（另按评估协议补齐无匹配拒绝率>=0.9，见执行裁决）。
+- [x] 缺 observation 算失败；重复 caseId/未知 observation/重复 observation/非法数据抛明确错误，防静默漏计；仅取前5候选。
+- [x] 人工构造测试全部注明 synthetic 验证输入（即使为覆盖统计而模拟 origin=real，也不是真实评估集）；不新建虚构30真实样本文件。
+- [x] 实跑窄测试/根类型、记录边界，中文提交并独立审查。
 
 ## B2：候选响应与展示组件
 
@@ -72,11 +72,11 @@ Interfaces: 导出 `scoreEvaluation(cases, observations)`，case 最小字段 ca
 
 Interfaces: `parseCandidateResults(input: unknown)` 复用 C 的 `validateSearchCandidatesResponse`；`CandidateResults({ response }: { response: SearchCandidatesResponse })` 纯展示。根据实际 export 接口实现，不自定义公共响应结构。
 
-- [ ] 契约交付前只读现有组件/测试模式并准备测试清单，不写公共类型。
-- [ ] 交付后先写失败测试，C 宿主 RED 再实现：非法/重复/伪verified拒绝，成功保留真实字段，不推导缺省分数；空数组输出诚实空态。
-- [ ] 展示精确包版本、框架、真实证据路径与来源、verified/unverified、独立评分和 gaps；没有 visual 显示“未提供视觉评分”。证据路径以文本显示，不拼造可点击存储地址，不生成预览链接。
-- [ ] 不挂载本组件到在线 /match，不发请求、不持久化；用服务端静态渲染测试可见文本与 HTML 转义。现有表单行为保持原样。
-- [ ] C 宿主验证与本地提交；未对外接入的组件不触发重复 Gallery 升版，接入真实服务时再统一升版。
+- [x] 契约交付前只读现有组件/测试模式并准备测试清单，不写公共类型。
+- [x] 交付后先写失败测试，C 宿主 RED 再实现：非法/重复/伪verified拒绝，成功保留真实字段，不推导缺省分数；空数组输出诚实空态。
+- [x] 展示精确包版本、框架、真实证据路径与来源、verified/unverified、独立评分和 gaps；没有 visual 显示“未提供视觉评分”。证据路径以文本显示，不拼造可点击存储地址，不生成预览链接。
+- [x] 不挂载本组件到在线 /match，不发请求、不持久化；用服务端静态渲染测试可见文本与 HTML 转义。现有表单行为保持原样。
+- [x] C 宿主验证与本地提交；未对外接入的组件不触发重复 Gallery 升版，接入真实服务时再统一升版。
 
 ## 交接与验收
 
@@ -87,3 +87,22 @@ Interfaces: `parseCandidateResults(input: unknown)` 复用 C 的 `validateSearch
 - A2 原计划简写遗漏评估协议的无匹配拒绝率门槛；依既有 `docs/phase2/evaluation-protocol.md` 补齐 `noMatchRejection >= 0.9` 且分母非零，防止无匹配误报仍通过。另拒绝稀疏字段数组。A 修订提交 `2bea0082`，12 项评分测试通过；正式样本仍缺失。
 - B2 静态渲染测试从 gallery 自身依赖边界加载 React；根 `tsconfig.json` 由 C 增加 `jsx: react-jsx` 以检查导入的 TSX。没有添加根 React 运行时依赖或修改锁文件。
 - 过滤器读取接口必须由将来的持久化适配器绑定已认证 subject，读取当前权威元数据。两轮复读不等价于跨候选的数据库事务快照；接入 PG 时仍须实现一致性策略。
+
+## 本批提交与验证汇总
+
+| 负责人 | 提交 | 交付与验证 |
+| --- | --- | --- |
+| C | d4162065 | 本批分工计划 |
+| C | e0a7f5ee | 候选公共契约；27 新测试、198 契约测试通过 |
+| C | 154b9812 | 资格复核；32 新测试，根 Vitest 817 通过，node:test 159 通过 / 7 跳过 |
+| B 接收，C 操作 | dcb4d52e | 原样接入契约，12 文件 blob 一致 |
+| A | 988db80e、2bea0082 | 评分器及边界修订；12 项测试与根类型检查通过，C 独立复跑 |
+| A | 15511ec9、a102d711 | C/B 独立只读审查，无阻断项 |
+| C 维护 B 根配置 | a0ee0fae | JSX 静态测试和根类型支持 |
+| Claude 桌面端 B，C 验证提交 | f71d32f3 | 候选展示与校验；24 新测试、60 相关测试、根 Vitest 818 通过，node:test 159 通过 / 7 跳过 |
+
+A/B/C 本批子任务完成。B/C 全图强制构建各 10/10 成功、强制类型任务各 14/14 成功；A/B/C 架构 SHA256 均未变。保留各工作区分支，无 merge/push/发布。
+
+下一批剩余：真实 PostgreSQL 索引/outbox 与已认证快照读取适配器、HTTP 检索与降级、/match 实际接入、模型/设计解析、真实 30 样本评估。当前评分器只处理显式观测，候选组件未挂路由，不能标记 T13/T14 整体完成。
+
+详细证据：C 分支 `docs/verification/c-phase2-candidate-contract-2026-11-15.md` 与 `c-phase2-eligibility-2026-11-15.md`；B 分支 `docs/verification/c-b2-candidates-acceptance-2026-11-15.md`；A 分支评分器及 C/B 独立审查记录。
