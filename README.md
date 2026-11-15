@@ -6,6 +6,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 ## 开始开发（Windows x64）
 
+二期当前新增候选响应契约及独立资格过滤器，见 [第二批执行计划](docs/superpowers/plans/2026-11-15-phase2-candidates.md)。候选的截图来源、兼容证据和文本/用途/视觉评分各自独立；缺少评分不会补零。过滤器只接受能够核对的精确 peer 版本，并复读当前权限、发布状态和索引版本。HTTP 检索、PG 索引适配器、模型及真实标注集尚未交付，不代表 T13/T14 已完成。
+
 在仓库根目录执行。首次运行会从官方源下载并校验项目固定的 Node/pnpm 到 `.tools`，不修改全局安装；需能够访问 npm、Node 和 Playwright 下载源。
 
 ```powershell

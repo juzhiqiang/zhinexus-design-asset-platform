@@ -48,8 +48,8 @@ type SearchCandidatesResponse = { candidates: Candidate[]; gaps: string[] };
 
 运行时拒绝未知字段、范围版本、非有限/超出 [0,1] 分数、重复 releaseId、verified 无记录、unverified 夹带记录、非截图带 source 或截图缺 source；形状校验不能证明记录真实性。Candidate 必须含 api/docs 证据，视觉分数存在必须有截图证据；缺用途/视觉评分保持省略。
 
-- [ ] 契约失败测试 RED → GREEN，schema 生成一致性、CLI 内联镜像完整。
-- [ ] 契约验证提交后原样交 B；接收者逐文件 blob 核对。
+- [x] 契约失败测试 RED → GREEN，schema 生成一致性、CLI 内联镜像完整（e0a7f5ee，198 契约测试）。
+- [x] 契约验证提交后原样交 B；接收者逐文件 blob 核对（dcb4d52e，12 文件一致）。
 - [ ] `filterEligibleCandidates(context, hits, loadCurrent, hostPeers?)` 异步过滤，loadCurrent 由未来持久化检索层提供；对命中先读、返回前复读，失败关闭。
 - [ ] 测试 Vue-only/非Ready/权限拒绝/废弃/索引过期/peer 不符/缺 peer/旧摘要证据/撤权/重复命中/缺组合为 unverified；校验来自真实编译 dist，明确未接 PG/HTTP。
 - [ ] 运行 contracts/服务构建、窄测试、根类型与测试、全图构建和边界检查，独立审查后聚焦提交。
@@ -81,3 +81,9 @@ Interfaces: `parseCandidateResults(input: unknown)` 复用 C 的 `validateSearch
 ## 交接与验收
 
 每个任务实际 RED/GREEN、未覆盖边界和中文 commit 独立记录。C 在 A/B/C 三个工作区核对文件归属和架构 SHA256，禁止重写历史记录。只在任务完成后标记本表，保持 T13/T14 总任务未完成。
+
+## 执行裁决与补充
+
+- A2 原计划简写遗漏评估协议的无匹配拒绝率门槛；依既有 `docs/phase2/evaluation-protocol.md` 补齐 `noMatchRejection >= 0.9` 且分母非零，防止无匹配误报仍通过。另拒绝稀疏字段数组。A 修订提交 `2bea0082`，12 项评分测试通过；正式样本仍缺失。
+- B2 静态渲染测试从 gallery 自身依赖边界加载 React；根 `tsconfig.json` 由 C 增加 `jsx: react-jsx` 以检查导入的 TSX。没有添加根 React 运行时依赖或修改锁文件。
+- 过滤器读取接口必须由将来的持久化适配器绑定已认证 subject，读取当前权威元数据。两轮复读不等价于跨候选的数据库事务快照；接入 PG 时仍须实现一致性策略。
