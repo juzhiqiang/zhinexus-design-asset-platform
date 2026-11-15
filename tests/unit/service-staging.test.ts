@@ -2,6 +2,7 @@ import { mkdtemp, mkdir, writeFile, rm, symlink } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
+import { registryMigrationFiles } from '../../apps/api/src/db/migration-files.js';
 
 const owned: string[] = [];
 afterEach(async () => { for (const dir of owned.splice(0)) await rm(dir, { recursive: true, force: true }); });
@@ -17,7 +18,8 @@ async function fixture() {
     await file(root, `${service}/node_modules/@company/contracts/dist/index.js`);
   }
   await file(root, 'api/dist/releases/runner.js'); await file(root, 'api/dist/db/migrate.js');
-  for (const name of ['001_registry.sql', '002_package_permissions.sql', '003_evidence_references.sql', '004_release_worker.sql', '005_catalog.sql', '006_preview.sql', '007_compatibility.sql']) {
+  await file(root, 'api/dist/index/search-runner.js');
+  for (const name of registryMigrationFiles) {
     await file(root, `api/migrations/${name}`, 'SELECT 1;');
   }
   return root;
@@ -35,7 +37,7 @@ it('checks actual staged service files without executing package scripts', async
 
 it('rejects a missing worker entry, migration directory or contracts runtime', async () => {
   const { verifyServiceStaging } = await import('../../scripts/verify-service-staging.js');
-  for (const path of ['api/dist/releases/runner.js', 'api/migrations', 'preview/node_modules/@company/contracts']) {
+  for (const path of ['api/dist/releases/runner.js', 'api/dist/index/search-runner.js', 'api/migrations', 'preview/node_modules/@company/contracts']) {
     const root = await fixture(); await rm(join(root, path), { force: true, recursive: true });
     expect((await verifyServiceStaging(root)).ok).toBe(false);
   }
@@ -104,7 +106,7 @@ it('requires nonempty regular SQL migration files', async () => {
 it('requires every migration consumed by the runtime, not just one SQL file', async () => {
   const { verifyServiceStaging } = await import('../../scripts/verify-service-staging.js');
   const root = await fixture();
-  await rm(join(root, 'api/migrations/007_compatibility.sql'));
+  await rm(join(root, 'api/migrations/008_search.sql'));
   expect((await verifyServiceStaging(root)).ok).toBe(false);
 });
 

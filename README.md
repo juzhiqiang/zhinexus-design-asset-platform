@@ -94,6 +94,10 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 
 ## 开发与分工文档
 
+二期文本检索：已登录客户端显式 `POST /v1/search/candidates`，请求 `{query,context,reactDomVersion?}`，仅按发布元数据搜索，不提供用途/视觉评分；精确 peers 不满足、权限撤销、废弃或索引过期的实现不返回。需求语义尚未评估，不能据此声称完成设计稿匹配。分工见 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。
+
+部署先执行现有 API migrate（新增 008_search），再以固定工具链执行 `scripts/pnpm.ps1 exec node apps/api/dist/index/search-runner.js` 启动独立索引消费者；加 `--once` 处理至多一个作业。仅需既有 `PLATFORM_DATABASE_URL`，不得将凭据写入命令或日志。重建指定作业时设置 `PLATFORM_SEARCH_REBUILD_JOB_ID` 后运行同一入口；重建会重写派生索引，不修改已发布产物或 Ready。检查 `release_outbox.state`（indexed/failed/pending）判断处理结果，失败会在下次消费重试；查询始终复读当前权限和发布元数据。
+
 - [三人分工与必要依赖](docs/superpowers/plans/2026-11-11-three-person-allocation.md)：A SDK、B CLI/画廊、C 平台；前三天任务、依赖图和年底风险。
 - [完整实现计划 T01–T17](docs/superpowers/plans/2026-11-11-component-platform-implementation.md)
 - [实施评估](component-platform-implementation-assessment.md) / [原始架构](component-platform-architecture.md)

@@ -76,7 +76,7 @@ async function checkService(directory: string, expected: string, api: boolean): 
     if (!allowedRoot.has(name) && !/^(?:README|LICEN[CS]E|NOTICE)(?:[.-].*)?$/i.test(name)) errors.add(`Unexpected service root content: ${name}`);
   }
   if (manifests.get(root)?.name !== expected) errors.add('Service package identity mismatch');
-  for (const required of ['dist/server.js', ...(api ? ['dist/releases/runner.js', 'dist/db/migrate.js'] : [])]) {
+  for (const required of ['dist/server.js', ...(api ? ['dist/releases/runner.js', 'dist/index/search-runner.js', 'dist/db/migrate.js'] : [])]) {
     try { const actual = await realpath(path.join(root, required)); if (!within(root, actual) || !(await lstat(actual)).isFile()) throw new Error(); }
     catch { errors.add(`Missing runtime entry: ${required}`); }
   }
