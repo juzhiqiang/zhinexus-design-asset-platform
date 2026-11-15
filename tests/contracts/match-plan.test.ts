@@ -47,4 +47,13 @@ describe('确定性装配契约', () => {
   it('注册生成 schema', () => {
     for(const name of ['component-api-v1','match-plan-request-v1','match-plan-v1']) expect(c.CONTRACT_SCHEMAS[name]).toBeDefined();
   });
+  it.each(['prop', 'event', 'layout', 'compatibility', 'requirements'])('拒绝隐藏已知缺口：%s', kind => {
+    const plan: c.MatchPlanV1 = matchPlanFixture();
+    if (kind === 'prop') delete plan.elements[0]!.props[0]!.source;
+    if (kind === 'event') delete plan.elements[0]!.events[0]!.handler;
+    if (kind === 'layout') delete plan.elements[0]!.layout;
+    if (kind === 'compatibility') plan.elements[0]!.gaps = [];
+    if (kind === 'requirements') plan.context.requirements = ['业务要求'];
+    expect(c.validateMatchPlan(plan).ok).toBe(false);
+  });
 });

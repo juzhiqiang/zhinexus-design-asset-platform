@@ -36,6 +36,7 @@ export async function loadCurrentCandidates(sql: Sql, ids: string[], subject: st
     ${searchFrom} LEFT JOIN search_documents d ON d.variant_release_id=vr.id
     LEFT JOIN release_outbox o ON o.job_id=j.id WHERE vr.id=ANY($1::uuid[])`, [ids, subject])).rows;
   return new Map(rows.map(row => [row.id, {
+    variant: row.metadata, package: row.package_metadata,
     canRead: row.can_read, availability: row.availability === 'PENDING' ? 'Pending' : row.availability,
     packageState: row.package_state, jobState: row.job_state, revision: searchRevision(row), activeProviderVersion: SEARCH_PROVIDER,
     index: { state: row.index_state === 'indexed' ? 'ready' : row.index_state === 'failed' ? 'failed' : 'pending', revision: row.index_revision, providerVersion: row.provider_version },

@@ -1,6 +1,6 @@
 import {
   validateApiMessage, validateCandidate, validateProjectContext,
-  type AcceptedCompatibilityRecord, type Candidate, type ProjectContext, type ReleaseState, type SearchCandidatesResponse,
+  type AcceptedCompatibilityRecord, type Candidate, type ProjectContext, type ReleaseState, type SearchCandidatesResponse, type PackageRef, type VariantRef,
 } from '@company/contracts';
 import { PlatformError } from '../errors.js';
 
@@ -9,6 +9,7 @@ export type IndexedCandidateHit = {
   variantReleaseId: string; revision: string; providerVersion: string; ranking: Candidate['ranking'];
 };
 export type CurrentCandidateSnapshot = {
+  variant?: VariantRef; package?: PackageRef;
   candidate: Omit<Candidate, 'ranking' | 'compatibility'>;
   canRead: boolean; availability: 'Ready' | 'DEPRECATED' | 'Pending'; packageState: ReleaseState; jobState: ReleaseState;
   revision: string; activeProviderVersion: string;
@@ -38,12 +39,23 @@ function peersSatisfied(context: ProjectContext, required: Record<string, string
 
 function buildEligible(context: ProjectContext, hit: IndexedCandidateHit, current: CurrentCandidateSnapshot | null,
   hostPeers: Readonly<Record<string, string>>): Candidate | null {
-  if (!current || current.canRead !== true || current.availability !== 'Ready' || current.packageState !== 'READY' || current.jobState !== 'READY') return null;
-  const { candidate, index } = current;
-  if (candidate.variantReleaseId !== hit.variantReleaseId || candidate.framework !== context.framework || index.state !== 'ready' ||
+  if (!current) return null;
+  const { index } = current;
+  if (index.state !== 'ready' ||
       !current.revision || !current.activeProviderVersion || hit.revision !== current.revision || index.revision !== current.revision ||
-      hit.providerVersion !== current.activeProviderVersion || index.providerVersion !== current.activeProviderVersion ||
-      !peersSatisfied(context, current.peerDependencies, hostPeers)) return null;
+      hit.providerVersion !== current.activeProviderVersion || index.providerVersion !== current.activeProviderVersion) return null;
+  const eligible = eligibleRelease(context, hit.variantReleaseId, current, hostPeers);
+  if (!eligible) return null;
+  const result = validateCandidate({ ...eligible, ranking: hit.ranking });
+  return result.ok ? structuredClone(result.value) : null;
+}
+
+/** Authoritative release eligibility, independent of any discovery index or ranking. */
+export function eligibleRelease(context: ProjectContext, id: string, current: CurrentCandidateSnapshot | null,
+  hostPeers: Readonly<Record<string, string>> = {}): Omit<Candidate, 'ranking'> | null {
+  if (!current || !current.canRead || current.availability !== 'Ready' || current.packageState !== 'READY' || current.jobState !== 'READY') return null;
+  const { candidate } = current;
+  if (!current.revision || candidate.variantReleaseId !== id || candidate.framework !== context.framework || !peersSatisfied(context, current.peerDependencies, hostPeers)) return null;
 
   const recordIds = new Set<string>();
   for (const record of current.acceptedCompatibility) {
@@ -55,10 +67,12 @@ function buildEligible(context: ProjectContext, hit: IndexedCandidateHit, curren
       recordIds.add(record.compatibilityId);
     }
   }
-  const result = validateCandidate({ ...candidate, ranking: hit.ranking,
+  const result = validateCandidate({ ...candidate, ranking: { text: 0 },
     compatibility: { status: recordIds.size ? 'verified' : 'unverified', recordIds: [...recordIds] } });
   // Return an owned snapshot: subsequent adapter mutation must not alter the response.
-  return result.ok ? structuredClone(result.value) : null;
+  if (!result.ok) return null;
+  const { ranking: _ranking, ...release } = structuredClone(result.value);
+  return release;
 }
 
 /** No model, component execution, HTTP or DB access here; the future adapter owns those reads. */

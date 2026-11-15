@@ -54,6 +54,7 @@ export function validateMatchPlan(input:unknown):ValidationResult<MatchPlanV1>{
   const add=(path:string,message:string)=>issues.push({code:'INVALID_SCHEMA',path,message});
   issues.push(...duplicateIssues(plan.elements.map(e=>e.instanceId),'/elements','instanceId'),...duplicateIssues(plan.exactDependencies.map(d=>d.name),'/exactDependencies','name'));
   if(!plan.elements.length&&!plan.gaps.some(g=>g.code==='EMPTY_DESIGN'))add('/gaps','Empty design needs an explicit gap');
+  if(plan.context.requirements.length&&!plan.gaps.some(g=>g.code==='REQUIREMENTS_UNASSESSED'))add('/gaps','Text requirements require an explicit assessment gap');
   plan.elements.forEach((element,i)=>{
     const path=`/elements/${i}`;
     if(element.status==='gap'){
@@ -63,6 +64,11 @@ export function validateMatchPlan(input:unknown):ValidationResult<MatchPlanV1>{
     const target=element.target;
     if(!target){add(path+'/target','Mapped element requires a target');return;}
     if(target.framework!==plan.context.framework)add(path+'/target/framework','Target framework must match context');
+    const requireGap=(condition:boolean,code:MatchGap['code'])=>{if(condition&&!element.gaps.some(g=>g.code===code))add(path+'/gaps',`Missing explicit ${code} gap`);};
+    requireGap(element.props.some(p=>p.required&&p.source===undefined),'MISSING_PROP');
+    requireGap(element.events.some(e=>e.handler===undefined),'MISSING_EVENT');
+    requireGap(element.layout===undefined,'LAYOUT_UNKNOWN');
+    requireGap(target.compatibility.status==='unverified','COMPATIBILITY_UNVERIFIED');
     if((target.compatibility.status==='verified')!==(target.compatibility.recordIds.length>0))add(path+'/target/compatibility','Compatibility records must agree with status');
     if(new Set(target.compatibility.recordIds).size!==target.compatibility.recordIds.length)add(path+'/target/compatibility','Duplicate compatibility evidence');
     for(const kind of ['api','docs'])if(!target.evidence.some(e=>e.kind===kind))add(path+'/target/evidence','API and docs evidence are required');
