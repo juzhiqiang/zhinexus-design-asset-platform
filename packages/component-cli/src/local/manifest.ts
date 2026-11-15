@@ -17,6 +17,8 @@ import {
 } from './freeze.js';
 import { captureExample, type CaptureResult } from './capture.js';
 import { buildCheckReport } from './report.js';
+import { buildComponentApi } from './component-api.js';
+import { validateComponentApi } from '../contracts/component-api.js';
 import { validateReleaseBundle } from '../contracts/bundle.js';
 import type {
   ArtifactRef,
@@ -500,23 +502,14 @@ export async function prepareReleaseBundle(
       const variantPreviewArtifacts = variantPreviewMap.get(variantId) ?? [];
       const previewEntryPath = `preview/${variantId}/index.html`;
 
-      // 4.2 API 规范
+      // 4.2 API 规范（ComponentApiV1）
       const apiRelPath = `api/${variantId}.json`;
       const apiFullPath = path.join(bundleDir, apiRelPath);
-      const apiMetadata = {
-        componentId: component,
-        framework,
-        exportName,
-        exportPath,
-        props: {
-          data: { type: 'ChartData', required: true },
-          config: { type: `${exportName}Config`, required: false },
-          optionOverrides: { type: 'EChartsOption', required: false },
-        },
-        events: {
-          'point-click': { payload: 'ChartEvent' },
-        },
-      };
+      const apiMetadata = buildComponentApi(component, framework);
+      const apiCheck = validateComponentApi(apiMetadata);
+      if (!apiCheck.ok) {
+        throw new Error(`INVALID_COMPONENT_API: ${variantId} API 材料未通过 ComponentApiV1 校验`);
+      }
       await fs.promises.writeFile(apiFullPath, JSON.stringify(apiMetadata, null, 2) + '\n', 'utf8');
       const apiArtifact = await createArtifactRef(apiFullPath, apiRelPath);
       extraArtifacts.push(apiArtifact);
