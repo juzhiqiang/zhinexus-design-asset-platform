@@ -133,3 +133,8 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 2026-11-13 SDK 文档交接：A 修正 SSR 挂载、真实导出与静态类型/运行时边界后，C 原样提取 Vue/React 示例，在真实安装冻结 0.0.10 tarball 的干净消费者中完成六组严格编译。固定摘要、验证方式与未完成边界见 [文档独立复验](docs/verification/c-a-sdk0010-handover-2026-11-13.md)。
 
 2026-11-15 二期首批启动：按 [A/B/C 隔离分工](docs/superpowers/plans/2026-11-15-phase2-kickoff.md) 推进组件档案审计、React 项目上下文表单准备及 ProjectContext 公共契约。契约验证只确认输入形状，不等同于兼容通过；本批不提供多模态匹配结果，不标记 T13/T14 完成。C 的新增契约、CLI 同步范围与验证边界见 [独立记录](docs/verification/c-phase2-project-context-2026-11-15.md)。
+
+
+2026-11-15 B1/B3：画廊控制台 `/match` 保留项目上下文本地校验，并增加独立「搜索候选」按钮。仅点击搜索才将查询、上下文和可选 React DOM 精确版本提交至鉴权 API；编辑、退出或会话变化取消请求并清除旧结果，查询与结果不写入浏览器存储。本地校验成功不代表组件兼容或生成装配方案。
+
+构建画廊前设置 `NEXT_PUBLIC_PLATFORM_API_URL` 为管理 API origin（本机默认 `http://127.0.0.1:3000`），API 需允许画廊的精确 Origin 并部署 C3 检索迁移及 worker。文本检索仅覆盖已发布元数据，不提供用途、视觉评分或需求语义评估。实际验证与边界见 [B3 验收记录](docs/verification/c-b3-search-acceptance-2026-11-15.md)；A/B/C 三方代码已集成本地主分支；历史分支验收与本次集成复验分别记录。

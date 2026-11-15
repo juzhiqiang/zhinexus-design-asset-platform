@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 
 export const metadata: Metadata = {
   robots: {
@@ -8,5 +9,16 @@ export const metadata: Metadata = {
 };
 
 export default function ConsoleLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return children;
+  return (
+    <>
+      <nav className="console-nav" aria-label="控制台导航">
+        <span className="console-nav-brand">组件发布控制台</span>
+        <span className="console-nav-links">
+          <Link href="/upload" className="console-nav-link">上传发布</Link>
+          <Link href="/match" className="console-nav-link">项目上下文匹配</Link>
+        </span>
+      </nav>
+      {children}
+    </>
+  );
 }
