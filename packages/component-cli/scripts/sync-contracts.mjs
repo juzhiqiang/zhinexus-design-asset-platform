@@ -22,6 +22,7 @@ const filesToSync = [
   'bundle.ts',
   'api.ts',
   'project-context.ts',
+  'search.ts',
   'index.ts',
 ];
 
