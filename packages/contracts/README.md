@@ -139,3 +139,13 @@ T07 兼容扩展（2026-11-12）：新增 variantReportsResponse，返回指定�
 拒绝未知字段及非 JSON 对象，错误使用现有 `ValidationResult` 与 JSON Pointer 路径。合法值保留原输入，不做版本推断、兼容证明或需求补全。用户填写的上下文不代表任何候选已通过 peer 硬过滤、真实安装或截图验证；Ready、来源、兼容、索引状态继续独立。
 
 本批没有新增 HTTP 消息、检索接口或 MatchPlan。CLI 构建按现有机制同步并内联同一契约，不引入私有运行时依赖。计划与实际验证见 `docs/superpowers/plans/2026-11-15-phase2-kickoff.md`、`docs/verification/c-phase2-project-context-2026-11-15.md`（仓库根路径）。
+
+## 二期第三批文本候选检索契约
+
+后续第三批已增加 `SearchCandidatesRequest`、`SearchCandidatesResponse`、`Candidate` 及对应 `validateSearchCandidatesRequest` / `validateSearchCandidatesResponse` / `validateCandidate` 校验器。独立生成的 `search-candidates-request-v1` Schema 与 CLI 内联镜像同步；前述“没有检索接口”仅指首批。
+
+`POST /v1/search/candidates` 请求为 `{ query, context, reactDomVersion? }`：query 非空白且最长 2048 字符，context 复用 ProjectContext，reactDomVersion 可选但必须为精确版本，不能从 React 版本推断。拒绝未知字段。HTTP 层强制 Bearer 与 read 权限、no-store/noindex，权限并非由结构校验证明。
+
+响应为 `{ candidates: Candidate[], gaps: string[] }`。Candidate 绑定实现发布 ID、包版本/摘要、框架与导出，含 API/文档证据、可选截图及来源、兼容记录、排名和缺口；拒绝重复实现发布 ID。verified 要求非空且唯一的记录 ID，unverified 无记录；这只检查结构，记录真实性、精确宿主组合及摘要由服务端复核。
+
+本批 provider 为 `metadata-text-v1`，仅提供 0–1 的 text 排名，不填 usage/visual 分数；响应明确说明不提供用途、视觉或需求语义评估。Ready、当前权限、索引 revision/provider、兼容可信度分别判断。契约通过不证明可安装或真实兼容，不提供 MatchPlan。实施与验收见仓库根 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。
