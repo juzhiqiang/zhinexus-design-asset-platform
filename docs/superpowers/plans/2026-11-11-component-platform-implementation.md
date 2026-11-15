@@ -436,30 +436,30 @@ flowchart LR
 
 ## 4. 二、三期独立任务
 
-以下任务保留明确接口与验收目标，估算见评估文档。执行前以一期真实资产和业务样本修订质量门槛；不要提前假定模型、向量库或设计平台连接器已选定。
+2026-11-15 用户调整二期范围：当前不接入大模型，设计通过对应 ID 规则匹配组件；具体 ID 命名规则尚未确定。以下 T13/T14 以本次范围调整为准，原架构文档与历史验证记录保持原样。三期另行评估，不据此扩展二期范围。详细决策与后续执行见 [ID 规则匹配计划](2026-11-15-phase2-id-matching.md)。原二期人日估算基于多模态方案，已不适用于当前范围，待规则和设计导出格式确认后重估。
 
-### T13：完整档案、兼容过滤与多模态检索（二期，12–18 人日）
+### T13：完整档案、兼容过滤与 ID 规则匹配（二期）
 
-**Files:** 创建 `packages/contracts/src/{project-context,match-plan}.ts`、`apps/api/src/search/{indexer,retrieval,compatibility,providers}.ts`、`apps/api/migrations/003_search.sql`；`tests/integration/search-eligibility.test.ts`。
+**Files:** 复用已存在的 `packages/contracts/src/{project-context,search}.ts`、`apps/api/src/search/`；新增 `packages/contracts/src/design-id.ts`、`apps/api/src/matching/` 与对应契约/集成测试。数据库迁移按当前仓库编号递增，不复用已占用编号。
 
-**Interfaces:** `ProjectContext={framework,frameworkVersion,echartsVersion?,packageManager,requirements:string[]}`；`searchCandidates(query,context): Promise<Candidate[]>`，Candidate 包含 variantReleaseId、精确包版本、证据、截图来源、compatibility 和排名分解。`embedText(text)`、`embedImage(image)` 由 provider adapter 实现，凭证在服务端；索引以 variantReleaseId+revision+providerVersion 为键。
+**Interfaces:** 复用现有 `ProjectContext`、`Candidate` 与文本检索协议。新增显式映射配置 `DesignIdMappingV1`：规则集标识/修订、设计 ID、目标框架和精确 `variantReleaseId`。设计 ID 暂作不透明字符串，不推定前缀、分隔符或大小写规则；精确比较，不做模糊猜测。配置是用户输入，不能充当权限、Ready 或兼容证据。模型、embedding、视觉评分和向量库不属于本期依赖。
 
 - [ ] 写兼容性测试：React 请求拒绝 Vue-only、非 Ready、已废弃、peer 不满足、索引落后候选；缺已验证组合时标明未验证，不能伪称兼容。
-- [ ] 实现 outbox 增量索引和可重建批处理；先在 PG 保存字段与特征，200–1000 个实现规模用应用内向量距离验证延迟；达到量测瓶颈再评估 pgvector/独立服务，先不承诺新增向量数据库。
-- [ ] 分别实现文本/用途/视觉候选生成，合并去重后做权限和兼容硬过滤，再排序；返回前再次查当前可用状态防索引陈旧。
-- [ ] 运行集成测试，注入模型超时与索引失败，预期可返回文本降级结果且明确缺失视觉评分；不以降级结果宣称多模态验证通过。提交。
+- [ ] 复验已有 PG 文本索引、outbox 增量消费和重建，保留为人工发现能力；按 200–1000 个实现规模测量 ID 定位与文本检索延迟，不引入向量距离评估。
+- [ ] 实现 ID 配置校验和确定性解析；同一规则修订内同一设计 ID/框架不能有多个目标，未知 ID、缺框架映射和无效配置分别报告。按精确发布 ID 读取当前目录，再做权限、Ready、废弃状态、peer 与真实兼容证据检查；返回前复读权限和发布状态。禁止通过文本相似结果自动替换映射目标。
+- [ ] 运行集成测试：覆盖重复/冲突 ID、错误目标、跨框架、版本不符、撤权、废弃和索引故障；ID 解析不依赖模型或文本评分。提交。
 
-### T14：设计稿解析、装配方案与离线评估（二期，16–24 人日）
+### T14：设计 ID 导入、装配方案与规则验收（二期）
 
-**Files:** 创建 `apps/api/src/matching/{parse,assemble,evaluate}.ts`、`apps/gallery/src/pages/DesignMatch.vue`、`tests/evaluation/design-cases.json`、`tests/integration/match-plan.test.ts`。
+**Files:** 新增 `packages/contracts/src/match-plan.ts`、`apps/api/src/matching/`、`apps/gallery/src/` 下符合现有 Next/React 结构的匹配页面、`tests/integration/match-plan.test.ts` 与独立规则验收案例；不新增 Vue 画廊页面。
 
-**Interfaces:** 输入设计截图/支持的设计文件和 ProjectContext；`parseDesign(input): Region[]`，Region 含 bbox、视觉推断、未知项和证据；`createMatchPlan(regions,requirements,context): MatchPlanV1`，输出区域、variantReleaseId、精确依赖、真实参数/事件映射、布局调整、置信度与 gaps。结构在 T13 的 match-plan.ts 定义，JSON Schema 校验。
+**Interfaces:** 输入结构化设计元素（实例 ID、设计 ID、可选显式布局信息）、映射配置与 ProjectContext；`createMatchPlan(input): MatchPlanV1` 输出元素、解析来源及规则修订、variantReleaseId、精确依赖、经证据校验的参数/事件映射与 gaps。同一设计 ID 可被多个不同实例引用。截图仅供展示，不能单独提供 ID 或数据语义；不输出模型置信度。业务数据、事件处理函数和布局未提供时明确缺失，不根据 ID 编造。
 
-- [ ] 准备建议不少于 30 个真实标注案例，含 10 个无匹配/缺少约束/跨框架陷阱；固定训练外的验收集合，人工标注可接受候选与必需缺口。
-- [ ] 写失败测试：图上看不到的数据口径进入 unknown；不存在 API 或不兼容实现不能进入装配清单；手动图来源不能变成“已自动回归”。
-- [ ] 实现页面区域解析、检索/过滤调用、API/示例约束生成与 schema 校验；外部模型不可用时保留输入和可重试状态。设计文件连接器若未获得访问能力，先接截图入口并明确支持范围。
-- [ ] 建议初始门槛：框架/版本兼容硬违规 0，已标注可匹配案例 Top-5 召回≥80%，必需缺口召回≥90%；置信不足输出缺口不强装配。报告样本数和逐例失败原因，不只报总分。
-- [ ] 运行 match-plan 集成和独立评估集；按真实结果修订阈值需记录原因和范围。通过后交付匹配方案 UI 与报告，提交。
+- [ ] 准备确定性测试矩阵，覆盖正确/未知/重复/冲突 ID、多实例引用、缺框架映射、缺失约束及权限变更；实际设计侧规则与导出样本尚未提供，真实对接验收保持待完成。原 30 个视觉标注样本、Top-5 与模型质量门槛从本期移除，历史评估工具和记录保留。
+- [ ] 写失败测试：未提供的数据口径进入 unknown；不存在 API 或不兼容实现不能进入装配清单；手动图来源不能变成“已自动回归”。
+- [ ] 实现结构化 ID 导入、映射校验、资格过滤和 API/示例约束生成；规则集版本可追溯，配置修改后旧结果失效。设计平台具体导出适配待规则确认，先接受显式配置和元素清单，不声称已自动解析设计文件。
+- [ ] 验收门槛：规定测试集精确映射正确率 100%，未知/冲突/非法目标误装配 0，权限/框架/版本硬违规 0；逐例报告缺口和证据。合成案例只证明规则实现，不能替代真实设计端导出对接。
+- [ ] 运行 match-plan 集成、浏览器交互和真实 ID 样本验收；缺少真实规则或样本时明确未覆盖边界，不能把配置契约交付标成完整 T14 完成。提交。
 
 ### T15：本地项目识别与安装计划（三期，8–12 人日）
 
@@ -527,7 +527,7 @@ flowchart LR
 | 8 版本基线 | T01、T12 | 实施时重查、精确锁定、MinIO 维护边界、基础设施恢复 |
 | 9 ECharts 升级 | T10 | 候选、精确矩阵、差异、迁移和回退，不只做版本提醒 |
 
-自审：公共类型及 CLI/API 名称统一；Review Focus 五项均有归属测试；原架构约束没有通过删减验收规避；示例里的数值限制和性能/质量阈值均标为本计划建议。二三期模型选择与运行费用在实际样本验证后决定，不虚构已选渠道或已经达到的准确率。
+自审：公共类型及 CLI/API 名称统一；Review Focus 五项均有归属测试；示例里的数值限制和性能/质量阈值均标为本计划建议。2026-11-15 二期依据用户范围决策改为 ID 规则匹配，不再要求模型渠道或模型费用；三期按其独立范围评估。不修改原架构原文，不虚构真实 ID 规则或已经达到的验收结果。
 
 当前可执行入口是 T01。执行人员在开始代码变更前应阅读架构与评估文档；人员配置、年底交付范围和外部接入责任由项目排期记录确认。本计划自身不执行安装、发布或部署。
 
