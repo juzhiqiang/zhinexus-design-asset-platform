@@ -445,4 +445,168 @@ describe('A3 offline evaluation runner', () => {
     expect(codeSameAsInput).toBe(1);
     expect(readFileSync(casesFile.path)).toEqual(casesFile.raw);
   });
+
+  it('失败时仅输出固定错误分类，不向 stdout/stderr 回显 SECRET 标记（非法 split/未知字段/重复 caseId/IO 路径/位置参数）', () => {
+    const dir = makeTempDir();
+    const validCases = writeJsonFile(dir, 'valid-cases.json', {
+      schemaVersion: 1,
+      cases: [
+        {
+          caseId: 'c1',
+          origin: 'real',
+          category: 'matchable',
+          acceptableVariantIds: ['v1'],
+          requiredGapFields: [],
+          split: 'eval',
+        },
+      ],
+    });
+    const validObs = writeJsonFile(dir, 'valid-obs.json', { schemaVersion: 1, observations: [] });
+
+    const badSplitCases = writeJsonFile(dir, 'secret-split.json', {
+      schemaVersion: 1,
+      cases: [
+        {
+          caseId: 'c1',
+          origin: 'real',
+          category: 'matchable',
+          acceptableVariantIds: ['v1'],
+          requiredGapFields: [],
+          split: 'SECRET_SPLIT_TOKEN',
+        },
+      ],
+    });
+    const unknownKeyCases = writeJsonFile(dir, 'secret-key.json', {
+      schemaVersion: 1,
+      cases: [
+        {
+          caseId: 'c1',
+          origin: 'real',
+          category: 'matchable',
+          acceptableVariantIds: ['v1'],
+          requiredGapFields: [],
+          split: 'eval',
+          SECRET_FIELD_KEY: 'value',
+        },
+      ],
+    });
+    const dupIdCases = writeJsonFile(dir, 'secret-dup.json', {
+      schemaVersion: 1,
+      cases: [
+        {
+          caseId: 'SECRET_CASE_ID',
+          origin: 'real',
+          category: 'matchable',
+          acceptableVariantIds: ['v1'],
+          requiredGapFields: [],
+          split: 'eval',
+        },
+        {
+          caseId: 'SECRET_CASE_ID',
+          origin: 'real',
+          category: 'matchable',
+          acceptableVariantIds: ['v2'],
+          requiredGapFields: [],
+          split: 'eval',
+        },
+      ],
+    });
+
+    const scenarios: string[][] = [
+      // 非法 split
+      [
+        '--cases',
+        badSplitCases.path,
+        '--observations',
+        validObs.path,
+        '--output',
+        join(dir, 'out-split.json'),
+        '--retrieval-version',
+        'v1',
+        '--model-version',
+        'none',
+      ],
+      // 未知字段
+      [
+        '--cases',
+        unknownKeyCases.path,
+        '--observations',
+        validObs.path,
+        '--output',
+        join(dir, 'out-key.json'),
+        '--retrieval-version',
+        'v1',
+        '--model-version',
+        'none',
+      ],
+      // 重复 caseId
+      [
+        '--cases',
+        dupIdCases.path,
+        '--observations',
+        validObs.path,
+        '--output',
+        join(dir, 'out-dup.json'),
+        '--retrieval-version',
+        'v1',
+        '--model-version',
+        'none',
+      ],
+      // IO 路径错误（不存在的文件路径包含 SECRET）
+      [
+        '--cases',
+        join(dir, 'SECRET_MISSING_FILE.json'),
+        '--observations',
+        validObs.path,
+        '--output',
+        join(dir, 'out-io.json'),
+        '--retrieval-version',
+        'v1',
+        '--model-version',
+        'none',
+      ],
+      // 位置参数包含 SECRET
+      [
+        'SECRET_POSITIONAL_ARG',
+        '--cases',
+        validCases.path,
+        '--observations',
+        validObs.path,
+        '--output',
+        join(dir, 'out-pos.json'),
+        '--retrieval-version',
+        'v1',
+        '--model-version',
+        'none',
+      ],
+      // 未知参数包含 SECRET
+      [
+        '--cases',
+        validCases.path,
+        '--observations',
+        validObs.path,
+        '--output',
+        join(dir, 'out-flag.json'),
+        '--retrieval-version',
+        'v1',
+        '--model-version',
+        'none',
+        '--SECRET_UNKNOWN_FLAG',
+        'val',
+      ],
+    ];
+
+    for (const argv of scenarios) {
+      const stdoutLines: string[] = [];
+      const stderrLines: string[] = [];
+      const code = runEvaluationCli(argv, {
+        stdout: (line) => stdoutLines.push(line),
+        stderr: (line) => stderrLines.push(line),
+      });
+      expect(code).toBe(1);
+      expect(stdoutLines).toEqual([]);
+      expect(stderrLines.length).toBeGreaterThan(0);
+      expect(stderrLines.join('\n')).not.toContain('SECRET');
+    }
+  });
 });

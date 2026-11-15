@@ -205,16 +205,19 @@ export function runEvaluationCli(argv: string[], deps: RunnerDeps = {}): number 
   const stdout = deps.stdout ?? ((line: string) => console.log(line));
   const stderr = deps.stderr ?? ((line: string) => console.error(line));
 
+  let stage: 'args' | 'input' | 'io' = 'args';
   try {
     const args = parseRunnerArgs(argv);
+    stage = 'io';
     const resolvedOut = resolve(args.outputPath);
     if (resolvedOut === resolve(args.casesPath) || resolvedOut === resolve(args.observationsPath)) {
-      throw new EvaluationInputError('输出路径不得与输入文件相同');
+      throw new EvaluationInputError('output conflict');
     }
 
     const casesFile = readJsonWithSha256(args.casesPath, 'cases 文件');
     const obsFile = readJsonWithSha256(args.observationsPath, 'observations 文件');
 
+    stage = 'input';
     const cases = parseCasesPayload(casesFile.data);
     const observations = parseObservationsPayload(obsFile.data);
     const score = scoreEvaluation(cases, observations);
@@ -233,6 +236,7 @@ export function runEvaluationCli(argv: string[], deps: RunnerDeps = {}): number 
       score,
     };
 
+    stage = 'io';
     writeFileSync(args.outputPath, `${JSON.stringify(report, null, 2)}\n`, {
       flag: 'wx',
       encoding: 'utf8',
@@ -243,8 +247,15 @@ export function runEvaluationCli(argv: string[], deps: RunnerDeps = {}): number 
     );
     return score.passed ? 0 : 2;
   } catch (error) {
-    const message = error instanceof Error ? error.message : '未知执行错误';
-    stderr(`evaluation failed: ${message}`);
+    if (stage === 'args') {
+      stderr('evaluation failed: invalid arguments');
+    } else if (error instanceof EvaluationInputError) {
+      stderr('evaluation failed: invalid input');
+    } else if (stage === 'io') {
+      stderr('evaluation failed: io error');
+    } else {
+      stderr('evaluation failed: unexpected error');
+    }
     return 1;
   }
 }
