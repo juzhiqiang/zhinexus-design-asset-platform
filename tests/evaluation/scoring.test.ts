@@ -252,4 +252,127 @@ describe('scoreEvaluation（二期离线评分器）', () => {
       scoreEvaluation([makeCase({ caseId: '   ' })], []),
     ).toThrow(EvaluationInputError);
   });
+
+  it('noMatchRejection 零分母（全为可匹配样本）时不得 passed', () => {
+    const cases: EvaluationCase[] = [];
+    const observations: EvaluationObservation[] = [];
+    for (let i = 0; i < 30; i += 1) {
+      const isTrap = i < 10;
+      const caseId = `SIM-NM-ZERO-${i + 1}`;
+      cases.push({
+        caseId,
+        origin: 'real',
+        category: isTrap ? 'missing-constraint' : 'matchable',
+        acceptableVariantIds: ['line-react'],
+        requiredGapFields: isTrap ? ['config.unit'] : [],
+      });
+      observations.push({
+        caseId,
+        top5VariantIds: ['line-react'],
+        gapFields: isTrap ? ['config.unit'] : [],
+        hardViolations: [],
+      });
+    }
+    const report = scoreEvaluation(cases, observations);
+    expect(report.real.noMatchRejection.denominator).toBe(0);
+    expect(report.real.noMatchRejection.value).toBeNull();
+    expect(report.real.noMatchRejection.display).toBe('N/A');
+    expect(report.real.passed).toBe(false);
+    expect(report.passed).toBe(false);
+  });
+
+  it('noMatchRejection 低于 90% 时不得 passed，达到 90% 时可通过', () => {
+    // 构造 30 个模拟真实案例：其中 10 个为 no-match（acceptableVariantIds=[]），20 个为 matchable
+    const buildBatch = (falsePositives: number) => {
+      const cases: EvaluationCase[] = [];
+      const observations: EvaluationObservation[] = [];
+      for (let i = 0; i < 30; i += 1) {
+        const isNoMatch = i < 10;
+        const caseId = `SIM-NM-${i + 1}`;
+        cases.push({
+          caseId,
+          origin: 'real',
+          category: isNoMatch ? 'no-match' : 'matchable',
+          acceptableVariantIds: isNoMatch ? [] : ['line-react'],
+          requiredGapFields: isNoMatch ? ['chart.type'] : [],
+        });
+        observations.push({
+          caseId,
+          top5VariantIds: isNoMatch ? (i < falsePositives ? ['pie-react'] : []) : ['line-react'],
+          gapFields: isNoMatch ? ['chart.type'] : [],
+          hardViolations: [],
+        });
+      }
+      return scoreEvaluation(cases, observations);
+    };
+
+    const failReport = buildBatch(2); // 8/10 = 80% < 90%
+    expect(failReport.real.noMatchRejection.value).toBe(0.8);
+    expect(failReport.real.passed).toBe(false);
+
+    const passReport = buildBatch(1); // 9/10 = 90%
+    expect(passReport.real.noMatchRejection.value).toBe(0.9);
+    expect(passReport.real.passed).toBe(true);
+  });
+
+  it('Top5 80% 与 gapRecall 90% 阈值边界精确生效', () => {
+    // 30 案例：10 个 no-match（100% 拒绝，各 1 个 requiredGapField 共 10 个），20 个 matchable
+    const buildThresholdBatch = (top5Misses: number, missedGaps: number) => {
+      const cases: EvaluationCase[] = [];
+      const observations: EvaluationObservation[] = [];
+      for (let i = 0; i < 30; i += 1) {
+        const isNoMatch = i < 10;
+        const caseId = `SIM-TH-${i + 1}`;
+        cases.push({
+          caseId,
+          origin: 'real',
+          category: isNoMatch ? 'no-match' : 'matchable',
+          acceptableVariantIds: isNoMatch ? [] : ['line-react'],
+          requiredGapFields: isNoMatch ? ['chart.type'] : [],
+        });
+        const matchIdx = i - 10;
+        observations.push({
+          caseId,
+          top5VariantIds: isNoMatch ? [] : matchIdx < top5Misses ? ['bar-react'] : ['line-react'],
+          gapFields: isNoMatch ? (i < missedGaps ? [] : ['chart.type']) : [],
+          hardViolations: [],
+        });
+      }
+      return scoreEvaluation(cases, observations);
+    };
+
+    // Top5 = 16/20 = 0.80, gap = 9/10 = 0.90 -> passed
+    const exactPass = buildThresholdBatch(4, 1);
+    expect(exactPass.real.top5.value).toBe(0.8);
+    expect(exactPass.real.gapRecall.value).toBe(0.9);
+    expect(exactPass.real.passed).toBe(true);
+
+    // Top5 = 15/20 = 0.75 < 0.80 -> failed
+    const failTop5 = buildThresholdBatch(5, 1);
+    expect(failTop5.real.top5.value).toBe(0.75);
+    expect(failTop5.real.passed).toBe(false);
+
+    // gap = 8/10 = 0.80 < 0.90 -> failed
+    const failGap = buildThresholdBatch(4, 2);
+    expect(failGap.real.gapRecall.value).toBe(0.8);
+    expect(failGap.real.passed).toBe(false);
+  });
+
+  it('拒绝稀疏数组空洞（如 new Array(1)），防止 undefined 伪命中', () => {
+    const sparseCase = makeCase({
+      caseId: 'SPARSE-1',
+      requiredGapFields: new Array<string>(1),
+    });
+    const sparseObs = makeObs({
+      caseId: 'SPARSE-1',
+      gapFields: new Array<string>(1),
+    });
+
+    expect(() => scoreEvaluation([sparseCase], [makeObs({ caseId: 'SPARSE-1' })])).toThrow(
+      EvaluationInputError,
+    );
+    expect(() =>
+      scoreEvaluation([makeCase({ caseId: 'SPARSE-1', requiredGapFields: ['config.unit'] })], [sparseObs]),
+    ).toThrow(EvaluationInputError);
+  });
 });

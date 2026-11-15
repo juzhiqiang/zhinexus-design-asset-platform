@@ -95,6 +95,7 @@ const MIN_REAL_CASES = 30;
 const MIN_TRAP_CASES = 10;
 const MIN_TOP5_RECALL = 0.8;
 const MIN_GAP_RECALL = 0.9;
+const MIN_NO_MATCH_REJECTION = 0.9;
 const TOP_K = 5;
 
 function assertNonEmptyString(value: unknown, label: string): string {
@@ -108,7 +109,14 @@ function assertStringArray(value: unknown, label: string): string[] {
   if (!Array.isArray(value)) {
     throw new EvaluationInputError(`${label} 必须为数组`);
   }
-  return value.map((item, idx) => assertNonEmptyString(item, `${label}[${idx}]`));
+  const items: string[] = [];
+  for (let idx = 0; idx < value.length; idx += 1) {
+    if (!Object.hasOwn(value, idx)) {
+      throw new EvaluationInputError(`${label}[${idx}] 不允许为稀疏数组空洞`);
+    }
+    items.push(assertNonEmptyString(value[idx], `${label}[${idx}]`));
+  }
+  return items;
 }
 
 function validateCases(cases: EvaluationCase[]): Map<string, EvaluationCase> {
@@ -303,7 +311,9 @@ function scoreGroup(
     top5.value !== null &&
     top5.value >= MIN_TOP5_RECALL &&
     gapRecall.value !== null &&
-    gapRecall.value >= MIN_GAP_RECALL;
+    gapRecall.value >= MIN_GAP_RECALL &&
+    noMatchRejection.value !== null &&
+    noMatchRejection.value >= MIN_NO_MATCH_REJECTION;
 
   return {
     origin,
