@@ -88,8 +88,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `line-vue` | `@company/charts-vue`（`.` / `./line`） | `LineChart`（类型：`LineChartProps`, `LineChartEmits`, `LineChartHandle`） | `.charts-line` | `packages/charts-vue/src/{index,line,LineChart.vue,line-chart.types}.ts` |
-| `react` | `line-react` | `@company/charts-react`（`.` / `./line`） | `LineChart`（类型：`LineChartProps`, `LineChartHandle`） | `.charts-line` | `packages/charts-react/src/{index,line,LineChart.tsx,line-chart.types}.ts` |
+| `vue` | `line-vue` | `@company/charts-vue`（`.` / `./line`） | `LineChart`（类型：`LineChartProps`, `LineChartEmits`, `LineChartHandle`） | `.charts-line` | `packages/charts-vue/src/{index.ts,line.ts,LineChart.vue,line-chart.types.ts}` |
+| `react` | `line-react` | `@company/charts-react`（`.` / `./line`） | `LineChart`（类型：`LineChartProps`, `LineChartHandle`） | `.charts-line` | `packages/charts-react/src/{index.ts,line.ts,LineChart.tsx,line-chart.types.ts}` |
 
 - **专属配置（`LineChartConfig`）**：
   - `chart?: 'line'`（可省略，缺省即视为 `'line'`）
@@ -116,8 +116,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `bar-vue` | `@company/charts-vue`（`.` / `./bar`） | `BarChart`（类型：`BarChartProps`, `BarChartEmits`, `BarChartHandle`） | `.charts-bar` | `packages/charts-vue/src/{index,bar,BarChart.vue,bar-chart.types}.ts` |
-| `react` | `bar-react` | `@company/charts-react`（`.` / `./bar`） | `BarChart`（类型：`BarChartProps`, `BarChartHandle`） | `.charts-bar` | `packages/charts-react/src/{index,bar,BarChart.tsx,bar-chart.types}.ts` |
+| `vue` | `bar-vue` | `@company/charts-vue`（`.` / `./bar`） | `BarChart`（类型：`BarChartProps`, `BarChartEmits`, `BarChartHandle`） | `.charts-bar` | `packages/charts-vue/src/{index.ts,bar.ts,BarChart.vue,bar-chart.types.ts}` |
+| `react` | `bar-react` | `@company/charts-react`（`.` / `./bar`） | `BarChart`（类型：`BarChartProps`, `BarChartHandle`） | `.charts-bar` | `packages/charts-react/src/{index.ts,bar.ts,BarChart.tsx,bar-chart.types.ts}` |
 
 - **专属配置（`BarChartConfig`）**：
   - `chart: 'bar'`（在 `BarChartConfig` 类型中为必填判别字段；框架组件内部若不传 `config`，默认补 `{ chart: 'bar' }`）
@@ -142,8 +142,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `pie-vue` | `@company/charts-vue`（`.` / `./pie`） | `PieChart`（类型：`PieChartProps`, `PieChartEmits`, `PieChartHandle`） | `.charts-pie` | `packages/charts-vue/src/{index,pie,PieChart.vue,pie-chart.types}.ts` |
-| `react` | `pie-react` | `@company/charts-react`（`.` / `./pie`） | `PieChart`（类型：`PieChartProps`, `PieChartHandle`） | `.charts-pie` | `packages/charts-react/src/{index,pie,PieChart.tsx,pie-chart.types}.ts` |
+| `vue` | `pie-vue` | `@company/charts-vue`（`.` / `./pie`） | `PieChart`（类型：`PieChartProps`, `PieChartEmits`, `PieChartHandle`） | `.charts-pie` | `packages/charts-vue/src/{index.ts,pie.ts,PieChart.vue,pie-chart.types.ts}` |
+| `react` | `pie-react` | `@company/charts-react`（`.` / `./pie`） | `PieChart`（类型：`PieChartProps`, `PieChartHandle`） | `.charts-pie` | `packages/charts-react/src/{index.ts,pie.ts,PieChart.tsx,pie-chart.types.ts}` |
 
 - **专属配置（`PieChartConfig`）**：
   - `chart: 'pie'`（框架组件缺省自动补 `{ chart: 'pie' }`）
@@ -169,8 +169,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `scatter-vue` | `@company/charts-vue`（`.` / `./scatter`） | `ScatterChart`（类型：`ScatterChartProps`, `ScatterChartEmits`, `ScatterChartHandle`） | `.charts-scatter` | `packages/charts-vue/src/{index,scatter,ScatterChart.vue,scatter-chart.types}.ts` |
-| `react` | `scatter-react` | `@company/charts-react`（`.` / `./scatter`） | `ScatterChart`（类型：`ScatterChartProps`, `ScatterChartHandle`） | `.charts-scatter` | `packages/charts-react/src/{index,scatter,ScatterChart.tsx,scatter-chart.types}.ts` |
+| `vue` | `scatter-vue` | `@company/charts-vue`（`.` / `./scatter`） | `ScatterChart`（类型：`ScatterChartProps`, `ScatterChartEmits`, `ScatterChartHandle`） | `.charts-scatter` | `packages/charts-vue/src/{index.ts,scatter.ts,ScatterChart.vue,scatter-chart.types.ts}` |
+| `react` | `scatter-react` | `@company/charts-react`（`.` / `./scatter`） | `ScatterChart`（类型：`ScatterChartProps`, `ScatterChartHandle`） | `.charts-scatter` | `packages/charts-react/src/{index.ts,scatter.ts,ScatterChart.tsx,scatter-chart.types.ts}` |
 
 - **专属配置（`ScatterChartConfig`）**：
   - `chart: 'scatter'`（框架组件缺省自动补 `{ chart: 'scatter' }`）
@@ -195,8 +195,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `trend-card-vue` | `@company/charts-vue`（`.` / `./trend-card`） | `TrendCard`（类型：`TrendCardProps`, `TrendCardEmits`, `TrendCardHandle`） | `.charts-trend-card` | `packages/charts-vue/src/{index,trend-card,TrendCard.vue,trend-card-chart.types}.ts` |
-| `react` | `trend-card-react` | `@company/charts-react`（`.` / `./trend-card`） | `TrendCard`（类型：`TrendCardProps`, `TrendCardHandle`） | `.charts-trend-card` | `packages/charts-react/src/{index,trend-card,TrendCard.tsx,trend-card-chart.types}.ts` |
+| `vue` | `trend-card-vue` | `@company/charts-vue`（`.` / `./trend-card`） | `TrendCard`（类型：`TrendCardProps`, `TrendCardEmits`, `TrendCardHandle`） | `.charts-trend-card` | `packages/charts-vue/src/{index.ts,trend-card.ts,TrendCard.vue,trend-card-chart.types.ts}` |
+| `react` | `trend-card-react` | `@company/charts-react`（`.` / `./trend-card`） | `TrendCard`（类型：`TrendCardProps`, `TrendCardHandle`） | `.charts-trend-card` | `packages/charts-react/src/{index.ts,trend-card.ts,TrendCard.tsx,trend-card-chart.types.ts}` |
 
 - **专属配置（`TrendCardConfig`）**：
   - `chart: 'trend-card'`（框架组件缺省自动补 `{ chart: 'trend-card' }`）
@@ -221,8 +221,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `ranking-vue` | `@company/charts-vue`（`.` / `./ranking`） | `Ranking`（类型：`RankingProps`, `RankingEmits`, `RankingHandle`） | `.charts-ranking` | `packages/charts-vue/src/{index,ranking,RankingChart.vue,ranking-chart.types}.ts` |
-| `react` | `ranking-react` | `@company/charts-react`（`.` / `./ranking`） | `Ranking`（类型：`RankingProps`, `RankingHandle`） | `.charts-ranking` | `packages/charts-react/src/{index,ranking,RankingChart.tsx,ranking-chart.types}.ts` |
+| `vue` | `ranking-vue` | `@company/charts-vue`（`.` / `./ranking`） | `Ranking`（类型：`RankingProps`, `RankingEmits`, `RankingHandle`） | `.charts-ranking` | `packages/charts-vue/src/{index.ts,ranking.ts,RankingChart.vue,ranking-chart.types.ts}` |
+| `react` | `ranking-react` | `@company/charts-react`（`.` / `./ranking`） | `Ranking`（类型：`RankingProps`, `RankingHandle`） | `.charts-ranking` | `packages/charts-react/src/{index.ts,ranking.ts,RankingChart.tsx,ranking-chart.types.ts}` |
 
 > [!IMPORTANT]
 > **导出名注意**：`Ranking` 的源码文件名是 `RankingChart.vue` / `RankingChart.tsx`，但包导出名均为 **`Ranking`**（而非 `RankingChart`）。三期代码生成或二期装配方案不得误写成 `RankingChart`。
@@ -252,8 +252,8 @@
 
 | 框架 | `variantId` | 包名与导出路径 | 真实导出名 | 容器类名 | 源码证据 |
 | --- | --- | --- | --- | --- | --- |
-| `vue` | `proportion-vue` | `@company/charts-vue`（`.` / `./proportion`） | `Proportion`（类型：`ProportionProps`, `ProportionEmits`, `ProportionHandle`） | `.charts-proportion` | `packages/charts-vue/src/{index,proportion,ProportionChart.vue,proportion-chart.types}.ts` |
-| `react` | `proportion-react` | `@company/charts-react`（`.` / `./proportion`） | `Proportion`（类型：`ProportionProps`, `ProportionHandle`） | `.charts-proportion` | `packages/charts-react/src/{index,proportion,ProportionChart.tsx,proportion-chart.types}.ts` |
+| `vue` | `proportion-vue` | `@company/charts-vue`（`.` / `./proportion`） | `Proportion`（类型：`ProportionProps`, `ProportionEmits`, `ProportionHandle`） | `.charts-proportion` | `packages/charts-vue/src/{index.ts,proportion.ts,ProportionChart.vue,proportion-chart.types.ts}` |
+| `react` | `proportion-react` | `@company/charts-react`（`.` / `./proportion`） | `Proportion`（类型：`ProportionProps`, `ProportionHandle`） | `.charts-proportion` | `packages/charts-react/src/{index.ts,proportion.ts,ProportionChart.tsx,proportion-chart.types.ts}` |
 
 > [!IMPORTANT]
 > **导出名注意**：`Proportion` 的源码文件名是 `ProportionChart.vue` / `ProportionChart.tsx`，但包导出名均为 **`Proportion`**（而非 `ProportionChart`）。
@@ -280,7 +280,7 @@
 1. **真实导出名映射（硬校验基线）**：
    - Vue：`LineChart`, `BarChart`, `PieChart`, `ScatterChart`, `TrendCard`, `Ranking`, `Proportion`
    - React：`LineChart`, `BarChart`, `PieChart`, `ScatterChart`, `TrendCard`, `Ranking`, `Proportion`
-   - 任何设计稿匹配结果（`MatchPlanV1`）若输出上述集合之外的组件导出名或 props/event 名（如 `RankingChart`、`onClick`、`options`），在离线评估与契约校验中直接判定为**硬违规**。
+   - 任何设计稿匹配结果（注：`MatchPlanV1` 当前仅为二期文档草案，尚未冻结为 `@company/contracts` 公共 DTO）若输出上述集合之外的组件导出名或 props/event 名（如 `RankingChart`、`onClick`、`options`），在离线评估与契约校验中直接判定为**硬违规**。
 2. **与核心辅助工具的关联**：
    - 底层 `@company/charts-core` 另导出 `createChartController`、`computeTrendSummary`、`computeRanking`、`computeProportionShares`、`build*Option`、`resolveCandidate`、`verifyCandidate` 等纯函数（`packages/charts-core/src/index.ts`），供高级集成与测试断言使用，不属于业务页面直接推荐的 UI 组件变体。
 3. **当前未填充字段（`unknown` 清单）**：

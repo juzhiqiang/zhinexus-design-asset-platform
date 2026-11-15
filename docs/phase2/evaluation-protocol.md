@@ -5,7 +5,9 @@
 参考依据：`docs/superpowers/plans/2026-11-11-component-platform-implementation.md`（T13 / T14）、`docs/phase2/component-profiles.md`
 
 > [!WARNING]
-> **当前样本状态声明**：本仓库当前**尚未具备 30 个真实业务标注样本**。本协议仅定义标注集 Schema、指标口径、陷阱案例规范，并提供**明确标记为 `synthetic` 的格式示例**用于后续跑通校验管道；任何情况下不得将 `synthetic` 样本计入 T14「不少于 30 个真实标注案例」的验收基数。
+> **当前样本与契约状态声明**：
+> 1. 本仓库当前**尚未具备 30 个真实业务标注样本**。本协议仅定义标注集 Schema、指标口径、陷阱案例规范，并提供**明确标记为 `synthetic` 的格式示例**用于后续跑通校验管道；任何情况下不得将 `synthetic` 样本计入 T14「不少于 30 个真实标注案例」的验收基数。
+> 2. 本文档中的 `DesignEvalCaseV1` 与 `MatchPlanV1` **仅为二期文档草案**，**不是** `packages/contracts` 中已冻结的公共 DTO；正式契约须在 T13/T14 实施阶段由 `@company/contracts` 统一定义与导出。
 
 ---
 
@@ -20,7 +22,9 @@
 
 ---
 
-## 2. 评估样本数据结构规范（`DesignEvalCaseV1`）
+## 2. 评估样本数据结构草案（`DesignEvalCaseV1`）
+
+> 注：`DesignEvalCaseV1` 为二期评估集文档草案，尚未进入 `packages/contracts` 公共契约。
 
 建议 T14 评估集文件存放于 `tests/evaluation/design-cases.json`（本文档只定规范，不在本次任务创建该文件）。每条案例须符合以下字段约定：
 
@@ -88,22 +92,24 @@
 
 ## 3. 核心评估指标与初始门槛
 
-对照 T14 实施计划，定义以下 4 项核心指标及硬门槛：
+对照 T14 实施计划，定义以下 4 项核心指标及硬门槛。**统计隔离与零分母规则**：
+- **`real` 与 `synthetic` 必须分开统计**：正式门槛仅以 `origin === 'real'` 且 `split === 'eval'` 的样本计算达标状态；`synthetic` 样本只可单独输出冒烟统计，严禁与真实样本混算。
+- **零分母视为 `N/A` 且不通过**：当任一指标在目标统计集上的分母为 `0`（例如当前无真实样本、或无对应类型样本）时，该项指标必须输出 `N/A` 并标记为**未达标 / 不可判定**，**严禁视为通过**。
 
 | 指标 | 定义与计算公式 | 初始门槛 | 适用样本范围 |
 | --- | --- | --- | --- |
-| **兼容与契约硬违规数** (`hardViolations`) | 输出方案中出现以下任一情况的案例数（按案例计数，且记录全部违规明细）：<br>1. 跨框架推荐（如 React 宿主推荐 `*-vue`）<br>2. 推荐非 `Ready` 或 `DEPRECATED` 变体<br>3. `peerDependencies`（`vue` / `react` / `react-dom` / `echarts`）版本不兼容<br>4. 编造不存在的导出名（如 `RankingChart`）、props、config 字段或事件名<br>5. 违反组件数据语义硬约束（如 `pie`/`proportion` 配负值、`scatter` 配类目字符串 `x`、`ranking`/`proportion` 配多系列）<br>6. 将 `manual-upload` 伪标为 `local-automatic` | **`0`** | 全量样本（含 `matchable` 与所有陷阱案例） |
-| **可匹配案例 Top-5 召回率** (`top5Recall`) | 针对 `groundTruth.acceptableCandidates.length > 0` 的样本，候选列表前 5 名中至少命中 1 个可接受 `(componentId, variantId)` 且无硬违规的样本占比：<br>`matched_within_top5_and_valid / total_matchable_cases` | **`>= 80%`** | `category === 'matchable'` |
-| **必需缺口召回率** (`requiredGapRecall`) | 针对所有标注了 `groundTruth.requiredGaps` 的样本，输出 `MatchPlanV1` 的 `unknown` / `gaps` 中准确覆盖全部必需缺口（按语义/字段对齐）的条数占比：<br>`detected_required_gaps / total_required_gaps` | **`>= 90%`** | 所有 `requiredGaps.length > 0` 的样本 |
-| **无匹配拒绝准确率** (`noMatchRejectionRate`) | 针对 `acceptableCandidates.length === 0` 的陷阱样本，系统正确输出“无匹配 / 置信不足拒绝装配”而非强行装配错误组件的占比 | 建议 `>= 90%`（且硬违规必须为 `0`） | `no-match` 与 `cross-framework-trap` 等拒绝类样本 |
+| **兼容与契约硬违规数** (`hardViolations`) | 输出方案中出现以下任一情况的案例数（按案例计数，且记录全部违规明细）：<br>1. 跨框架推荐（如 React 宿主推荐 `*-vue`）<br>2. 推荐非 `Ready` 或 `DEPRECATED` 变体<br>3. `peerDependencies`（`vue` / `react` / `react-dom` / `echarts`）版本不兼容<br>4. 编造不存在的导出名（如 `RankingChart`）、props、config 字段或事件名<br>5. 违反组件数据语义硬约束（如 `pie`/`proportion` 配负值、`scatter` 配类目字符串 `x`、`ranking`/`proportion` 配多系列）<br>6. 将 `manual-upload` 伪标为 `local-automatic` | **`0`**（总样本数为 0 时输出 `N/A`，不通过） | 全量 `origin === 'real'` 样本（含可匹配与所有陷阱案例；`synthetic` 另行单独统计） |
+| **可匹配案例 Top-5 召回率** (`top5Recall`) | 针对所有 `groundTruth.acceptableCandidates.length > 0` 的样本，候选列表前 5 名中至少命中 1 个可接受 `(componentId, variantId)` 且无硬违规的样本占比：<br>`matched_within_top5_and_valid / count(acceptableCandidates.length > 0)` | **`>= 80%`**（分母为 0 时输出 `N/A`，不通过） | **所有 `origin === 'real'` 且 `acceptableCandidates.length > 0` 的样本**（同时覆盖 `matchable` 与 `missing-constraint` 等含有效候选的样本，不得按 `category` 过滤遗漏） |
+| **必需缺口召回率** (`requiredGapRecall`) | 针对所有标注了 `groundTruth.requiredGaps` 的样本，输出 `MatchPlanV1`（草案）的 `unknown` / `gaps` 中准确覆盖全部必需缺口（按语义/字段对齐）的条数占比：<br>`detected_required_gaps / total_required_gaps` | **`>= 90%`**（分母为 0 时输出 `N/A`，不通过） | 所有 `origin === 'real'` 且 `requiredGaps.length > 0` 的样本 |
+| **无匹配拒绝准确率** (`noMatchRejectionRate`) | 针对 `acceptableCandidates.length === 0` 的陷阱样本，系统正确输出“无匹配 / 置信不足拒绝装配”而非强行装配错误组件的占比 | 建议 `>= 90%`（且硬违规必须为 `0`；分母为 0 时输出 `N/A`，不通过） | 所有 `origin === 'real'` 且 `acceptableCandidates.length === 0` 的拒绝类样本 |
 
 ### 评估报告强制输出格式
 
 每次离线评估运行必须产出结构化报告，至少包含：
 
-1. 运行元信息：评估集路径与 SHA-256、模型/检索器版本、时间戳、**真实样本数 vs `synthetic` 样本数**。
-2. 汇总指标：`hardViolations`、`top5Recall`、`requiredGapRecall`、`noMatchRejectionRate` 及是否达到门槛。
-3. **逐例失败与违规明细**：每条未通过或发生违规的 `caseId`、`category`、期望真值、实际输出、具体失败原因分类。
+1. 运行元信息：评估集路径与 SHA-256、模型/检索器版本、时间戳、**`real` 样本数与 `synthetic` 样本数（分别统计，禁止合并）**。
+2. 分组汇总指标：分别列出 `real` 组与 `synthetic` 组的 `hardViolations`、`top5Recall`、`requiredGapRecall`、`noMatchRejectionRate`（含分母计数；分母为 0 时显式标 `N/A` 且判定未通过）。
+3. **逐例失败与违规明细**：每条未通过或发生违规的 `caseId`、`origin`、`category`、期望真值、实际输出、具体失败原因分类。
 
 ---
 
