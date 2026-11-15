@@ -1,14 +1,15 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectContext, SearchCandidatesResponse, ValidationResult } from '@company/contracts';
 import { getStoredSession, saveSession, clearSession, type UserSession } from '../../lib/auth';
 import { buildProjectContext } from '../../lib/project-context-form';
 import { searchCandidates } from '../../lib/search-client';
 import { CandidateResults } from './CandidateResults';
+import { DesignIdMatch } from './DesignIdMatch';
 
 /**
- * 二期 B1 + B3：`/match` 项目上下文本地校验 + 文本检索接入。
+ * 二期 B1 + B3 + ID 规则匹配：`/match` 项目上下文本地校验 + 文本检索接入 + 设计 ID 配置。
  *
  * 边界：
  * - 保留 B1 本地校验按钮及全部行为（未输入框架/版本不猜测默认版本）；
@@ -18,6 +19,8 @@ import { CandidateResults } from './CandidateResults';
  *   重试也不能恢复旧身份数据；
  * - requirements 存在未添加草稿时拒绝检索提交并保留草稿；
  * - 不持久化查询、上下文或响应；不回显服务端原始错误或 token；
+ * - 设计 ID 规则匹配交给 `DesignIdMatch` 子组件：显式点击才 POST，规则/元素/绑定/上下文
+ *   任意改动取消并清旧结果，响应落地复核身份与 inputDigest；
  * - 沿用控制台既有会话门（`getStoredSession`，仅展示用途），不改 auth。
  */
 
@@ -54,6 +57,13 @@ export default function ProjectContextMatchPage() {
   const requestGeneration = useRef(0);
   // 发起检索时锁定的身份快照：提交前与响应落地前复核，防同页写 localStorage 但尚未触发 focus/storage
   const searchIdentity = useRef<{ token: string; subject: string } | null>(null);
+
+  // 上下文的本地校验结果 memo 化：仅当上文字段真正变化时才换引用，
+  // 供 `DesignIdMatch` 以「引用变化」判断上下文被编辑，从而取消在途请求并清理旧方案。
+  const contextCheck = useMemo(
+    () => buildProjectContext({ framework, frameworkVersion, echartsVersion, packageManager, requirements }),
+    [framework, frameworkVersion, echartsVersion, packageManager, requirements],
+  );
 
   useEffect(() => {
     const stored = getStoredSession();
@@ -520,6 +530,16 @@ export default function ProjectContextMatchPage() {
           </div>
         )}
       </section>
+
+      {/* 二期 ID 规则匹配：显式规则 JSON + 元素清单 + 可选绑定，独立按钮才 POST */}
+      <DesignIdMatch
+        session={session}
+        contextCheck={contextCheck}
+        reactDomVersion={reactDomVersion}
+        requirementDraft={requirementInput}
+        apiUrl={DEFAULT_API_ORIGIN}
+        onSessionExpired={invalidateSession}
+      />
     </main>
   );
 }
