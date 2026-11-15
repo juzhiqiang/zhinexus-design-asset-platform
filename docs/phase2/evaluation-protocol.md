@@ -53,10 +53,12 @@
       "projectContext": {
         "framework": "vue | react",
         "frameworkVersion": "string (精确版本 x.y.z)",
-        "reactDomVersion": "string (仅 react 时存在，须与 frameworkVersion 成对)",
         "echartsVersion": "string (可选精确版本 x.y.z)",
         "packageManager": "pnpm | npm",
         "requirements": ["string (业务需求描述)"]
+      },
+      "evalEnvironment": {
+        "reactDomVersion": "string (可选独立评估环境证据，仅 react 时使用，不写入 projectContext)"
       },
       "groundTruth": {
         "acceptableCandidates": [
@@ -85,6 +87,7 @@
 ### 字段约束说明
 
 - `origin` 必须显式区分 `"real"` 与 `"synthetic"`；正式 T14 验收门禁只统计 `origin === "real"` 且 `split === "eval"` 的样本（目标不少于 30 例，其中陷阱/无匹配/缺约束样本不少于 10 例）。
+- `projectContext` 严格对齐 `@company/contracts` 已交付的 `ProjectContext` 契约（`additionalProperties: false`），**只使用** `framework`、`frameworkVersion`、`echartsVersion?`、`packageManager`、`requirements` 5 个字段，不扩展 `contracts`；如评估需要记录 `reactDomVersion` 等宿主环境补充证据，应放在独立 `evalEnvironment` 字段，严禁写入 `projectContext`。
 - `acceptableCandidates` 为空数组 `[]` 表示该区域/案例**无可用匹配**（例如雷达图、地理地图、桑基图或当前框架/版本不兼容）。
 - `requiredGaps` 列出评估器必须检查出的未知项；若模型未报告这些缺口而直接填充假值，计为缺口漏报。
 
@@ -156,10 +159,12 @@
       "projectContext": {
         "framework": "react",
         "frameworkVersion": "19.3.1",
-        "reactDomVersion": "19.3.1",
         "echartsVersion": "6.1.0",
         "packageManager": "pnpm",
         "requirements": ["展示日活指标卡片及近期趋势"]
+      },
+      "evalEnvironment": {
+        "reactDomVersion": "19.3.1"
       },
       "groundTruth": {
         "acceptableCandidates": [
