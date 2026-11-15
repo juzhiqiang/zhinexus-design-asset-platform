@@ -125,3 +125,5 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 2026-11-13 C 根测试接续：CLI 发布集成测试改用自有随机端口三存储，消除缺共享凭据的唯一失败；专项通过后根 test 实跑 33 文件/600 项通过。RED/GREEN、清理与边界见 [隔离复验](docs/verification/c-cli-release-isolation-2026-11-13.md)。
 
 2026-11-13 SDK 文档交接：A 修正 SSR 挂载、真实导出与静态类型/运行时边界后，C 原样提取 Vue/React 示例，在真实安装冻结 0.0.10 tarball 的干净消费者中完成六组严格编译。固定摘要、验证方式与未完成边界见 [文档独立复验](docs/verification/c-a-sdk0010-handover-2026-11-13.md)。
+
+2026-11-15 二期首批启动：按 [A/B/C 隔离分工](docs/superpowers/plans/2026-11-15-phase2-kickoff.md) 推进组件档案审计、React 项目上下文表单准备及 ProjectContext 公共契约。契约验证只确认输入形状，不等同于兼容通过；本批不提供多模态匹配结果，不标记 T13/T14 完成。C 的新增契约、CLI 同步范围与验证边界见 [独立记录](docs/verification/c-phase2-project-context-2026-11-15.md)。

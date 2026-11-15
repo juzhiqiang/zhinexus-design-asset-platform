@@ -13,8 +13,8 @@
 |负责人|工作区/分支|本批交付|允许修改|
 |---|---|---|---|
 |A / Antigravity|a-phase2-profiles / feat/a-phase2-profiles|真实组件档案审计、评估协议与缺口|docs/phase2/component-profiles.md、docs/phase2/evaluation-protocol.md、docs/verification/a-phase2-profiles-2026-11-15.md|
-|B / Claude|b-phase2-matching / feat/b-phase2-matching|React 项目上下文输入、校验错误和明确未接入状态；契约交付后实现|apps/gallery、tests/gallery/phase2-context.test.ts、docs/verification/b-phase2-matching-2026-11-15.md|
-|C / Codex|c-phase2-search / feat/c-phase2-search|ProjectContext 公共契约、JSON Schema、校验及边界测试；协调集成|packages/contracts、tests/contracts/project-context.test.ts、本计划、README.md、独立 C 验证记录；根配置由 C 独占|
+|B / Claude 桌面端|b-phase2-matching / feat/b-phase2-matching|React 项目上下文输入、校验错误和明确未接入状态；契约交付后实现|apps/gallery（版本由 C 收口）、tests/gallery/phase2-context.test.ts、tests/browser/phase2-context.spec.ts、独立 B 验证记录|
+|C / Codex|c-phase2-search / feat/c-phase2-search|ProjectContext 公共契约、JSON Schema、校验及边界测试；协调集成|packages/contracts、tests/contracts/project-context.test.ts、packages/component-cli/scripts/sync-contracts.mjs 及其生成的 src/contracts 镜像、本计划、README.md、独立 C 验证记录；根配置由 C 独占|
 
 B 在 C 的 ProjectContext 契约提交并原样交接之前仅做只读审计，不自行定义公共 DTO。A 不依赖新契约。所有任务独立 worktree，保留原有旧工作区。无 merge、push 或发布授权。
 
@@ -31,3 +31,15 @@ T13 还需 Candidate/MatchPlan、当前状态与权限重检、peer 范围过滤
 ## 交付标准
 
 各负责人记录实际命令和结果、未覆盖边界及聚焦中文 commit。C 独立检查 diff、原始架构摘要、文件范围和测试证据，再提供可供后续集成的提交，不自动合并。文档审计不冒称真实多模态验证；手动截图不冒称自动回归。
+
+## C1 契约传播补充
+
+CLI 的契约内联复制使用固定文件清单。新增 project-context.ts 后，必须同步补齐复制清单及自动生成镜像，否则 CLI 编译会引用缺失文件。此处仅传播同一契约，不新增 CLI 命令或兼容性结论；CLI 对外版本不变。原根 build 脚本带 --cache，与 --force 互斥，强制验收直接运行 exec turbo run build --force，不修改根脚本。
+
+## B1 桌面协作与验证交接
+
+Claude 桌面端负责 B；其 Linux 沙箱不能执行固定 Windows 工具链，Git worktree 指针也为宿主路径。B 先交付失败测试并等待 C 在 Windows 确认 RED，再实施页面与纯表单转换，C 负责 GREEN、构建、类型和浏览器验证及本地提交。B 使用 `@company/contracts` 的 `ProjectContext` 与 `validateProjectContext`，仅新增 `/match` 本地上下文表单，不依赖尚未交付的 Candidate/MatchPlan 或 search API；不得自行定义公共校验规则或调用虚构端点。
+
+表单在现有控制台边界内，明确展示本地校验状态；输入修改必须撤销过期成功状态，空白可选 ECharts 版本省略，requirements 空列表允许、单项空白拒绝。版本字段不得按框架自动猜测或强制只允许当前工具链版本。沿用画廊样式、可访问标签与字段错误，不持久化项目需求；本批不请求设计稿、上传或生成候选。页面、纯逻辑、浏览器测试与独立记录交付后由 C 收口版本。
+
+A 已完成档案修订并承担 C 契约只读审查，允许新增独立修订与审查记录；其代码所有权不扩展到 C 或 B。
