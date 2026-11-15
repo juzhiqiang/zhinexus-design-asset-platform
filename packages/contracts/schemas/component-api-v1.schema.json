@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "component-api-v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "componentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "\\S"
+    },
+    "framework": {
+      "type": "string",
+      "enum": [
+        "vue",
+        "react"
+      ]
+    },
+    "exportName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+    },
+    "exportPath": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^\\.(?:/[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*)?$"
+    },
+    "props": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^[A-Za-z_$][A-Za-z0-9_$-]*$"
+          },
+          "type": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          },
+          "required": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name",
+          "type",
+          "required"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^[A-Za-z_$][A-Za-z0-9_$-]*$"
+          },
+          "payload": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "name",
+          "payload"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "styleExport": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^\\./[a-zA-Z0-9_/-]+\\.css$"
+    },
+    "readyMethod": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+    },
+    "notes": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "\\S"
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "componentId",
+    "framework",
+    "exportName",
+    "exportPath",
+    "props",
+    "events",
+    "styleExport",
+    "readyMethod",
+    "notes"
+  ],
+  "additionalProperties": false
+}
