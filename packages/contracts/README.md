@@ -123,3 +123,29 @@ src/schemas.ts 和 src/api.ts 的结构定义生成 schemas/*.schema.json（2020
 V1 评审通过后冻结字段/错误码；兼容可选字段明确同步调用方，不兼容修改升级 schemaVersion 并保留旧版解析策略。本包 private=true，版本仍 0.0.0；本次无对外业务端点/组件/CLI 功能发布，不触发公开包或平台升版。CLI 将来使用本包须内联运行时代码，不保留私有运行时依赖，并验证干净消费者。
 
 T07 兼容扩展（2026-11-12）：新增 variantReportsResponse，返回指定发布记录的检查报告；原有详情 DTO 保持不变。纯配置/路径策略通过独立 `@company/contracts/preview` 子路径提供 validatePreviewConfig、previewOriginFor、isArtifactPath，避免 CLI 固定内联根契约时引入预览部署逻辑。CLI 的 src/contracts/api.ts 由既有构建脚本同步，内容与契约源保持一致。
+
+## 二期 ProjectContext 首批契约
+
+`ProjectContext`、`validateProjectContext(input)` 与 `CONTRACT_SCHEMAS['project-context-v1']` 提供项目上下文类型、运行时校验及独立 JSON Schema。字段固定为：
+
+|字段|要求|
+|---|---|
+|framework|`vue` 或 `react`|
+|frameworkVersion|精确 semver，允许 prerelease，不接受范围、短版本或 build metadata；沿用现有 exactVersion 策略|
+|echartsVersion|可选，填写时遵守同一精确版本规则|
+|packageManager|`npm` 或 `pnpm`|
+|requirements|必填字符串数组，可为空；每项含非空白字符且最多 2048 字符|
+
+拒绝未知字段及非 JSON 对象，错误使用现有 `ValidationResult` 与 JSON Pointer 路径。合法值保留原输入，不做版本推断、兼容证明或需求补全。用户填写的上下文不代表任何候选已通过 peer 硬过滤、真实安装或截图验证；Ready、来源、兼容、索引状态继续独立。
+
+本批没有新增 HTTP 消息、检索接口或 MatchPlan。CLI 构建按现有机制同步并内联同一契约，不引入私有运行时依赖。计划与实际验证见 `docs/superpowers/plans/2026-11-15-phase2-kickoff.md`、`docs/verification/c-phase2-project-context-2026-11-15.md`（仓库根路径）。
+
+## 二期第三批文本候选检索契约
+
+后续第三批已增加 `SearchCandidatesRequest`、`SearchCandidatesResponse`、`Candidate` 及对应 `validateSearchCandidatesRequest` / `validateSearchCandidatesResponse` / `validateCandidate` 校验器。独立生成的 `search-candidates-request-v1` Schema 与 CLI 内联镜像同步；前述“没有检索接口”仅指首批。
+
+`POST /v1/search/candidates` 请求为 `{ query, context, reactDomVersion? }`：query 非空白且最长 2048 字符，context 复用 ProjectContext，reactDomVersion 可选但必须为精确版本，不能从 React 版本推断。拒绝未知字段。HTTP 层强制 Bearer 与 read 权限、no-store/noindex，权限并非由结构校验证明。
+
+响应为 `{ candidates: Candidate[], gaps: string[] }`。Candidate 绑定实现发布 ID、包版本/摘要、框架与导出，含 API/文档证据、可选截图及来源、兼容记录、排名和缺口；拒绝重复实现发布 ID。verified 要求非空且唯一的记录 ID，unverified 无记录；这只检查结构，记录真实性、精确宿主组合及摘要由服务端复核。
+
+本批 provider 为 `metadata-text-v1`，仅提供 0–1 的 text 排名，不填 usage/visual 分数；响应明确说明不提供用途、视觉或需求语义评估。Ready、当前权限、索引 revision/provider、兼容可信度分别判断。契约通过不证明可安装或真实兼容，不提供 MatchPlan。实施与验收见仓库根 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。

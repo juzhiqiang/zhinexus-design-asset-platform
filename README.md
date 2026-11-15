@@ -6,6 +6,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 ## 开始开发（Windows x64）
 
+二期当前新增候选响应契约及独立资格过滤器，见 [第二批执行计划](docs/superpowers/plans/2026-11-15-phase2-candidates.md)。候选的截图来源、兼容证据和文本/用途/视觉评分各自独立；缺少评分不会补零。过滤器只接受能够核对的精确 peer 版本，并复读当前权限、发布状态和索引版本。HTTP 检索、PG 索引适配器、模型及真实标注集尚未交付，不代表 T13/T14 已完成。
+
 在仓库根目录执行。首次运行会从官方源下载并校验项目固定的 Node/pnpm 到 `.tools`，不修改全局安装；需能够访问 npm、Node 和 Playwright 下载源。
 
 ```powershell
@@ -92,6 +94,10 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 
 ## 开发与分工文档
 
+二期文本检索：已登录客户端显式 `POST /v1/search/candidates`，请求 `{query,context,reactDomVersion?}`，仅按发布元数据搜索，不提供用途/视觉评分；精确 peers 不满足、权限撤销、废弃或索引过期的实现不返回。需求语义尚未评估，不能据此声称完成设计稿匹配。分工见 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。
+
+部署先执行现有 API migrate（新增 008_search），再以固定工具链执行 `scripts/pnpm.ps1 exec node apps/api/dist/index/search-runner.js` 启动独立索引消费者；加 `--once` 处理至多一个作业。仅需既有 `PLATFORM_DATABASE_URL`，不得将凭据写入命令或日志。重建指定作业时设置 `PLATFORM_SEARCH_REBUILD_JOB_ID` 后运行同一入口；重建会重写派生索引，不修改已发布产物或 Ready。检查 `release_outbox.state`（indexed/failed/pending）判断处理结果，失败会在下次消费重试；查询始终复读当前权限和发布元数据。
+
 - [三人分工与必要依赖](docs/superpowers/plans/2026-11-11-three-person-allocation.md)：A SDK、B CLI/画廊、C 平台；前三天任务、依赖图和年底风险。
 - [完整实现计划 T01–T17](docs/superpowers/plans/2026-11-11-component-platform-implementation.md)
 - [实施评估](component-platform-implementation-assessment.md) / [原始架构](component-platform-architecture.md)
@@ -125,3 +131,5 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 2026-11-13 C 根测试接续：CLI 发布集成测试改用自有随机端口三存储，消除缺共享凭据的唯一失败；专项通过后根 test 实跑 33 文件/600 项通过。RED/GREEN、清理与边界见 [隔离复验](docs/verification/c-cli-release-isolation-2026-11-13.md)。
 
 2026-11-13 SDK 文档交接：A 修正 SSR 挂载、真实导出与静态类型/运行时边界后，C 原样提取 Vue/React 示例，在真实安装冻结 0.0.10 tarball 的干净消费者中完成六组严格编译。固定摘要、验证方式与未完成边界见 [文档独立复验](docs/verification/c-a-sdk0010-handover-2026-11-13.md)。
+
+2026-11-15 二期首批启动：按 [A/B/C 隔离分工](docs/superpowers/plans/2026-11-15-phase2-kickoff.md) 推进组件档案审计、React 项目上下文表单准备及 ProjectContext 公共契约。契约验证只确认输入形状，不等同于兼容通过；本批不提供多模态匹配结果，不标记 T13/T14 完成。C 的新增契约、CLI 同步范围与验证边界见 [独立记录](docs/verification/c-phase2-project-context-2026-11-15.md)。

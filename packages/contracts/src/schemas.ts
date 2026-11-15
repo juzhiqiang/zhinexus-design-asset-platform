@@ -1,3 +1,5 @@
+import { projectContextSchema } from './project-context.js';
+import { candidateSchema, searchCandidatesResponseSchema, searchCandidatesRequestSchema } from './search.js';
 import { array, artifactPath, choice, exactVersion, hash, integer, object, text, timestamp } from './schema.js';
 import type { Schema } from './schema.js';
 
@@ -38,4 +40,7 @@ export const manifestSchema = object({ schemaVersion: { type: 'integer', const: 
 export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Object.entries({
   'release-manifest-v1': manifestSchema, 'example-ref-v1': exampleSchema, 'screenshot-ref-v1': screenshotSchema,
   'environment-v1': environmentSchema, 'check-report-v1': reportSchema,
+  'project-context-v1': projectContextSchema,
+  'candidate-v1': candidateSchema, 'search-candidates-response-v1': searchCandidatesResponseSchema,
+  'search-candidates-request-v1': searchCandidatesRequestSchema,
 }).map(([name, schema]) => [name, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: name, ...schema }]));

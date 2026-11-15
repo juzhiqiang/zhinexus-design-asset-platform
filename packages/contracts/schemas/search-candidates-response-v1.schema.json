@@ -1,0 +1,194 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "search-candidates-response-v1",
+  "type": "object",
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "variantReleaseId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          },
+          "variantId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          },
+          "componentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          },
+          "framework": {
+            "type": "string",
+            "enum": [
+              "vue",
+              "react"
+            ]
+          },
+          "packageName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          },
+          "packageVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+          },
+          "packageSha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "exportName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^[A-Za-z_$][A-Za-z0-9_$]*$"
+          },
+          "evidence": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "api",
+                    "docs",
+                    "screenshot"
+                  ]
+                },
+                "path": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u0020]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u0020]+)*$"
+                },
+                "sha256": {
+                  "type": "string",
+                  "pattern": "^[a-f0-9]{64}$"
+                },
+                "source": {
+                  "type": "string",
+                  "enum": [
+                    "manual-upload",
+                    "local-automatic"
+                  ]
+                }
+              },
+              "required": [
+                "kind",
+                "path",
+                "sha256"
+              ],
+              "additionalProperties": false
+            },
+            "minItems": 2
+          },
+          "compatibility": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "type": "string",
+                "enum": [
+                  "verified",
+                  "unverified"
+                ]
+              },
+              "recordIds": {
+                "type": "array",
+                "items": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2048,
+                  "pattern": "\\S"
+                },
+                "minItems": 0
+              }
+            },
+            "required": [
+              "status",
+              "recordIds"
+            ],
+            "additionalProperties": false
+          },
+          "ranking": {
+            "type": "object",
+            "properties": {
+              "text": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "usage": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              },
+              "visual": {
+                "type": "number",
+                "minimum": 0,
+                "maximum": 1
+              }
+            },
+            "required": [
+              "text"
+            ],
+            "additionalProperties": false
+          },
+          "gaps": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 2048,
+              "pattern": "\\S"
+            },
+            "minItems": 0
+          }
+        },
+        "required": [
+          "variantReleaseId",
+          "variantId",
+          "componentId",
+          "framework",
+          "packageName",
+          "packageVersion",
+          "packageSha256",
+          "exportName",
+          "evidence",
+          "compatibility",
+          "ranking",
+          "gaps"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "gaps": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "\\S"
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "candidates",
+    "gaps"
+  ],
+  "additionalProperties": false
+}
