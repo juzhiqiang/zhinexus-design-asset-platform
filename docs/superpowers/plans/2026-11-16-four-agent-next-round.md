@@ -75,3 +75,14 @@ B 的桌面端环境缺 Windows 固定运行时，不能把 Linux 沙箱检查�
 2026-11-16 补充：CLI/API 与回退、旁置诊断修复已完成；CLI 0.0.11 冻结安装后，原 SDK 56 组合实测暴露排行榜/占比标签裁切。用户授权修复并生成新 SDK 候选，原 hold 不采纳。修复、RED/GREEN 与旧候选 strict/legacy/真实回退证据见 `docs/verification/sdk-label-clipping-repair-2026-11-16.md`。新候选需重新走完整产物链；G2 与 T13/T14 外部材料仍开放。
 
 2026-11-16：用户授权 A→B→D 合并与历史工作区清理，合并完成，证据见 `docs/verification/four-agent-merge-cleanup-2026-11-16.md`。CLI/API 独立版本绑定及 help 修复的 RED/GREEN 见 `docs/verification/cli-0011-integration-repairs-2026-11-16.md`。新候选验收与历史工作区清理结果继续追加独立记录；已有历史勾选描述保留其发生时点。
+
+## 新候选本地验收完成记录
+
+2026-11-16，C 在 `8e2aec34` 的新冻结 SDK（core 0.0.11、Vue/React 0.0.12）上完成以下接续；上方未勾选项保留为原时点快照，以本节记录后续结果。
+
+- [x] B 交 C 的宿主矩阵：已安装 CLI 0.0.11 首轮 hold、56 张截图审查、全新消费者 adopt；56 个 PNG 摘要与已审查基线一致。
+- [x] 双框架分别执行 6.0.0 strict/strict-only，冻结 peer 预检拒绝；显式 legacy 完成 56 组合但类型失败，保持 hold；原两个 owned 消费者真实回退与逐字节恢复通过。
+- [x] C 使用同一 SDK 和真实 adopt 报告执行 installed-compatibility：1 passed，覆盖 line 两框架落库、重启、隐私、重复及篡改拒绝；服务构建 5/5、0 cached。
+- [x] 新冻结输入 T10：168 passed / 0 failed / 0 skipped；最终核对冻结目录 199 个声明文件和已安装 CLI 207 个文件。
+
+实际命令、包/报告摘要及限制见 [新候选采纳与回退验收](../../verification/sdk-label-adopt-acceptance-2026-11-16.md)。本次只关闭本地子步骤，完整 T10/G2、真实试点及 T13/T14 真实材料继续开放；历史工作树清理阻塞未解除。仅文档收口，不再升版。

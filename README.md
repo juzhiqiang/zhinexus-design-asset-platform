@@ -150,3 +150,5 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 构建画廊前设置 `NEXT_PUBLIC_PLATFORM_API_URL` 为管理 API origin（本机默认 `http://127.0.0.1:3000`），API 需允许画廊的精确 Origin 并部署 C3 检索迁移及 worker。文本检索仅覆盖已发布元数据，不提供用途、视觉评分或需求语义评估。实际验证与边界见 [B3 验收记录](docs/verification/c-b3-search-acceptance-2026-11-15.md)；A/B/C 三方代码已集成本地主分支；历史分支验收与本次集成复验分别记录。
 
 2026-11-16 SDK 视觉修复：排行榜和占比图按完整标签宽度预留空间，修复窄容器及长单位数值裁切。原冻结 SDK 保留，新候选独立升版验收；见 [标签回归记录](docs/verification/sdk-label-clipping-repair-2026-11-16.md)。
+
+2026-11-16 新候选本地验收收口：core 0.0.11、Vue/React 0.0.12 由已安装 CLI 0.0.11 完成全新消费者 adopt，56 张截图与已审查基线摘要一致；6.0.0 双框架 strict/strict-only 拒绝、显式 legacy 保持 hold、原双消费者真实回退通过。折线图两框架的兼容报告落库/重启/隐私/篡改拒绝及新冻结输入 T10 168 项通过，见 [采纳与回退证据](docs/verification/sdk-label-adopt-acceptance-2026-11-16.md)。公司环境、真实试点与 T13/T14 业务输入继续开放。
