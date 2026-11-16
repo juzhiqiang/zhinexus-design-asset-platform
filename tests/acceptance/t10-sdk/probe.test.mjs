@@ -182,12 +182,13 @@ function writeTarGz(entries) {
 }
 
 /** 用 `tar` 造一个最小合成 bundle：结构、命名与 `pnpm pack` / C 的冻结目录一致。 */
-async function makeSyntheticBundle(root, { tamper = false, mixedPeer = false, workspaceResidue = false, independentVersions = false, coreDepOverride = null } = {}) {
+async function makeSyntheticBundle(root, { tamper = false, mixedPeer = false, workspaceResidue = false, independentVersions = false, coreDepOverride = null, frameworkVersionOverride = null } = {}) {
   await mkdir(path.join(root, 'packages'), { recursive: true });
+  const fwVersion = frameworkVersionOverride ?? (independentVersions ? '0.0.11' : '0.0.10');
   const packages = [
     { name: '@company/charts-core', version: '0.0.10', peer: { echarts: '6.1.0' }, deps: {} },
-    { name: '@company/charts-vue', version: independentVersions ? '0.0.11' : '0.0.10', peer: { echarts: mixedPeer ? '6.0.0' : '6.1.0', vue: '3.5.45' }, deps: { '@company/charts-core': coreDepOverride ?? '0.0.10' } },
-    { name: '@company/charts-react', version: independentVersions ? '0.0.11' : '0.0.10', peer: { echarts: '6.1.0', react: '19.3.1', 'react-dom': '19.3.1' }, deps: { '@company/charts-core': coreDepOverride ?? '0.0.10' } },
+    { name: '@company/charts-vue', version: fwVersion, peer: { echarts: mixedPeer ? '6.0.0' : '6.1.0', vue: '3.5.45' }, deps: { '@company/charts-core': coreDepOverride ?? '0.0.10' } },
+    { name: '@company/charts-react', version: fwVersion, peer: { echarts: '6.1.0', react: '19.3.1', 'react-dom': '19.3.1' }, deps: { '@company/charts-core': coreDepOverride ?? '0.0.10' } },
   ];
   const manifestPackages = [];
   for (const entry of packages) {
@@ -480,6 +481,15 @@ describe('冻结 bundle 只读读取', () => {
     t.after(() => rm(badRoot, { recursive: true, force: true }));
     await makeSyntheticBundle(badRoot, { independentVersions: true, coreDepOverride: '0.0.11' });
     await assert.rejects(() => readFrozenBundle(badRoot), /对 charts-core 的依赖应为 0\.0\.10/);
+  });
+
+  it('拒绝非法框架版本（前导零 01.0.11、预发布前导零 0.0.11-01、空标识 0.0.11-rc..1）', async (t) => {
+    for (const invalid of ['01.0.11', '0.0.11-01', '0.0.11-rc..1']) {
+      const root = await mkdtemp(path.join(tmpdir(), 'a-t10-bundle-badver-'));
+      t.after(() => rm(root, { recursive: true, force: true }));
+      await makeSyntheticBundle(root, { frameworkVersionOverride: invalid });
+      await assert.rejects(() => readFrozenBundle(root), /非法包版本/, `应拒绝 ${invalid}`);
+    }
   });
 });
 

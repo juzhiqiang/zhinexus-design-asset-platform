@@ -49,7 +49,11 @@ function sha256File(bytes) {
  * 4. 每个 tarball 的**实际字节摘要**等于 manifest 记录的 `tarball.sha256`，字节数也相等；
  * 5. tarball 文件真实存在于 bundle 内。
  */
-const EXACT_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+// 与 packages/contracts/src/schema.ts 的 exactVersion 完全对齐（不引入私有 contracts 运行时依赖）
+const PRERELEASE_IDENTIFIER = '(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)';
+const EXACT_VERSION_PATTERN = new RegExp(
+  `^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-${PRERELEASE_IDENTIFIER}(?:\\.${PRERELEASE_IDENTIFIER})*)?$`,
+);
 
 export async function readFrozenBundle(bundleRootInput) {
   if (!bundleRootInput) throw new Error('PROBE_INPUT 缺少 --bundle');
@@ -70,7 +74,12 @@ export async function readFrozenBundle(bundleRootInput) {
   }
   const packages = [];
   for (const entry of manifest.packages) {
-    if (typeof entry.version !== 'string' || !EXACT_VERSION_PATTERN.test(entry.version)) {
+    if (
+      typeof entry.version !== 'string' ||
+      entry.version.length === 0 ||
+      entry.version.length > 2048 ||
+      !EXACT_VERSION_PATTERN.test(entry.version)
+    ) {
       throw new Error(`PROBE_INPUT 非法包版本：${entry.name} 为 ${String(entry.version)}`);
     }
     const serialized = JSON.stringify(entry.dependencies ?? {});
