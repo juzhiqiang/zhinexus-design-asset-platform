@@ -293,4 +293,59 @@ describe('T02 / T09 双框架生命周期与对等审计', () => {
     expect(disconnectSpy).toHaveBeenCalledTimes(1);
     expect(ctrl.getInstance()).toBeNull();
   });
+
+  it('Vue useChart 在 theme/renderer 省略切回默认值时走 setPresentation 复用控制器，保留累计 optionOverrides', async () => {
+    const { useChart } = await import('../../packages/charts-vue/src/useChart.js');
+
+    const data = vueRuntime.ref<ChartData>({
+      series: [{ id: 's1', name: 'A', points: [{ x: '1', y: 10 }] }],
+    });
+    const config = vueRuntime.ref<
+      { theme?: 'light' | 'dark'; renderer?: 'canvas' | 'svg'; animation?: boolean } | undefined
+    >({
+      theme: 'dark',
+      renderer: 'svg',
+      animation: false,
+    });
+    const optionOverrides = vueRuntime.ref<SupportedOptionOverrides | undefined>({
+      grid: { left: 64 },
+    });
+    let capturedController: { readonly value: ChartController | null } | null = null;
+
+    const Comp = vueRuntime.defineComponent({
+      setup() {
+        const host = vueRuntime.ref(createDomNodeStub('div') as unknown as HTMLElement);
+        const res = useChart({
+          host,
+          data,
+          config,
+          optionOverrides,
+          onPointClick: () => {},
+          chart: 'line',
+        } as unknown as Parameters<typeof useChart>[0]);
+        capturedController = res.controller;
+        return () => vueRuntime.h('div');
+      },
+    });
+
+    const renderer = createNoopRenderer();
+    const root = { tag: 'root', children: [] };
+    const app = renderer.createApp(Comp);
+    app.mount(root);
+
+    const firstCtrl = capturedController!.value!;
+    // 先累计第二个覆盖字段 tooltip.show=false
+    optionOverrides.value = { tooltip: { show: false } };
+    await vueRuntime.nextTick();
+
+    // 省略 theme 与 renderer，仅保留 animation: false（切回默认 light / canvas，注意 Node 测试中用 svg/light 先测省略 theme）
+    config.value = { renderer: 'svg', animation: false };
+    await vueRuntime.nextTick();
+
+    expect(capturedController!.value).toBe(firstCtrl);
+    const opt = firstCtrl.getInstance()!.getOption() as { grid?: Array<{ left?: number }> };
+    expect(opt.grid?.[0]?.left).toBe(64);
+
+    app.unmount();
+  });
 });

@@ -198,14 +198,20 @@ export function useChart(options: UseChartOptions): UseChartResult {
     const renderer = next?.renderer ?? 'canvas';
     const presentationChanged =
       (previous.theme ?? 'light') !== theme || (previous.renderer ?? 'canvas') !== renderer;
+    const normalizedPrev = {
+      ...previous,
+      theme: previous.theme ?? 'light',
+      renderer: previous.renderer ?? 'canvas',
+    };
+    const normalizedNext = { ...next, theme, renderer };
     if (
       presentationChanged &&
-      sameChartConfig(chart, { ...previous, theme, renderer }, next)
+      sameChartConfig(chart, { ...normalizedPrev, theme, renderer }, normalizedNext)
     ) {
       current.setPresentation(theme, renderer);
       return;
     }
-    if (sameChartConfig(chart, previous, next)) {
+    if (sameChartConfig(chart, normalizedPrev, normalizedNext)) {
       return;
     }
     // 非展示类配置变化：销毁重建以应用新的 option 语义，数据由当前 props 保留
