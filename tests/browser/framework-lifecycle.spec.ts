@@ -170,3 +170,62 @@ test('ssr_import_has_no_dom_access', async () => {
     expect(loaded.LineChart, entry).toBeDefined();
   }
 });
+
+type LineLifecycleControls = {
+  setConfig(next: { theme?: 'light' | 'dark'; renderer?: 'canvas' | 'svg'; smooth?: boolean; animation?: boolean }): void;
+  setOptionOverrides(next: { grid?: { left?: number } } | undefined): void;
+  getOption(): { series?: Array<{ smooth?: boolean }>; grid?: Array<{ left?: number }> } | null;
+};
+
+test('both_frameworks_apply_business_config_when_changing_presentation', async ({ page }) => {
+  for (const url of [VUE_EXAMPLE, REACT_EXAMPLE]) {
+    const pageErrors = await openExample(page, url);
+    await expect(page.locator('.charts-line canvas')).toHaveCount(1);
+
+    // 同次修改 theme/renderer 与业务配置 smooth: true
+    await page.evaluate(() => {
+      const controls = (window as unknown as { __LINE_LIFECYCLE_CONTROLS__?: LineLifecycleControls })
+        .__LINE_LIFECYCLE_CONTROLS__;
+      if (!controls) throw new Error('__LINE_LIFECYCLE_CONTROLS__ missing');
+      controls.setConfig({ theme: 'dark', renderer: 'svg', smooth: true, animation: false });
+    });
+
+    await page.waitForFunction(() => document.querySelectorAll('.charts-line svg').length === 1);
+    await expect(page.locator('.charts-line canvas')).toHaveCount(0);
+    await page.waitForFunction(() => {
+      const controls = (window as unknown as { __LINE_LIFECYCLE_CONTROLS__?: LineLifecycleControls })
+        .__LINE_LIFECYCLE_CONTROLS__;
+      return controls?.getOption()?.series?.[0]?.smooth === true;
+    });
+
+    const opt = await page.evaluate(() =>
+      (window as unknown as { __LINE_LIFECYCLE_CONTROLS__: LineLifecycleControls }).__LINE_LIFECYCLE_CONTROLS__.getOption(),
+    );
+    expect(opt?.series?.[0]?.smooth, `${url} smooth 应生效`).toBe(true);
+    expect(pageErrors, `${url} 页面错误`).toEqual([]);
+  }
+});
+
+test('vue_updates_option_overrides_without_data_change', async ({ page }) => {
+  const pageErrors = await openExample(page, VUE_EXAMPLE);
+  await expect(page.locator('.charts-line canvas')).toHaveCount(1);
+
+  await page.evaluate(() => {
+    const controls = (window as unknown as { __LINE_LIFECYCLE_CONTROLS__?: LineLifecycleControls })
+      .__LINE_LIFECYCLE_CONTROLS__;
+    if (!controls) throw new Error('__LINE_LIFECYCLE_CONTROLS__ missing');
+    controls.setOptionOverrides({ grid: { left: 96 } });
+  });
+
+  await page.waitForFunction(() => {
+    const controls = (window as unknown as { __LINE_LIFECYCLE_CONTROLS__?: LineLifecycleControls })
+      .__LINE_LIFECYCLE_CONTROLS__;
+    return controls?.getOption()?.grid?.[0]?.left === 96;
+  });
+
+  const opt = await page.evaluate(() =>
+    (window as unknown as { __LINE_LIFECYCLE_CONTROLS__: LineLifecycleControls }).__LINE_LIFECYCLE_CONTROLS__.getOption(),
+  );
+  expect(opt?.grid?.[0]?.left).toBe(96);
+  expect(pageErrors).toEqual([]);
+});
