@@ -204,11 +204,22 @@ export function useChart(options: UseChartOptions): UseChartResult {
     }
     const theme = next?.theme ?? 'light';
     const renderer = next?.renderer ?? 'canvas';
-    if ((previous.theme ?? 'light') !== theme || (previous.renderer ?? 'canvas') !== renderer) {
+    const presentationChanged =
+      (previous.theme ?? 'light') !== theme || (previous.renderer ?? 'canvas') !== renderer;
+    const normalizedPrev = {
+      ...previous,
+      theme: previous.theme ?? 'light',
+      renderer: previous.renderer ?? 'canvas',
+    };
+    const normalizedNext = { ...next, theme, renderer };
+    if (
+      presentationChanged &&
+      sameChartConfig(chart, { ...normalizedPrev, theme, renderer }, normalizedNext)
+    ) {
       controller.setPresentation(theme, renderer);
       return;
     }
-    if (sameChartConfig(chart, previous, next)) {
+    if (sameChartConfig(chart, normalizedPrev, normalizedNext)) {
       return;
     }
     detach();
