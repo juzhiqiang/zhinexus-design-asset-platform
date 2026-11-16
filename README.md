@@ -2,6 +2,8 @@
 
 Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；SDK 提供折线、柱状、饼图、散点、趋势卡、排名和占比共 14 个 Vue/React 实现。已有冻结 Bundle、消费者截图、网页手动发布、身份/上传/基线 API、持久化发布 worker 与隔离静态预览。合法 PENDING 作业须由独立 worker 通过三存储校验后进入 Ready。
 
+2026-11-16 二期当前收口范围：用户确认以正确的组件标识规范和供使用侧匹配的 GET 查询接口交付，设计平台格式、真实设计导出和业务标注不再作为本轮验收前置。拟新增 `GET /v1/matching/components`，按组件 ID、框架与精确包版本查询并校验权限/兼容性及冻结材料；接口尚未实现。分工与验收见 [四方收口计划](docs/superpowers/plans/2026-11-16-phase2-query-completion.md)，协议见 [收口设计](docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md)。公司 G2 与真实业务试点仍独立待验收，下方历史记录保留其发生时点。
+
 2026-11-14：本地平台专项改为每轮自建随机端口和凭据的三存储环境，无需启动共享 G2。当前 SDK 0.0.10 与画廊手动发布已有本地真实证据；公司 OIDC、生产独立预览域、真实 Vue/React 业务试点仍未验收，不能据此宣布完整 G2/T10/T11/T12 或生产就绪。下一轮分工和集成门槛见 [执行计划](docs/superpowers/plans/2026-11-13-next-round-execution.md)。
 
 ## 开始开发（Windows x64）
@@ -10,7 +12,7 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 2026-11-16 评估补充：确定性 ID 离线入口已支持分离的人工标注与 MatchPlan 观测，输出 real/synthetic 分组、原始字节摘要和缺口报告。使用方式与真实样本待办见 [ID 评估规范](docs/phase2/id-evaluation-runner.md)；仓库样例仅为 synthetic，不代表 T13/T14 业务验收。
 
-二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。工程验证与范围见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md) 和 [ID 匹配计划](docs/superpowers/plans/2026-11-15-phase2-id-matching.md)。正式 ID 规范、设计平台导出格式和真实业务样本尚未提供，完整 T14 业务验收仍开放。
+二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。已有工程验证见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md)。当前 T14 待完成新增 GET、规范及独立调用侧验收，按上方四方收口计划推进；真实设计侧集成由使用侧后续对接。
 
 2026-11-16：CLI 0.0.10 在安装/截图后重新核验冻结 tarball，并核对 bundle 副本身份。期间产物变化会终止检查或发布准备；需要重新完成产物验证，不得沿用旧报告。修复及真实链路证据见 [本轮 B 验证](docs/verification/b-release-acceptance-2026-11-16.md)，独立安装与版本范围见 [CLI 0.0.10 分发验证](docs/verification/b-cli-0010-release-2026-11-16.md)。
 
