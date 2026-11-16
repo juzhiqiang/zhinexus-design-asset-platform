@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { manifestDigest, validateMatchPlan } from '@company/contracts';
+import { manifestDigest, validateMatchPlan, validateSearchCandidatesResponse, type MatchPlanRequest } from '@company/contracts';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { MatchingService } from '../../apps/api/dist/matching/service.js';
 import { workerHarness, realRegistry } from './t06-support.js';
@@ -7,6 +7,8 @@ import { replaceBundleArtifact } from '../fixtures/t05-artifacts.js';
 import { componentApiFixture, matchRequestFixture } from '../fixtures/match-plan.js';
 import { randomUUID } from 'node:crypto';
 import { writeFile } from 'node:fs/promises';
+import { SearchIndexer } from '../../apps/api/dist/index/search-indexer.js';
+import { evaluateIdMatching, type IdEvalCase } from '../evaluation/id-matching.js';
 
 async function setup() {
   const h = await workerHarness(f => {
@@ -88,15 +90,18 @@ describe('真实服务 ID 规则装配 HTTP', () => {
         JOIN package_releases p ON p.id=vr.package_release_id WHERE vr.id=$1`, [h.input.design.mapping.entries[0]!.variantReleaseId])).rows[0]!;
       const rows = Array.from({ length: 1000 }, (_, i) => ({ id: randomUUID(), packageId: randomUUID(), version: `0.1.${i}` }));
       // Protocol-only seeded versions reuse verified API/docs bytes. These are NOT registry-published versions.
-      await h.db.query(`INSERT INTO package_releases(id,job_id,name,version,sha256,metadata,state)
+      const measurements: object[] = [];
+      let inserted = 0;
+      for (const count of [200, 1000]) {
+        const batch = rows.slice(inserted, count);
+        await h.db.query(`INSERT INTO package_releases(id,job_id,name,version,sha256,metadata,state)
         SELECT (r->>'packageId')::uuid,$2,p.name,r->>'version',p.sha256,jsonb_set(p.metadata,'{version}',r->'version'),'READY'
         FROM jsonb_array_elements($1::jsonb) r CROSS JOIN package_releases p WHERE p.id=(SELECT package_release_id FROM variant_releases WHERE id=$3)`,
-      [JSON.stringify(rows), h.jobId, h.input.design.mapping.entries[0]!.variantReleaseId]);
+      [JSON.stringify(batch), h.jobId, h.input.design.mapping.entries[0]!.variantReleaseId]);
       await h.db.query(`INSERT INTO variant_releases(id,variant_id,package_release_id,metadata,availability)
         SELECT (r->>'id')::uuid,$2,(r->>'packageId')::uuid,jsonb_set($3::jsonb,'{packageVersion}',r->'version'),'Ready'
-        FROM jsonb_array_elements($1::jsonb) r`, [JSON.stringify(rows), source.variant_id, JSON.stringify(source.metadata)]);
-      const measurements: object[] = [];
-      for (const count of [200, 1000]) {
+        FROM jsonb_array_elements($1::jsonb) r`, [JSON.stringify(batch), source.variant_id, JSON.stringify(source.metadata)]);
+        inserted = count;
         const request = structuredClone(h.input);
         request.design.mapping.entries = rows.slice(0, count).map((r, i) => ({ designId: `opaque-${i}`, framework: 'vue', variantReleaseId: r.id }));
         request.design.elements = rows.slice(0, count).map((_, i) => ({ instanceId: `node-${i}`, designId: `opaque-${i}` }));
@@ -108,8 +113,63 @@ describe('真实服务 ID 规则装配 HTTP', () => {
         // All package versions conflict: do not pick a winner simply because all ID mappings exist.
         expect(plan.exactDependencies).toEqual([]); expect(plan.gaps[0].code).toBe('DEPENDENCY_CONFLICT');
         measurements.push({ event: 'ID_MATCH_SCALE', origin: 'synthetic', distinctReleaseCount: count, durationMs, exactTargets: count, productionAcceptance: false });
+        await new SearchIndexer(h.db).rebuild(h.jobId);
+        const indexedRecords = (await h.db.query('SELECT count(*)::int AS n FROM search_documents')).rows[0]!.n;
+        expect(indexedRecords).toBe(count + h.rows.length);
+        const textStart = performance.now();
+        const textResponse = await h.request('/v1/search/candidates', { query: 'line', context: h.input.context }, h.auth);
+        const textPlan = await textResponse.json(); const textDurationMs = Math.round(performance.now() - textStart);
+        expect(textResponse.status).toBe(200); expect(validateSearchCandidatesResponse(textPlan).ok).toBe(true);
+        expect(textPlan.candidates).toHaveLength(50); expect(textPlan.gaps.join(' ')).toContain('50');
+        measurements.push({ event: 'TEXT_SEARCH_SCALE', origin: 'synthetic', seededReleaseCount: count, indexedRecords, durationMs: textDurationMs, returnedCandidates: 50, productionAcceptance: false });
       }
       await writeFile('.tools/id-matching-scale.json', JSON.stringify(measurements, null, 2));
     } finally { await h.close(); }
   }, 120000);
+  it('API 实际方案进入合成评估报告，真实样本为零时保持未验收', async () => {
+    const h = await setup();
+    try {
+      const cases: IdEvalCase[] = [];
+      const vueId = h.input.design.mapping.entries[0]!.variantReleaseId;
+      const reactId = h.rows.find(r => r.variant_id === 'line-react')!.id;
+      const collect = async (caseId: string, request: MatchPlanRequest, expected: IdEvalCase['expected']) => {
+        const response = await h.request('/v1/matching/plans', request, h.auth);
+        expect(response.status).toBe(200);
+        cases.push({ caseId, origin: 'synthetic', expected, plan: await response.json() });
+      };
+      const mapped = (request: MatchPlanRequest, id: string): IdEvalCase['expected'] => ({ elements: request.design.elements.map(e => ({ ...e, expectedStatus: 'mapped', expectedVariantReleaseId: id, expectedFramework: request.context.framework, requiredGapCodes: ['COMPATIBILITY_UNVERIFIED'] })) });
+      const gap = (request: MatchPlanRequest, code: 'UNMAPPED_ID'|'TARGET_UNAVAILABLE'|'API_UNSUPPORTED'): IdEvalCase['expected'] => ({ elements: request.design.elements.map(e => ({ ...e, expectedStatus: 'gap', requiredGapCodes: [code] })) });
+      await collect('vue', h.input, mapped(h.input, vueId));
+      const multiple = structuredClone(h.input); multiple.design.elements.push({ instanceId: 'node-2', designId: multiple.design.elements[0]!.designId });
+      await collect('multiple-instances', multiple, mapped(multiple, vueId));
+      const unknown = structuredClone(h.input); unknown.design.elements[0]!.designId = 'unknown';
+      await collect('unknown-id', unknown, gap(unknown, 'UNMAPPED_ID'));
+      const react: MatchPlanRequest = structuredClone(h.input); react.context.framework = 'react'; react.context.frameworkVersion = '19.3.1'; react.reactDomVersion = '19.3.1';
+      await collect('missing-framework', react, gap(react, 'UNMAPPED_ID'));
+      react.design.mapping.entries[0]!.framework = 'react';
+      await collect('wrong-framework-target', react, gap(react, 'TARGET_UNAVAILABLE'));
+      react.design.mapping.entries[0]!.variantReleaseId = reactId;
+      await collect('react', react, mapped(react, reactId));
+      const peer = structuredClone(h.input); peer.context.frameworkVersion = '3.5.44';
+      await collect('wrong-peer', peer, gap(peer, 'TARGET_UNAVAILABLE'));
+      const bindings: MatchPlanRequest = { ...structuredClone(h.input), bindings: [{ instanceId: 'node-1', props: [{ name: 'invented', source: 'sales' }], events: [] }] };
+      const bindingExpected = mapped(bindings, vueId); bindingExpected.elements[0]!.requiredGapCodes.push('UNKNOWN_PROP', 'MISSING_PROP', 'MISSING_EVENT', 'LAYOUT_UNKNOWN');
+      await collect('missing-and-unknown-bindings', bindings, bindingExpected);
+      const duplicate = structuredClone(h.input); duplicate.design.mapping.entries.push({ ...duplicate.design.mapping.entries[0]! });
+      expect((await h.request('/v1/matching/plans', duplicate, h.auth)).status).toBe(400);
+      duplicate.design.mapping.entries[1]!.variantReleaseId = reactId;
+      expect((await h.request('/v1/matching/plans', duplicate, h.auth)).status).toBe(400);
+      await h.db.query("UPDATE component_permissions SET can_read=false,can_publish=false,can_maintain=false WHERE subject='alice'");
+      await collect('revoked', h.input, gap(h.input, 'TARGET_UNAVAILABLE'));
+      await h.db.query("UPDATE component_permissions SET can_read=true WHERE subject='alice'");
+      const variant = h.fixture.manifest.variants.find(v => v.framework === 'vue')!;
+      await h.db.query('UPDATE release_artifacts SET sha256=$2 WHERE job_id=$1 AND path=$3', [h.jobId, 'f'.repeat(64), variant.api.path]);
+      await collect('corrupt-material', h.input, gap(h.input, 'API_UNSUPPORTED'));
+      const report = evaluateIdMatching(cases);
+      expect(report.synthetic.passed).toBe(true); expect(report.synthetic.exactMappingRate.value).toBe(1);
+      expect(report.synthetic.hardViolationCases).toBe(0); expect(report.failures).toEqual([]);
+      expect(report.real.totalCases).toBe(0); expect(report.passed).toBe(false);
+      await writeFile('.tools/id-matching-evaluation.json', JSON.stringify({ ...report, rejectedDuplicateOrConflictingInputs: 2, caseIds: cases.map(c => c.caseId), productionAcceptance: false }, null, 2));
+    } finally { await h.close(); }
+  });
 });
