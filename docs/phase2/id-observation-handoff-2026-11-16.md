@@ -17,14 +17,33 @@
 
 C 的 `POST /v1/matching/plans` 经鉴权的 `read` 操作调用 `MatchingService.plan(body, subject)`；路由成功响应为 HTTP 200，并设置 `Cache-Control: no-store` 与 `X-Robots-Tag: noindex, nofollow`。请求契约为：
 
-```text
-{ schemaVersion: 1,
-  mapping: { schemaVersion: 1, ruleSetId, revision,
-             entries: [{ designId, framework, variantReleaseId }] },
-  elements: [{ instanceId, designId }] }
+```json
+{
+  "design": {
+    "schemaVersion": 1,
+    "mapping": {
+      "schemaVersion": 1,
+      "ruleSetId": "example-rules",
+      "revision": "1",
+      "entries": [{ "designId": "sales-line", "framework": "react", "variantReleaseId": "replace-with-real-release-id" }]
+    },
+    "elements": [{ "instanceId": "chart-1", "designId": "sales-line" }]
+  },
+  "context": {
+    "framework": "react",
+    "frameworkVersion": "19.3.1",
+    "echartsVersion": "6.1.0",
+    "packageManager": "pnpm",
+    "requirements": []
+  },
+  "reactDomVersion": "19.3.1",
+  "bindings": [{ "instanceId": "chart-1", "props": [], "events": [], "layout": "full-width" }]
+}
 ```
 
-`mapping.schemaVersion` 也必填。元素 instanceId 唯一，映射中的 designId/framework 对唯一；ID 按原样精确比较，不解析格式。请求结构以 `packages/contracts/src/design-id.ts` 为准。
+这是结构示例；采集时替换为获准的真实规则、发布 ID、项目上下文和绑定。完整请求契约以 `packages/contracts/src/match-plan.ts` 的 `MatchPlanRequest` / `validateMatchPlanRequest` 为准，不能直接把 `DesignIdInputV1` 当作 HTTP 请求体。`design` 子结构见 `packages/contracts/src/design-id.ts`，其中 `mapping.schemaVersion` 也必填；元素 instanceId 唯一，映射中的 designId/framework 对唯一，ID 按原样精确比较，不解析格式。
+
+`context` 必填 `framework`（vue/react）、`frameworkVersion`（精确版本）、`packageManager`（npm/pnpm）、`requirements`（字符串数组，可为空）；`echartsVersion` 可选，提供时必须为精确版本。外层 `reactDomVersion`、`bindings` 可选；绑定必须引用 design 中的 instanceId，并包含 props/events 数组，layout 可选。结构通过不代表目标可用、参数绑定完整或兼容性已验证。
 
 每个案例在 observations 中恰有一项 `{ caseId, plan }`。`plan` 为对应成功响应的 JSON 对象，不添加 expected、HTTP 包装或来源元数据；来源材料单独归档。缺失、重复、多余观测、外层未知字段均拒绝输入（exit 2）。有 plan 但不符合 MatchPlanV1 时，由评分器作为硬违规计分，不跳过失败。
 
