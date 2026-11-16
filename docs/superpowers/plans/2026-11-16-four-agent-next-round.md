@@ -72,4 +72,6 @@ B 的桌面端环境缺 Windows 固定运行时，不能把 Linux 沙箱检查�
 
 ## 获授权后的接续记录
 
+2026-11-16 补充：CLI/API 与回退、旁置诊断修复已完成；CLI 0.0.11 冻结安装后，原 SDK 56 组合实测暴露排行榜/占比标签裁切。用户授权修复并生成新 SDK 候选，原 hold 不采纳。修复、RED/GREEN 与旧候选 strict/legacy/真实回退证据见 `docs/verification/sdk-label-clipping-repair-2026-11-16.md`。新候选需重新走完整产物链；G2 与 T13/T14 外部材料仍开放。
+
 2026-11-16：用户授权 A→B→D 合并与历史工作区清理，合并完成，证据见 `docs/verification/four-agent-merge-cleanup-2026-11-16.md`。CLI/API 独立版本绑定及 help 修复的 RED/GREEN 见 `docs/verification/cli-0011-integration-repairs-2026-11-16.md`。新候选验收与历史工作区清理结果继续追加独立记录；已有历史勾选描述保留其发生时点。
