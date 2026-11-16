@@ -8,6 +8,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 2026-11-16 SDK 补充：Vue/React 0.0.11 修复配置同时变更及默认展示配置切换时的生命周期问题；新冻结包已通过 14 个预览和工作区外双框架消费者的本地验收。详见 [版本验收记录](docs/verification/a-sdk-0011-release-2026-11-16.md)，公司接入与真实业务试点仍待完成。
 
+2026-11-16 评估补充：确定性 ID 离线入口已支持分离的人工标注与 MatchPlan 观测，输出 real/synthetic 分组、原始字节摘要和缺口报告。使用方式与真实样本待办见 [ID 评估规范](docs/phase2/id-evaluation-runner.md)；仓库样例仅为 synthetic，不代表 T13/T14 业务验收。
+
 二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。工程验证与范围见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md) 和 [ID 匹配计划](docs/superpowers/plans/2026-11-15-phase2-id-matching.md)。正式 ID 规范、设计平台导出格式和真实业务样本尚未提供，完整 T14 业务验收仍开放。
 
 2026-11-16：CLI 0.0.10 在安装/截图后重新核验冻结 tarball，并核对 bundle 副本身份。期间产物变化会终止检查或发布准备；需要重新完成产物验证，不得沿用旧报告。修复及真实链路证据见 [本轮 B 验证](docs/verification/b-release-acceptance-2026-11-16.md)，独立安装与版本范围见 [CLI 0.0.10 分发验证](docs/verification/b-cli-0010-release-2026-11-16.md)。
