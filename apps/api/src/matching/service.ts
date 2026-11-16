@@ -1,52 +1,25 @@
-import { createHash } from 'node:crypto';
 import {
-  canonicalJson, manifestDigest, validateApiMessage, validateComponentApi, validateMatchPlanRequest, validateMatchPlan,
+  canonicalJson, manifestDigest, validateMatchPlanRequest, validateMatchPlan,
   type ComponentApiV1, type MatchElement, type MatchGap, type MatchPlanV1, type MatchPlanRequest,
 } from '@company/contracts';
-import { eligibleRelease, type CurrentCandidateSnapshot } from '../search/eligibility.js';
 import { loadCurrentCandidates } from '../search/current.js';
+import type { CurrentCandidateSnapshot } from '../search/eligibility.js';
 import { CatalogService } from '../catalog/service.js';
 import type { Database } from '../db/database.js';
 import { uuid } from '../db/access.js';
 import type { ArtifactStore } from '../storage/artifact-store.js';
 import { PlatformError } from '../errors.js';
+import { readApi, resolveRelease, type Eligible, type MaterialRepository } from './materials.js';
+
 export type MatchRepository = {
   load(ids: string[]): Promise<Map<string, CurrentCandidateSnapshot>>;
   artifact(id: string, path: string): Promise<Uint8Array>;
 };
 const gap = (code: MatchGap['code'], message: string): MatchGap => ({ code, message });
 const unavailable = () => gap('TARGET_UNAVAILABLE', '目标当前不可用，请核对配置及访问条件');
-function release(request: MatchPlanRequest, id: string, snapshot?: CurrentCandidateSnapshot) {
-  if (!snapshot?.variant || !snapshot.package) return null;
-  const candidate = eligibleRelease(request.context, id, snapshot, request.reactDomVersion ? { 'react-dom': request.reactDomVersion } : {});
-  if (!candidate) return null;
-  const { variant, package: pkg } = snapshot;
-  const checked = validateApiMessage('variantReleaseResponse', { variantReleaseId: id, variant, package: pkg, availability: 'Ready', reportSource: 'none', baselineStatus: 'unconfirmed', indexStatus: 'pending' });
-  if (!checked.ok || variant.variantId !== candidate.variantId || variant.componentId !== candidate.componentId || variant.framework !== candidate.framework ||
-    variant.packageName !== candidate.packageName || variant.packageVersion !== candidate.packageVersion || variant.exportName !== candidate.exportName ||
-    pkg.name !== candidate.packageName || pkg.version !== candidate.packageVersion || pkg.tarball.sha256 !== candidate.packageSha256) return null;
-  for (const kind of ['api', 'docs'] as const) if (!candidate.evidence.some(e => e.kind === kind && e.path === variant[kind].path && e.sha256 === variant[kind].sha256)) return null;
-  return { candidate, variant, pkg, revision: snapshot.revision };
-}
-type Eligible = NonNullable<ReturnType<typeof release>>;
-async function readApi(id: string, item: Eligible, repository: MatchRepository): Promise<ComponentApiV1 | null> {
-  try {
-    const apiBytes = await repository.artifact(id, item.variant.api.path);
-    const docsBytes = await repository.artifact(id, item.variant.docs.path);
-    for (const [bytes, ref] of [[apiBytes, item.variant.api], [docsBytes, item.variant.docs]] as const) {
-      if (bytes.byteLength !== ref.bytes || createHash('sha256').update(bytes).digest('hex') !== ref.sha256) return null;
-    }
-    let input: unknown;
-    try { input = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(apiBytes)); } catch { return null; }
-    const checked = validateComponentApi(input);
-    if (!checked.ok) return null;
-    const api = checked.value;
-    return api.componentId === item.variant.componentId && api.framework === item.variant.framework && api.exportName === item.variant.exportName && api.exportPath === item.variant.exportPath ? api : null;
-  } catch (error) {
-    if (error instanceof PlatformError && ['NOT_FOUND', 'DIGEST_MISMATCH'].includes(error.code)) return null;
-    throw error;
-  }
-}
+/** 与组件精确查询 GET 共享的资格/材料 helper（`matching/materials.ts`）。 */
+const release = (request: MatchPlanRequest, id: string, snapshot?: CurrentCandidateSnapshot): Eligible | null =>
+  resolveRelease({ context: request.context, ...(request.reactDomVersion ? { reactDomVersion: request.reactDomVersion } : {}) }, id, snapshot);
 function mapped(element: { instanceId: string; designId: string }, item: Eligible, api: ComponentApiV1, request: MatchPlanRequest): MatchElement {
   const binding = request.bindings?.find(b => b.instanceId === element.instanceId);
   const gaps: MatchGap[] = [];

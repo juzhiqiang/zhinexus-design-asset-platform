@@ -6,10 +6,12 @@ import { getStoredSession, saveSession, clearSession, type UserSession } from '.
 import { buildProjectContext } from '../../lib/project-context-form';
 import { searchCandidates } from '../../lib/search-client';
 import { CandidateResults } from './CandidateResults';
+import { ComponentQuery } from './ComponentQuery';
 import { DesignIdMatch } from './DesignIdMatch';
 
 /**
- * 二期 B1 + B3 + ID 规则匹配：`/match` 项目上下文本地校验 + 文本检索接入 + 设计 ID 配置。
+ * 二期 B1 + B3 + ID 规则匹配 + P1 组件精确查询：`/match` 项目上下文本地校验 + 文本检索接入 +
+ * 设计 ID 配置 + 组件标识 GET 查询。
  *
  * 边界：
  * - 保留 B1 本地校验按钮及全部行为（未输入框架/版本不猜测默认版本）；
@@ -21,6 +23,8 @@ import { DesignIdMatch } from './DesignIdMatch';
  * - 不持久化查询、上下文或响应；不回显服务端原始错误或 token；
  * - 设计 ID 规则匹配交给 `DesignIdMatch` 子组件：显式点击才 POST，规则/元素/绑定/上下文
  *   任意改动取消并清旧结果，响应落地复核身份与 inputDigest；
+ * - P1 组件标识精确查询交给 `ComponentQuery` 子组件：显式点击才 GET，输入/身份变化取消并清结果，
+ *   响应经公开运行时校验并核对 query 对齐；不回写设计规则；
  * - 沿用控制台既有会话门（`getStoredSession`，仅展示用途），不改 auth。
  */
 
@@ -537,6 +541,13 @@ export default function ProjectContextMatchPage() {
         contextCheck={contextCheck}
         reactDomVersion={reactDomVersion}
         requirementDraft={requirementInput}
+        apiUrl={DEFAULT_API_ORIGIN}
+        onSessionExpired={invalidateSession}
+      />
+
+      {/* 二期 P1 组件标识精确查询：显式点击才 GET，独立表单，不回写设计规则 */}
+      <ComponentQuery
+        session={session}
         apiUrl={DEFAULT_API_ORIGIN}
         onSessionExpired={invalidateSession}
       />
