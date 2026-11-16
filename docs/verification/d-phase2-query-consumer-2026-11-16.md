@@ -25,3 +25,14 @@
 - 独立工作树根 tsc 暂因 charts-core 与框架 dist 尚未构建而失败；新文件未报错。最终全图构建后的类型检查与 HTTP GREEN 由 C 集成记录补充，本记录不将其写成通过。
 - CLI 输出异常的修复属于 C 的协助，不将宿主动作记为 Claude Code 直接操作。
 - C 后续先构建 charts-core/vue/react，再执行根 tsc：exit 0。前述缺 dist 阻塞已消除。
+
+## C 集成后 GREEN（2026-11-16）
+
+B 的两个实现提交 `b96db90e` / `160de0ef` 与 D 提交 `66c59f4d` 已按计划合入 C（集成 HEAD `547d4f46`）。C 实际执行：
+
+- `build`、`build:services`：exit 0。
+- `exec vitest run --config tests/platform/vitest.config.ts tests/platform/component-query-consumer.test.ts`：5/5 真实 HTTP 通过，0 跳过（`.tools/phase2-c-consumer-green.log`）。
+- `exec vitest run tests/evaluation/component-query-examples.test.ts`：3/3 通过（`.tools/phase2-c-examples-green.log`）。
+- 根 `-PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`：exit 0。
+
+独立审查后，C 补齐使用侧等价运行时规则表，明确可选键、响应内部一致性与本次请求绑定、私有 contracts 包边界，以及权限/存储真实性无法仅由离线 Schema 证明。所有 GREEN 由 C 宿主执行；生产范围未改变。

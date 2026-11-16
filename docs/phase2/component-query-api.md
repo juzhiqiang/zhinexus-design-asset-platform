@@ -62,6 +62,21 @@ const response = await fetch(`${apiOrigin}/v1/matching/components?${query}`, { h
 
 JSON Schema 只验证结构（类型、必填、枚举、格式、未知键）。React/Vue 条件字段、matched/gap 材料约束、query/target/api 身份一致性、精确依赖及兼容状态与缺口一致性，必须由公开运行时校验器（`validateComponentMatchResponse`）或等价规则强制；只运行 Schema 不足以证明通过。
 
+使用侧实现等价校验时，需在 Schema 结构校验之外逐项检查以下规则。仓库内校验器由私有工作区包 `@company/contracts` 提供；外部使用侧可依据本规范实现，不要求从公共 npm 安装该私有包。
+
+| 对象 | 附加规则 |
+| --- | --- |
+| `response.query` | 遵守与请求相同的条件：React 必须提供精确 `reactDomVersion`，Vue 必须没有此键。 |
+| `status='gap'` | `target` / `api` 键缺席，`exactDependencies` 为空，`gaps` 非空，且不能含 `COMPATIBILITY_UNVERIFIED`。 |
+| `status='matched'` | `target` / `api` 必须存在；`gaps` 只允许 `COMPATIBILITY_UNVERIFIED`。 |
+| 目标身份 | `target.componentId`、`framework`、`packageVersion` 与 query 原值一致；query 若含 `packageName`，则必须与 target 一致。 |
+| 证据 | `target.evidence` 至少包含一个 `api` 和一个 `docs`；不要求恰好两项，也不额外要求证据唯一。 |
+| 兼容记录 | `recordIds` 不重复；`verified` 时非空，`unverified` 时为空。`unverified` 当且仅当存在兼容性未验证缺口；运行时未额外禁止重复 gap。 |
+| 精确依赖 | 按包名唯一，包含目标包及其精确版本、query 指定的框架和 ECharts 版本；React 另包含指定的 react-dom 版本。允许额外的精确运行时依赖。 |
+| API 身份 | `api.componentId`、`framework`、`exportName`、`exportPath`、`styleExport`、`readyMethod` 与 target 一致；props 和 events 的名称各自唯一，二者之间也不得重名。 |
+
+调用方还必须将**整个** `response.query` 与本次原始请求逐字段核对，包括可选键是否存在；内部响应校验只能证明响应自洽，不能证明它属于本次请求。请求取消、输入修改或登录身份改变后，应忽略迟到结果并清除旧材料。权限和存储摘要的真实性由服务端检查，离线响应校验本身不能证明这些事实。
+
 ## 转为设计 ID 装配
 
 当 GET 返回 `matched` 时，记录 `target.variantReleaseId` 与 `target.framework`，在使用侧配置的 `DesignIdMappingV1.entries` 中新增一条 `{ designId, framework, variantReleaseId }`（同一 `designId + framework` 只允许一条），再按既有 `DesignIdInputV1` 调用 `POST /v1/matching/plans`。POST 仍会重新校验资格，因此 GET 结果不能代替 POST 返回前的权限与资格复查。
