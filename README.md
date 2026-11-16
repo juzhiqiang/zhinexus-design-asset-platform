@@ -6,7 +6,7 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 ## 开始开发（Windows x64）
 
-二期已有候选契约、资格过滤、HTTP 文本检索和 PG 索引及页面联调，验证见 [主分支复验](docs/verification/phase2-main-merge-2026-11-15.md)。2026-11-15 用户调整范围：二期按设计 ID 规则确定性匹配，不接入大模型，也不要求模型渠道或视觉标注评估集。ID 规则尚未确定，先准备显式映射配置；未知 ID、冲突、权限/框架/版本不满足时返回缺口。下一批按 [ID 匹配计划](docs/superpowers/plans/2026-11-15-phase2-id-matching.md) 实施。现有文本检索保留为人工发现入口，不能自动替代 ID 指定目标；完整 T13/T14 仍未验收。
+二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。工程验证与范围见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md) 和 [ID 匹配计划](docs/superpowers/plans/2026-11-15-phase2-id-matching.md)。正式 ID 规范、设计平台导出格式和真实业务样本尚未提供，完整 T14 业务验收仍开放。
 
 在仓库根目录执行。首次运行会从官方源下载并校验项目固定的 Node/pnpm 到 `.tools`，不修改全局安装；需能够访问 npm、Node 和 Playwright 下载源。
 
@@ -95,6 +95,10 @@ build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 
 ## 开发与分工文档
 
 二期文本检索：已登录客户端显式 `POST /v1/search/candidates`，请求 `{query,context,reactDomVersion?}`，仅按发布元数据搜索，不提供用途/视觉评分；精确 peers 不满足、权限撤销、废弃或索引过期的实现不返回。需求语义尚未评估，不能据此声称完成设计稿匹配。分工见 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。
+
+二期 ID 装配：在 `/match` 填写项目上下文、规则 JSON、元素实例和可选绑定，显式点击「生成装配方案」调用 `POST /v1/matching/plans`。规则的每项为 `{designId,framework,variantReleaseId}`，其中发布 ID 从可访问目录选定；规则集包含 `schemaVersion:1`、`ruleSetId`、`revision`、`entries`。元素由 `{instanceId,designId}` 标识；同一设计 ID 可被不同实例复用。ID 按原值精确比较，没有内置业务命名规则。文本发现不会自动回写规则，选定候选后须手动修改配置。
+
+方案展示精确发布、依赖、API/文档摘要、参数和事件类型及显式绑定、布局、样式入口与就绪方法。`mapped` 只表示目标材料可映射：缺业务绑定、布局、兼容实测证据和未评估的文本需求仍会留下缺口。编辑输入或变更会话后旧方案失效。服务端只读冻结材料；缺少 `ComponentApiV1` 的历史材料返回 `API_UNSUPPORTED`，需按不可变发布流程提交新版本，不能回写旧包。响应超过 100,000 个 JSON 节点或 8 MiB 返回 `LIMIT_EXCEEDED`（413），应拆分元素批次。完整协议见 [HTTP 契约](docs/superpowers/plans/2026-11-15-phase2-match-plan-http.md)。
 
 部署先执行现有 API migrate（新增 008_search），再以固定工具链执行 `scripts/pnpm.ps1 exec node apps/api/dist/index/search-runner.js` 启动独立索引消费者；加 `--once` 处理至多一个作业。仅需既有 `PLATFORM_DATABASE_URL`，不得将凭据写入命令或日志。重建指定作业时设置 `PLATFORM_SEARCH_REBUILD_JOB_ID` 后运行同一入口；重建会重写派生索引，不修改已发布产物或 Ready。检查 `release_outbox.state`（indexed/failed/pending）判断处理结果，失败会在下次消费重试；查询始终复读当前权限和发布元数据。
 
