@@ -103,6 +103,56 @@ async function copyDir(src: string, dest: string): Promise<void> {
 }
 
 /**
+ * 在消费者安装/截图阶段复核 staging 冻结产物（core + 当前框架包）。
+ *
+ * 消费者安装的是 staging 原路径（`frozen*.tarballPath`），报告声称的是冻结时算出的
+ * `sha256`；两者之间隔着安装与截图（可能数分钟）。此处在每个关键节点重新核对磁盘真实
+ * 字节，确保「实际安装/截图的字节」与「报告声称的摘要」始终一致。
+ *
+ * 失败即抛错，绝不重新打包：重新打包会改变 frozen 身份，使已有证据全部失效。
+ */
+async function verifyStagingArtifacts(
+  frozenCore: FrozenArtifact,
+  frozenFramework: FrozenArtifact,
+  framework: Framework,
+  stage: 'AFTER_INSTALL' | 'AFTER_CAPTURE',
+): Promise<void> {
+  const coreCheck = await verifyFrozenTarball(frozenCore);
+  if (!coreCheck.ok) {
+    throw new Error(
+      `CORE_TARBALL_VERIFICATION_FAILED_${stage}: ${coreCheck.message ?? coreCheck.error}`,
+    );
+  }
+
+  const frameworkCheck = await verifyFrozenTarball(frozenFramework);
+  if (!frameworkCheck.ok) {
+    throw new Error(
+      `FRAMEWORK_TARBALL_VERIFICATION_FAILED_${stage}: ${framework} ${frameworkCheck.message ?? frameworkCheck.error}`,
+    );
+  }
+}
+
+/**
+ * 比对 bundle 副本的登记摘要/字节与冻结产物身份。
+ *
+ * 冻结产物一旦生成即不可变：复制进 bundle 的副本必须与 `frozen` 完全一致，
+ * 否则说明副本已被改动（或在复制前源就已被改动），必须失败关闭，严禁重新打包后继续。
+ */
+function assertBundleCopyMatchesFrozen(
+  ref: ArtifactRef,
+  frozen: FrozenArtifact,
+  packageName: string,
+): void {
+  if (ref.sha256 !== frozen.sha256 || ref.bytes !== frozen.bytes) {
+    throw new Error(
+      `BUNDLE_COPY_MISMATCH: ${packageName} 的 bundle 副本摘要/字节与冻结产物不一致 `
+      + `(expected sha256=${frozen.sha256}, bytes=${frozen.bytes}; `
+      + `actual sha256=${ref.sha256}, bytes=${ref.bytes})`,
+    );
+  }
+}
+
+/**
  * 从磁盘读取 Bundle 目录，收集除 manifest.json 外的所有文件字节 Map 与 parsed manifest
  */
 export async function loadReleaseBundle(
@@ -214,6 +264,7 @@ export async function prepareReleaseBundle(
     coreTarballDest,
     `packages/${path.basename(frozenCore.tarballPath)}`,
   );
+  assertBundleCopyMatchesFrozen(coreTarballRef, frozenCore, '@company/charts-core');
 
   const corePkgJson = JSON.parse(
     await fs.promises.readFile(path.join(corePkgDir, 'package.json'), 'utf8'),
@@ -246,6 +297,7 @@ export async function prepareReleaseBundle(
       tarballDest,
       `packages/${path.basename(frozen.tarballPath)}`,
     );
+    assertBundleCopyMatchesFrozen(tarballRef, frozen, frozen.packageName);
 
     const pkgJson = JSON.parse(await fs.promises.readFile(path.join(pkgDir, 'package.json'), 'utf8'));
     packagesMap.set(frozen.packageName, {
@@ -324,6 +376,12 @@ export async function prepareReleaseBundle(
           `CONSUMER_INSTALL_FAILED: ${framework} 消费者安装依赖失败 (code ${installResult.status}): ${installResult.stderr || installResult.stdout}`,
         );
       }
+
+      // 安装成功后、构建前复核 staging 冻结产物（core + 当前框架包）。
+      // 消费者安装的是 staging 原路径，而 bundle 登记的是副本；若 staging 源在复制后被改动，
+      // 消费者装到的字节将与报告声称的 packageSha256 不同——必须在此失败关闭，
+      // 严禁重新打包后继续，也不能让这种错绑流入末尾自检。
+      await verifyStagingArtifacts(frozenCore, frozenFramework, framework, 'AFTER_INSTALL');
 
       // 构建干净消费者真实静态预览产物
       const buildResult = child_process.spawnSync(
@@ -427,6 +485,11 @@ export async function prepareReleaseBundle(
           packageVersion: frozenFramework.version,
           timeoutMs,
         });
+
+        // 每次截图后、写入报告前复核 staging 冻结产物（core + 当前框架包）。
+        // 截图可能持续数分钟；若期间 staging 源被改动，本次截图与报告实际对应的是另一份字节，
+        // 而报告仍会声称 frozenFramework.sha256——必须失败关闭，不写入报告。
+        await verifyStagingArtifacts(frozenCore, frozenFramework, framework, 'AFTER_CAPTURE');
 
         const reportId = `report-${variantId}`;
         const createdAt = new Date().toISOString();

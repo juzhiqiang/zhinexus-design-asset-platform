@@ -1,0 +1,86 @@
+[
+  {
+    "caseId": "syn-id-line-react",
+    "plan": {
+      "schemaVersion": 1,
+      "source": "design-id",
+      "inputDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "ruleSetId": "rules-synthetic-1",
+      "revision": "rev-synthetic-1",
+      "context": {
+        "framework": "react",
+        "frameworkVersion": "19.3.1",
+        "echartsVersion": "6.1.0",
+        "packageManager": "pnpm",
+        "requirements": []
+      },
+      "elements": [
+        {
+          "instanceId": "instance-1",
+          "designId": "opaque-synthetic-line",
+          "status": "mapped",
+          "target": {
+            "variantReleaseId": "vr-sync-react-line",
+            "variantId": "line-react",
+            "componentId": "line",
+            "framework": "react",
+            "packageName": "@company/charts-react",
+            "packageVersion": "0.0.10",
+            "packageSha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "exportName": "LineChart",
+            "exportPath": "./line",
+            "evidence": [
+              {
+                "kind": "api",
+                "path": "api/line-react.json",
+                "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+              },
+              {
+                "kind": "docs",
+                "path": "docs/line-react.md",
+                "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+              }
+            ],
+            "compatibility": {
+              "status": "verified",
+              "recordIds": ["compat-synthetic-1"]
+            },
+            "examples": [
+              {
+                "id": "example-line-react-default",
+                "previewEntry": "preview/line-react/index.html"
+              }
+            ],
+            "styleExport": "./style.css",
+            "readyMethod": "whenRendered",
+            "notes": []
+          },
+          "props": [
+            {
+              "name": "data",
+              "type": "ChartData",
+              "required": true,
+              "source": "sales"
+            }
+          ],
+          "events": [
+            {
+              "name": "onPointClick",
+              "payload": "ChartEvent",
+              "handler": "showDetails"
+            }
+          ],
+          "layout": "grid cell",
+          "gaps": []
+        }
+      ],
+      "exactDependencies": [
+        {
+          "name": "@company/charts-react",
+          "version": "0.0.10"
+        }
+      ],
+      "gaps": []
+    }
+  }
+]

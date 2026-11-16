@@ -1,7 +1,7 @@
 import { execFileSync, spawn } from 'node:child_process';
 import { randomBytes, randomUUID } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { createServer as createHttpServer, request as httpRequest, type IncomingHttpHeaders } from 'node:http';
 import { createServer as httpsServer } from 'node:https';
 import { connect, type AddressInfo } from 'node:net';
@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { expect, it } from 'vitest';
 import { chromium } from '@playwright/test';
 import { sha256 } from '@company/contracts';
-import { prepareReleaseBundle } from '../../packages/component-cli/src/local/manifest.js';
+import { prepareReleaseBundle, verifyReleaseBundle } from '../../packages/component-cli/src/local/manifest.js';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { buildServer as buildGateway } from '../../apps/preview-gateway/dist/app.js';
 import { platformHarness, grant, upload, release } from './http-support.js';
@@ -38,6 +38,7 @@ it('publishes one frozen current SDK bundle, serves all fourteen previews and in
   expect(prepared.manifest.variants.map(v => `${v.componentId}/${v.framework}`).sort())
     .toEqual(components.flatMap(id => [`${id}/vue`, `${id}/react`]).sort());
   expect(prepared.manifest.packages).toHaveLength(3);
+  const frozenManifestSha256 = await sha256(await readFile(join(bundleDir, 'manifest.json')));
   let stack: RecoveryStack | undefined;
   let harness: Awaited<ReturnType<typeof platformHarness>> | undefined;
   let gateway: Awaited<ReturnType<typeof buildGateway>> | undefined;
@@ -220,17 +221,32 @@ it('publishes one frozen current SDK bundle, serves all fourteen previews and in
         await rm(directory, { recursive: true, force: true });
       }
     }
-    await mkdir(bundleDir, { recursive: true });
-    await writeFile(join(bundleDir, 'acceptance.json'), JSON.stringify({ verifiedAt: new Date().toISOString(),
+    const packageEvidence = await Promise.all(prepared.manifest.packages.map(async pkg => {
+      const bytes = await readFile(join(bundleDir, pkg.tarball.path));
+      return { name: pkg.name, version: pkg.version, sha256: await sha256(bytes), bytes: bytes.length };
+    }));
+    await writeFile(`${bundleDir}.acceptance.json`, JSON.stringify({ verifiedAt: new Date().toISOString(),
       os: process.platform, arch: process.arch, components,
-      packages: prepared.manifest.packages.map(p => ({ name: p.name, version: p.version, sha256: p.tarball.sha256 })),
+      bundleRoot: bundleDir, manifestSha256: frozenManifestSha256, packages: packageEvidence,
       implementationCount: 14, registryConsumers: consumers, state: 'READY', previewFilesMatch: true,
       browserPreviews: previewEvidence,
       variants: prepared.manifest.variants.map(v => ({ componentId: v.componentId, framework: v.framework, variantId: v.variantId,
         api: v.api, docs: v.docs, reports: prepared.manifest.reports.filter(r => r.path === `reports/${v.variantId}.json`),
         screenshots: v.screenshots.map(s => ({ path: s.image.path, sha256: s.image.sha256, packageSha256: s.packageSha256 })) })),
       limitations: ['Local signed OIDC fixtures and test-only self-signed TLS; no company login or production TLS validation.', 'Consumer capture is default state only.'],
-    }, null, 2) + '\n');
+    }, null, 2) + '\n', { flag: 'wx' });
+    const checked = await verifyReleaseBundle(bundleDir);
+    expect(checked.ok, JSON.stringify(checked)).toBe(true);
+    expect(existsSync(join(bundleDir, 'acceptance.json'))).toBe(false);
+    const diagnostic = JSON.parse(await readFile(`${bundleDir}.acceptance.json`, 'utf8'));
+    expect(diagnostic.bundleRoot).toBe(bundleDir);
+    expect(diagnostic.manifestSha256).toBe(await sha256(await readFile(join(bundleDir, 'manifest.json'))));
+    expect(diagnostic.packages).toHaveLength(prepared.manifest.packages.length);
+    for (const pkg of prepared.manifest.packages) {
+      const bytes = await readFile(join(bundleDir, pkg.tarball.path));
+      expect(diagnostic.packages.find((item: { name: string }) => item.name === pkg.name))
+        .toEqual({ name: pkg.name, version: pkg.version, sha256: await sha256(bytes), bytes: bytes.length });
+    }
   } finally {
     try { await browser?.close(); }
     finally {

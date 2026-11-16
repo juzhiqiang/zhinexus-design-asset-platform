@@ -5,6 +5,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { npm, readResolvedVersions, runBuild, runSsrImport, runTypechecks, PUBLIC_SUBPATHS } from '../tests/acceptance/t10-sdk/consumer.mjs';
 import { validateOwnedConsumers, cleanupOwnedPair } from './t10-consumer-ownership.mjs';
+import { readFrozenBundle } from '../tests/acceptance/t10-sdk/bundle.mjs';
 
 const [input, output, ownerFile] = process.argv.slice(2);
 assert(input && output && ownerFile, 'baseline evidence, output directory and C ownership file required');
@@ -17,7 +18,21 @@ const owned = await validateOwnedConsumers(ownerFile, baseline, repo);
 const out = path.resolve(output);
 await mkdir(out, { recursive: true });
 const sha = value => createHash('sha256').update(value).digest('hex');
-const report = { kind: 'c-t10-two-consumer-lock-rollback', generatedAt: new Date().toISOString(), baselineEvidence: path.resolve(input), baseline: '6.1.0', candidate: '6.0.0', candidateAdopted: false, runs: [] };
+const frozen = await readFrozenBundle(baseline.bundle?.root);
+assert.equal(baseline.bundle.version, frozen.version, 'baseline bundle version differs from frozen bundle');
+assert.equal(baseline.bundle.packages.length, frozen.packages.length, 'baseline package count differs from frozen bundle');
+for (const pkg of frozen.packages) {
+  const matches = baseline.bundle.packages.filter(item => item.name === pkg.name);
+  assert.equal(matches.length, 1, 'baseline package differs from frozen bundle');
+  assert.deepEqual({ version: matches[0].version, sha256: matches[0].sha256, bytes: matches[0].bytes },
+    { version: pkg.version, sha256: pkg.sha256, bytes: pkg.bytes }, 'baseline package differs from frozen bundle');
+}
+const sdkVersion = name => frozen.packages.find(pkg => pkg.name === name).version;
+const report = { kind: 'c-t10-two-consumer-lock-rollback', generatedAt: new Date().toISOString(), baselineEvidence: path.resolve(input),
+  baselineEvidenceSha256: sha(await readFile(input)),
+  bundle: { root: frozen.root, version: frozen.version, manifestSha256: sha(await readFile(frozen.manifestPath)),
+    packages: frozen.packages.map(({ name, version, sha256, bytes }) => ({ name, version, sha256, bytes })) },
+  baseline: '6.1.0', candidate: '6.0.0', candidateAdopted: false, passed: false, runs: [] };
 let failed = false;
 for (const combination of baseline.combinations) {
   const framework = combination.framework;
@@ -44,7 +59,8 @@ for (const combination of baseline.combinations) {
       record.candidate = { peerMode: 'legacy', install, resolved, build, lockSha256: candidateLockSha256, adoption: 'forbidden-peer-mismatch' };
       assert.equal(install.status, 0, install.output);
       assert.equal(resolved.echarts, report.candidate);
-      assert.equal(resolved['@company/charts-core'], '0.0.10');
+      assert.equal(resolved['@company/charts-core'], sdkVersion('@company/charts-core'));
+      assert.equal(resolved[`@company/charts-${framework}`], sdkVersion(`@company/charts-${framework}`));
       assert.equal(build.status, 0, build.output);
       assert.notEqual(candidateLockSha256, record.baselineLockSha256);
     } catch (error) {
@@ -66,8 +82,8 @@ for (const combination of baseline.combinations) {
       record.restored = { install, resolved, typecheck, build, ssr, manifestSha256, lockSha256 };
       assert.equal(install.status, 0, install.output);
       assert.equal(resolved.echarts, report.baseline);
-      assert.equal(resolved['@company/charts-core'], '0.0.10');
-      assert.equal(resolved[`@company/charts-${framework}`], '0.0.10');
+      assert.equal(resolved['@company/charts-core'], sdkVersion('@company/charts-core'));
+      assert.equal(resolved[`@company/charts-${framework}`], sdkVersion(`@company/charts-${framework}`));
       assert.equal(resolved[framework], combination.frameworkVersion);
       assert.equal(manifestSha256, record.baselineManifestSha256);
       assert.equal(lockSha256, record.baselineLockSha256);
@@ -86,10 +102,12 @@ for (const combination of baseline.combinations) {
     await writeFile(path.join(out, 'rollback-evidence.json'), `${JSON.stringify(report, null, 2)}\n`);
   }
 }
-await cleanupOwnedPair(ownerFile, baseline, repo);
-for (const record of report.runs) {
-  record.cleaned = !existsSync(record.staging);
-  assert.equal(record.cleaned, true);
+if (!failed) {
+  await cleanupOwnedPair(ownerFile, baseline, repo);
+  for (const record of report.runs) {
+    record.cleaned = !existsSync(record.staging);
+    assert.equal(record.cleaned, true);
+  }
 }
 report.passed = !failed && report.runs.length === 2 && report.runs.every(x => x.errors.length === 0 && x.cleaned);
 await writeFile(path.join(out, 'rollback-evidence.json'), `${JSON.stringify(report, null, 2)}\n`);

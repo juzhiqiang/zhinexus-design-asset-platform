@@ -250,6 +250,24 @@ export async function runCheckCommand(
       await viteServer.close();
       viteServer = null;
 
+      // 5.5 截图完成后再核对一次冻结产物（core 与当前框架包都必须复核）：
+      //     安装与截图可能持续数分钟，期间 tarball 若被改动，截图与报告仍会沿用旧摘要，
+      //     而消费者实际安装的已是变动后的字节——摘要链路会在中间断开。
+      //     失败即关闭：不生成成功报告、不写入 results。
+      const postCaptureCore = await verifyFrozenTarball(frozenCore);
+      if (!postCaptureCore.ok) {
+        throw new Error(
+          `CORE_TARBALL_VERIFICATION_FAILED_AFTER_CAPTURE: ${postCaptureCore.message ?? postCaptureCore.error}`,
+        );
+      }
+
+      const postCaptureFramework = await verifyFrozenTarball(frozenFramework);
+      if (!postCaptureFramework.ok) {
+        throw new Error(
+          `FRAMEWORK_TARBALL_VERIFICATION_FAILED_AFTER_CAPTURE: ${postCaptureFramework.message ?? postCaptureFramework.error}`,
+        );
+      }
+
       // 6. 可选视觉基线对比
       let baselineResult: 'PASS' | 'DIFF' | 'NEW' | 'INCOMPATIBLE' = 'NEW';
       let baselineComparison: CompareBaselineResult | undefined;

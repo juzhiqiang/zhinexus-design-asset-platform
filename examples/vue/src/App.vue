@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
+import { getInstanceByDom } from 'echarts/core.js';
 import {
   LineChart,
   getVueRuntimeInfo,
   type ChartData,
   type ChartEvent,
   type LineChartConfig,
+  type SupportedOptionOverrides,
 } from '@company/charts-vue';
 import lineFixture from '../../fixtures/line.json';
 import {
@@ -29,7 +31,12 @@ const stateName = ref(states[0] ?? 'default');
 const data = computed<ChartData>(
   () => lineFixture.states[stateName.value as keyof typeof lineFixture.states].data as ChartData,
 );
-const config: LineChartConfig = { theme: presentation.theme, renderer: presentation.renderer, animation: false };
+const config = ref<LineChartConfig>({
+  theme: presentation.theme,
+  renderer: presentation.renderer,
+  animation: false,
+});
+const optionOverrides = ref<SupportedOptionOverrides | undefined>(undefined);
 
 const clicks = ref<ChartEvent[]>([]);
 const chartRef = ref<{ whenRendered: () => Promise<void> } | null>(null);
@@ -58,6 +65,18 @@ onMounted(() => {
       clicks.value = [];
     },
   });
+  (window as unknown as Record<string, unknown>).__LINE_LIFECYCLE_CONTROLS__ = {
+    setConfig: (next: LineChartConfig) => {
+      config.value = next;
+    },
+    setOptionOverrides: (next: SupportedOptionOverrides | undefined) => {
+      optionOverrides.value = next;
+    },
+    getOption: () => {
+      const host = document.querySelector('.charts-line');
+      return host instanceof HTMLElement ? (getInstanceByDom(host)?.getOption() ?? null) : null;
+    },
+  };
 });
 </script>
 
@@ -78,7 +97,13 @@ onMounted(() => {
       </button>
     </div>
     <div class="chart-frame">
-      <LineChart ref="chartRef" :data="data" :config="config" @point-click="onPointClick" />
+      <LineChart
+        ref="chartRef"
+        :data="data"
+        :config="config"
+        :option-overrides="optionOverrides"
+        @point-click="onPointClick"
+      />
     </div>
     <section class="clicks">
       <h2>点击载荷</h2>

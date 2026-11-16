@@ -4,6 +4,7 @@ import {
   normalizeChartData,
 } from '../data.js';
 import { formatValue } from '../format.js';
+import { BAR_LABEL_STYLE, barLabelRightMargin } from './bar-labels.js';
 import { applySupportedOverrides } from './option-overrides.js';
 import {
   EMPTY_DISPLAY,
@@ -127,7 +128,7 @@ export function buildRankingOption(
     textStyle: { color: theme.textColor },
     animation: config.animation ?? true,
     // 左侧留给带名次的类目标签，顶部留给标题与统计行
-    grid: { left: 96, right: 32, top: 56, bottom: 12 },
+    grid: { left: 96, right: barLabelRightMargin(entries.map((entry) => formatValue(entry.value, unit)), 32), top: 56, bottom: 12 },
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -162,6 +163,7 @@ export function buildRankingOption(
               data: entries.map((entry) => ({ name: entry.name, value: entry.value })),
               barMaxWidth: 22,
               label: {
+                ...BAR_LABEL_STYLE,
                 show: true,
                 position: 'right',
                 color: theme.textColor,

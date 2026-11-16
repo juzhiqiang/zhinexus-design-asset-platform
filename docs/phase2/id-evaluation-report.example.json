@@ -1,0 +1,41 @@
+{
+  "real": {
+    "origin": "real",
+    "totalCases": 0,
+    "mappedExpectedInstances": 0,
+    "exactMappedInstances": 0,
+    "exactMappingRate": {
+      "numerator": 0,
+      "denominator": 0,
+      "value": null,
+      "display": "N/A"
+    },
+    "hardViolationCases": 0,
+    "missingExpectedGaps": 0,
+    "passed": false
+  },
+  "synthetic": {
+    "origin": "synthetic",
+    "totalCases": 1,
+    "mappedExpectedInstances": 1,
+    "exactMappedInstances": 1,
+    "exactMappingRate": {
+      "numerator": 1,
+      "denominator": 1,
+      "value": 1,
+      "display": "100.0%"
+    },
+    "hardViolationCases": 0,
+    "missingExpectedGaps": 0,
+    "passed": true
+  },
+  "passed": false,
+  "failures": [],
+  "metadata": {
+    "mappingVersion": "synthetic-example-v1",
+    "runnerVersion": "id-runner-v1"
+  },
+  "inputSha256": "1419d32f74a57a97dc3fa3a79f4c4561399c1491766a87d32b1e676f66549596",
+  "observationSha256": "8c307dc7655bb51a29c8af2c29d4d9de3e2d1a77b9c6159feff2d89e56f9c719",
+  "productionAcceptance": false
+}

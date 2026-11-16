@@ -16,7 +16,7 @@ export async function runCli(
   component release --prepare-only [--bundle-dir <dir>]
   component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]
   component echarts check --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--registry <url|offline>] [--json]
-  component echarts verify --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--frameworks <vue,react>] [--components <list>] [--presentations <list>] [--registry <url|offline>] [--peer <strict|legacy|strict-only>] [--baseline <files>] [--out <dir>] [--label <name>] [--probe-entry <path>] [--json]
+  component echarts verify --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--frameworks <vue,react>] [--components <list>] [--presentations <list>] [--registry <url|offline>] [--peer <strict|legacy|strict-only>] [--baseline <files>] [--out <dir>] [--label <name>] [--consumer-root <dir>] [--keep] [--timeout <ms>] [--skip-browser] [--probe-entry <path>] [--json]
   component --version
   component --help
 

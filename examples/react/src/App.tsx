@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { getInstanceByDom } from 'echarts/core.js';
 import {
   LineChart,
   getReactRuntimeInfo,
@@ -6,6 +7,7 @@ import {
   type ChartEvent,
   type LineChartConfig,
   type LineChartHandle,
+  type SupportedOptionOverrides,
 } from '@company/charts-react';
 import lineFixture from '../../fixtures/line.json';
 import {
@@ -25,11 +27,13 @@ for (const name of states) {
   expectedSeriesIds[name] = lineFixture.states[name as keyof typeof lineFixture.states].expectedSeriesIds;
 }
 
-const config: LineChartConfig = { theme: presentation.theme, renderer: presentation.renderer, animation: false };
+const initialConfig: LineChartConfig = { theme: presentation.theme, renderer: presentation.renderer, animation: false };
 
 export function App() {
   const [stateName, setStateName] = useState(states[0] ?? 'default');
   const data = lineFixture.states[stateName as keyof typeof lineFixture.states].data as ChartData;
+  const [config, setConfig] = useState<LineChartConfig>(initialConfig);
+  const [optionOverrides, setOptionOverrides] = useState<SupportedOptionOverrides | undefined>(undefined);
   const [clicks, setClicks] = useState<ChartEvent[]>([]);
   const chartRef = useRef<LineChartHandle | null>(null);
   const runtimeRef = useRef<ReturnType<typeof createExampleRuntime> | null>(null);
@@ -64,6 +68,14 @@ export function App() {
       getClicks: () => clicksRef.current,
       clearClicks: () => setClicks([]),
     });
+    (window as unknown as Record<string, unknown>).__LINE_LIFECYCLE_CONTROLS__ = {
+      setConfig: (next: LineChartConfig) => setConfig(next),
+      setOptionOverrides: (next: SupportedOptionOverrides | undefined) => setOptionOverrides(next),
+      getOption: () => {
+        const host = document.querySelector('.charts-line');
+        return host instanceof HTMLElement ? (getInstanceByDom(host)?.getOption() ?? null) : null;
+      },
+    };
   }, []);
 
   return (
@@ -86,7 +98,13 @@ export function App() {
         ))}
       </div>
       <div className="chart-frame">
-        <LineChart ref={chartRef} data={data} config={config} onPointClick={onPointClick} />
+        <LineChart
+          ref={chartRef}
+          data={data}
+          config={config}
+          optionOverrides={optionOverrides}
+          onPointClick={onPointClick}
+        />
       </div>
       <section className="clicks">
         <h2>点击载荷</h2>

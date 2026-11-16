@@ -47,6 +47,8 @@ async function buildValidProbeEvidence(params: {
   const resolvedTarball = `${candidateSource}/-/echarts-${candidateVersion}.tgz`;
   const components = params.components ?? ['line'];
   const presentations = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'] as const;
+  const sdkVersion = (name: string) =>
+    params.bundlePackages?.find((pkg) => pkg.name === name)?.version ?? params.packageVersion;
 
   const font = {
     stack: 'system-ui, sans-serif',
@@ -136,9 +138,9 @@ async function buildValidProbeEvidence(params: {
         resolved: {
           echarts: candidateVersion,
           [framework]: frameworkVersion,
-          '@company/charts-core': params.packageVersion,
-          '@company/charts-vue': framework === 'vue' ? params.packageVersion : null,
-          '@company/charts-react': framework === 'react' ? params.packageVersion : null,
+          '@company/charts-core': sdkVersion('@company/charts-core'),
+          '@company/charts-vue': framework === 'vue' ? sdkVersion('@company/charts-vue') : null,
+          '@company/charts-react': framework === 'react' ? sdkVersion('@company/charts-react') : null,
         },
       },
       dimensions: { typecheck: 'passed', runtime: 'passed', interaction: 'passed', visual: 'passed' },
@@ -179,7 +181,9 @@ async function buildValidProbeEvidence(params: {
       fontDigest,
     },
     bundle: {
-      version: params.packageVersion,
+      version: params.bundlePackages && new Set(params.bundlePackages.map(pkg => pkg.version)).size > 1
+        ? params.bundlePackages.map(pkg => `${pkg.name}@${pkg.version}`).join(', ')
+        : params.packageVersion,
       packages: params.bundlePackages ?? [
         {
           name: params.packageName,
@@ -378,6 +382,15 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         });
       };
 
+      // 真实独立版本发布清单必须接受 A 探针的整包标识；不能退化为目标 wrapper 版本。
+      expect(new Set(bundlePackages.map(pkg => pkg.version)).size).toBeGreaterThan(1);
+      for (const version of [vrRow.package_version, [...bundlePackages].reverse().map(pkg => `${pkg.name}@${pkg.version}`).join(', ')]) {
+        const bad = structuredClone(validEvidence); bad.bundle.version = version;
+        const response = await postCompat(vrRow.id, { ...validPayload, evidence: bad }, aliceToken);
+        expect(response.status).toBe(400);
+        expect((await response.json()).code).toBe('REPORT_MISMATCH');
+      }
+
       // 1. 权限与基础校验
       expect((await postCompat(vrRow.id, validPayload)).status).toBe(401);
       expect((await postCompat(vrRow.id, validPayload, bobToken)).status).toBe(403);
@@ -551,9 +564,9 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
         await h.db.query('UPDATE release_jobs SET manifest=$2 WHERE id=$1', [vrRow.job_id, JSON.stringify(origManifest)]);
       }
 
-      // 5. 合法真实协议证据提交 -> 201 持久化 + 409 CONFLICT
+      // 5. 合法协议夹具提交 -> 201 持久化 + 409 CONFLICT（不替代真实探针报告接入验收）
       const okRes = await postCompat(vrRow.id, validPayload, aliceToken);
-      expect(okRes.status).toBe(201);
+      expect(okRes.status, await okRes.clone().text()).toBe(201);
       const created = (await okRes.json()) as {
         compatibilityId: string;
         status: string;

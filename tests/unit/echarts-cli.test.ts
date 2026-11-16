@@ -29,6 +29,7 @@ async function makeTempDir(prefix: string): Promise<string> {
 async function createFrozenBundleFixture(options?: {
   tamperSha?: boolean;
   singleFrameworkOnly?: boolean;
+  independentVersions?: boolean;
 }): Promise<string> {
   const bundleDir = await makeTempDir('t10-echarts-bundle-');
   const pkgsDir = path.join(bundleDir, 'packages');
@@ -60,7 +61,7 @@ async function createFrozenBundleFixture(options?: {
     const sha256 = crypto.createHash('sha256').update(content).digest('hex');
     packages.push({
       name: spec.name,
-      version: '0.0.10',
+      version: options?.independentVersions && spec.name !== '@company/charts-core' ? '0.0.11' : '0.0.10',
       tarballPath: `packages/${spec.file}`,
       sha256: options?.tamperSha && spec.name === '@company/charts-vue' ? '0'.repeat(64) : sha256,
       bytes: content.length,
@@ -126,7 +127,9 @@ async function validProbeEvidenceForBundle(bundleDir: string, overrides?: Record
     bundle: {
       root: bundleDir,
       channel: 'cli',
-      version: '0.0.10',
+      version: new Set(manifest.packages.map(p => p.version)).size === 1
+        ? manifest.packages[0]!.version
+        : manifest.packages.map(p => `${p.name}@${p.version}`).join(', '),
       packages: manifest.packages.map((p) => ({
         name: p.name,
         version: p.version,
@@ -220,6 +223,43 @@ describe('T10: component echarts check / verify CLI 集成与失败关闭约束'
     expect(parsed.peerSatisfied).toBe(true);
     expect(parsed.hasDualFrameworkCoverage).toBe(true);
     expect(parsed.supported).toHaveLength(2);
+  });
+
+  it('独立包版本按 manifest 顺序绑定整包标识，并拒绝整包或逐包篡改', async () => {
+    const bundleDir = await createFrozenBundleFixture({ independentVersions: true });
+    const manifestFile = path.join(bundleDir, 'manifest.json');
+    const manifest = JSON.parse(await fs.readFile(manifestFile, 'utf8'));
+    manifest.packages.reverse();
+    await fs.writeFile(manifestFile, JSON.stringify(manifest));
+    const expected = '@company/charts-react@0.0.11, @company/charts-vue@0.0.11, @company/charts-core@0.0.10';
+    const check = await runCli(['echarts', 'check', '--bundle', bundleDir, '--registry', 'offline', '--json'], '0.0.10');
+    expect(check.exitCode, check.stderr).toBe(0);
+    expect(JSON.parse(check.stdout).bundleVersion).toBe(expected);
+    const registry = await startMockRegistry({ versions: { '6.1.0': { dist: { integrity: 'sha512-registry-610==' } } } });
+    const evidence = await validProbeEvidenceForBundle(bundleDir, {
+      candidate: { version: '6.1.0', integrity: 'sha512-registry-610==', source: registry, integrityVerified: true },
+    });
+    const run = async (input: typeof evidence) => {
+      const probe = await createMockProbeScript(`process.stdout.write(${JSON.stringify(JSON.stringify(input))});`);
+      return runCli(['echarts', 'verify', '--bundle', bundleDir, '--echarts', '6.1.0', '--registry', registry, '--probe-entry', probe], '0.0.10');
+    };
+    const valid = await run(evidence);
+    expect(valid.exitCode, valid.stderr).toBe(0);
+    for (const version of ['0.0.11', expected.split(', ').reverse().join(', ')]) {
+      const bad = structuredClone(evidence); bad.bundle.version = version;
+      expect((await run(bad)).stderr).toContain('BUNDLE_EVIDENCE_MISMATCH');
+    }
+    for (const field of ['name', 'version', 'sha256', 'bytes'] as const) {
+      const bad = structuredClone(evidence);
+      Object.assign(bad.bundle.packages[0]!, { [field]: field === 'bytes' ? 99999 : field === 'sha256' ? 'f'.repeat(64) : 'wrong' });
+      expect((await run(bad)).stderr).toContain('BUNDLE_EVIDENCE_MISMATCH');
+    }
+  });
+
+  it('帮助列出已支持的消费者保留、超时与跳过浏览器参数', async () => {
+    const result = await runCli(['--help'], '0.0.10');
+    const verifyHelp = result.stdout.split('\n').find(line => line.includes('component echarts verify'))!;
+    for (const option of ['--consumer-root', '--keep', '--timeout', '--skip-browser']) expect(verifyHelp).toContain(option);
   });
 
   it('component echarts check 拒绝非精确版本、未验证候选或摘要篡改的 bundle', async () => {

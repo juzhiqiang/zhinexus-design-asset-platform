@@ -564,7 +564,12 @@ export class CompatibilityService {
         throw new PlatformError('DIGEST_MISMATCH');
       }
 
-      if (evidence.bundle.version !== row.package_version) {
+      const matrix = extractAuthoritativeReleaseMatrix(row.manifest, row.package_name);
+      const bundlePackages = [...matrix.bundlePackages.values()];
+      const bundleVersion = new Set(bundlePackages.map(pkg => pkg.version)).size === 1
+        ? bundlePackages[0]?.version
+        : bundlePackages.map(pkg => `${pkg.name}@${pkg.version}`).join(', ');
+      if (!bundleVersion || evidence.bundle.version !== bundleVersion) {
         throw new PlatformError('REPORT_MISMATCH');
       }
       const matchedPkg = evidence.bundle.packages.find(
@@ -610,7 +615,6 @@ export class CompatibilityService {
       }
 
       // 精确核对双框架权威支持矩阵、完整 SDK 包集合、peer 策略与实际安装版本（禁止缺失、额外、重复或伪造）
-      const matrix = extractAuthoritativeReleaseMatrix(row.manifest, row.package_name);
       if (
         matrix.bundlePackages.size === 0 ||
         evidence.bundle.packages.length !== matrix.bundlePackages.size

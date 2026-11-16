@@ -6,7 +6,13 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 ## 开始开发（Windows x64）
 
+2026-11-16 SDK 补充：Vue/React 0.0.11 修复配置同时变更及默认展示配置切换时的生命周期问题；新冻结包已通过 14 个预览和工作区外双框架消费者的本地验收。详见 [版本验收记录](docs/verification/a-sdk-0011-release-2026-11-16.md)，公司接入与真实业务试点仍待完成。
+
+2026-11-16 评估补充：确定性 ID 离线入口已支持分离的人工标注与 MatchPlan 观测，输出 real/synthetic 分组、原始字节摘要和缺口报告。使用方式与真实样本待办见 [ID 评估规范](docs/phase2/id-evaluation-runner.md)；仓库样例仅为 synthetic，不代表 T13/T14 业务验收。
+
 二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。工程验证与范围见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md) 和 [ID 匹配计划](docs/superpowers/plans/2026-11-15-phase2-id-matching.md)。正式 ID 规范、设计平台导出格式和真实业务样本尚未提供，完整 T14 业务验收仍开放。
+
+2026-11-16：CLI 0.0.10 在安装/截图后重新核验冻结 tarball，并核对 bundle 副本身份。期间产物变化会终止检查或发布准备；需要重新完成产物验证，不得沿用旧报告。修复及真实链路证据见 [本轮 B 验证](docs/verification/b-release-acceptance-2026-11-16.md)，独立安装与版本范围见 [CLI 0.0.10 分发验证](docs/verification/b-cli-0010-release-2026-11-16.md)。
 
 在仓库根目录执行。首次运行会从官方源下载并校验项目固定的 Node/pnpm 到 `.tools`，不修改全局安装；需能够访问 npm、Node 和 Playwright 下载源。
 
@@ -55,11 +61,11 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 后端单独构建使用 `.\scripts\pnpm.ps1 build:services`，只含 API、preview-gateway 与 contracts。组件构建、示例运行和截图保持在开发者电脑。根全量 build 用于本地开发，不作为服务端组件执行入口。
 
-本地 CLI 支持 `component echarts check --bundle <冻结目录> --version <精确版本>` 查询候选，也可用 `--latest`；`component echarts verify` 调用本地兼容探针，只有证据与本次冻结包和候选一致、双框架四维检查齐全时才建议采用。首次无基线的截图留作人工审查输入，复验时通过 `--baseline <证据JSON>` 显式指定；程序退出 0 不替代报告中的 `recommendation`。`check --registry offline` 仅查询冻结支持矩阵，不证明候选来源或实际兼容。当前 `verify` 默认读取工作区 `tests/acceptance/t10-sdk/probe.mjs`，独立安装 CLI 的探针分发尚未验收；可用 `--probe-entry` 指定已有工作区入口。探针不改 SDK peer、不重新 pack 冻结包、不写线上兼容记录。
+本地 CLI 支持 `component echarts check --bundle <冻结目录> --version <精确版本>` 查询候选，也可用 `--latest`；`component echarts verify` 调用本地兼容探针，只有证据与本次冻结包和候选一致、双框架四维检查齐全时才建议采用。首次无基线的截图留作人工审查输入，复验时通过 `--baseline <证据JSON>` 显式指定；程序退出 0 不替代报告中的 `recommendation`。`check --registry offline` 仅查询冻结支持矩阵，不证明候选来源或实际兼容。`verify` 默认调用安装包内的 `dist/probe/probe.mjs`，新候选的独立安装矩阵验收另行记录。冻结 SDK 允许独立包版本；CLI、探针与 API 按 manifest 顺序绑定聚合版本及逐包名称、版本、SHA/bytes，见 [集成修复记录](docs/verification/cli-0011-integration-repairs-2026-11-16.md)。探针不改 SDK peer、不重新 pack 冻结包、不写线上兼容记录。
 
 验收冻结兼容策略时显式设置 `A10_FROZEN_BUNDLE` 为与 `--bundle` 相同的权威目录，再运行 `test:t10` 或根 `test`。没有提供真实冻结目录时，依赖该目录的策略用例明确跳过，不以合成策略替代，也不计为冻结兼容验收通过。完整消费者与浏览器测量仍由 `probe:t10` / `component echarts verify` 执行。
 
-Windows 首轮、独立环境/字体/截图审计、显式基线复验，以及原两消费者清单/锁文件逐字节恢复的步骤见 [T10 本地复验](docs/verification/t10-windows-local-procedure.md)。回退只清理带有本次运行所有权证据的临时消费者。
+Windows 首轮、独立环境/字体/截图审计、显式基线复验，以及原两消费者清单/锁文件逐字节恢复的步骤见 [T10 本地复验](docs/verification/t10-windows-local-procedure.md)。回退按冻结清单恢复各包独立版本；只有两消费者均恢复成功才清理，失败保留目录和报告。新平台诊断写在冻结目录旁，绑定实际摘要，见 [回退与诊断修复](docs/verification/rollback-sidecar-repairs-2026-11-16.md)。
 
 ## 工作区职责
 
@@ -142,3 +148,7 @@ T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标
 2026-11-15 B1/B3：画廊控制台 `/match` 保留项目上下文本地校验，并增加独立「搜索候选」按钮。仅点击搜索才将查询、上下文和可选 React DOM 精确版本提交至鉴权 API；编辑、退出或会话变化取消请求并清除旧结果，查询与结果不写入浏览器存储。本地校验成功不代表组件兼容或生成装配方案。
 
 构建画廊前设置 `NEXT_PUBLIC_PLATFORM_API_URL` 为管理 API origin（本机默认 `http://127.0.0.1:3000`），API 需允许画廊的精确 Origin 并部署 C3 检索迁移及 worker。文本检索仅覆盖已发布元数据，不提供用途、视觉评分或需求语义评估。实际验证与边界见 [B3 验收记录](docs/verification/c-b3-search-acceptance-2026-11-15.md)；A/B/C 三方代码已集成本地主分支；历史分支验收与本次集成复验分别记录。
+
+2026-11-16 SDK 视觉修复：排行榜和占比图按完整标签宽度预留空间，修复窄容器及长单位数值裁切。原冻结 SDK 保留，新候选独立升版验收；见 [标签回归记录](docs/verification/sdk-label-clipping-repair-2026-11-16.md)。
+
+2026-11-16 新候选本地验收收口：core 0.0.11、Vue/React 0.0.12 由已安装 CLI 0.0.11 完成全新消费者 adopt，56 张截图与已审查基线摘要一致；6.0.0 双框架 strict/strict-only 拒绝、显式 legacy 保持 hold、原双消费者真实回退通过。折线图两框架的兼容报告落库/重启/隐私/篡改拒绝及新冻结输入 T10 168 项通过，见 [采纳与回退证据](docs/verification/sdk-label-adopt-acceptance-2026-11-16.md)。公司环境、真实试点与 T13/T14 业务输入继续开放。

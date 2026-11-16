@@ -6,6 +6,7 @@ import {
   sumDefinedValues,
 } from '../data.js';
 import { formatPercent, formatValue } from '../format.js';
+import { BAR_LABEL_STYLE, barLabelRightMargin } from './bar-labels.js';
 import { applySupportedOverrides } from './option-overrides.js';
 import {
   EMPTY_DISPLAY,
@@ -91,11 +92,15 @@ export function buildProportionOption(
   // 总量不可算时整幅图按「暂无数据」处理：百分比没有分母，条形长度也没有基准
   const computable = total > 0;
   const rendered = computable ? shares.filter((share) => share.value !== null) : [];
+  const labelText = (value: number | null): string => {
+    const percent = formatPercent(value, total);
+    return percent === null ? formatValue(value, unit) : `${formatValue(value, unit)}（${percent}）`;
+  };
   const base: ProportionChartOption = {
     color: theme.palette,
     textStyle: { color: theme.textColor },
     animation: config.animation ?? true,
-    grid: { left: 96, right: 64, top: 56, bottom: 12 },
+    grid: { left: 96, right: barLabelRightMargin(rendered.map((share) => labelText(share.value)), 64), top: 56, bottom: 12 },
     tooltip: {
       trigger: 'item',
       formatter: (params: unknown) => {
@@ -129,16 +134,14 @@ export function buildProportionOption(
               data: rendered.map((share) => ({ name: share.name, value: share.value as number })),
               barMaxWidth: 22,
               label: {
+                ...BAR_LABEL_STYLE,
                 show: true,
                 position: 'right',
                 color: theme.textColor,
                 formatter: (params: unknown) => {
                   const item = params as { name?: unknown; value?: unknown };
                   const value = typeof item.value === 'number' ? item.value : null;
-                  const percent = formatPercent(value, total);
-                  return percent === null
-                    ? formatValue(value, unit)
-                    : `${formatValue(value, unit)}（${percent}）`;
+                  return labelText(value);
                 },
               },
             },
