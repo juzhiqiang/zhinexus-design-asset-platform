@@ -314,14 +314,6 @@ async function readAndVerifyFrozenBundle(bundleDir: string): Promise<
     verifiedPackages.push({ name, version: pkgVersion, sha256: actualSha, bytes: fileBuf.length });
   }
 
-  if (packageVersions.size !== 1) {
-    return {
-      ok: false,
-      errorCode: 'INVALID_BUNDLE_MANIFEST',
-      error: `冻结 bundle 三个包版本必须一致，当前为: ${[...packageVersions].join(', ')}`,
-    };
-  }
-
   if (echartsPeers.size !== 1) {
     return {
       ok: false,
@@ -330,7 +322,9 @@ async function readAndVerifyFrozenBundle(bundleDir: string): Promise<
     };
   }
 
-  const bundleVersion = [...packageVersions][0]!;
+  const bundleVersion = packageVersions.size === 1
+    ? verifiedPackages[0]!.version
+    : verifiedPackages.map(pkg => `${pkg.name}@${pkg.version}`).join(', ');
   const baselineEchartsVersion = [...echartsPeers][0]!;
   const supportedMap = new Map<string, SupportedCombination>();
 

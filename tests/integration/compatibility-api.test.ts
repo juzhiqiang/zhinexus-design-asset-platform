@@ -181,7 +181,9 @@ async function buildValidProbeEvidence(params: {
       fontDigest,
     },
     bundle: {
-      version: params.packageVersion,
+      version: params.bundlePackages && new Set(params.bundlePackages.map(pkg => pkg.version)).size > 1
+        ? params.bundlePackages.map(pkg => `${pkg.name}@${pkg.version}`).join(', ')
+        : params.packageVersion,
       packages: params.bundlePackages ?? [
         {
           name: params.packageName,
@@ -379,6 +381,15 @@ describe('B2: 候选兼容证据提交、持久化与查询闭环 (PostgreSQL + 
           body: JSON.stringify(body),
         });
       };
+
+      // 真实独立版本发布清单必须接受 A 探针的整包标识；不能退化为目标 wrapper 版本。
+      expect(new Set(bundlePackages.map(pkg => pkg.version)).size).toBeGreaterThan(1);
+      for (const version of [vrRow.package_version, [...bundlePackages].reverse().map(pkg => `${pkg.name}@${pkg.version}`).join(', ')]) {
+        const bad = structuredClone(validEvidence); bad.bundle.version = version;
+        const response = await postCompat(vrRow.id, { ...validPayload, evidence: bad }, aliceToken);
+        expect(response.status).toBe(400);
+        expect((await response.json()).code).toBe('REPORT_MISMATCH');
+      }
 
       // 1. 权限与基础校验
       expect((await postCompat(vrRow.id, validPayload)).status).toBe(401);
