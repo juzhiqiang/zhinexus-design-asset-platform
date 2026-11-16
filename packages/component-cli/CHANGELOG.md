@@ -2,6 +2,13 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.11] - 2026-11-16
+
+### Fixed
+
+- ECharts 检查与默认分发探针支持 core、Vue、React 独立精确版本，按 manifest 顺序绑定聚合版本，保留逐包名称、版本、SHA-256 与字节数校验。
+- 帮助补齐 consumer-root、keep、timeout、skip-browser 参数。新候选必须独立安装并重新完成矩阵验收，不复用旧 CLI 证据。
+
 ## [0.0.10] - 2026-11-16
 
 ### Fixed
