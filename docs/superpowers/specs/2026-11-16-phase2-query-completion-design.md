@@ -111,4 +111,4 @@ Authorization: Bearer <由调用侧安全注入>
 
 ## 实施验收状态（2026-11-16）
 
-本规范对应产品候选 `19c42897` 已通过全部技术验收与独立审查，公开使用说明见 [查询接口规范](../../phase2/component-query-api.md)。最终命令、版本、冻结摘要与本地分支收口状态见 [交付记录](../../verification/phase2-query-completion-2026-11-16.md)；生产边界维持上述约定。
+本规范对应产品 `19c42897` 已通过全部技术验收与独立审查，P0–P5 已完成且成果合入 main，公开使用说明见 [查询接口规范](../../phase2/component-query-api.md)。最终命令、版本、冻结摘要与本地分支收口状态见 [交付记录](../../verification/phase2-query-completion-2026-11-16.md)；生产边界维持上述约定。

@@ -1,6 +1,6 @@
 # 二期 GET 查询交付收口（2026-11-16）
 
-当前产品候选：`19c4289789613bbfacf0c7b7359530efdda4998e`。用户确认本轮以标识规范、GET 查询和使用侧协议验收交付，不等待设计平台连接器或真实设计标注。全部技术门槛已通过，P5 剩余本地合并与分支清理。
+已验收产品提交：`19c4289789613bbfacf0c7b7359530efdda4998e`。T13/T14 已按用户确认的二期协议范围完成：标识规范、GET 查询和使用侧验收交付，不等待设计平台连接器或真实设计标注。全部技术门槛已通过，成果已合入 main，五个本轮开发分支已安全删除；工作树归档和缓存恢复情况见末节。
 
 ## 实际分工与提交
 
@@ -50,6 +50,12 @@ B 的 RED→GREEN 另有 112/112 窄测、36/36 平台与 51/51 浏览器通过�
 
 ## 合并、证据与未覆盖范围
 
-本地 main 合并与本轮开发分支清理待最终根测试结束后记录。日志与截图将归档至主工作区忽略目录 `.tools/operations/phase2-query-completion-2026-11-16/`，四个 managed worktree 采用原生归档，先保存证据并解除工具链 junction，避免触及共享缓存。
+收口证据提交 `a89b3676` 后，main 从 `53117379` 快进到该提交；`git diff --exit-code HEAD <集成分支>` 证明树一致，main `verify:workspace` 通过。main 重新构建并运行 P4 真实 SDK + Gallery：15/15、0 跳过、exit 0（`phase2-main-acceptance.log`，隔离服务 ID `643eba31-c180-4c1b-876a-eb600550b796`）。所有浏览器与本任务 preview 会话已关闭。
+
+日志、最终截图、CLI 候选记录和执行账本共 214 文件已保存至主工作区忽略目录 `.tools/operations/phase2-query-completion-2026-11-16/`，逐项 bytes/SHA 记录于 `evidence-manifest.json`。其中主工作区截图在 `main/test-results/phase2-query-acceptance/`。后续恢复日志另附清单，不覆盖原清单。
+
+在逐个确认分支尖端属于 main 后，使用 `git branch -d` 删除 `chore/phase2-a-sdk-matrix`、`feat/phase2-b-query-api`、`chore/phase2-c-query-integration`、`chore/phase2-d-query-acceptance`、`feat/phase2-c-contracts`。A/C/D 已通过 Codex 原生工具可恢复归档。B 是本任务当前主 checkout，原生工具明确拒绝：`The task's primary checkout cannot be removed.` 因此保留该目录，已切为指向 main 合入提交的 detached HEAD；不强制移除受保护目录。Git 分支仅余 main。
+
+归档异常记录：预先解除 junction 的 shell 清理命令被自动策略拒绝，未执行；改用原生可恢复归档时，工具在 Windows 上沿 junction 清空了共享的 Node/pnpm/Playwright 生成缓存。立即核对源码干净、架构 SHA 和冻结 manifest SHA 未改变；其余归档只在缓存目录已确认为空时执行。Node/pnpm 从主工作区保留的原 ZIP/tgz 恢复，版本仍为 26.13.0 / 12.18.0；浏览器按当前锁定 Playwright 重建，安装 exit 0。恢复后 `verify:workspace` 通过、显式冻结输入的矩阵/199 文件校验 9/9、Chromium 契约浏览器 1/1 全部 exit 0，日志 `phase2-restored-workspace.log`、`phase2-restored-frozen.log`、`phase2-restored-browser.log`。此异常已恢复，不影响产品验收与冻结产物。
 
 公司 OIDC / G2、独立生产域名、部署发布、真实 Vue/React 业务试点及三期自动接入继续独立验收。合成 design ID、真实 SDK 技术验收和本地 JWT 不改变旧 real 评分，也不冒充生产验收。本轮不 push、不创建 tag、不发布生产包。

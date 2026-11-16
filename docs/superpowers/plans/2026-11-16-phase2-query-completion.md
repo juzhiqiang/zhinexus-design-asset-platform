@@ -113,9 +113,9 @@
 - [x] 全图 build 后排期运行 contracts runtime、原 phase2-search/design-match、新 component-query 浏览器套件；运行 matching/search、新 GET/consumer/SDK/Gallery 的真实服务专项。不得把未设置 PHASE2_GALLERY_ORIGIN 导致的跳过写成通过。
 - [x] 独立审查覆盖 spec 的五项 Review Focus；核对架构 SHA。新增 `docs/verification/phase2-query-completion-2026-11-16.md`，列出证据 hash、版本、提交、命令及生产边界。
 - [x] 更新 README、实施评估和当前 T13/T14 状态：只在全部二期协议门槛通过后标记完成。G2/真实试点及旧 real 评分结论保持独立。
-- [ ] 将验证后的集成分支合入 main。用户已授权本轮完成后的合并和删分支，不重复询问。核对每个分支尖端都是 main 祖先，再退出对应客户端的工作树，检查并归档未跟踪/忽略文件中需要保留的证据。
-- [ ] 已登记 Codex managed worktree 按原生工具归档；其他 worktree 用安全的 git worktree remove。只删除本轮已合并分支（`git branch -d`），不用 -D/强制清理，不删除无关或有未保存工作的目录。若工具拒绝，报告具体残留及原因。
-- [ ] 报告所有 commit/merge hash、验证结果和剩余生产事项。本轮不 push。
+- [x] 将验证后的集成分支合入 main。用户已授权本轮完成后的合并和删分支，不重复询问。核对每个分支尖端都是 main 祖先，再退出对应客户端的工作树，检查并归档未跟踪/忽略文件中需要保留的证据。
+- [x] 已登记 Codex managed worktree 按原生工具归档；其他 worktree 用安全的 git worktree remove。只删除本轮已合并分支（`git branch -d`），不用 -D/强制清理，不删除无关或有未保存工作的目录。若工具拒绝，报告具体残留及原因。
+- [x] 报告所有 commit/merge hash、验证结果和剩余生产事项。本轮不 push。
 
 ## 派发口径
 
@@ -134,4 +134,4 @@
 
 ## 执行进展（2026-11-16）
 
-P0–P4 与 P5 技术门槛均通过，产品候选 `19c42897`。实际使用 Claude 桌面端、Antigravity、Claude Code CLI 与 Codex；客户端执行限制、宿主协助和全部测试见 [收口记录](../../verification/phase2-query-completion-2026-11-16.md)。上方初始分工表与规划校验保留其编制时状态。当前只剩 main 合并、证据归档与分支删除。
+P0–P4 与 P5 技术门槛均通过，产品候选 `19c42897`。实际使用 Claude 桌面端、Antigravity、Claude Code CLI 与 Codex；客户端执行限制、宿主协助和全部测试见 [收口记录](../../verification/phase2-query-completion-2026-11-16.md)。上方初始分工表与规划校验保留其编制时状态。已快进合入 main（`a89b3676`），214 份证据已保存并校验，五个开发分支均用 `git branch -d` 删除。A/C/D 已原生归档；B 因当前主 checkout 保护保留为 detached HEAD。归档缓存异常已恢复并复验，详见收口记录。P0–P5 现已完成。

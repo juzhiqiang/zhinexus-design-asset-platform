@@ -2,7 +2,7 @@
 
 Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；SDK 提供折线、柱状、饼图、散点、趋势卡、排名和占比共 14 个 Vue/React 实现。已有冻结 Bundle、消费者截图、网页手动发布、身份/上传/基线 API、持久化发布 worker 与隔离静态预览。合法 PENDING 作业须由独立 worker 通过三存储校验后进入 Ready。
 
-2026-11-16 二期协议交付已通过技术验收：`GET /v1/matching/components` 按组件 ID、框架与精确包版本查询，校验当前权限、资格及冻结材料；Gallery `/match` 已提供查询入口。平台 0.0.6、API/Gallery 0.0.9；14 个真实 SDK 实现与真实页面、独立调用侧、全图和回归均通过。使用方式见 [接口规范](docs/phase2/component-query-api.md)，结果与本地合并清理状态见 [收口记录](docs/verification/phase2-query-completion-2026-11-16.md)。用户已确认设计平台格式、真实设计导出和业务标注不作为本轮验收前置。公司 G2 与真实业务试点仍独立待验收，下方历史记录保留其发生时点。
+2026-11-16 二期协议交付已完成：`GET /v1/matching/components` 按组件 ID、框架与精确包版本查询，校验当前权限、资格及冻结材料；Gallery `/match` 已提供查询入口。平台 0.0.6、API/Gallery 0.0.9；14 个真实 SDK 实现与真实页面、独立调用侧、全图和回归均通过。使用方式见 [接口规范](docs/phase2/component-query-api.md)，结果与本地合并清理状态见 [收口记录](docs/verification/phase2-query-completion-2026-11-16.md)。用户已确认设计平台格式、真实设计导出和业务标注不作为本轮验收前置。公司 G2 与真实业务试点仍独立待验收，下方历史记录保留其发生时点。
 
 2026-11-14：本地平台专项改为每轮自建随机端口和凭据的三存储环境，无需启动共享 G2。当前 SDK 0.0.10 与画廊手动发布已有本地真实证据；公司 OIDC、生产独立预览域、真实 Vue/React 业务试点仍未验收，不能据此宣布完整 G2/T10/T11/T12 或生产就绪。下一轮分工和集成门槛见 [执行计划](docs/superpowers/plans/2026-11-13-next-round-execution.md)。
 
