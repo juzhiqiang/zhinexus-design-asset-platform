@@ -156,7 +156,7 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 2026-11-16 工程进展：已完成 ID/装配/ComponentApiV1 契约、精确发布解析与最终资格复读、真实 API 材料生成、画廊输入与方案界面及合成评估；真实隔离服务与画廊联调已通过，规定合成案例精确映射 5/5、硬违规 0，并完成 200/1000 发布记录规模量测。完整 T14 业务验收仍开放，见 [集成验证](docs/verification/phase2-id-integration-2026-11-16.md)。
 
-2026-11-16 后续用户决策：无需等待设计平台导出或真实业务标注，先完成正确标识规范和使用侧 GET 查询接口。当前二期完成条件以 [GET 收口设计](docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md) 和 [四方执行计划](docs/superpowers/plans/2026-11-16-phase2-query-completion.md) 为准：规范/契约一致、精确查询与资格复读、14 个真实 SDK 实现、独立 HTTP 与浏览器验证、版本及分支收口。GET 当前尚未实现。Claude 桌面端主责主要开发，Antigravity 做 SDK 对照，Claude Code 做独立验收，Codex 负责契约及集成。上述历史真实样本门槛不再阻塞本轮二期协议交付；旧 real 评分、G2 生产接入和 T11 真实试点不因此改变。
+2026-11-16 后续用户决策：无需等待设计平台导出或真实业务标注，先完成正确标识规范和使用侧 GET 查询接口。当前二期完成条件以 [GET 收口设计](docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md) 和 [四方执行计划](docs/superpowers/plans/2026-11-16-phase2-query-completion.md) 为准：规范/契约一致、精确查询与资格复读、14 个真实 SDK 实现、独立 HTTP 与浏览器验证、版本及分支收口。GET 与 Gallery 入口现已实现，14 实现及真实页面 15/15、真实服务综合 45/45、浏览器 70/70、根 Vitest 1249/1249 和 T10 168/168 通过，全图强制构建 20/20。Claude 桌面端主责主要开发，Antigravity 做 SDK 对照，Claude Code 生成独立验收候选，Codex 负责契约、宿主修正验证及集成；详见 [最终记录](docs/verification/phase2-query-completion-2026-11-16.md)。上述历史真实样本门槛不再阻塞本轮二期协议交付；旧 real 评分、G2 生产接入和 T11 真实试点不因此改变。
 
 若二期、三期各投入约 3 名开发等效资源，分别预留约 3–4 周和 4–5 周的窗口，并在一期成熟后以实际样本重估。这是相对工期，不把 2027 年日期当作用户接受的延期。
 
