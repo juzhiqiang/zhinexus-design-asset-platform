@@ -1,0 +1,250 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "local-project-inspection-v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "inspected",
+        "conflicted"
+      ]
+    },
+    "workspace": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^(?:\\.|(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*)$"
+    },
+    "packageManager": {
+      "type": "string",
+      "enum": [
+        "npm",
+        "pnpm"
+      ]
+    },
+    "lockfile": {
+      "type": "object",
+      "properties": {
+        "path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2048,
+          "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+        },
+        "format": {
+          "type": "string",
+          "enum": [
+            "npm-v3",
+            "pnpm-v9"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "format"
+      ],
+      "additionalProperties": false
+    },
+    "framework": {
+      "type": "string",
+      "enum": [
+        "vue",
+        "react"
+      ]
+    },
+    "resolvedDependencies": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+          },
+          "specifier": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "name",
+          "version",
+          "specifier"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "scripts": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "\\S"
+      },
+      "minItems": 0
+    },
+    "git": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": [
+            "clean",
+            "dirty",
+            "unavailable"
+          ]
+        },
+        "dirtyPaths": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          },
+          "minItems": 0
+        }
+      },
+      "required": [
+        "status",
+        "dirtyPaths"
+      ],
+      "additionalProperties": false
+    },
+    "fileSnapshots": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "exists"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "conflicts": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "UNMAPPED_ID",
+              "TARGET_UNAVAILABLE",
+              "API_UNSUPPORTED",
+              "UNKNOWN_PROP",
+              "UNKNOWN_EVENT",
+              "MISSING_PROP",
+              "MISSING_EVENT",
+              "LAYOUT_UNKNOWN",
+              "COMPATIBILITY_UNVERIFIED",
+              "REQUIREMENTS_UNASSESSED",
+              "DEPENDENCY_CONFLICT",
+              "EMPTY_DESIGN",
+              "PACKAGE_MANAGER_UNSUPPORTED",
+              "PACKAGE_MANAGER_MISMATCH",
+              "LOCKFILE_MISSING",
+              "LOCKFILE_MULTIPLE",
+              "LOCKFILE_UNSUPPORTED",
+              "LOCKFILE_INVALID",
+              "WORKSPACE_REQUIRED",
+              "WORKSPACE_INVALID",
+              "IMPORTER_MISSING",
+              "FRAMEWORK_MISSING",
+              "FRAMEWORK_AMBIGUOUS",
+              "FRAMEWORK_UNSUPPORTED",
+              "VERSION_UNRESOLVED",
+              "VERSION_MISMATCH",
+              "REACT_DOM_MISSING",
+              "ECHARTS_MISSING",
+              "PATH_UNSAFE",
+              "PROJECT_CHANGED",
+              "DIRTY_TARGET",
+              "OUTPUT_EXISTS",
+              "MATCH_CONTEXT_MISMATCH",
+              "TARGET_CHANGED",
+              "API_MISMATCH",
+              "PACKAGE_DIGEST_MISMATCH",
+              "REGISTRY_UNAVAILABLE"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          },
+          "blocking": {
+            "type": "boolean",
+            "const": true
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          },
+          "instanceId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "\\S"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "blocking"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "status",
+    "workspace",
+    "resolvedDependencies",
+    "scripts",
+    "git",
+    "fileSnapshots",
+    "conflicts"
+  ],
+  "additionalProperties": false,
+  "description": "Structural schema. Runtime additionally checks snapshot existence/hash, path uniqueness, status/conflicts and host/lock consistency. Realpath and original-byte verification are caller duties."
+}

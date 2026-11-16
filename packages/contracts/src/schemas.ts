@@ -1,4 +1,5 @@
 import { projectContextSchema } from './project-context.js';
+import { localProjectInspectionSchema, integrationPlanSchema } from './integration-plan.js';
 import { designIdMappingSchema, designIdInputSchema } from './design-id.js';
 import { componentApiSchema } from './component-api.js';
 import { matchPlanRequestSchema, matchPlanSchema } from './match-plan.js';
@@ -45,6 +46,7 @@ export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Objec
   'release-manifest-v1': manifestSchema, 'example-ref-v1': exampleSchema, 'screenshot-ref-v1': screenshotSchema,
   'environment-v1': environmentSchema, 'check-report-v1': reportSchema,
   'project-context-v1': projectContextSchema,
+  'local-project-inspection-v1': localProjectInspectionSchema, 'integration-plan-v1': integrationPlanSchema,
   'candidate-v1': candidateSchema, 'search-candidates-response-v1': searchCandidatesResponseSchema,
   'search-candidates-request-v1': searchCandidatesRequestSchema,
   'design-id-mapping-v1': designIdMappingSchema, 'design-id-input-v1': designIdInputSchema,

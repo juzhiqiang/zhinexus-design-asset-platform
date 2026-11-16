@@ -27,6 +27,7 @@ const filesToSync = [
   'component-api.ts',
   'match-plan.ts',
   'component-match.ts',
+  'integration-plan.ts',
   'index.ts',
 ];
 

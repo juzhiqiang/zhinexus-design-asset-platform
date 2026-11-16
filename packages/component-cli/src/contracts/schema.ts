@@ -66,6 +66,18 @@ export function assertJson(input: unknown): void {
   visit(input, 0);
 }
 
+/** v1 encoding: UTF-8 JSON, recursive UTF-16 key ordering, unchanged array order, no whitespace.
+ * Kept in this leaf module so schemas can compare JSON without importing the schema registry. */
+export function canonicalJson(input: unknown): string {
+  assertJson(input);
+  function encode(value: unknown): string {
+    if (Array.isArray(value)) return `[${value.map(encode).join(',')}]`;
+    if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map(key => `${JSON.stringify(key)}:${encode((value as Record<string, unknown>)[key])}`).join(',')}}`;
+    return JSON.stringify(value);
+  }
+  return encode(input);
+}
+
 export function validateSchema<T>(schema: Schema, input: unknown): ValidationResult<T> {
   const issues: ValidationIssue[] = [];
   const add = (path: string, message: string, code: ValidationIssue['code'] = 'INVALID_SCHEMA') => { if (issues.length < 100) issues.push({ code, path, message }); };
