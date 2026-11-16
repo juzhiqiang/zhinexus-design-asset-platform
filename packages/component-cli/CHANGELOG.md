@@ -2,6 +2,13 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.9] - 2026-11-16
+
+### Added
+
+- ComponentApiV1 材料生成覆盖 line/bar/pie/scatter/trend-card/ranking/proportion 七组件 x Vue/React 的真实导出名、路径、参数、事件、样式与就绪句柄；React 事件为 onPointClick，Vue 为 point-click，optionOverrides 改为真实 SupportedOptionOverrides。
+- 新增确定性 ID 规则评估器与规则反例（跨框架事件、错误目标、缺失约束等）；空集与硬违规判定失败。
+
 ## [0.0.8] - 2026-11-14
 
 ### Added
