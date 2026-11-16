@@ -18,6 +18,7 @@ export * from './search.js';
 export * from './design-id.js';
 export * from './component-api.js';
 export * from './match-plan.js';
+export * from './component-match.js';
 export { CONTRACT_SCHEMAS } from './schemas.js';
 export const MANIFEST_SCHEMA_VERSION = 1 as const;
 export type BootstrapHealth = {

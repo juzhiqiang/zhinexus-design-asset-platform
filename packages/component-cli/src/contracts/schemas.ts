@@ -2,6 +2,7 @@ import { projectContextSchema } from './project-context.js';
 import { designIdMappingSchema, designIdInputSchema } from './design-id.js';
 import { componentApiSchema } from './component-api.js';
 import { matchPlanRequestSchema, matchPlanSchema } from './match-plan.js';
+import { componentMatchQuerySchema, componentMatchResponseSchema } from './component-match.js';
 import { candidateSchema, searchCandidatesResponseSchema, searchCandidatesRequestSchema } from './search.js';
 import { array, artifactPath, choice, exactVersion, hash, integer, object, text, timestamp } from './schema.js';
 import type { Schema } from './schema.js';
@@ -48,4 +49,5 @@ export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Objec
   'search-candidates-request-v1': searchCandidatesRequestSchema,
   'design-id-mapping-v1': designIdMappingSchema, 'design-id-input-v1': designIdInputSchema,
   'component-api-v1': componentApiSchema, 'match-plan-request-v1': matchPlanRequestSchema, 'match-plan-v1': matchPlanSchema,
+  'component-match-query-v1': componentMatchQuerySchema, 'component-match-response-v1': componentMatchResponseSchema,
 }).map(([name, schema]) => [name, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: name, ...schema }]));

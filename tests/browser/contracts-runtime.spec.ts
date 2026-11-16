@@ -4,7 +4,7 @@ import { makeFixture } from '../fixtures/releases/g1/factory.js';
 
 test('contracts validate the same frozen fixture and Web Crypto digest in Chromium', async ({ page }) => {
   const origin = 'https://contracts.example.test';
-  const modules = new Set(['index', 'api', 'errors', 'schema', 'schemas', 'validation', 'digests', 'bundle', 'project-context', 'search', 'design-id', 'component-api', 'match-plan']);
+  const modules = new Set(['index', 'api', 'errors', 'schema', 'schemas', 'validation', 'digests', 'bundle', 'project-context', 'search', 'design-id', 'component-api', 'match-plan', 'component-match']);
   await page.route(`${origin}/**`, async route => {
     const path = new URL(route.request().url()).pathname;
     if (path === '/') return route.fulfill({ contentType: 'text/html', body: '<!doctype html><title>Contract runtime verification</title>' });
