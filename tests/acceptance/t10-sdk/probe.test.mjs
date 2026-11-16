@@ -182,12 +182,12 @@ function writeTarGz(entries) {
 }
 
 /** 用 `tar` 造一个最小合成 bundle：结构、命名与 `pnpm pack` / C 的冻结目录一致。 */
-async function makeSyntheticBundle(root, { tamper = false, mixedPeer = false, workspaceResidue = false } = {}) {
+async function makeSyntheticBundle(root, { tamper = false, mixedPeer = false, workspaceResidue = false, independentVersions = false, coreDepOverride = null } = {}) {
   await mkdir(path.join(root, 'packages'), { recursive: true });
   const packages = [
-    { name: '@company/charts-core', peer: { echarts: '6.1.0' }, deps: {} },
-    { name: '@company/charts-vue', peer: { echarts: mixedPeer ? '6.0.0' : '6.1.0', vue: '3.5.45' }, deps: { '@company/charts-core': '0.0.10' } },
-    { name: '@company/charts-react', peer: { echarts: '6.1.0', react: '19.3.1', 'react-dom': '19.3.1' }, deps: { '@company/charts-core': '0.0.10' } },
+    { name: '@company/charts-core', version: '0.0.10', peer: { echarts: '6.1.0' }, deps: {} },
+    { name: '@company/charts-vue', version: independentVersions ? '0.0.11' : '0.0.10', peer: { echarts: mixedPeer ? '6.0.0' : '6.1.0', vue: '3.5.45' }, deps: { '@company/charts-core': coreDepOverride ?? '0.0.10' } },
+    { name: '@company/charts-react', version: independentVersions ? '0.0.11' : '0.0.10', peer: { echarts: '6.1.0', react: '19.3.1', 'react-dom': '19.3.1' }, deps: { '@company/charts-core': coreDepOverride ?? '0.0.10' } },
   ];
   const manifestPackages = [];
   for (const entry of packages) {
@@ -207,16 +207,16 @@ async function makeSyntheticBundle(root, { tamper = false, mixedPeer = false, wo
     }
     members.push({
       name: 'package/package.json',
-      data: `${JSON.stringify({ name: entry.name, version: '0.0.10', dependencies: entry.deps, peerDependencies: entry.peer }, null, 2)}\n`,
+      data: `${JSON.stringify({ name: entry.name, version: entry.version, dependencies: entry.deps, peerDependencies: entry.peer }, null, 2)}\n`,
     });
-    const tarball = path.join(root, 'packages', `company-${short}-0.0.10.tgz`);
+    const tarball = path.join(root, 'packages', `company-${short}-${entry.version}.tgz`);
     const bytes = writeTarGz(members);
     await writeFile(tarball, bytes);
     const digest = tamper && short === 'charts-core' ? sha256(Buffer.from('tampered')) : sha256(bytes);
     manifestPackages.push({
       name: entry.name,
-      version: '0.0.10',
-      tarball: { path: `packages/company-${short}-0.0.10.tgz`, sha256: digest, bytes: bytes.length },
+      version: entry.version,
+      tarball: { path: `packages/company-${short}-${entry.version}.tgz`, sha256: digest, bytes: bytes.length },
       sourceDigest: sha256(Buffer.from(short)),
       dependencies: workspaceResidue ? { '@company/charts-core': 'workspace:*' } : entry.deps,
       peerDependencies: entry.peer,
@@ -465,6 +465,21 @@ describe('冻结 bundle 只读读取', () => {
       { framework: 'react', frameworkVersion: '19.3.1', echartsVersion: '6.1.0', reportId: 'c', verifiedAt: 'z' },
     ];
     assert.equal(dedupeSupported(rows).length, 2);
+  });
+
+  it('允许框架包独立语义化版本（core 0.0.10 + vue/react 0.0.11），但仍拒绝 core 依赖版本不匹配', async (t) => {
+    const okRoot = await mkdtemp(path.join(tmpdir(), 'a-t10-bundle-indep-'));
+    t.after(() => rm(okRoot, { recursive: true, force: true }));
+    await makeSyntheticBundle(okRoot, { independentVersions: true });
+    const bundle = await readFrozenBundle(okRoot);
+    assert.equal(bundle.packages.find((p) => p.name === '@company/charts-core')?.version, '0.0.10');
+    assert.equal(bundle.packages.find((p) => p.name === '@company/charts-vue')?.version, '0.0.11');
+    assert.equal(bundle.packages.find((p) => p.name === '@company/charts-react')?.version, '0.0.11');
+
+    const badRoot = await mkdtemp(path.join(tmpdir(), 'a-t10-bundle-baddep-'));
+    t.after(() => rm(badRoot, { recursive: true, force: true }));
+    await makeSyntheticBundle(badRoot, { independentVersions: true, coreDepOverride: '0.0.11' });
+    await assert.rejects(() => readFrozenBundle(badRoot), /对 charts-core 的依赖应为 0\.0\.10/);
   });
 });
 

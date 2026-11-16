@@ -44,11 +44,13 @@ function sha256File(bytes) {
  *
  * 校验项（任一不满足即抛错，探针不半途放行）：
  * 1. `manifest.json` 存在且是合法 JSON；
- * 2. 三个 SDK 包各出现一次，版本完全一致；
+ * 2. 三个 SDK 包各出现一次，各自版本均为合法精确语义化版本；
  * 3. `charts-vue` / `charts-react` 对 `charts-core` 的依赖是同一精确版本（无 `workspace:` 残留）；
  * 4. 每个 tarball 的**实际字节摘要**等于 manifest 记录的 `tarball.sha256`，字节数也相等；
  * 5. tarball 文件真实存在于 bundle 内。
  */
+const EXACT_VERSION_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/;
+
 export async function readFrozenBundle(bundleRootInput) {
   if (!bundleRootInput) throw new Error('PROBE_INPUT 缺少 --bundle');
   const root = await realpath(path.resolve(bundleRootInput));
@@ -66,11 +68,10 @@ export async function readFrozenBundle(bundleRootInput) {
   if (manifest.packages.length !== SDK_PACKAGES.length) {
     throw new Error(`PROBE_INPUT 期望只有 ${SDK_PACKAGES.length} 个 SDK 包，实际 ${manifest.packages.length} 个`);
   }
-  const version = manifest.packages[0].version;
   const packages = [];
   for (const entry of manifest.packages) {
-    if (entry.version !== version) {
-      throw new Error(`PROBE_INPUT 版本不一致：${entry.name} 为 ${entry.version}，其余为 ${version}`);
+    if (typeof entry.version !== 'string' || !EXACT_VERSION_PATTERN.test(entry.version)) {
+      throw new Error(`PROBE_INPUT 非法包版本：${entry.name} 为 ${String(entry.version)}`);
     }
     const serialized = JSON.stringify(entry.dependencies ?? {});
     if (serialized.includes('workspace:')) {
@@ -108,6 +109,11 @@ export async function readFrozenBundle(bundleRootInput) {
       throw new Error(`PROBE_INPUT ${name} 对 charts-core 的依赖应为 ${coreVersion}，实际 ${dependency}`);
     }
   }
+  const uniqueVersions = new Set(packages.map((entry) => entry.version));
+  const version =
+    uniqueVersions.size === 1
+      ? packages[0].version
+      : packages.map((entry) => `${entry.name}@${entry.version}`).join(', ');
   return {
     root,
     manifestPath,
