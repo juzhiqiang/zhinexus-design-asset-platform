@@ -6,6 +6,8 @@ Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19
 
 ## 开始开发（Windows x64）
 
+2026-11-16 评估补充：确定性 ID 离线入口已支持分离的人工标注与 MatchPlan 观测，输出 real/synthetic 分组、原始字节摘要和缺口报告。使用方式与真实样本待办见 [ID 评估规范](docs/phase2/id-evaluation-runner.md)；仓库样例仅为 synthetic，不代表 T13/T14 业务验收。
+
 二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。工程验证与范围见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md) 和 [ID 匹配计划](docs/superpowers/plans/2026-11-15-phase2-id-matching.md)。正式 ID 规范、设计平台导出格式和真实业务样本尚未提供，完整 T14 业务验收仍开放。
 
 在仓库根目录执行。首次运行会从官方源下载并校验项目固定的 Node/pnpm 到 `.tools`，不修改全局安装；需能够访问 npm、Node 和 Playwright 下载源。

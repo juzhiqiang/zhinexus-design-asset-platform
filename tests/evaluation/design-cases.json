@@ -1,80 +1,20 @@
-{
-  "schemaVersion": 1,
-  "cases": [
-    {
-      "caseId": "SYNTH-MATCH-001",
-      "origin": "synthetic",
-      "split": "eval",
-      "category": "missing-constraint",
-      "sourceDescription": "synthetic 示例：顶部 KPI 卡片含大号数字与迷你折线，但图中未标注上期对比数值与指标单位",
-      "designInput": {
-        "imageRef": "synthetic://trend-card-no-previous.png",
-        "viewport": { "width": 400, "height": 220 },
-        "regions": [
-          {
-            "regionId": "r1",
-            "bbox": [16, 16, 368, 188],
-            "visibleHints": ["标题: 日活趋势", "当前值: 1,280", "底部平滑折线"],
-            "hiddenOrAmbiguous": ["无同比/环比前期基线数值", "无明确单位后缀或小数位要求", "未说明点击数据点后的跳转动作"]
-          }
-        ]
-      },
-      "projectContext": {
-        "framework": "react",
-        "frameworkVersion": "19.3.1",
-        "echartsVersion": "6.1.0",
-        "packageManager": "pnpm",
-        "requirements": ["展示日活指标卡片及近期趋势"]
-      },
-      "evalEnvironment": { "reactDomVersion": "19.3.1" },
-      "groundTruth": {
-        "acceptableCandidates": [
-          {
-            "componentId": "trend-card",
-            "variantId": "trend-card-react",
-            "rankPriority": 1,
-            "requiredConfigKeys": ["chart", "title"]
-          }
-        ],
-        "requiredGaps": [
-          { "field": "config.previousValue", "reason": "设计稿未展示前期基线数值，不得编造对比数据" },
-          { "field": "data.series[0].points", "reason": "设计稿仅展示示意折线，需业务接口提供真实时间序列" }
-        ],
-        "forbiddenActions": ["fabricate-previousValue", "recommend-vue-variant", "use-nonexistent-export"]
-      }
-    },
-    {
-      "caseId": "SYNTH-TRAP-002",
-      "origin": "synthetic",
-      "split": "eval",
-      "category": "data-semantic-trap",
-      "sourceDescription": "synthetic 示例：用户要求用饼图展示包含负值的各部门利润增减额，且项目为 Vue 3",
-      "designInput": {
-        "imageRef": "synthetic://pie-negative-trap.png",
-        "viewport": { "width": 600, "height": 400 },
-        "regions": [
-          {
-            "regionId": "r1",
-            "bbox": [0, 0, 600, 400],
-            "visibleHints": ["部门利润增量: 研发 +120, 市场 -40, 运维 +30"],
-            "hiddenOrAmbiguous": ["需要确认负值是否允许展示"]
-          }
-        ]
-      },
-      "projectContext": {
-        "framework": "vue",
-        "frameworkVersion": "3.5.45",
-        "echartsVersion": "6.1.0",
-        "packageManager": "pnpm",
-        "requirements": ["使用饼图展示包含正负值的利润增量"]
-      },
-      "groundTruth": {
-        "acceptableCandidates": [],
-        "requiredGaps": [
-          { "field": "component.semantic", "reason": "PieChart 与 Proportion 均在运行时拒绝负值（抛出 ChartDataError），若需展示正负值应提示改用 BarChart" }
-        ],
-        "forbiddenActions": ["assemble-pie-with-negative-values", "recommend-react-variant", "silent-drop-negative-points"]
-      }
+[
+  {
+    "caseId": "syn-id-line-react",
+    "origin": "synthetic",
+    "expected": {
+      "elements": [
+        {
+          "instanceId": "instance-1",
+          "designId": "opaque-synthetic-line",
+          "expectedStatus": "mapped",
+          "expectedVariantReleaseId": "vr-sync-react-line",
+          "expectedFramework": "react",
+          "requiredGapCodes": [],
+          "forbiddenVariantReleaseIds": []
+        }
+      ],
+      "requiredPlanGapCodes": []
     }
-  ]
-}
+  }
+]
