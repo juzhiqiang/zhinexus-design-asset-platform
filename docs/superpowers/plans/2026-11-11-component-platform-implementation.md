@@ -476,6 +476,8 @@ flowchart LR
 
 ### T15：本地项目识别与安装计划（三期，8–12 人日）
 
+2026-11-16 首轮实施细化见 [T15 设计](../specs/2026-11-16-phase3-t15-design.md) 和 [四方计划](2026-11-16-phase3-t15-kickoff.md)。本轮完整交付只读 inspect/plan，新增 `LocalProjectInspectionV1` 承载本地锁/路径/脚本/快照，保持原 `ProjectContext` 二期结构兼容；`IntegrationPlanV1` 对应下述 IntegrationPlan 概念。C 先冻结契约，B/Claude 桌面端承担主要 CLI 开发，A/Antigravity 提供项目与 SDK 预期，D/Claude Code 独立验收；C 最终集成收口。下面原 T15–T17 勾选继续表示实现状态，规划交付不等于任务完成。
+
 **Files:** 创建 `packages/component-cli/src/integration/{inspect,resolve,plan,workspace}.ts`、`commands/integrate.ts`；`tests/integration/project-plan.test.ts`。
 
 **Interfaces:** `inspectProject(root): ProjectContext`；`planIntegration(root,matchPlan): IntegrationPlan`；命令 `component integrate plan --project <path> --match <file>`。IntegrationPlan 固定包含 baseFileHashes、allowedPaths、packageManager、exactDependencies、commands、changes、conflicts；此阶段不写项目。
