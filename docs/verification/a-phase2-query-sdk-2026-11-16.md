@@ -47,3 +47,33 @@
 
 - 本阶段（P2）仅完成真实 SDK 源码审计、14 项独立预期矩阵与冻结 bundle 材料核对；尚未对接 P0 冻结后的 `ComponentMatchQueryV1` / `ComponentMatchResponseV1` DTO。
 - 真实 HTTP `GET /v1/matching/components`、隔离 PostgreSQL/MinIO/Verdaccio 服务及 Gallery 联调不在 P2 范围，留待 P1（B）、P3（D）与 P4（C）集成验收。
+
+## 4. 复核纠正记录（2026-11-16，针对 `b12f34ac`）
+
+根据 C 复核要求完成以下两项纠正（未修改历史验证记录，未修改 `contracts`、SDK 源码或真实冻结目录）：
+
+1. **`verifyFrozenBundleFiles` 改为以 `manifest.files` 为权威清单**：
+   - 逐项校验 `manifest.files` 全部 199 个文件（含 14 份 `reports/*.json`）的存在性、字节数与 SHA-256，并核对 `manifest.reports`、`packages`、`variants` 引用一致性与无未引用文件。
+   - 新增临时副本篡改 `reports/line-vue.json` 字节的 TDD 反例测试（在 `os.tmpdir()` 中创建合成副本并在 `finally` 清理，不触碰真实冻结目录）。
+2. **移除默认测试中的硬编码 `D:` 路径依赖**：
+   - 默认矩阵、源码审计与合成反例（含临时副本篡改报告测试）完全自包含。
+   - 真实冻结 bundle 校验改为仅在显式设置 `A10_FROZEN_BUNDLE` 时执行；包版本与 SHA-256 均从 `manifest.json` 独立读取（当前实测仍为 `@company/charts-core@0.0.11`、`@company/charts-vue@0.0.12`、`@company/charts-react@0.0.12`）。
+
+### 纠正后验证命令与结果
+
+- **RED**（新增临时副本篡改报告测试、尚未更新 `verifyFrozenBundleFiles` 前）：
+  - 命令：`.\scripts\pnpm.ps1 exec vitest run tests/evaluation/component-query-sdk.test.ts`
+  - 退出码：`1`
+  - 摘要：`1 failed | 7 passed | 1 skipped (9)`（`manifestFilesCount` 为 `undefined`，旧实现未按 `manifest.files` 校验报告字节/摘要）。
+- **GREEN（默认无环境变量，自包含运行）**：
+  - 命令：`.\scripts\pnpm.ps1 exec vitest run tests/evaluation/component-query-sdk.test.ts`
+  - 退出码：`0`
+  - 摘要：`1 passed (1)`，`8 passed | 1 skipped (9)`（`A10_FROZEN_BUNDLE` 用例按设计跳过，不引入本机路径隐式依赖）。
+- **GREEN（显式传入 `A10_FROZEN_BUNDLE`）**：
+  - 命令：`$env:A10_FROZEN_BUNDLE='D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/881238b3-2214-4ec8-bf0c-af5238b7fcd3'; .\scripts\pnpm.ps1 exec vitest run tests/evaluation/component-query-sdk.test.ts`
+  - 退出码：`0`
+  - 摘要：`1 passed (1)`，`9 passed (9)`（`manifestFilesCount === 199`、`reportFilesCount === 14`、`mismatches === []`、14 变体全通过）。
+- **类型检查（仅针对本轮两个 TS 文件）**：
+  - 命令：`.\scripts\pnpm.ps1 --% exec tsc --noEmit --ignoreConfig --target es2022 --module nodenext --moduleResolution nodenext --strict --skipLibCheck --types node tests/fixtures/component-query-sdk.ts tests/evaluation/component-query-sdk.test.ts`
+  - 退出码：`0`（无错误输出）。
+- **交接说明**：P0 已冻结提交 `531173793fbbc23819874cbb7909dd7e8f789884`，留待 C 集成时完整合入，本分支未修改 `contracts`。

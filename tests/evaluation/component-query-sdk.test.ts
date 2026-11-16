@@ -1,4 +1,6 @@
-import { existsSync, readFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import {
@@ -11,11 +13,84 @@ import {
 } from '../fixtures/component-query-sdk.js';
 
 const REPO_ROOT = process.cwd();
-const DEFAULT_FROZEN_BUNDLE_DIR =
-  'D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/881238b3-2214-4ec8-bf0c-af5238b7fcd3';
 
-function resolveFrozenBundleDir(): string {
-  return process.env.A10_FROZEN_BUNDLE ?? DEFAULT_FROZEN_BUNDLE_DIR;
+function sha256Hex(content: Buffer | string): string {
+  return createHash('sha256').update(content).digest('hex');
+}
+
+function createSyntheticBundleCopy(): string {
+  const tmpDir = mkdtempSync(path.join(os.tmpdir(), 'p2-sdk-bundle-'));
+  for (const dir of ['packages', 'api', 'docs', 'preview', 'screenshots', 'reports']) {
+    mkdirSync(path.join(tmpDir, dir), { recursive: true });
+  }
+
+  const writeBundleFile = (relPath: string, content: string) => {
+    const full = path.join(tmpDir, relPath);
+    mkdirSync(path.dirname(full), { recursive: true });
+    writeFileSync(full, content, 'utf8');
+    const buf = readFileSync(full);
+    return { path: relPath, sha256: sha256Hex(buf), bytes: buf.length };
+  };
+
+  const coreRef = writeBundleFile('packages/company-charts-core-0.0.11.tgz', 'core-tarball');
+  const vueRef = writeBundleFile('packages/company-charts-vue-0.0.12.tgz', 'vue-tarball');
+  const apiRef = writeBundleFile(
+    'api/line-vue.json',
+    JSON.stringify({
+      styleExport: './style.css',
+      readyMethod: 'whenRendered',
+      props: [{ name: 'data', type: 'ChartData', required: true }],
+      events: [{ name: 'point-click', payload: 'ChartEvent' }],
+    }),
+  );
+  const docsRef = writeBundleFile('docs/line-vue.md', '# LineChart');
+  const previewRef = writeBundleFile('preview/line-vue/index.html', '<html></html>');
+  const shotRef = writeBundleFile('screenshots/line-vue-default.png', 'png-bytes');
+  const reportRef = writeBundleFile('reports/line-vue.json', '{"status":"passed","bytesCheck":1}');
+
+  const files = [coreRef, vueRef, apiRef, docsRef, previewRef, shotRef, reportRef];
+  const manifest = {
+    schemaVersion: 1,
+    channel: 'cli',
+    packages: [
+      {
+        name: '@company/charts-core',
+        version: '0.0.11',
+        tarball: coreRef,
+        sourceDigest: 'a'.repeat(64),
+        dependencies: {},
+        peerDependencies: { echarts: '6.1.0' },
+      },
+      {
+        name: '@company/charts-vue',
+        version: '0.0.12',
+        tarball: vueRef,
+        sourceDigest: 'b'.repeat(64),
+        dependencies: { '@company/charts-core': '0.0.11' },
+        peerDependencies: { vue: '3.5.45', echarts: '6.1.0' },
+      },
+    ],
+    variants: [
+      {
+        componentId: 'line',
+        variantId: 'line-vue',
+        framework: 'vue',
+        packageName: '@company/charts-vue',
+        packageVersion: '0.0.12',
+        exportPath: './line',
+        exportName: 'LineChart',
+        api: apiRef,
+        docs: docsRef,
+        examples: [{ previewFiles: [previewRef] }],
+        screenshots: [{ image: shotRef, packageSha256: vueRef.sha256 }],
+      },
+    ],
+    reports: [reportRef],
+    files,
+  };
+
+  writeFileSync(path.join(tmpDir, 'manifest.json'), JSON.stringify(manifest, null, 2), 'utf8');
+  return tmpDir;
 }
 
 describe('P2 双框架真实 SDK 预期矩阵与独立源码审计', () => {
@@ -207,50 +282,69 @@ describe('P2 双框架真实 SDK 预期矩阵与独立源码审计', () => {
     expect(wrongSha.valid).toBe(false);
   });
 
-  it('核对冻结 bundle 的 manifest、199 文件摘要与 14 个变体 API 证据（禁止统一 SDK 版本）', () => {
-    const bundleDir = resolveFrozenBundleDir();
-    expect(existsSync(path.join(bundleDir, 'manifest.json'))).toBe(true);
+  it('反例：临时副本篡改 reports 报告字节时必须被 manifest.files 逐项校验检出', () => {
+    const tmpBundle = createSyntheticBundleCopy();
+    try {
+      const cleanCheck = verifyFrozenBundleFiles(tmpBundle);
+      expect(cleanCheck.mismatches).toEqual([]);
+      expect(cleanCheck.manifestFilesCount).toBe(7);
+      expect(cleanCheck.reportFilesCount).toBe(1);
 
-    const fileCheck = verifyFrozenBundleFiles(bundleDir);
-    expect(fileCheck.manifestReferencedFiles).toBe(185);
-    expect(fileCheck.reportFiles).toBe(14);
-    expect(fileCheck.bundleFilesExcludingManifest).toBe(199);
-    expect(fileCheck.mismatches).toEqual([]);
-
-    const summary = readFrozenBundleManifest(bundleDir);
-    expect(summary.packages['@company/charts-core']?.version).toBe('0.0.11');
-    expect(summary.packages['@company/charts-vue']?.version).toBe('0.0.12');
-    expect(summary.packages['@company/charts-react']?.version).toBe('0.0.12');
-    expect(summary.packages['@company/charts-core']?.version).not.toBe(
-      summary.packages['@company/charts-vue']?.version,
-    );
-
-    expect(summary.variants).toHaveLength(14);
-
-    const expectedMap = new Map(
-      expectedSdkComponents.map((item) => [`${item.componentId}:${item.framework}`, item]),
-    );
-
-    for (const variant of summary.variants) {
-      const expected = expectedMap.get(`${variant.componentId}:${variant.framework}`);
-      expect(expected).toBeDefined();
-      expect(variant.packageName).toBe(expected!.packageName);
-      expect(variant.exportName).toBe(expected!.exportName);
-      expect(variant.exportPath).toBe(expected!.exportPath);
-      expect(variant.styleExport).toBe(expected!.styleExport);
-      expect(variant.readyMethod).toBe(expected!.readyMethod);
-      expect(variant.eventNames).toEqual(expected!.eventNames);
-      expect(variant.requiredPropNames).toContain('data');
-
-      const pkgCheck = validatePackageVersionConsistency(
-        {
-          packageName: variant.packageName,
-          packageVersion: variant.packageVersion,
-          packageSha256: variant.packageSha256,
-        },
-        summary.packages,
+      // 篡改临时副本中的报告字节（禁止触碰真实冻结目录）
+      writeFileSync(
+        path.join(tmpBundle, 'reports/line-vue.json'),
+        '{"status":"passed","bytesCheck":999}',
+        'utf8',
       );
-      expect(pkgCheck).toEqual({ valid: true });
+      const tamperedCheck = verifyFrozenBundleFiles(tmpBundle);
+      expect(tamperedCheck.mismatches.some((m) => m.includes('reports/line-vue.json'))).toBe(true);
+    } finally {
+      rmSync(tmpBundle, { recursive: true, force: true });
     }
   });
+
+  it.skipIf(!process.env.A10_FROZEN_BUNDLE)(
+    '显式传入 A10_FROZEN_BUNDLE 时核对 manifest.files 全部 199 项、reports 引用与 14 变体',
+    () => {
+      const bundleDir = process.env.A10_FROZEN_BUNDLE!;
+      expect(existsSync(path.join(bundleDir, 'manifest.json'))).toBe(true);
+
+      const fileCheck = verifyFrozenBundleFiles(bundleDir);
+      expect(fileCheck.manifestFilesCount).toBe(199);
+      expect(fileCheck.reportFilesCount).toBe(14);
+      expect(fileCheck.mismatches).toEqual([]);
+
+      const summary = readFrozenBundleManifest(bundleDir);
+      expect(summary.packages['@company/charts-core']).toBeDefined();
+      expect(summary.packages['@company/charts-vue']).toBeDefined();
+      expect(summary.packages['@company/charts-react']).toBeDefined();
+      expect(summary.variants).toHaveLength(14);
+
+      const expectedMap = new Map(
+        expectedSdkComponents.map((item) => [`${item.componentId}:${item.framework}`, item]),
+      );
+
+      for (const variant of summary.variants) {
+        const expected = expectedMap.get(`${variant.componentId}:${variant.framework}`);
+        expect(expected).toBeDefined();
+        expect(variant.packageName).toBe(expected!.packageName);
+        expect(variant.exportName).toBe(expected!.exportName);
+        expect(variant.exportPath).toBe(expected!.exportPath);
+        expect(variant.styleExport).toBe(expected!.styleExport);
+        expect(variant.readyMethod).toBe(expected!.readyMethod);
+        expect(variant.eventNames).toEqual(expected!.eventNames);
+        expect(variant.requiredPropNames).toContain('data');
+
+        const pkgCheck = validatePackageVersionConsistency(
+          {
+            packageName: variant.packageName,
+            packageVersion: variant.packageVersion,
+            packageSha256: variant.packageSha256,
+          },
+          summary.packages,
+        );
+        expect(pkgCheck).toEqual({ valid: true });
+      }
+    },
+  );
 });

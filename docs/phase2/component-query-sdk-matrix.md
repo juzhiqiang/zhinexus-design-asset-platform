@@ -39,4 +39,5 @@
 
 - **Ranking 与 Proportion 导出名**：虽然源文件分别为 `RankingChart.vue` / `RankingChart.tsx` 与 `ProportionChart.vue` / `ProportionChart.tsx`，但 `index.ts` 与子路径入口（`ranking.ts` / `proportion.ts`）实际导出的公开符号为 `Ranking` 与 `Proportion`，而非 `RankingChart` / `ProportionChart`。
 - **双框架事件差异**：Vue 实现统一在 `*Emits` 中声明 `'point-click': [event: ChartEvent]`；React 实现统一在 `*Props` 中声明 `onPointClick?: (event: ChartEvent) => void`。
-- **公共辅助函数**：`tests/fixtures/component-query-sdk.ts` 提供 `expectedSdkComponents`、`validateExpectedSdkMatrix`、`validatePackageVersionConsistency`、`readFrozenBundleManifest` 与 `verifyFrozenBundleFiles` 供 P4 集成验收直接复用。
+- **公共辅助函数**：`tests/fixtures/component-query-sdk.ts` 提供 `expectedSdkComponents`、`validateExpectedSdkMatrix`、`validatePackageVersionConsistency`、`readFrozenBundleManifest` 与 `verifyFrozenBundleFiles` 供 P4 集成验收直接复用。其中 `verifyFrozenBundleFiles` 以 `manifest.files`（199 项）为权威清单逐项校验存在性、字节数与 SHA-256，并交叉核对 `manifest.reports`（14 份报告）、`packages` 与 `variants` 引用一致性。
+- **环境解耦**：默认 `tests/evaluation/component-query-sdk.test.ts` 不硬编码本地路径，完全自包含运行；真实冻结 bundle 校验通过显式传入 `A10_FROZEN_BUNDLE` 触发。

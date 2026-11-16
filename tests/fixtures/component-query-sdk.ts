@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import path from 'node:path';
 
 export type ExpectedSdkFramework = 'vue' | 'react';
@@ -180,6 +180,8 @@ type RawManifest = {
     examples: Array<{ previewFiles: RawFileRef[] }>;
     screenshots: Array<{ image: RawFileRef; packageSha256: string }>;
   }>;
+  reports?: RawFileRef[];
+  files?: RawFileRef[];
 };
 
 type RawApiJson = {
@@ -277,61 +279,128 @@ export function readFrozenBundleManifest(bundleDir: string): FrozenManifestSumma
 }
 
 export type FrozenBundleFileCheck = {
-  manifestReferencedFiles: number;
-  reportFiles: number;
-  bundleFilesExcludingManifest: number;
+  manifestFilesCount: number;
+  reportFilesCount: number;
+  referencedFilesCount: number;
   mismatches: string[];
 };
 
+function assertRefMatchesManifestFile(
+  ref: RawFileRef,
+  label: string,
+  manifestFileMap: ReadonlyMap<string, RawFileRef>,
+  mismatches: string[],
+): void {
+  const inFiles = manifestFileMap.get(ref.path);
+  if (!inFiles) {
+    mismatches.push(`${label} 引用未出现在 manifest.files 中：${ref.path}`);
+    return;
+  }
+  if (inFiles.sha256 !== ref.sha256 || inFiles.bytes !== ref.bytes) {
+    mismatches.push(
+      `${label} 与 manifest.files 元数据不一致：${ref.path} (${ref.sha256}/${ref.bytes} != ${inFiles.sha256}/${inFiles.bytes})`,
+    );
+  }
+}
+
 /**
- * 核对冻结 bundle 中的全部 199 个文件（185 个 manifest 引用文件 + 14 个 reports 文件）存在性、字节数与 SHA-256。
+ * 以 manifest.files 为权威清单逐项核对全部文件（含 14 份 reports/*.json）的存在性、字节数与 SHA-256，
+ * 并校验 manifest.reports、packages 与 variants 引用与 manifest.files 完全一致。
  */
 export function verifyFrozenBundleFiles(bundleDir: string): FrozenBundleFileCheck {
   const raw = readRawManifest(bundleDir);
-  const refs = new Map<string, RawFileRef>();
-
-  for (const pkg of raw.packages) {
-    refs.set(pkg.tarball.path, pkg.tarball);
-  }
-  for (const variant of raw.variants) {
-    refs.set(variant.api.path, variant.api);
-    refs.set(variant.docs.path, variant.docs);
-    for (const example of variant.examples) {
-      for (const previewFile of example.previewFiles) {
-        refs.set(previewFile.path, previewFile);
-      }
-    }
-    for (const shot of variant.screenshots) {
-      refs.set(shot.image.path, shot.image);
-    }
-  }
-
   const mismatches: string[] = [];
-  for (const [relPath, expected] of refs) {
-    const fullPath = path.join(bundleDir, relPath);
+
+  if (!Array.isArray(raw.files) || raw.files.length === 0) {
+    mismatches.push('manifest.files 缺失或为空');
+    return {
+      manifestFilesCount: 0,
+      reportFilesCount: 0,
+      referencedFilesCount: 0,
+      mismatches,
+    };
+  }
+
+  const manifestFileMap = new Map<string, RawFileRef>();
+  for (const entry of raw.files) {
+    if (manifestFileMap.has(entry.path)) {
+      mismatches.push(`manifest.files 存在重复路径：${entry.path}`);
+      continue;
+    }
+    manifestFileMap.set(entry.path, entry);
+
+    const fullPath = path.join(bundleDir, entry.path);
     if (!existsSync(fullPath)) {
-      mismatches.push(`缺失文件：${relPath}`);
+      mismatches.push(`缺失文件：${entry.path}`);
       continue;
     }
     const content = readFileSync(fullPath);
     const actualSha = createHash('sha256').update(content).digest('hex');
-    if (content.length !== expected.bytes) {
-      mismatches.push(`字节数不匹配：${relPath} (${content.length} != ${expected.bytes})`);
+    if (content.length !== entry.bytes) {
+      mismatches.push(`字节数不匹配：${entry.path} (${content.length} != ${entry.bytes})`);
     }
-    if (actualSha !== expected.sha256) {
-      mismatches.push(`SHA-256 不匹配：${relPath} (${actualSha} != ${expected.sha256})`);
+    if (actualSha !== entry.sha256) {
+      mismatches.push(`SHA-256 不匹配：${entry.path} (${actualSha} != ${entry.sha256})`);
     }
   }
 
-  const reportsDir = path.join(bundleDir, 'reports');
-  const reportFiles = existsSync(reportsDir)
-    ? readdirSync(reportsDir).filter((name) => statSync(path.join(reportsDir, name)).isFile()).length
-    : 0;
+  const referencedPaths = new Set<string>();
+  for (const pkg of raw.packages) {
+    referencedPaths.add(pkg.tarball.path);
+    assertRefMatchesManifestFile(pkg.tarball, `package(${pkg.name})`, manifestFileMap, mismatches);
+  }
+  for (const variant of raw.variants) {
+    referencedPaths.add(variant.api.path);
+    assertRefMatchesManifestFile(variant.api, `variant(${variant.variantId}).api`, manifestFileMap, mismatches);
+    referencedPaths.add(variant.docs.path);
+    assertRefMatchesManifestFile(variant.docs, `variant(${variant.variantId}).docs`, manifestFileMap, mismatches);
+    for (const example of variant.examples) {
+      for (const previewFile of example.previewFiles) {
+        referencedPaths.add(previewFile.path);
+        assertRefMatchesManifestFile(
+          previewFile,
+          `variant(${variant.variantId}).preview`,
+          manifestFileMap,
+          mismatches,
+        );
+      }
+    }
+    for (const shot of variant.screenshots) {
+      referencedPaths.add(shot.image.path);
+      assertRefMatchesManifestFile(
+        shot.image,
+        `variant(${variant.variantId}).screenshot`,
+        manifestFileMap,
+        mismatches,
+      );
+    }
+  }
+
+  const reports = raw.reports ?? [];
+  const reportPaths = new Set<string>();
+  for (const report of reports) {
+    if (reportPaths.has(report.path)) {
+      mismatches.push(`manifest.reports 存在重复路径：${report.path}`);
+      continue;
+    }
+    reportPaths.add(report.path);
+    referencedPaths.add(report.path);
+    assertRefMatchesManifestFile(report, 'manifest.reports', manifestFileMap, mismatches);
+  }
+
+  for (const filePath of manifestFileMap.keys()) {
+    if (filePath.startsWith('reports/') && !reportPaths.has(filePath)) {
+      mismatches.push(`manifest.files 中的报告未在 manifest.reports 引用：${filePath}`);
+    }
+    if (!referencedPaths.has(filePath)) {
+      mismatches.push(`manifest.files 存在未被引用的文件：${filePath}`);
+    }
+  }
 
   return {
-    manifestReferencedFiles: refs.size,
-    reportFiles,
-    bundleFilesExcludingManifest: refs.size + reportFiles,
+    manifestFilesCount: manifestFileMap.size,
+    reportFilesCount: reportPaths.size,
+    referencedFilesCount: referencedPaths.size,
     mismatches,
   };
 }
