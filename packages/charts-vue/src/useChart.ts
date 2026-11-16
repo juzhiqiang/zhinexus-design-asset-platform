@@ -183,7 +183,7 @@ export function useChart(options: UseChartOptions): UseChartResult {
   onMounted(createController);
   onBeforeUnmount(detach);
 
-  watch(options.data, () => {
+  watch([options.data, options.optionOverrides], () => {
     applyData();
   });
 
@@ -196,7 +196,12 @@ export function useChart(options: UseChartOptions): UseChartResult {
     }
     const theme = next?.theme ?? 'light';
     const renderer = next?.renderer ?? 'canvas';
-    if ((previous.theme ?? 'light') !== theme || (previous.renderer ?? 'canvas') !== renderer) {
+    const presentationChanged =
+      (previous.theme ?? 'light') !== theme || (previous.renderer ?? 'canvas') !== renderer;
+    if (
+      presentationChanged &&
+      sameChartConfig(chart, { ...previous, theme, renderer }, next)
+    ) {
       current.setPresentation(theme, renderer);
       return;
     }
