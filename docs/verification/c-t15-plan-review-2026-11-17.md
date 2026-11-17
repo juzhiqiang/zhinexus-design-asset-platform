@@ -54,3 +54,22 @@ C 通过同一固定工具链执行前述完整两个测试文件与根 TypeScri
 两测试 SHA 前后一致：plan `C8DFC9100B158A16EE3472CF28913F577BD405BB23C54109531F3FAF5F0F7A85`、network `E1AC8A98896E536D271FBB36A7236014C1A4C18EB741B70858BDFD12D496DFF9`。四 stub SHA 与首批 RED 相同。独立新日志为 B `.superpowers/t15/host-plan-final-fixture-red-2026-11-17.log`、`host-plan-final-fixture-red-hashes-2026-11-17.json`、`host-plan-final-fixture-red-root-tsc-2026-11-17.log`，另备份到 C 忽略 ledger；历史日志和记录保留。
 
 正式 RED 与原 P1 GREEN 授权已通过实际 Claude 桌面端送达 B，界面确认消息已发送且输入框清空。B 继续 resolve/registry/plan、integrate 与 cli/index 接线，保留 93 inspection 与 31 plan 行为断言；公共契约、独立 A/C/D 测试、根配置/锁/版本仍由各负责人维护。B 停在 plan-green-ready 后由 C 正式执行三组 P1 测试、CLI build/typecheck、根 tsc 与候选审查。独立黑盒、冻结 CLI 的真实安装/服务验收、最终全图验证及 main 集成尚未完成；未升版、pack 或 push。
+
+## 七项候选审查回归的宿主正式 RED（追加）
+
+原产品候选于 14:30:28 经宿主执行完整 P1：124/124 passed、0 skipped，35.28s；CLI build/typecheck、根 TypeScript 均 exit 0，12 个源/测试 SHA 前后稳定。候选与日志按白名单逐字节备份，供比较回归断言；不据此 pack 或标记 T15 完成。独立候选审查一次收束七项 Important，C 逐项核对后采纳：junction/链接读取逃逸、新增依赖下载之后缺少最终复读、原先不存在的识别关键路径未守卫、新依赖缺 integrity 冒用验证声明、真实组件 bytes 损坏错误分类、执行错误 stdout 缺 JSON，以及诊断与远端冲突可能回显令牌。无 Critical 或 Minor。
+
+C 裁定保持冻结 CLI 参数清单，删除额外 --timeout 接受与 help，保留库 PlanOptions.requestTimeoutMs；错误 envelope 为命令本地最小 JSON 对象，不新增 contracts DTO。此接口收口已由实际 B 执行，七项产品修复仍须 RED 后实施。B 在原有 124 项之外新增 18 项回归并停写。C 与候选备份比较：network 原内容完整前缀不变；plan 只增加 runIntegrateCommand/IntegrateCommandResult 导入和末尾四项矩阵，去掉该导入后原内容完整前缀不变；原有行为断言均保留。
+
+2026-11-17 15:50:18–15:50:53 +08:00，C 在 B worktree 用实际 Node 26.13.0、pnpm 12.18.0、Git 2.48.1.windows.1 执行：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts --reporter=default --reporter=json --outputFile=.superpowers/t15/host-plan-review-red-2026-11-17-1545-results.json
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+```
+
+结果为 **15 failed、127 passed、142 total、0 skipped、exit 1**，32.91s。inspection 93/93、plan 17 passed/3 failed、network 17 passed/12 failed。原 124 全 GREEN；新增 18 为 15 行为 RED 与 3 既有行为守卫 GREEN，其中 exists:false 基准断言实际 RED，不能因其称作守卫就记为通过。根 TypeScript **exit 0**，12 个源/测试 SHA 前后一致。Windows junction 实际建立且 realpath 指向外部目录，三个链接回归均在预期行为断言失败，无 setup、收集、输入合法性或屏障超时失败。其他失败对应新增依赖下载后的撤权/编辑、关键路径新增、缺 integrity、bytes 损坏的 REGISTRY_UNAVAILABLE 错误分类、空 stdout 或令牌回显，未冒称修复完成。
+
+固定测试 SHA：plan `C6887A7F6CB62F152EB29F3125F856185BA947AEA6F8860445AAEA32B154C798`；network `EF51E0C924A82177A79C3C15E8A0F52297E2F03A0691302516ED309454CF1736`。证据保存在 B `.superpowers/t15/host-plan-review-red-2026-11-17-1545*`，逐件核对 SHA 后复制至 C 的本计划 ledger 目录 `b-plan-review-red-2026-11-17/`，同时备份 12 个原始源/测试。原架构 SHA 保持 `E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723`。
+
+C 已通过实际 Claude 桌面窗口发送同批 GREEN 授权，并观察到消息进入会话、输入框清空与 Working on it。交接文件为 B `.superpowers/t15/c-plan-review-red-green-handoff-2026-11-17.md`。产品由实际 B 修复，原 124 与新增 18 断言、冻结 inspection 三源保持；完成后停到 plan-review-green-ready。宿主完整 P1/build/typecheck/根 tsc、D35 黑盒、唯一新 CLI 冻结与 C25 真服务以及最终全图仍未完成。不 bump、pack、push 或提前标 T15/T16/T17/G2/业务试点完成。
