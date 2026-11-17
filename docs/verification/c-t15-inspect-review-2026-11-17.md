@@ -147,3 +147,29 @@ C 使用 B 同款 helper 和完整创建顺序在自有临时目录作对照：�
 C 仅给 B 子模块 fixture 三个自有仓库固定上述行尾配置，未修改任何产品或断言。12:27 窄范围复跑实际 **2 行为失败 / 1 passed**，5.40 秒；`-t` 排除了其余 86 项，明确记录为 86 skipped，不能作为完整全组证据。两项均到达 `inspect 不得执行子模块 helper` marker 断言。测试 SHA 前后一致 `804840E75F1D9BA1BB00C9291DF0CADEA484B7EF4B3E32EAA294E3320FCE6745`，日志 `host-inspect-submodule-corrected-red-2026-11-17.log`。完整重跑、partial-clone 行为 RED 与同批 GREEN 仍待后续；T15 不提前完成。
 
 随后于 12:27:34 完整重跑同一 inspection 命令：**8 failed / 81 passed / 0 skipped、exit 1**，29.05 秒，全部失败为行为断言（6 项关联边界、2 项子模块执行），无 setup 失败。测试摘要前后一致 `804840E75F1D9BA1BB00C9291DF0CADEA484B7EF4B3E32EAA294E3320FCE6745`，三实现源摘要未变。日志 `host-inspect-submodule-corrected-full-red-2026-11-17.log`。此证据只关闭子模块夹具前提，产品四边界同批修复尚未开始。
+
+## 四类零执行边界正式 92 项 RED（追加）
+
+B 在实际 Claude 桌面端追加真实 partial clone 与两个 argv 守卫，C 预审发现 expected helper exit 128 被 execFileSync 提前抛错并由宽泛 skip 捕获。B 改为 spawnSync 控制后校验 marker，正式用例任一 setup 失败明确失败，删除 skip；沙箱 Git 2.34.1 的前提失败单独记录，不当作固定宿主结果。未改产品或原断言。
+
+2026-11-17 12:40:11，C 用固定工具链完整执行 inspection：**11 failed / 81 passed / 0 skipped、exit 1**，30.29 秒。全部为行为断言：原 6 项关联、2 项子模块、真实 partial clone helper-marker、2 项 no-lazy-fetch argv 守卫；无 setup 失败。根 `-PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')` **exit 0**。测试 SHA 前后一致 `C91F0D0F219BB44D6E1F759756B7FD30C4045908BA3BDC6AF7C1D5FA4B555CF5`，三实现源 SHA 保持 77 项 GREEN 版本。日志 B `host-inspect-zeroexec-red-2026-11-17.log`、`host-inspect-zeroexec-red-hashes-2026-11-17.json`、`host-inspect-zeroexec-red-root-tsc-2026-11-17.log`。
+
+实际 B 已收到正式 RED，开始同批 GREEN：路径逐条校验、特殊名歧义、子模块禁止递归与安全 gitlink 检测、共享 no-lazy-fetch。C 不替代 B 产品开发，不继续扩张未实证配置审查；完整 GREEN/构建/聚焦提交、plan 产品及独立已安装验收仍待完成。
+
+## Gitlink 检测触发可靠性（追加）
+
+B 同批修复交付源摘要 `B25DEEC2E80A985181C77131F22660B05F2D3687D44BBC382A5F283C5327D33A`。C 核对当前同一 gitlink 收口，发现 stage 枚举只在工作树存在 tracked 目录或 project 根 .gitmodules 是文件时触发；目录可缺失而索引仍登记 160000，该条件不能证明项目无 gitlink。实际 B 补真实 cacheinfo 回归：自有 seed 提供真实 commit OID，外层 Git 根的 apps/client/child 登记 160000，工作目录及 .gitmodules 不存在，ignore-submodules=all status 为空；产品仍返回 clean。
+
+12:57 窄复跑 **1 行为失败、92 项排除、exit 1**，1.14 秒，失败为 clean 应为 unavailable，没有 setup 失败。日志 B `host-inspect-gitlink-trigger-initial-2026-11-17.log`。C 只校正新 fixture 的 npm 锁 ECharts 条目，使其与原 vueNpmManifest 的两项声明一致，保留所有原断言，避免修复 Git 后 inspected 守卫被另一个夹具缺项遮挡；未改产品、真实锁或独立 A/C/D 材料。
+
+12:58:44 完整 inspection 复跑：**1 failed / 92 passed / 0 skipped、exit 1**，29.35 秒，唯一失败为此真实 gitlink 触发回归；原四类边界 92 项全部通过。测试摘要前后一致 `B2BB790D706ED06FF331C5326E0B80F7238400F081E097E8025A59606369E857`，源摘要保持 B25DEEC2。日志 `host-inspect-gitlink-trigger-full-red-2026-11-17.log`。实际 B 已收到 GREEN 交接，移除工作树推断前置，固定执行安全 stage 枚举，并仅调整一项非行为 argv 调用计数断言。完整 GREEN/构建与提交仍待后续。
+
+## Inspection 正式 GREEN 与聚焦提交（追加）
+
+2026-11-17 13:06:49（Asia/Shanghai），C 对实际 B 停写的 `inspect-gitlink-trigger-green-ready` 交付运行固定工具链完整 inspection：**93/93 passed、0 skipped、exit 0**，30.50 秒。随后 `--filter @company/component-cli build`、`--filter @company/component-cli typecheck` 和根 `-PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')` 均 **exit 0**。命令均经 `.\scripts\pnpm.ps1` 执行，Node 26.13.0、pnpm 12.18.0、Git 2.48.1.windows.1；日志为 B `.superpowers/t15/host-inspect-gitlink-trigger-{green,build,typecheck,root-tsc}-2026-11-17.log`，哈希记录 `host-inspect-gitlink-trigger-green-hashes-2026-11-17.json`。
+
+测试 SHA 前后一致 `AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27`；inspect `8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB`、locks `8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46`、workspace `5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576` 均与停写交付一致。路径逐条校验、特殊属性 driver 歧义、子模块禁止递归、partial clone 禁止 lazy fetch 及缺目录 gitlink 固定 stage 枚举已通过本轮行为与零执行测试；不扩张未实证 Git 配置实验。
+
+C 检查暂存范围并只去除 B 验证文档多余 EOF 空行，`git diff --cached --check` 明确 exit 0 后代 B 提交 **`99bf0f46` — `feat: 实现本地项目与锁文件只读识别`**。提交仅含 B 三个实现文件、inspection 测试及当天验证文档，提交后 B 工作树干净。无版本升级、pack 或 push；构建的 dist/probe 不是冻结发布产物。
+
+实际 Claude 桌面端 B 已收到上述正式 GREEN、提交 hash 与原 `c-plan-next-stage-2026-11-17.md` 启用交接：继续 P1 plan/network 行为测试，缺模块只用正确签名 throwing stub，停在 `plan-behavior-red-ready` 由 C 正式 RED 后实施。T15、独立黑盒、真实服务已安装验收及最终 main 集成仍未完成。
