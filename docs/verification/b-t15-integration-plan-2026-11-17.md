@@ -212,7 +212,50 @@ GREEN 实现（仅 `inspect.ts`）：**移除 `readGitGitlinkState` 的 `suspici
 
 本轮文件 SHA-256：`inspect.ts` `8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB`、`locks.ts` `8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46`（未改）、`workspace.ts` `5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576`（未改）、`tests/integration/project-inspect.test.ts` `AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27`（93 项）。宿主复跑命令：`.\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts` 加 CLI build/typecheck 与根 `tsc --noEmit`，预期 93/93、0 skipped、exit 0。
 
-## 十五、未覆盖与风险
+## 十五、inspection 正式收口 + plan 阶段行为 RED（宿主 RED 待确认）
+
+**inspection 收口（宿主确认）**：2026-11-17 13:06:49 固定 Node26.13.0/pnpm12.18.0/Git2.48.1 完整运行 93 项 **93/93 passed、0 skipped、exit 0**（30.50s），CLI build/typecheck 与根 tsc 均 exit 0，测试/三实现 SHA 前后一致；日志 `host-inspect-gitlink-trigger-{green,build,typecheck,root-tsc}-2026-11-17.log`。C 已代 B 聚焦提交 `99bf0f46`（`feat: 实现本地项目与锁文件只读识别`），B 工作树干净。最终实现 SHA：`inspect.ts` `8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB`、`locks.ts` `8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46`、`workspace.ts` `5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576`。
+
+**plan 阶段 RED**（依据 `c-plan-next-stage-2026-11-17.md`，不重规划）：新增 `tests/integration/project-plan.test.ts`（16 项）与 `tests/integration/project-plan-network.test.ts`（13 项），共 29 项；为尚不存在的 `integration/{resolve,registry,plan}.ts` 与 `commands/integrate.ts` 补仅固定签名且 throwing 的最小 stub，使所有用例实际收集并在行为断言上失败（不用 0 tests 冒充 RED）。
+
+`project-plan.test.ts` 覆盖：planned 形状（`executionAuthorized` 恒 false、`matchPlanDigest` 为 canonicalJson(sourceMatchPlan) 的原始 SHA-256、baseFileHashes 原样保留识别快照且未来源码以 `exists:false` 表示、allowedPaths/changes/commands 三类意图、install 预览固定 `install --ignore-scripts`、默认 `src/components/zhinexus/component-0001.vue` 与 `--output-dir` 自定义）、同包多实例按输入顺序编号且只读一次包材料、凭据不进计划 JSON、兼容未验证/缺数据源/缺事件处理/缺布局、同名不同精确依赖不静默升级已锁宿主、缺 ECharts 不凭空补版本、OUTPUT_EXISTS 不覆盖、DIRTY_TARGET（其他脏文件仅记录不阻塞）、`--output-dir` 穿越项目根、本地项目多锁冲突、以及“离线 MatchPlan 自洽但删掉 required prop / 删空 events / 含额外成员或过期类型”时由权威 GET 交叉核对发现遗漏（API_MISMATCH）、下载后撤权（TARGET_UNAVAILABLE）。每个用例都断言目标项目全树字节快照不变。
+
+`project-plan-network.test.ts` 覆盖：planned 基线（API 与 registry 两类令牌分别注入、互不转发）、GET query 身份不符、tarball SHA 与平台摘要不符、仅有 registry integrity 不得伪称平台摘要、下载超 50 MiB、请求超时、跨 origin 重定向（目的地零请求）、地址含 userinfo、非 loopback HTTP、网络请求等待期间并发编辑 → PROJECT_CHANGED 且保留用户修改、tarball 暂停期间撤权后必须复读并拒绝 planned、API 返回 gap、远端 5xx。
+
+为使“必须失败”类用例在 RED 下真正失败（不被 stub 的抛错顺手满足），`plan.ts` 增加稳定执行错误契约 `IntegrationPlanError` + `INTEGRATION_PLAN_ERROR_CODES`（`NOT_IMPLEMENTED`/`INVALID_ENDPOINT`/`REQUEST_TIMEOUT`/`DOWNLOAD_LIMIT_EXCEEDED`/`REDIRECT_REJECTED`/`REGISTRY_UNAVAILABLE`）；结构化冲突一律以 `status: 'conflicted'` 的计划返回，执行错误抛该类型（CLI 映射 exit 1）。
+
+宿主确认正式 RED：13:25:52 两个文件 **29/29 行为失败、0 skip、exit 1**（1.45s），根 tsc exit 0，测试/四 stub SHA 前后一致；日志 `host-plan-behavior-red-2026-11-17.log`、`host-plan-behavior-red-hashes-2026-11-17.json`、`host-plan-behavior-red-root-tsc-2026-11-17.log`。C 同批预审（`.superpowers/t15/c-plan-red-fixture-precheck-2026-11-17.md`）指出 throwing stub 尚未触及网络、不能证明正常夹具可达到 planned，并列岀四类成功夹具前提缺失。本轮**只修测试夹具，产品 stub 一字未改**，不削弱任何原行为断言：
+
+1. `project-plan.test.ts` 由“单 API server 兼任 registry、target SHA 固定 `'b'.repeat(64)`”改为 **API 与 registry 两个独立 loopback 服务**；registry 返回固定合成 bytes 的 packument 与 tarball，`integrity`/`shasum`/平台摘要全部由实收 bytes 实算（sha256/sha512/sha1），正常 target 与断言用同一 SHA-256；registry 缺省只回答被请求的精确 name/version 与 tarball 路径，其他 404。
+2. `project-plan-network.test.ts` 的 `INTEGRITY` 不再是全 A 占位值，改为从实收 bytes 实算；摘要损坏案例改为 target 声称的 `packageSha256` 与实收 bytes 真实 SHA-256 不同；新增「registry `dist.integrity` 与实收 bytes 不符必须拒绝（`REGISTRY_UNAVAILABLE`）」用例，替换原先偏弱的“无平台摘要就号称 registry-integrity”断言。
+3. 两份 API 正常 query 现含 `packageName` 绑定已选包，用例逐个字段断言全部 query 字段。
+4. 屏障改为显式 `entered`/`opened` + `waitForEntry`（5s 受控超时）：确认请求真的进入屏障后才改文件/切撤权再释放，不用 `sleep` 冒充；产品先失败时返回 `settled` 并由“请求应先进入屏障”断言失败，不会把等待未发请求的 setup 超时当行为 RED；撤权用例断言最终 GET 次数 ≥ 2。
+5. planned 首例按冻结 spec 精确预期 **install + 原生 typecheck + 原生 build**（结构 argv、cwd 相对项目根），不再把产品缩成只显示 install。
+
+正常源 MatchPlan 与 API 响应用冻结 validators 断言动态合法；“删 required prop / 删空 events / 含额外成员”三个语义反例各自单独断言删改后仍结构合法；保留 required 却删 source 的变体按 `validateMatchPlan` 设计要求需显式 MISSING_PROP gap，故不断言其合法；缺 ECharts 场景改为删除 `echartsVersion` 键；每个入口运行前后检查同一目标树。
+
+夹具可满足性探针（本地，非正式）：实收 bytes `sha256=a0a93a8f7e7e772d2ad1c730c8838eaef151b88516edd68d5c8e5ad63efbbdfd`、`integrity=sha512-EXxNpK4cblHNRFR1ZkIIi7ilJiK88cQCLnqFIzS0cPuv7rvqC+NyeTF2xke/U0AfNXnpPUXGdom4SACLQ/stJA==`、`shasum(sha1)=e6ee48b93e8580bd893629d47d31601e438b7831`；`validateMatchPlan=true`、`validateComponentMatchResponse=true`、`validateIntegrationPlan(validIntegrationPlanFixture())=true`（证明未触碰 C 冻结契约）。
+
+同批独立审查补充（已追加至 `c-plan-red-fixture-precheck-2026-11-17.md`）确认“删除字段 + 缺口处理”做法正确、`sourceMatchPlan` 完整保留；同时指出原 registry-integrity 用例只是把所选组件平台 SHA 改错，未覆盖已批准的新增 core 依赖检查。已改写为真实场景并新增守卫：
+
+- **GET 明确新增 core 依赖（planned）**：本地项目不锁 ECharts，MatchPlan 明确给出候选版本，GET 的 `exactDependencies` 显式包含该 core；registry 为 core 提供**独立 synthetic bytes / 精确版本元数据 / 由该 bytes 实算的真实 integrity**（算法沿用既定 sha256/sha512/sha1，未加新依赖）。期望 `registryEvidence` 中该 core 为 `verification: 'registry-integrity'`、`sha256` 等于 core bytes 真实 SHA-256、`integrity` 为实算值，且 core 元数据与 bytes 必须被真实读取（断言请求路径含 `/echarts` 与 `/echarts/-/echarts-6.1.0.tgz`）；不得把无平台摘要的 core 声称成 `platform-sha256`；断言显式清单修改、锁重建意图与 install 预览。
+- **坏 integrity 守卫**：core 的 `dist.integrity` 与实收 bytes 不符 → 执行错误 `REGISTRY_UNAVAILABLE`，不返回计划。
+- registry 服务同时改为**按请求路径路由 + 覆盖表**（缺省只回答被请求的精确 name/version 与 tarball 路径，其他 404），替换原先依赖调用顺序的响应队列。
+
+新增 core 场景的**夹具可满足性探针**（本地，非正式）：按上述形状构造完整计划，`validateIntegrationPlan` 通过（含 `registry-integrity` 证据、双新增依赖的清单修改、install + 原生 typecheck/build），证明该用例可被正确实现满足。
+
+宿主 13:44:42 固定工具链完整 **31/31 失败、0 skip、exit 1**（859ms），根 tsc exit 0，两个测试 SHA 为 `DEEAA4A1…FE8C` / `FBF64E3E…BF89`，四 stub 前后一致。独立 reviewer 固定前后 SHA 一次复审后只剩两处原前提未真正修正（`c-plan-red-fixture-precheck-2026-11-17.md` 末节），本轮只改这两处测试、产品 stub 一字未改、未删除任何结果合法性断言：
+
+1. **plan.test.ts**：unverified 与三类缺绑定原用显式 `source/handler/layout: undefined` 且不加 gap，还在入口前取消源合法性断言；冻结 schema 禁止 `undefined`，`validateMatchPlan` 要求缺绑定/布局/兼容的显式 gap，而 `validateIntegrationPlan` 会再验证完整 `sourceMatchPlan`，原夹具不可能合法。现改为真正删除可选字段并补对应 gap（unverified → `compatibility` 改 unverified + `COMPATIBILITY_UNVERIFIED` gap；缺数据源 → 删 `source` + `MISSING_PROP`；缺事件处理 → 删 `handler` + `MISSING_EVENT`；缺布局 → 删 `layout` + `LAYOUT_UNKNOWN`），每个用例在调用入口前断言 `validateMatchPlan(plan).ok === true`，并保留结果合法与相应冲突断言。
+2. **network.test.ts**：摘要损坏用例原 `source.target` 为 `OTHER_SHA256` 而 API 缺省首/末次 target 都是 `TARBALL_SHA256`，首次 GET 已先 `TARGET_CHANGED`。现新增可临时改写的 `apiDefaultTargetSha`（`beforeEach` 复位），该用例设为 `OTHER_SHA256` 使两次 GET 稳定声明同一摘要，served tarball 仍是正常 bytes，唯一改变的就是下载摘要；保留真实下载请求控制与结果合法性断言。
+
+修正后 B 沙箱预检（非正式）：`tsc --noEmit` exit 0；两个新文件仍 **31 failed (31)**（16 + 15），失败全部落在行为断言（19 项缺结构化计划、6 项错误 code 不匹配、2 项请求未进入屏障、其余为缺数据源/撤销/撤权的结构化冲突断言），无 fixture、结构合法性或屏障超时失败；三处修正后的用例均失败于 `planIntegration` 行为断言（在其 `validateMatchPlan` 夹具断言之后）。本地探针另确认摘要损坏用例的完整 conflicted 计划可通过 `validateIntegrationPlan`（served bytes SHA `a0a93a8f…bbdfd` vs 声称 `78442dda…595c`）。宿主 RED 命令同上，预期 31 failed / 0 passed / 0 skipped。
+
+本轮文件 SHA-256：`project-plan.test.ts` `C8DFC9100B158A16EE3472CF28913F577BD405BB23C54109531F3FAF5F0F7A85`（16 项）、`project-plan-network.test.ts` `E1AC8A98896E536D271FBB36A7236014C1A4C18EB741B70858BDFD12D496DFF9`（15 项）、`integration/resolve.ts` `2BADB0C789ABACAFE9EFF19FAC5486E01A3B6891B2C1F73D9103300CE89E52F4`、`integration/registry.ts` `937F3491C81CDE124E6A24812CD818FE5C581D29039B745DEEEEE78DDCAF7303`、`integration/plan.ts` `5EF4FDDF247E1F164E2F475E175DC476494B6755905B7C670A20DDD6CCD9246D`、`commands/integrate.ts` `69CBB9937B6584BD6E97638A43D83962853F32FF1912B8089C2A36CBF189F045`。inspection 三实现与 `project-inspect.test.ts` 本轮未改。
+
+B 沙箱预检（非正式）：`tsc --noEmit` exit 0；vitest 5.1.0 两个新文件 **29 failed (29)**，无一通过/跳过；既有 93 项 inspection 在临时副本剥掉 `--no-lazy-fetch` 后仍为 3 failed | 90 passed，与收口前一致。宿主 RED 命令：`.\scripts\pnpm.ps1 exec vitest run tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts`，预期 29 failed / 0 passed / 0 skipped。
+
+## 十六、未覆盖与风险
 
 - Git `status` 触发 clean/process filter 已由 C 实测确认，本轮已按“只读枚举配置 + `-c` 置空 clean/process/smudge 并关闭 required”收口；`git config -z` 的记录格式在沙箱 Git 2.34.1 实测，宿主 Git 2.48.1 由正式复跑确认。driver 名若含空格/非 ASCII 等无法可靠屏蔽的字符，按约定整体报 `git unavailable`（不执行 filter、不伪造 clean）。
 - **第七项（变换型 filter 的 false-clean）已在第十节修复**：固定 argv 的 `ls-files -z` + `check-attr -z filter --stdin` 只读枚举，把实际关联已枚举 driver 的 tracked 路径保守并入 dirtyPaths；枚举/属性/路径记录不可信即整体 `git unavailable`，不用“清洗成干净”冒充观察，也不用全部 unavailable 掩盖清单改动。已知代价：受 filter 影响的未修改路径会被多报为 dirty（明确的只读保守边界），后续 plan 的 DIRTY_TARGET 会因此更易触发，需人工复核。
@@ -223,7 +266,7 @@ GREEN 实现（仅 `inspect.ts`）：**移除 `readGitGitlinkState` 的 `suspici
 - 第六节六项数据边界阻断已在第七节修复，宿主复跑 63/63 通过；第七、八、九节共 4 项反例已在第十节修复，宿主复跑 77/77 通过；第十一节两条关联枚举边界（ls-files 路径合法性、check-attr 特殊状态与同名 driver 歧义）与第十二节 Git 子模块零执行边界（status 递归执行子仓 filter、项目内 gitlink 无法安全识别）尚未修复，共 8 项反例待宿主 RED 与 B 一并收口后方可提交 inspection 完成。
 - `planIntegration`、GET 复读、registry 字节/摘要校验、CLI 接线均未开始；T16/T17、真实业务项目验收不在本轮范围。
 
-## 十六、提交与 hash
+## 十七、提交与 hash
 
 本轮提交由宿主 C 在 Windows 代跑并注明：`feat: 实现本地项目与锁文件只读识别`（实现三模块与测试修订）、`test: 补充独立审查反例与真实锁快照、Git filter 反例`、Git 最终执行边界轮（filter 枚举/porcelain `-z` 修复与断言收紧）、数据边界轮（workspace 声明按包管理器选择、坏字段/锁版本/specifier/manifest 类型/近层 link 失效关闭，测试由 62 增至 63 项）、filter 语义与近层记录轮（变换型 filter false-clean 的只读关联枚举收口 + npm 近层记录失效关闭，测试由 68 增至 77 项）。第十一、十二节 RED（关联枚举边界 + Git 子模块零执行，测试 89 项）的提交待其 GREEN 与宿主复跑通过后另行进行。`.superpowers/` 下宿主日志被 gitignore，不得强加入提交。完整 hash 以 Git 记录为准，B 不 push、不合并、不改公共契约或根配置。
 # 宿主正式 inspection 收口（C 追加，2026-11-17 13:07）
@@ -240,3 +283,158 @@ B 实际 Claude 桌面端完成四类零执行修复与 gitlink 触发可靠性�
 固定 Node26.13.0/pnpm12.18.0/Git2.48.1.windows.1：完整测试 **93/93 passed、0 skipped、exit0**，30.50秒（13:06:49开始）；CLI build/typecheck、根tsc均exit0。测试运行前后SHA同为 `AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27`，inspect源同为 `8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB`；locks/workspace摘要保持既有交付。日志本工作树 `.superpowers/t15/host-inspect-gitlink-trigger-{green,green-hashes,build,typecheck,root-tsc}-2026-11-17.*`。
 
 本次只关闭inspection子任务。plan/registry/GET复验与CLI接线、新冻结CLI的独立黑盒及真服务验收尚未完成，不据此标T15完成。C此前仅校正synthetic子模块行尾配置及新触发回归的ECharts锁条目，保留原行为断言；产品始终由实际B开发。按已批准计划进入plan行为RED，版本/打包由C在最终候选审查后统一收口。
+
+# 十八、plan：原 P1 GREEN 产品实现（宿主 2026-11-17 13:56:02 授权；等待宿主正式复跑）
+
+本节把验证范围从“本地项目识别”扩展到 P1 的“只读接入计划 + CLI 接线”。上一节（十七）之后，宿主已按 `c-plan-next-stage-2026-11-17.md` 完成 31 项 plan 行为 RED 与成功夹具前提补齐，并于 13:56:02 正式授权原 GREEN。B 本轮实现 `integration/{resolve,registry,plan}.ts`、`commands/integrate.ts`，并接线 `cli.ts`/`index.ts`，**未重规划、未扩张范围**；未改 P0/公共契约、根配置、锁文件、版本，未 bump/pack/push，未动 93 项 inspection 的测试与 `inspect.ts`/`locks.ts`/`workspace.ts`。
+
+## 实现要点（只读边界逐条落实）
+
+- **本地解析（`resolve.ts`）**：复用 `inspectProject` 的同一套只读约束，自身零网络零写入。MatchPlan 与本地实际框架/包管理器/`frameworkVersion`/`echartsVersion` 逐项核对；本地未锁 ECharts 且 MatchPlan 未给明确候选时只报 `ECHARTS_MISSING`，不凭空补“最新版本”。输入 MatchPlan 的顶层与 element gaps 原样保留为冲突。目标按首次出现去重；同名不同精确版本 → `VERSION_MISMATCH` 且该目标不再读取 registry。`manifestPath`/`lockPath` 有未提交改动 → `DIRTY_TARGET`，其他脏文件仅记录不阻塞。默认未来位置 `src/components/zhinexus/component-0001.vue|.tsx`（按元素输入顺序，路径相对项目根），已存在 → `OUTPUT_EXISTS`，realpath 逃逸 → `PATH_UNSAFE`。
+- **远端读取（`registry.ts`）**：地址无 userinfo、仅 HTTPS 或显式 loopback HTTP；`redirect: 'manual'` 并显式拒绝 3xx / `opaqueredirect` / status 0，因此重定向目的地零请求；流式读取 + 50 MiB 限额，超限即取消；`AbortSignal.timeout`；非 2xx 只回显状态码、绝不回响应体；tarball 必须与 registry 同 origin；`dist.integrity`（sha256/384/512）与 `dist.shasum`（sha1）必须与实收 bytes 实算一致；两类令牌分别注入、互不转发、绝不进返回值；不在目标项目写下载缓存。
+- **编排（`plan.ts`）**：先在任何网络请求之前取关键文件原始字节基准；本地识别未通过时完全跳过远端（不为无法识别的项目下载材料）；权威 GET 后做 element target 全量比对与权威 API 对每个实例全部 props/events/type/required/payload/source/handler 的交叉核对；registry 下载按 name@version memoize 并复算摘要；下载/元数据结束后**最终复读 GET** 并与首次 `canonicalJson` 比对；再复读本地关键文件；**只为最终复读仍 matched 的元素**规划组件文件；`platform-sha256` 只对最终 matched 且摘要相符者声称，新增运行时依赖用 `registry-integrity`；产出过自身 `validateIntegrationPlan` 守卫。
+- **CLI（`commands/integrate.ts` + `cli.ts` + `index.ts`）**：`component integrate inspect|plan`；stdout 只写结构化 JSON、诊断走 stderr；conflicted exit 2、planned/inspected exit 0、参数/JSON/读取/网络错误 exit 1；令牌只从 `ZHINEXUS_API_TOKEN`/`ZHINEXUS_REGISTRY_TOKEN` 读取，不读项目配置；`--output-dir` 是未来源码位置，不创建目录。
+
+## GREEN 期间唯一一处测试侧改动（显式报备）
+
+宿主 RED 冻结的 `project-plan-network.test.ts`「API 返回 gap（目标不可用）」只推了一条 gap 响应，导致**最终复读** GET 落到 API server 的缺省 matched 响应——该用例当时是因夹具原因失败，而非锁住它声称的行为。修法是再推一条完全相同的 gap 响应。**断言一字未改**，未删除任何结果合法性断言。变异证明（沙箱，非正式）：把产品改回“用全部 mapped 元素规划组件、忽略最终复读的 gap”后，恰好只有这一条用例失败，其余 14 条不变，说明它仍是真实行为钉子。测试 SHA 由 `E1AC8A98896E…96DFF9` 变为 `5E989FCAC925…3CE24`，已请 C 决定是否需要单独复核。
+
+## B 沙箱预检（非正式；沙箱 Git 2.34.1 / Node 22，不代表宿主固定工具链）
+
+`tsc --noEmit`（plan 侧文件及其传递闭包）exit 0；`project-plan.test.ts` 16/16 与 `project-plan-network.test.ts` 15/15 全过（合计 31/31，0 skipped）；`project-inspect.test.ts` 90 passed | 3 failed (93)，3 个失败全部是沙箱 Git 2.34.1 不支持 `--no-lazy-fetch` 的已知限制，且 `inspect.ts` 与该测试文件与宿主 93/93 GREEN 版逐字节一致。包级 typecheck 仅 3 个错误，全在非本人文件且均为沙箱缺 `node_modules` 的模块解析；根 `tsc` 的 618 个错误同样全是模块解析与隐式 any 级联，本人文件与三个 `project-*.test.ts` 均 0 错误。
+
+另做**真实 CLI 进程**端到端冒烟（编译到 `/tmp` + loopback API/registry）：plan → planned/exit 0/stdout 仅 JSON/目标树零写入/两类令牌不出现在 stdout+stderr/恰好 2 次权威 GET/commands 恰为 `install --ignore-scripts`、`run typecheck`、`run build`；目标已存在 → conflicted/exit 2；inspect → exit 0。参数错误矩阵（缺子命令、未知子命令、重复/未知/缺值参数、缺必填参数、坏 JSON、文件不存在、MatchPlan schema 非法）全部 exit 1 且 stdout 为空。`--output-dir ../escape` 产生 `PATH_UNSAFE` 冲突而非写入。
+
+## 请宿主 C 执行的命令（工作树根目录）
+
+```powershell
+cd C:\Users\10208\.codex\worktrees\t15-b-integration-plan\zhinexus-design-asset-platform
+git status --short --branch
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts
+.\scripts\pnpm.ps1 --filter @company/component-cli run build
+.\scripts\pnpm.ps1 --filter @company/component-cli run typecheck
+.\scripts\pnpm.ps1 exec tsc --noEmit -p tsconfig.json
+```
+
+预期：93/93 + 31/31 passed、0 skipped、exit 0；CLI build/typecheck 与根 tsc 均 exit 0。
+
+## 本轮文件摘要（SHA-256）
+
+```
+8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB  packages/component-cli/src/integration/inspect.ts    （未改）
+5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576  packages/component-cli/src/integration/workspace.ts  （未改）
+8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46  packages/component-cli/src/integration/locks.ts      （未改）
+572F0C061B33BE522238E32A970259D11F7BA5B65ADA2429A16CBBAC9000CD3F  packages/component-cli/src/integration/resolve.ts    （新实现）
+C9C5E296E33FF05212EC542D194E54298726F821F458724621D10333B446CF43  packages/component-cli/src/integration/registry.ts   （新实现）
+C68CF23DE94B218447AF5E57B8E7B2A68FB6667B8CB2618ED31D61E3034E7EEE  packages/component-cli/src/integration/plan.ts       （新实现）
+900F016475E85D762A4963B34047C52F6DFE8B1C4515D7475BED54B6AF94399E  packages/component-cli/src/commands/integrate.ts      （从 throwing stub 实现）
+F84C7C6EBC795FBEFBD797066FD712F4694DAFAFD7A7C481EA586ABC3FDA17EB  packages/component-cli/src/cli.ts                    （接线）
+4D0E4FBFB1809908F81DAD9A9A262EFDF428D7E98D67A60077347E0245A0CA46  packages/component-cli/src/index.ts                  （导出新模块）
+AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27  tests/integration/project-inspect.test.ts           （未改）
+E36901B930DC3BAF77E95BC58A36CC2B89B6DFF9BCF7400D85982BB0F1D945D8  tests/integration/project-plan.test.ts              （本轮未改）
+5E989FCAC925D78A8B5C4DA6DB3C89864C96A419D07338EF1620D0411433CE24  tests/integration/project-plan-network.test.ts      （仅上述一处夹具变更）
+```
+
+**最终版限时复跑与停写**：`commands/integrate.ts` 做过一次 env 令牌读取的等价重构后，B 按宿主指示限时复跑——`tsc` exit 0，两个 plan 文件再次 **31/31 passed**。CLI 冒烟改走独立脚本（把 CLI 用例塞进 vitest 文件在沙箱里反复被环境问题干扰）：参数错误矩阵 10 项 + MatchPlan schema 非法 + `--output-dir ../escape` 共 12 项全部符合预期。**以上均为沙箱非正式证据，B 未宣称任何正式通过，并在此停写**，等宿主 C 的固定工具链完整 93 + 31、CLI build/typecheck 与根 tsc 结果。
+
+# 十九、候选审查回归 RED（宿主候选 124/124 通过；7 项 Important；产品候选未改，停写待正式 RED）
+
+宿主 14:30:28 固定工具链正式执行三组 P1：**124/124 passed、0 skipped、exit 0**（35.28s），12 源 SHA 前后稳定；CLI build/typecheck、根 tsc 均 exit 0。独立候选审查一次收束 7 项 Important（`.superpowers/t15/c-plan-product-review-2026-11-17.md`），C 逐项源码复核采纳。按交接要求，**本轮只补回归测试、产品保持当前候选**，并执行两项收口裁定。
+
+**裁定一：删除 CLI 额外 `--timeout`。** 保留原冻结 CLI 参数清单，`PLAN_FLAGS` 去掉 `--timeout`、删除 `parseTimeout` 与 `USAGE`/help 相关文字，`plan` 不再传 `requestTimeoutMs`；库接口 `PlanOptions.requestTimeoutMs` 保留，原 timeout 单测继续覆盖。实测 `--timeout 3000` 现按未知参数 exit 1，`component --help` 的 integrate 段不再出现该项（echarts verify 行原有 `--timeout` 未动）。
+
+**裁定二：如实说明 SHA 变化。** `project-plan.test.ts` 从宿主 RED 冻结值 `C8DFC9100B15…F0F7A85` → 候选 GREEN 时 `E36901B930DC…D945D8`（GREEN 期间那次 gap 夹具修正）→ 本轮 `C6887A7F6CB6…54C798`（仅顶部加一行 `runIntegrateCommand` 导入 + 末尾新增 4 个 CLI 用例）。`project-plan-network.test.ts` 从 `E1AC8A98896E…96DFF9` → `5E989FCAC925…3CE24` → 本轮 `EF51E0C924A8…CF1736`（仅末尾新增 14 个回归用例）。`commands/integrate.ts` 候选时为 `900F016475E8…94399E`（早期表内 `03A9C78C…54F3D` 为中间态，已更正），本轮删 `--timeout` 后为 `C03638208A09…4BC949`。原有 16 + 15 项用例及其断言一字未改。
+
+## 新增 7 类回归测试（18 项；本地 15 项如预期失败，3 项为守卫）
+
+1. **链接/junction 逃逸与外部读取（3 项）**：拟生成文件缺失但父目录是逃逸 junction；既有 junction 承载拟生成目标文件；等待期间目标目录被换成逃逸 junction。断言 `PATH_UNSAFE`、计划 JSON 不含项目外文件实算摘要、外部 bytes 与链接原状不变。目录链接用 junction（Windows 无需管理员特权），POSIX 退回目录符号链接；创建失败抛 setup 错误，不静默跳过。
+2. **新增依赖最后下载期间撤权/编辑（2 项）**：沿未锁 ECharts/core 场景，core tarball 实际 entered 屏障后分别推撤权 gap / 编辑关键文件再放行，要求全部 registry 元数据与 tarball 结束后再 GET 复读、然后本地复读。
+3. **原先不存在的第二锁 / workspace 声明（3 项，含 1 守卫）**：下载期间新增 `package-lock.json`、单包新增 `pnpm-workspace.yaml` 必须 `PROJECT_CHANGED` 且保留用户新文件；守卫要求 planned 基线的 `baseFileHashes` 把这些关键探测路径记为 `exists:false`。
+4. **新依赖缺 integrity（2 项，含 1 守卫）**：新增 core 元数据给正确 shasum 但无 integrity → 必须执行失败且无 registry-integrity 证据；守卫明确区分——所选组件缺 integrity 仍按平台 SHA 处理。
+5. **真实组件 bytes 损坏（1 项）**：元数据与平台摘要正常、只翻转 served tarball bytes → 必须返回合法 conflicted + `PACKAGE_DIGEST_MISMATCH`，不得误作 `REGISTRY_UNAVAILABLE`。
+6. **失败矩阵单一 JSON stdout（4 项，含 1 守卫）**：直接走 `runIntegrateCommand`，参数 9 类 + MatchPlan 3 类 + 远端 5xx，要求 exit 1 + 单一 JSON stdout（本地最小稳定对象 `{status:'error',error:{code,message}}`，不冒称 IntegrationPlan）+ stderr 诊断 + 不发无必要请求 + 不回显令牌；守卫确认成功路径 stdout 仍是单一 JSON。
+7. **远端值脱敏（3 项，含 1 守卫）**：不含连字符的 synthetic token 放入 `dist.integrity` 算法字段不得回显；非法 JSON 体内含 token 不回显原文（守卫）；远端 gap 消息含两类令牌时计划 JSON 不得含任何令牌。
+
+错误码契约由命令本地实现保持稳定：`INVALID_ARGUMENTS`、`INVALID_MATCH_PLAN`、`EXECUTION_FAILED`，以及透传 `IntegrationPlanError.code`。共享 contracts 无专用执行错误 envelope，不新增共享 DTO。
+
+## B 沙箱预检（非正式）
+
+`tsc --noEmit`（plan 侧文件及其传递闭包）exit 0。三组复跑：`project-plan.test.ts` 3 failed | 17 passed (20)；`project-plan-network.test.ts` 12 failed | 17 passed (29)；`project-inspect.test.ts` 3 failed | 90 passed (93)（3 项为沙箱 Git 2.34.1 不支持 `--no-lazy-fetch` 的已知限制，对应文件与宿主 GREEN 版逐字节一致）。合计 18 failed | 124 passed (142)，15 个新失败全部落在新增回归的行为断言，无 fixture/结构合法性/屏障超时/setup 失败。真实进程参数矩阵 12/12（含 `--timeout` 现按未知参数 exit 1）。**不代表宿主固定工具链，未宣称任何正式通过；B 在此停写，等宿主正式 RED 后再做本批 GREEN。**
+
+## 本轮文件摘要（SHA-256）
+
+```
+8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB  packages/component-cli/src/integration/inspect.ts    （未改）
+5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576  packages/component-cli/src/integration/workspace.ts  （未改）
+8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46  packages/component-cli/src/integration/locks.ts      （未改）
+572F0C061B33BE522238E32A970259D11F7BA5B65ADA2429A16CBBAC9000CD3F  packages/component-cli/src/integration/resolve.ts    （产品候选未改）
+C9C5E296E33FF05212EC542D194E54298726F821F458724621D10333B446CF43  packages/component-cli/src/integration/registry.ts   （产品候选未改）
+C68CF23DE94B218447AF5E57B8E7B2A68FB6667B8CB2618ED31D61E3034E7EEE  packages/component-cli/src/integration/plan.ts       （产品候选未改）
+C03638208A093DFC568599D81413AFB8DF06DFD3476DC66A8084A5A5354BC949  packages/component-cli/src/commands/integrate.ts      （仅删除 --timeout）
+9551DC19379543F6C14321A5057AAD9A2447930B202D8344119E0F24E6D2A167  packages/component-cli/src/cli.ts                    （仅删除 help 中 --timeout）
+4D0E4FBFB1809908F81DAD9A9A262EFDF428D7E98D67A60077347E0245A0CA46  packages/component-cli/src/index.ts                  （未改）
+AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27  tests/integration/project-inspect.test.ts           （未改，93 项）
+C6887A7F6CB62F152EB29F3125F856185BA947AEA6F8860445AAEA32B154C798  tests/integration/project-plan.test.ts              （16 原项未改 + 4 项 CLI 回归）
+EF51E0C924A82177A79C3C15E8A0F52297E2F03A0691302516ED309454CF1736  tests/integration/project-plan-network.test.ts      （15 原项未改 + 14 项回归）
+```
+
+## 仍未覆盖（不宣称完成）
+
+CLI 参数与退出码只有沙箱冒烟，**没有已提交测试覆盖** `runIntegrateCommand`，正式门槛是 D 的独立黑盒（33 项）与 C 的真服务专项（25 项）；Windows junction/大小写/8.3 未在宿主实测；未跑真实 Nest/PG/MinIO/Verdaccio 联调，也未安装已打包 CLI 做仓外验证。`registry.ts` 的 `redirect: 'manual'` 在沙箱 Node 22 下表现为 `type=basic, status=302`，其他运行时可能表现为 `opaqueredirect`，两条路径都已拒绝，宿主 Node 26.13.0 由「跨 origin 重定向」用例正式确认。
+
+# 二十、候选审查回归 GREEN（宿主正式 RED 15 failed / 127 passed 已确认；七项 Important 同批修复，停写待宿主正式复跑与 D 验收）
+
+宿主 2026-11-17 15:50:18–15:50:53 固定工具链完整三组：**15 failed / 127 passed / 142 total / 0 skipped、exit 1、32.91s**；原 124 项全 GREEN，新增 18 项中 15 项行为 RED、3 项既有守卫 GREEN；根 tsc exit 0，12 个文件 SHA 前后一致；Windows junction 创建与外部指向检查实际成功，无 setup/屏障/输入合法性失败。据此授权本批 GREEN。**未重规划**：七项逐一最小修复，只改 B 的四个产品文件；三个测试文件、`cli.ts`、`index.ts` 与冻结 inspection 三源字节未变；未改 P0/契约/A/C/D/根配置/锁/版本；未 commit/bump/pack/push/merge。
+
+## 七项修复的产品落点
+
+1. **链接与 realpath 边界（`resolve.ts` + `plan.ts`）**：`resolve.ts` 弃用只做词法 `path.relative` 的 `nearestExistingDirectory`，新增 `realPathOf()`（逐段解析链接/junction；尾部不存在时先解析最近的已存在祖先后拼回剩余段）。拟生成路径先按真实位置判界：经链接逃逸即 `PATH_UNSAFE`（不再被"文件已存在"降级为 `OUTPUT_EXISTS`）。`snapshotOf` 同样先解析真实位置，项目外路径**不读取、不记录摘要**（记 `exists:false`）。
+2. **registry 材料先行（`plan.ts`）**：所选组件包与权威 GET 明确新增的运行时依赖全部下载并复算摘要后，才做最终复读 GET，然后才是路径解析与本地复读。原先新增依赖下载在最终 GET/本地复读之后，该期间的撤权/编辑漏检；`registryEvidence` 阶段改为只复用已下载结果。
+3. **关键探测路径基准（`plan.ts`）**：新增 `PROBE_PATHS`（`package-lock.json`/`pnpm-lock.yaml`/`pnpm-workspace.yaml`/`yarn.lock`/`bun.lock`/`bun.lockb`）进入复读基准与 `baseFileHashes`，基线不存在即以 `exists:false` 记录；inspection 已冻结输出未改。
+4. **缺 integrity 的新增依赖（`registry.ts` + `plan.ts`）**：`fetchPackageDigest` 增加 `PackageDigestExpectation`（`expectedSha256`/`requireDeclaredIntegrity`）与 `integritySource`（`registry` 已按声明复算一致 / `computed` 仅自算）。无平台摘要的新增依赖缺 `dist.integrity` 即执行失败，不自算冒验证；所选组件缺 integrity 仍按平台 SHA。
+5. **实收 SHA 先行（`registry.ts`）**：下载后先算实收 bytes SHA-256 并与平台摘要比对，不符即交回实算摘要由调用方形成 `PACKAGE_DIGEST_MISMATCH`（合法 conflicted）；相符或未给平台摘要时才核对 `dist.shasum`/`dist.integrity`。既有两个反例（平台声称另一 SHA + 正常 bytes；新增依赖坏 integrity）行为不变。
+6. **失败矩阵单一 JSON stdout（`commands/integrate.ts`）**：失败路径统一 exit 1 + 单一 JSON stdout `{status:'error',error:{code,message}}` + stderr 诊断（参数类附 usage）；命令本地 `IntegrateCommandError` 提供稳定 code：`INVALID_ARGUMENTS`/`INVALID_MATCH_PLAN`/透传 `IntegrationPlanError.code`/`EXECUTION_FAILED`；参数与 MatchPlan 错误在发任何请求前返回。
+7. **远端诊断脱敏（`registry.ts` + `plan.ts`）**：不支持的 integrity 算法改用固定文案；registry 全部诊断改为不含 `name@version` 等远端可控值的固定文案；远端 gap 只保留稳定 code；`--match` 读取/解析失败不回显底层异常原文。`sourceMatchPlan` 与 `matchPlanDigest` 约束未放宽。
+
+## B 沙箱预检（非正式）
+
+`tsc -p tsconfig.t15plan.json`（四个产品文件 + 两个 plan 测试的传递闭包，`strict` + `noUncheckedIndexedAccess`）exit 0。vitest 5.1.0：`project-plan.test.ts` **20/20**、`project-plan-network.test.ts` **29/29**、`project-inspect.test.ts` **90 passed | 3 failed (93)**（3 项为沙箱 Git 2.34.1 缺 `--no-lazy-fetch` 的已知限制，对应文件与宿主 GREEN 版逐字节一致）。`tests/contracts/integration-plan.test.ts` 通过。真实 CLI 子进程冒烟 13 项：10 项失败路径全部 exit 1 + 单一 JSON stdout（code 分别为 `INVALID_ARGUMENTS`/`INVALID_MATCH_PLAN`/`REGISTRY_UNAVAILABLE`/`INVALID_ENDPOINT`）+ 非空 stderr，`inspect` exit 0 + 单一 JSON，`--help` exit 0。**不代表宿主固定工具链，未宣称任何正式通过；B 在此停写**，等宿主完整三组 P1、CLI build/typecheck、根 tsc 与独立 D 验收。
+
+## 本轮文件摘要（SHA-256；括号内为宿主正式 RED 时的值）
+
+```
+8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB  packages/component-cli/src/integration/inspect.ts    （未改）
+5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576  packages/component-cli/src/integration/workspace.ts  （未改）
+8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46  packages/component-cli/src/integration/locks.ts      （未改）
+BA12B90B5C9BB780FA1DDAC4776CC7A5904AB54AE8EDBE15D13E209C23DA3155  packages/component-cli/src/integration/resolve.ts    （① ⑦；原 572F0C061B33…00CD3F）
+E43D40390DE185B99D2D674E17510FBFD4777DB5C271F244433296AEB262E245  packages/component-cli/src/integration/registry.ts   （④ ⑤ ⑦；原 C9C5E296E33F…6CF43）
+DB12F715085576B87C973C7C54F9A0696005B4BE1D93B2E4C0030A9E4A2057A9  packages/component-cli/src/integration/plan.ts       （① ② ③ ⑦；原 C68CF23DE94B…7EEE）
+882123BF72D31FAE59AB4054E0327533BC68A8DB4EC8178BDC4152FCEF984EB0  packages/component-cli/src/commands/integrate.ts      （⑥ ⑦；原 C03638208A09…4BC949）
+9551DC19379543F6C14321A5057AAD9A2447930B202D8344119E0F24E6D2A167  packages/component-cli/src/cli.ts                    （未改）
+4D0E4FBFB1809908F81DAD9A9A262EFDF428D7E98D67A60077347E0245A0CA46  packages/component-cli/src/index.ts                  （未改）
+AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27  tests/integration/project-inspect.test.ts           （未改，93 项）
+C6887A7F6CB62F152EB29F3125F856185BA947AEA6F8860445AAEA32B154C798  tests/integration/project-plan.test.ts              （未改，20 项）
+EF51E0C924A82177A79C3C15E8A0F52297E2F03A0691302516ED309454CF1736  tests/integration/project-plan-network.test.ts      （未改，29 项）
+```
+
+三个测试文件 SHA 与宿主正式 RED 时逐字节一致，即本批 GREEN 未改动、未删除、未弱化任何既有断言。
+
+## 仍未覆盖（不宣称完成）
+
+CLI 失败 envelope 只有沙箱子进程冒烟，**没有已提交测试覆盖**；`realPathOf` 在 Windows junction / 大小写不敏感 / 8.3 短名下的行为未在宿主实测（沙箱仅验证 Linux 目录符号链接）；未跑真实 Nest/PG/MinIO/Verdaccio 联调，也未安装已打包 CLI 做仓外验证。`redirect: 'manual'` 拒绝 3xx 的两条运行时形态（`opaqueredirect` 与直接回显 302）都已覆盖，宿主 Node 26.13.0 由「跨 origin 重定向」用例正式确认。
+
+## 宿主 C 正式 GREEN（2026-11-17 16:30:57–16:31:31 +08:00，追加）
+
+B 已停在 plan-review-green-ready，C 在本 B 独立工作树使用固定 Node 26.13.0 / pnpm 12.18.0 执行完整三组 P1：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts --reporter=default --reporter=json --outputFile=.superpowers/t15/host-plan-green-2026-11-17-1629-results.json
+.\scripts\pnpm.ps1 --filter @company/component-cli build
+.\scripts\pnpm.ps1 --filter @company/component-cli typecheck
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+```
+
+结果：**142/142 passed、0 failed、0 skipped、exit 0**，31.01s；CLI build/typecheck、根 TypeScript 全部 **exit 0**。12 个产品/测试源 SHA 前后一致，三个测试文件与正式 RED 时逐字节相同，原124和新增18项断言保留。Windows junction 真实创建/指向控制与跨origin重定向等用例均实际通过；8.3 别名等未由这些用例覆盖的边界仍不宣称。本次 CLI 构建的包内探针73个文件白名单检查通过：缺失/污染/链接/被改动均为0。
+
+日志为 `.superpowers/t15/host-plan-green-2026-11-17-1629*`。C 将代 B 聚焦提交当前产品与测试；此通过仅满足P1当前测试/构建门槛，D35独立进程、C25唯一冻结新CLI与真实服务、最终全图和main收口仍待完成。不pack、不升版、不push或提前标T15完成。

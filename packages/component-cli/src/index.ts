@@ -16,6 +16,13 @@ export * from './local/capture.js';
 export * from './local/manifest.js';
 export * from './commands/check.js';
 export * from './commands/baseline.js';
+export * from './commands/integrate.js';
+export * from './integration/inspect.js';
+export * from './integration/locks.js';
+export * from './integration/resolve.js';
+export * from './integration/registry.js';
+export * from './integration/plan.js';
+export * from './integration/workspace.js';
 
 const isDirectRun =
   process.argv[1] &&
