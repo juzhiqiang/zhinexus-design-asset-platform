@@ -83,3 +83,21 @@ B 修复为 `git config -z --get-regexp` 枚举并在失败时停止 status，�
 独立只读数据复审又发现六项 Important，C 核实源码后交实际 B 客户端先补 RED：原生 workspace 声明按实际包管理器选择；pnpm 多文档中错误类型 packages 不得跳过；项目锁版本头缺失/错误类型不得接受；pnpm importer 缺失/非字符串 specifier 不得绕过一致性检查；manifest 依赖、脚本、packageManager 错误类型不得被静默丢弃；npm 近层 link 遮蔽不能借用根提升版本。具体交接保存在 B 已授权目录 `.superpowers/t15/c-inspect-data-review-2026-11-17.md`。
 
 因此上述 48 项 GREEN 只关闭本轮 Git 反例，不表示 inspection 或 T15 全部完成。六项数据边界 RED→GREEN、plan 产品、D 黑盒、新冻结 CLI 真实验收仍待执行。未改 P0、冻结 SDK、真实锁快照或原架构；原架构 SHA 再次核对一致。
+
+## 数据边界 RED 与变换型 filter 实验（追加）
+
+B 追加 14 项数据反例与正例守卫后，C 于 2026-11-17 11:08 实际运行相同 inspection 测试命令：**12 failed / 50 passed / 0 skipped、exit 1**，8.49 秒。所有失败来自新增行为断言，没有收集/环境失败；根 TypeScript **exit 0**。测试前后 SHA 均为 `53A475FC0DA17D35F68C40CA899F91E5C69F245C20B55539AFFFE256556676FA`。日志为 B `host-inspect-data-review-{red,root-tsc}-2026-11-17.log`；实际 Claude 桌面端已收到 RED 证据继续 GREEN。
+
+独立审查进一步核实变换型 filter 会导致漏报：自有 synthetic clean helper 将 a→b、b→c；初次 add 存储 b，用户再改工作文件为 b。有效 package.json 的 version 1→2→3 构造同样成立。固定 Node 26.13.0 / pnpm 12.18.0 / Git 2.48.1.windows.1 下，两项原生 status 均 **exit 0、报 dirty 且 marker 出现**；置空 filter 后均 **exit 0、stdout 空且无 marker**。B 当时已构建 inspection 模块实际返回 inspected、git clean、空 dirtyPaths，项目全树含 .git 字节保持不变。旧 CLI bin 尚未接线，不能将模块观察写成 CLI 黑盒结果。
+
+同一清理环境和禁执行配置下，`ls-files -z` 与 `check-attr -z filter --stdin` 四项只读控制（两项目分别启用/屏蔽 filter）均 **exit 0、零 marker、全树字节一致**，准确识别关联文件，其余 tracked 文件为 unspecified。可在保持 P0 结构的前提下，将实际关联用户 filter 的 tracked 路径保守并入 dirtyPaths，让后续 plan 对拟改的关联路径产生现有 DIRTY_TARGET；未修改、透传或幂等的关联文件可能多报，需明确此边界。解析或枚举不可信则 unavailable，不能伪称 clean。
+
+原始实证分别为 C ledger `independent-filter-falseclean-2026-11-17.json`（SHA `1627a6c08c8bcd518b12b1472743632bbe6eef58292d8e6300ff57ea40c9b9fd`）与 `independent-filter-readonly-attributes-2026-11-17.json`（SHA `a3ad3bf913a22fd7461d664a1fa41c646f3f0574b3fccf8476ab233f25b6ab00`）。副本已放 B 授权目录，后续由实际 B 补行为 RED→GREEN；本次只是独立实验，不表示产品已修复。
+
+## 数据修复正式 GREEN（追加）
+
+B 修正两份 specifier 反例的前置锁夹具，补合法版本头以避免版本校验遮挡 specifier 缺陷，原断言未削弱；另外增加第 63 项原生 pnpm workspace 缺声明守卫。C 在构建覆盖前，以 Vitest 临时 alias 将同一修正后的测试指向当时仍保留的修复前 inspection 编译模块，未修改 B 源码或测试，也未回滚任何工作区：实际 **13 failed / 50 passed / 0 skipped、exit 1**，9.68 秒。旧模块 SHA 运行前后同为 `8e633b498b692c64516bac741a0fbab61e8c6562ac038c6edeb6c95be536af6f`，日志 `host-inspect-data-corrected-prebuild-red-2026-11-17.log`；第 63 项失败为旧实现产生缺快照的非法 inspection，另 12 项为行为断言失败。该临时 alias 仅用于历史 RED 重放，随后构建已覆盖 dist，后加摘要守卫防止误用新模块重放。
+
+2026-11-17 11:25，C 对 B 停写交付的新源码运行 inspection 测试、CLI build/typecheck 与根 TypeScript：**63/63 passed、0 skipped、exit 0**，9.28 秒；三项构建/类型命令均 **exit 0**。B 日志 `host-inspect-data-review-{green,build,typecheck,root-tsc-green}-2026-11-17.log`。测试 SHA `BB9A8FD62ACE38AF7F72D00E59BADBC1AFF96861923AB8A910D5E1E7C8643324`、inspect SHA `EEE0E9EAB46C997861DD09F5EC9ED16C0B442AAEEB8B10995BF418D62A11E729` 与交付一致；workspace/locks 原始文件和真实工具锁快照未被 C 改写。
+
+六项数据反例已通过本轮验证；第七项变换 filter 漏报已交实际 B 客户端按同一只读边界先补测试。inspection 聚焦提交、plan、独立黑盒及最终新 CLI 已安装验收仍待后续，不能以当前 GREEN 标 T15 完成。
