@@ -84,24 +84,43 @@ export function generatedPathFor(
 }
 
 /**
- * 解析路径的真实位置：逐段解析链接（含 Windows junction）；对尚不存在的尾部，
+ * 真实落点解析结果：`real` 是**可证明**的真实位置；`ok:false` 表示无法证明
+ * （链接声明解析不到真实路径、链接环或链接过深）——按失败关闭处理。
+ */
+export type RealPathResolution = { ok: true; real: string } | { ok: false };
+
+/**
+ * 解析路径的真实位置：逐段解析链接（含 Windows junction，可多跳）；对尚不存在的尾部，
  * 先解析最近的已存在祖先后把剩余段拼回。这样“父目录已是指向项目外的链接、文件本身还没生成”
  * 也能在生成之前判定真实落点，而不是只做词法 path.relative。
+ *
+ * 失败关闭：遇到链接就沿其声明**继续解析**，绝不把未解析的链接声明当成已解析的真实落点
+ * （`src → 项目内 bridge/future`、`bridge → 项目外` 的两跳形态因此仍会判到项目外）；
+ * 链接环、链接过深或始终无法解析时返回 `ok:false`，由调用方拒绝读取并判 PATH_UNSAFE。
  */
-export function realPathOf(absolute: string): string {
+export function realPathOf(absolute: string): RealPathResolution {
   const lexical = path.resolve(absolute);
   let current = lexical;
   const missing: string[] = [];
+  const visitedLinks = new Set<string>();
   for (;;) {
     try {
       const real = fs.realpathSync(current);
-      return missing.length === 0 ? real : path.join(real, ...missing.reverse());
-    } catch {
-      const parent = path.dirname(current);
-      if (parent === current) return lexical;
-      missing.push(path.basename(current));
-      current = parent;
+      return { ok: true, real: missing.length === 0 ? real : path.join(real, ...missing.reverse()) };
+    } catch { /* 该段尚不存在：沿链接继续，或向上找已存在祖先 */ }
+    let linked: fs.Stats | null = null;
+    try { linked = fs.lstatSync(current); } catch { linked = null; }
+    if (linked !== null && linked.isSymbolicLink()) {
+      if (visitedLinks.has(current) || visitedLinks.size >= 64) return { ok: false };
+      visitedLinks.add(current);
+      const linkTarget = fs.readlinkSync(current);
+      current = path.isAbsolute(linkTarget) ? linkTarget : path.resolve(path.dirname(current), linkTarget);
+      continue;
     }
+    const parent = path.dirname(current);
+    if (parent === current) return { ok: false };
+    missing.push(path.basename(current));
+    current = parent;
   }
 }
 
@@ -120,7 +139,11 @@ export function resolveGeneratedPaths(
   const paths = elements.map((element, index) => {
     const relative = generatedPathFor(resolution.workspacePrefix, outputDir, index + 1, element.target.framework);
     const absolute = path.join(realRoot, ...relative.split('/'));
-    if (!isInsideDirectory(realRoot, realPathOf(absolute))) {
+    const real = realPathOf(absolute);
+    if (!real.ok) {
+      // 无法证明真实落点（链接声明解析不到真实路径/链接环/过深）：失败关闭，不放行、不读取。
+      addConflict(conflicts, 'PATH_UNSAFE', `拟生成路径的真实落点无法证明在项目内：${relative}`, { path: relative, instanceId: element.instanceId });
+    } else if (!isInsideDirectory(realRoot, real.real)) {
       // 拟生成路径经链接落到项目外：既不覆盖本地文件，也不在外部留下任何生成物。
       addConflict(conflicts, 'PATH_UNSAFE', `拟生成路径的 realpath 逃逸出项目根：${relative}`, { path: relative, instanceId: element.instanceId });
     } else if (isFile(absolute) || isDirectory(absolute)) {
@@ -177,6 +200,12 @@ export async function resolveLocalPlan(
   const lockedEcharts = lockedVersions.get('echarts');
   if (lockedEcharts !== undefined && context.echartsVersion !== undefined && context.echartsVersion !== lockedEcharts) {
     addConflict(conflicts, 'MATCH_CONTEXT_MISMATCH', `MatchPlan ECharts 版本 ${context.echartsVersion} 与目标项目已锁版本 ${lockedEcharts} 不一致`);
+  }
+  if (lockedEcharts !== undefined && context.echartsVersion === undefined) {
+    // MatchPlan 省略 ECharts 版本而目标项目已锁：不得静默采用本地版本充当局势一致（公共
+    // IntegrationPlan 契约在这种不一致时要求 MATCH_CONTEXT_MISMATCH）。查询仍会用本地已锁
+    // 版本形成真实 GET（见 plan.ts matchQuery），这里只如实记录冲突、不伪造 planned。
+    addConflict(conflicts, 'MATCH_CONTEXT_MISMATCH', `MatchPlan 未声明 ECharts 版本，目标项目已锁 ${lockedEcharts}；不静默采用本地版本`);
   }
   if (lockedEcharts === undefined && context.echartsVersion === undefined) {
     // 本地未锁、MatchPlan 也未给明确候选：不能凭空补“最新版本”。

@@ -469,3 +469,49 @@ B 已停在 plan-review-green-ready，C 在本 B 独立工作树使用固定 Nod
 结果：**142/142 passed、0 failed、0 skipped、exit 0**，31.01s；CLI build/typecheck、根 TypeScript 全部 **exit 0**。12 个产品/测试源 SHA 前后一致，三个测试文件与正式 RED 时逐字节相同，原124和新增18项断言保留。Windows junction 真实创建/指向控制与跨origin重定向等用例均实际通过；8.3 别名等未由这些用例覆盖的边界仍不宣称。本次 CLI 构建的包内探针73个文件白名单检查通过：缺失/污染/链接/被改动均为0。
 
 日志为 `.superpowers/t15/host-plan-green-2026-11-17-1629*`。C 将代 B 聚焦提交当前产品与测试；此通过仅满足P1当前测试/构建门槛，D35独立进程、C25唯一冻结新CLI与真实服务、最终全图和main收口仍待完成。不pack、不升版、不push或提前标T15完成。
+
+# 二十二、最终整分支审查五项 + ④ 两跳窄复审：真实 RED → 最小产品 GREEN（停写 final-five-green-ready）
+
+C 在最终整分支审查中提出五个候选残余，B **先只写回归测试、不改产品**，宿主两轮正式 RED 都成立后才做最小 GREEN。第一轮（`.superpowers/t15/host-final-five-red-*`，21:21:42 起 38.51s）完整 P1 147 项：新增 5 项全部预期行为 RED、原 142 全 GREEN、0 skipped、exit 1，根 tsc exit 0，12 个源/测试 SHA 前后一致。第二轮（`.superpowers/t15/host-two-hop-red-*`，21:40:40 起 36.69s）B 为 ④ 补了两跳 dangling 回归后完整 P1 148 项：147 passed / 1 failed / 0 skipped、exit 1，唯一失败就是两跳 dangling 实际 `planned` 未 `PATH_UNSAFE`；原五项与 142 旧项都 GREEN，12 个 SHA 前后一致。
+
+五项缺陷与最小修复（**只改 `plan.ts` 与 `resolve.ts`**，未动公共 contracts、冻结 inspection 三源、registry/commands/cli/index、A/D、版本/锁/根配置/pack）：
+
+1. **同包两 variant 的 registry 证据重复**：两个不同 `variantReleaseId`/逻辑组件（line/bar）共享同一包名+版本+摘要时，`plan.ts` ⑨ 按 finalReads 逐 variant push `registryEvidence`，触发契约 `unique(/registryEvidence)` 的 `Duplicate or aliased entries` 而 `INVALID_SCHEMA`（exit 1）。修复：按 `name@version` 去重（同一包只留一条平台摘要证据），**两个组件的 `publicationEvidence` 仍各自保留**，tarball 仍只读一次。
+2. **matched 响应的 gap 消息泄漏凭据**：matched + 兼容未验证的 `gaps[].message` 是远端可控文本，`publicationEvidence.response` 原样保存会把它带进计划 JSON 与 CLI stdout。修复：新增 `sanitizePublicationResponse`，只保留稳定 code、message 换成固定措辞 `权威响应返回 gap：<code>`；target/api/依赖等其余证据原样保留，不删空证据、不丢 gap code，顶层冲突文案原本就已固定。
+3. **权威依赖与本地锁版本冲突**：本地已锁 `@company/charts-core@0.0.10` 而权威 GET `exactDependencies` 要求 `0.0.12`，此前未比较本地锁，`validateIntegrationPlan` 以 `New exact dependencies require registry verification` + `Plan must not silently upgrade locked dependencies` 抛 `INVALID_SCHEMA`（exit 1）。修复：记 `DEPENDENCY_CONFLICT` 结构化冲突（exit 2），不把冲突版本写进 `exactDependencies`、不为它下载材料、不声称 registry 证据，用户文件与已有锁版本原样保留。
+4. **dangling 链接未失败关闭**：`realPathOf` 原先把 ENOENT 当普通缺段拼回，`src` 指向项目外不存在目录时实际 `planned`；B 第一版改成单跳 readlink 后，C 窄复核指出两跳形态（`src → 项目内 bridge/future`、`bridge → 项目外不存在目录`，词法在根内、物理逃逸）仍会被放行。最终修复：`realPathOf` 返回 `{ok:true, real}` / `{ok:false}`（新导出 `RealPathResolution`），遇到链接沿声明**继续解析**（可多跳，64 跳上限并对链接路径去重），链接环/过深/始终无法解析 → `ok:false`；`resolveGeneratedPaths` 对 `ok:false` 与“解析出但在项目外”都记 `PATH_UNSAFE`（措辞区分），`snapshotOf` 对两者都不读取、不记录摘要。**不把未解析的链接声明当作已解析真实落点。**
+5. **省略 `context.echartsVersion` 发空版本**：合法 MatchPlan 可省略该字段（`project-context.ts` 列为可选），但本地已锁 ECharts 6.1.0 时 GET 发 `echartsVersion=` 空值。修复：`matchQuery` 增加 `lockedEcharts`，省略时用本地 inspected lock 已锁的精确版本形成真实查询；`resolveLocalPlan` 在这种不一致时记 `MATCH_CONTEXT_MISMATCH`（公共 IntegrationPlan 契约强制），`sourceMatchPlan` 与 `matchPlanDigest` 原样保留，输出合法 `conflicted` 而不伪造 planned。
+
+**新增 6 条回归**（`project-plan.test.ts` 20 → 22，`project-plan-network.test.ts` 29 → 33，合计 142 → 148）：源 MatchPlan 与权威响应均以冻结 validators 先验断言合法，目标全树只读，真实 loopback + 实算 bytes/integrity；② 与 ③ 额外走**完整 CLI**（stdout/stderr 都不含两类令牌、exit 2），并在 CLI 调用之后再比对一次 `treeSnapshot`；④ 两条都带真实 dangling 控制断言（lstat 是链接、realpath ENOENT、目标不存在），两跳那条还断言 `src` 声明目标词法落在项目内。
+
+**B 沙箱预检（非正式）**：`tsc -p tsconfig.t15plan.json` exit 0；三组复跑 **148 项 → 145 passed | 3 failed | 0 skipped**，3 项均为沙箱 Git 2.34.1 缺 `--no-lazy-fetch` 的已知限制（与本轮无关）。失败关闭专项（临时用例，未入仓库）：两跳 dangling → `conflicted` + `PATH_UNSAFE`（`拟生成路径的 realpath 逃逸出项目根`）、项目外目录未创建；链接环 `src ↔ loop-a` → `conflicted` + `PATH_UNSAFE`（`拟生成路径的真实落点无法证明在项目内`）、无挂起；单跳 dangling → `conflicted` + `PATH_UNSAFE`。真实 CLI 子进程端到端（沙箱 `/tmp` 独立构建 + 双 loopback，`spawn` 异步等待；同步 `spawnSync` 会阻塞父进程事件循环导致 loopback 拒连，属夹具问题）：基线 exit 0 planned；① exit 0 planned 且 registryEvidence=1 / publicationEvidence=2；③ exit 2 `DEPENDENCY_CONFLICT`；⑤ exit 2 `MATCH_CONTEXT_MISMATCH` 且所有 GET 的 `echartsVersion` 均为 6.1.0；④ 单跳与两跳都 exit 2 `PATH_UNSAFE`；② exit 2 `COMPATIBILITY_UNVERIFIED` 且 stdout/stderr 无两类令牌；全部场景 stdout 均为单一 JSON、stderr 无诊断、目标项目文件零改动。**以上均为沙箱非正式证据，未宣称任何正式通过。**
+
+本轮文件摘要（SHA-256；括号内为本轮开始前的值）：
+
+```
+810FA7AFDFFB7866EFCB713EC958B0B197BCE35C7DE23C356C2E2DCCFE9BFFA4  packages/component-cli/src/integration/resolve.ts    （本轮改动；原 BA12B90B…3155）
+2CB671EFC6A78D3003B267DD4885F6A857C9BD7304D220A1823065FE63B61C20  packages/component-cli/src/integration/plan.ts       （本轮改动；原 09851819…3CDD）
+6B89371FE08B2CD7523D41A5753F37BA7F5D0BC1CCF1DAA6C45BE78198D3200F  tests/integration/project-plan.test.ts              （本轮改动，22 项；原 C6887A7F…4798）
+385D60126FA6EFD831147B257F1F288BA5D0542BA4513EB29DDBAAB0534E1B65  tests/integration/project-plan-network.test.ts      （本轮改动，33 项；原 EF51E0C9…1736）
+```
+
+其余 8 个源文件与 `project-inspect.test.ts` SHA 与上一轮逐字节一致（inspect/workspace/locks 冻结三源、registry、commands/integrate、cli、index）。本轮自建的两个临时探针文件已由 C 在宿主安全移动到 `.superpowers/t15/probes/`（git 忽略目录）并核对 SHA，`tests/` 下已无它们；B 未申请任何删除授权。
+
+**仍未覆盖**：Windows 真实 junction 的多跳/大小写不敏感/8.3 短名与链接环仍只由宿主实测（沙箱仅验证 Linux 目录符号链接）；`realPathOf` 的 64 跳上限是对 POSIX ELOOP 的工程折中，更深但仍有限的合法链接链会被保守地失败关闭为 `PATH_UNSAFE`；`publicationEvidence` 的 target/api 自由文本字段（`notes`）未做脱敏（本轮只按候选 ② 的范围处理 gap 消息）；⑤ 的 `MATCH_CONTEXT_MISMATCH` 现由 `resolveLocalPlan` 记录，若未来契约放宽“省略即合法”需同步调整该处与测试。
+
+**停写**：final-five-green-ready。等待宿主 C 正式复跑完整 148 + D35 黑盒 + CLI build/typecheck + 根 tsc，通过后由 C 代 B 提交，再集成 D35、升新 CLI 冻结最终门禁。B 不 commit/merge、不 bump/pack、不 push，不继续探索其他配置或扩大范围。
+
+# 二十三、宿主 C 最终正式 GREEN（2026-11-17 21:46:58–21:47:35 +08:00，追加）
+
+C 在本 B 独立工作树使用固定工具链（Node 26.13.0 / pnpm 12.18.0 / Git 2.48.1）执行完整 P1 三组与全部构建门槛，日志为 `.superpowers/t15/host-final-green-*`：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts --reporter=default --reporter=json --outputFile=.superpowers/t15/host-final-green-results.json
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+.\scripts\pnpm.ps1 --filter @company/component-cli run build
+.\scripts\pnpm.ps1 --filter @company/component-cli run typecheck
+```
+
+结果：**148/148 passed、0 failed、0 skipped、exit 0（37.01s）**；根 TypeScript、CLI build 与 CLI typecheck 均 **exit 0**；12 个产品/测试源 SHA 前后相同（`resolve.ts` = `810FA7AF…BFFA4`、`plan.ts` = `2CB671EF…1C20`、两个 P1 测试与上一轮 RED 时逐字节相同，其余 8 个文件未变）。这组证据覆盖本轮全部 6 条新回归（同包两 variant、matched 脱敏、锁版本冲突、单跳与两跳 dangling、省略 ECharts 版本）与原 142 项断言。
+
+状态仍为 **final-five-green-ready**：本轮产品与测试字节即刻冻结，B 不再做任何探索或范围调整，不 commit/bump/pack/merge/push。后续由 C 代 B 聚焦提交并合入 C 集成工作树、执行完整 148 + D35 独立黑盒、升新 CLI 版本冻结最终门禁，再按用户授权回 main 删分支。

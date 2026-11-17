@@ -7,7 +7,8 @@
  *
  * 覆盖：GET 请求身份不符、包摘要损坏、registry dist.integrity 与实收 bytes 不符、
  * 下载超限/超时/跨 origin 重定向、URL 内嵌凭证与非 loopback HTTP、令牌不进入输出、
- * 网络请求等待期间项目被并发编辑、tarball 响应暂停期间远端撤权后必须复读并拒绝 planned。
+ * 网络请求等待期间项目被并发编辑、tarball 响应暂停期间远端撤权后必须复读并拒绝 planned，
+ * 以及 dangling 逃逸链接、matched 兼容未验证响应的远端值脱敏、权威依赖与本地锁版本冲突。
  * 本地 HTTP stub 仅作协议测试，标为 synthetic；真实服务联调由 C 负责。
  *
  * 成功夹具前提（C 预审要求）：integrity/shasum 由**实际 served bytes** 实算（不用占位值）；
@@ -25,6 +26,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { stringify as yamlStringify } from 'yaml';
 import { planIntegration, IntegrationPlanError, type PlanOptions } from '../../packages/component-cli/src/integration/plan.js';
+import { runIntegrateCommand } from '../../packages/component-cli/src/commands/integrate.js';
 import { validateIntegrationPlan } from '../../packages/component-cli/src/contracts/integration-plan.js';
 import type { IntegrationPlanV1 } from '../../packages/component-cli/src/contracts/integration-plan.js';
 import { validateMatchPlan } from '../../packages/component-cli/src/contracts/match-plan.js';
@@ -814,6 +816,73 @@ describe('T15 P1 候选审查回归：链接/junction 逃逸与外部读取', ()
     expect(validateIntegrationPlan(result).ok).toBe(true);
     expect(treeSnapshot(root)).toEqual(afterEdit);
   });
+
+  // 最终整分支审查候选 ④：dangling 链接（lstat 仍在、realpath ENOENT）不能被当成普通缺失段拼回。
+  it('拟生成父目录是指向项目外且目标不存在的 junction：PATH_UNSAFE 且不读写项目外', async () => {
+    const root = vuePnpmProject('dangling-link');
+    const plan = matchPlan(TARBALL_SHA256);
+    expect(validateMatchPlan(plan).ok, 'dangling 链接用例的源 MatchPlan 必须结构合法').toBe(true);
+    // 链接目标目录尚不存在：lstat 仍显示链接存在，但 realpath 为 ENOENT（Windows 真实 dangling junction 的形态）。
+    const outside = externalDir('dangling-target');
+    fs.rmSync(outside, { recursive: true, force: true });
+    linkDirectory(path.join(root, 'src'), outside);
+    // 控制正例：链接必须真的创建成功、真的 dangling、目标必须真的不存在——否则夹具没有意义。
+    expect(fs.lstatSync(path.join(root, 'src')).isSymbolicLink(), 'src 必须是真实链接/junction').toBe(true);
+    expect(() => fs.realpathSync(path.join(root, 'src')), '链接目标必须尚不存在（dangling）').toThrow();
+    expect(fs.existsSync(outside), '链接目标目录必须不存在').toBe(false);
+    const afterLink = treeSnapshot(root);
+    apiResponses.push({ status: 200, body: matchedResponse(TARBALL_SHA256) });
+    apiResponses.push({ status: 200, body: matchedResponse(TARBALL_SHA256) });
+
+    const { result, thrown } = await runPlan(root, plan, planOptions());
+
+    expect(thrown, `dangling 逃逸链接应以结构化冲突返回而非崩溃（${describeThrown({ thrown })}）`).toBeUndefined();
+    expect(result!.status).toBe('conflicted');
+    expect(result!.conflicts.some(c => c.code === 'PATH_UNSAFE'), 'dangling 逃逸链接必须 PATH_UNSAFE').toBe(true);
+    expect(validateIntegrationPlan(result).ok).toBe(true);
+    // 不得在项目外留下任何生成物，也不得把项目外路径写进计划。
+    expect(fs.existsSync(outside), '不得创建链接目标目录').toBe(false);
+    expect(JSON.stringify(result), '计划不得包含项目外路径').not.toContain(outside);
+    // 用户字节与链接本身保持原状（含 dangling 链接自身）。
+    expect(treeSnapshot(root)).toEqual(afterLink);
+  });
+
+  // 最终整分支审查候选 ④（窄复核）：两跳 dangling。src 声明目标词法在项目内、物理仍逃逸：
+  // 单跳 readlink 会把“未解析的链接声明”当成已解析的真实落点，因此必须失败关闭。
+  it('两跳 dangling（src→项目内 bridge/future，bridge→项目外不存在目录）：PATH_UNSAFE 且不外读', async () => {
+    const root = vuePnpmProject('dangling-two-hop');
+    const plan = matchPlan(TARBALL_SHA256);
+    expect(validateMatchPlan(plan).ok, '两跳 dangling 用例的源 MatchPlan 必须结构合法').toBe(true);
+    const outside = externalDir('two-hop-target');
+    fs.rmSync(outside, { recursive: true, force: true });
+    // 第一跳：src 指向项目内、尚不存在的 bridge/future（词法落在项目内）。
+    linkDirectory(path.join(root, 'src'), path.join(root, 'bridge/future'));
+    // 第二跳：bridge 指向项目外、尚不存在的目录（物理逃逸）。
+    linkDirectory(path.join(root, 'bridge'), outside);
+    // 先验断言：两个链接都必须真实存在且真的 dangling，src 的声明目标必须词法落在项目内。
+    expect(fs.lstatSync(path.join(root, 'src')).isSymbolicLink(), 'src 必须是真实链接/junction').toBe(true);
+    expect(fs.lstatSync(path.join(root, 'bridge')).isSymbolicLink(), 'bridge 必须是真实链接/junction').toBe(true);
+    expect(() => fs.realpathSync(path.join(root, 'src')), 'src 的目标必须尚不存在（dangling）').toThrow();
+    expect(() => fs.realpathSync(path.join(root, 'bridge')), 'bridge 的目标必须尚不存在（dangling）').toThrow();
+    const declared = path.resolve(fs.readlinkSync(path.join(root, 'src')));
+    expect(declared.startsWith(`${root}${path.sep}`), 'src 声明的目标必须词法落在项目内（否则不是两跳陷阱）').toBe(true);
+    expect(fs.existsSync(outside), '两跳的最终目标必须不存在').toBe(false);
+    const afterLink = treeSnapshot(root);
+    apiResponses.push({ status: 200, body: matchedResponse(TARBALL_SHA256) });
+    apiResponses.push({ status: 200, body: matchedResponse(TARBALL_SHA256) });
+
+    const { result, thrown } = await runPlan(root, plan, planOptions());
+
+    // 无法证明 realpath 落在项目内时必须失败关闭：合法 conflicted + PATH_UNSAFE，而不是按词法放行。
+    expect(thrown, `两跳 dangling 逃逸应以结构化冲突返回而非崩溃（${describeThrown({ thrown })}）`).toBeUndefined();
+    expect(result!.status).toBe('conflicted');
+    expect(result!.conflicts.some(c => c.code === 'PATH_UNSAFE'), '两跳 dangling 逃逸必须 PATH_UNSAFE').toBe(true);
+    expect(validateIntegrationPlan(result).ok).toBe(true);
+    // 不得读取项目外 bytes，也不得在项目外留下任何生成物。
+    expect(fs.existsSync(outside), '不得创建两跳的最终目标目录').toBe(false);
+    expect(JSON.stringify(result), '计划不得包含项目外路径').not.toContain(outside);
+    expect(treeSnapshot(root)).toEqual(afterLink);
+  });
 });
 
 describe('T15 P1 候选审查回归：新增依赖最后下载期间的状态变化', () => {
@@ -1043,5 +1112,161 @@ describe('T15 P1 候选审查回归：远端值脱敏', () => {
     expect(serialized, '计划 JSON 不得含 API 令牌').not.toContain(API_TOKEN);
     expect(serialized, '计划 JSON 不得含 registry 令牌').not.toContain(REGISTRY_TOKEN);
     expect(validateIntegrationPlan(result).ok).toBe(true);
+  });
+});
+
+// ─── 最终整分支审查回归（C 2026-11-17 整分支审查候选 ②③；本轮只写测试，产品一字未改） ───
+//
+// ② matched + 兼容未验证的响应：gaps[].message 是远端可控文本，可能夹带凭据；publicationEvidence
+//    原样保存响应会把它带进计划 JSON 与 CLI stdout。必须脱敏，同时保留 gap code 与兼容阻塞。
+// ③ 权威 GET 的 exactDependencies 要求一个本地已锁但精确版本不同的运行时依赖：必须给出合法结构化
+//    冲突（DEPENDENCY_CONFLICT 等，exit 2），而不是 schema crash；不得把冲突版本写进
+//    exactDependencies 冒充一致，用户文件与已有锁版本必须原样保留。
+//
+// 全部用例沿用合法源输入（validateMatchPlan）与合法权威响应（validateComponentMatchResponse）先验断言、
+// 实算 bytes/integrity、真实 loopback 服务，并断言目标全树零写入。
+
+/** 本地已锁、而权威 GET 要求另一精确版本的运行时依赖（真实版本冲突，不是所选组件包本身）。 */
+const CHARTS_CORE_NAME = '@company/charts-core';
+const CHARTS_CORE_LOCKED = '0.0.10';
+const CHARTS_CORE_REQUIRED = '0.0.12';
+
+/** matched + 兼容未验证的权威响应：gaps 只带 COMPATIBILITY_UNVERIFIED，message 由调用方提供（可含远端回显值）。 */
+function unverifiedResponse(message: string): unknown {
+  const base = matchedResponse(TARBALL_SHA256) as Record<string, unknown>;
+  return {
+    ...base,
+    target: { ...(base.target as Record<string, unknown>), compatibility: { status: 'unverified', recordIds: [] } },
+    gaps: [{ code: 'COMPATIBILITY_UNVERIFIED', message }],
+  };
+}
+
+/** 权威 GET 的 exactDependencies 额外要求一个本地已锁但精确版本不同的运行时依赖。 */
+function matchedResponseWithCoreConflict(): unknown {
+  const base = matchedResponse(TARBALL_SHA256) as Record<string, unknown>;
+  return {
+    ...base,
+    exactDependencies: [
+      { name: PACKAGE_NAME, version: PACKAGE_VERSION },
+      { name: 'vue', version: '3.5.45' },
+      { name: 'echarts', version: CORE_VERSION },
+      { name: CHARTS_CORE_NAME, version: CHARTS_CORE_REQUIRED },
+    ],
+  };
+}
+
+describe('T15 P1 最终整分支审查回归：远端受控值脱敏与本地锁冲突', () => {
+  it('matched + 兼容未验证且 gaps[].message 带回显 token：conflicted 且 CLI/库结果都不含两类凭据', async () => {
+    const root = vuePnpmProject('unverified-gap-token');
+    const plan = matchPlan(TARBALL_SHA256);
+    const element = plan.elements[0]!;
+    // 源 MatchPlan 自身改为兼容未验证（target 状态与 element gap 一致），仍须结构合法。
+    element.target = { ...element.target!, compatibility: { status: 'unverified', recordIds: [] } };
+    element.gaps = [{ code: 'COMPATIBILITY_UNVERIFIED', message: 'synthetic：缺少实测组合' }];
+    expect(validateMatchPlan(plan).ok, '兼容未验证的源 MatchPlan 必须结构合法').toBe(true);
+    const leaky = `synthetic：缺少实测组合 ${API_TOKEN} ${REGISTRY_TOKEN}`;
+    expect(validateComponentMatchResponse(unverifiedResponse(leaky)).ok, '带回显 token 的 matched 响应必须结构合法').toBe(true);
+    const before = treeSnapshot(root);
+    apiResponses.push({ status: 200, body: unverifiedResponse(leaky) });
+    apiResponses.push({ status: 200, body: unverifiedResponse(leaky) });
+
+    const { result, thrown } = await runPlan(root, plan, planOptions());
+
+    expect(thrown, `兼容未验证应以结构化冲突返回（${describeThrown({ thrown })}）`).toBeUndefined();
+    expect(result!.status).toBe('conflicted');
+    // 保留 gap code 与兼容阻塞（不得为了脱敏把冲突一起吞掉）。
+    expect(result!.conflicts.some(c => c.code === 'COMPATIBILITY_UNVERIFIED')).toBe(true);
+    // 发布证据仍然保留（不得靠删空证据规避），且脱敏后仍带 gap code。
+    expect(result!.publicationEvidence.length, '发布证据不得被删空').toBeGreaterThan(0);
+    expect(result!.publicationEvidence.every(e => e.response.gaps.some(g => g.code === 'COMPATIBILITY_UNVERIFIED'))).toBe(true);
+    // 库结果 JSON 不得含两类凭据（publicationEvidence 原样保存远端响应会泄漏）。
+    const serialized = JSON.stringify(result);
+    expect(serialized, '计划 JSON 不得含 API 令牌').not.toContain(API_TOKEN);
+    expect(serialized, '计划 JSON 不得含 registry 令牌').not.toContain(REGISTRY_TOKEN);
+    expect(validateIntegrationPlan(result).ok).toBe(true);
+    expect(treeSnapshot(root)).toEqual(before);
+
+    // 完整 CLI：stdout/stderr 都不得含两类凭据，冲突仍以 exit 2 返回。
+    const matchFile = path.join(path.dirname(root), `net-unverified-${Date.now()}.json`);
+    fs.writeFileSync(matchFile, JSON.stringify(plan));
+    const savedApiToken = process.env.ZHINEXUS_API_TOKEN;
+    const savedRegistryToken = process.env.ZHINEXUS_REGISTRY_TOKEN;
+    process.env.ZHINEXUS_API_TOKEN = API_TOKEN;
+    process.env.ZHINEXUS_REGISTRY_TOKEN = REGISTRY_TOKEN;
+    try {
+      apiResponses.push({ status: 200, body: unverifiedResponse(leaky) });
+      apiResponses.push({ status: 200, body: unverifiedResponse(leaky) });
+      const cli = await runIntegrateCommand(['plan', '--project', root,
+        '--match', matchFile, '--api-url', apiOrigin, '--registry', registryOrigin]);
+      expect(cli.exitCode, '兼容未验证应形成含 conflicts 的结构化结果').toBe(2);
+      expect(cli.stdout + cli.stderr, 'CLI 输出不得含 API 令牌').not.toContain(API_TOKEN);
+      expect(cli.stdout + cli.stderr, 'CLI 输出不得含 registry 令牌').not.toContain(REGISTRY_TOKEN);
+      const parsed = JSON.parse(cli.stdout) as { status: string; conflicts: { code: string }[] };
+      expect(parsed.status).toBe('conflicted');
+      expect(parsed.conflicts.some(c => c.code === 'COMPATIBILITY_UNVERIFIED')).toBe(true);
+      // CLI 调用同样不得写入目标项目（与库调用后的基准比较）。
+      expect(treeSnapshot(root)).toEqual(before);
+    } finally {
+      fs.rmSync(matchFile, { force: true });
+      if (savedApiToken === undefined) delete process.env.ZHINEXUS_API_TOKEN; else process.env.ZHINEXUS_API_TOKEN = savedApiToken;
+      if (savedRegistryToken === undefined) delete process.env.ZHINEXUS_REGISTRY_TOKEN; else process.env.ZHINEXUS_REGISTRY_TOKEN = savedRegistryToken;
+    }
+  });
+
+  it('本地已锁 @company/charts-core@0.0.10 而 GET exactDependencies 要求 0.0.12：合法结构化冲突且不升级', async () => {
+    const root = vuePnpmProject('locked-core-conflict');
+    // 本地锁里已有同一个运行时依赖，但精确版本与权威 GET 要求的不同。
+    fs.writeFileSync(path.join(root, 'pnpm-lock.yaml'), pnpmV9Lock({ '.': {
+      vue: { specifier: '^3.5.0', version: '3.5.45' }, echarts: { specifier: '6.1.0', version: '6.1.0' },
+      [CHARTS_CORE_NAME]: { specifier: CHARTS_CORE_LOCKED, version: CHARTS_CORE_LOCKED },
+    } }), 'utf8');
+    const manifest = JSON.parse(fs.readFileSync(path.join(root, 'package.json'), 'utf8')) as Record<string, unknown>;
+    (manifest.dependencies as Record<string, string>)[CHARTS_CORE_NAME] = CHARTS_CORE_LOCKED;
+    fs.writeFileSync(path.join(root, 'package.json'), manifestJson(manifest), 'utf8');
+    const plan = matchPlan(TARBALL_SHA256);
+    expect(validateMatchPlan(plan).ok, '源 MatchPlan 必须结构合法').toBe(true);
+    expect(validateComponentMatchResponse(matchedResponseWithCoreConflict()).ok, '要求 0.0.12 的权威响应必须结构合法').toBe(true);
+    const before = treeSnapshot(root);
+    apiResponses.push({ status: 200, body: matchedResponseWithCoreConflict() });
+    apiResponses.push({ status: 200, body: matchedResponseWithCoreConflict() });
+
+    const { result, thrown } = await runPlan(root, plan, planOptions());
+
+    expect(thrown, `锁版本冲突应以结构化冲突返回而非 schema crash（${describeThrown({ thrown })}）`).toBeUndefined();
+    expect(result!.status).toBe('conflicted');
+    expect(result!.conflicts.some(c => c.code === 'DEPENDENCY_CONFLICT' || c.code === 'VERSION_MISMATCH'),
+      '必须给出合法的结构化依赖冲突').toBe(true);
+    // 不得把冲突版本写进 exactDependencies 冒充一致（契约禁止静默升级已锁依赖）。
+    expect(result!.exactDependencies.some(d => d.name === CHARTS_CORE_NAME && d.version === CHARTS_CORE_REQUIRED)).toBe(false);
+    // 不得为用户没有选择的版本声称任何 registry 验证证据。
+    expect(result!.registryEvidence.some(r => r.name === CHARTS_CORE_NAME)).toBe(false);
+    // 用户文件与已有锁版本保持原样。
+    expect(result!.localProject.resolvedDependencies.find(d => d.name === CHARTS_CORE_NAME)?.version).toBe(CHARTS_CORE_LOCKED);
+    expect(validateIntegrationPlan(result).ok).toBe(true);
+    expect(treeSnapshot(root)).toEqual(before);
+
+    // 完整 CLI：同样的结构化冲突必须映射为 exit 2，而不是 exit 1 的执行错误。
+    const matchFile = path.join(path.dirname(root), `net-core-conflict-${Date.now()}.json`);
+    fs.writeFileSync(matchFile, JSON.stringify(plan));
+    const savedApiToken = process.env.ZHINEXUS_API_TOKEN;
+    const savedRegistryToken = process.env.ZHINEXUS_REGISTRY_TOKEN;
+    process.env.ZHINEXUS_API_TOKEN = API_TOKEN;
+    process.env.ZHINEXUS_REGISTRY_TOKEN = REGISTRY_TOKEN;
+    try {
+      apiResponses.push({ status: 200, body: matchedResponseWithCoreConflict() });
+      apiResponses.push({ status: 200, body: matchedResponseWithCoreConflict() });
+      const cli = await runIntegrateCommand(['plan', '--project', root,
+        '--match', matchFile, '--api-url', apiOrigin, '--registry', registryOrigin]);
+      expect(cli.exitCode, '锁版本冲突应形成含 conflicts 的结构化结果（exit 2）').toBe(2);
+      const parsed = JSON.parse(cli.stdout) as { status: string; conflicts: { code: string }[] };
+      expect(parsed.status).toBe('conflicted');
+      expect(parsed.conflicts.some(c => c.code === 'DEPENDENCY_CONFLICT' || c.code === 'VERSION_MISMATCH')).toBe(true);
+      // CLI 调用同样不得写入目标项目（用户文件与已有锁版本保持原样）。
+      expect(treeSnapshot(root)).toEqual(before);
+    } finally {
+      fs.rmSync(matchFile, { force: true });
+      if (savedApiToken === undefined) delete process.env.ZHINEXUS_API_TOKEN; else process.env.ZHINEXUS_API_TOKEN = savedApiToken;
+      if (savedRegistryToken === undefined) delete process.env.ZHINEXUS_REGISTRY_TOKEN; else process.env.ZHINEXUS_REGISTRY_TOKEN = savedRegistryToken;
+    }
   });
 });
