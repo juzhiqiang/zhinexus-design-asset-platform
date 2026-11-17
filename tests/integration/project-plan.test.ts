@@ -809,3 +809,129 @@ describe('T15 P1 候选审查回归：CLI 失败矩阵单一 JSON stdout', () =>
     }
   });
 });
+
+// ─── 最终整分支审查回归（C 2026-11-17 整分支审查候选 ①⑤；本轮只写测试，产品一字未改） ───
+//
+// ① 两个不同 variantReleaseId/逻辑组件（line/bar）共享同一包名+版本+摘要：合法 MatchPlan 必须形成
+//    合法计划，且 registryEvidence 中同一 name@version 只能有一条（契约 unique(/registryEvidence)）；
+//    按 finalReads 逐 variant push 会触发 `Duplicate or aliased entries` 而 schema crash。
+// ⑤ 契约允许省略 context.echartsVersion（project-context.ts 将其列为可选）：本地已锁 ECharts 时，
+//    要么安全取本地 inspected lock 版本形成真实查询并正常返回，要么形成合法上下文冲突；不得 schema
+//    crash，且 GET query 不得发送空 echartsVersion。
+//
+// 全部用例沿用合法源输入（validateMatchPlan）与合法权威响应（validateComponentMatchResponse）先验断言、
+// 真实 loopback API/registry、实算 bytes 摘要，并断言目标全树零写入。
+
+/** 第二个逻辑组件的 target：variantReleaseId/variantId/componentId/导出都不同，但包名、版本与平台摘要相同。 */
+function secondComponentTarget(): Record<string, unknown> {
+  return {
+    ...targetFixture(),
+    variantReleaseId: '00000000-0000-4000-8000-000000000002', variantId: 'bar-vue', componentId: 'bar',
+    exportName: 'BarChart', exportPath: './bar',
+    evidence: [{ kind: 'api', path: 'api/bar.json', sha256: 'c'.repeat(64) }, { kind: 'docs', path: 'docs/bar.md', sha256: 'd'.repeat(64) }],
+  };
+}
+
+/** 第二个逻辑组件的 matched 响应：query/api 身份与自身 target 一致，运行时依赖与第一个组件完全相同。 */
+function secondComponentResponse(): unknown {
+  return {
+    schemaVersion: 1,
+    query: { ...expectedQuery(), componentId: 'bar' },
+    status: 'matched',
+    target: secondComponentTarget(),
+    api: {
+      schemaVersion: 1, componentId: 'bar', framework: 'vue', exportName: 'BarChart', exportPath: './bar',
+      props: [{ name: 'data', type: 'ChartData', required: true }, { name: 'config', type: 'LineChartConfig', required: false }],
+      events: [{ name: 'point-click', payload: 'ChartEvent' }], styleExport: './style.css', readyMethod: 'whenRendered', notes: [],
+    },
+    exactDependencies: [
+      { name: PACKAGE_NAME, version: PACKAGE_VERSION }, { name: 'vue', version: '3.5.45' }, { name: 'echarts', version: '6.1.0' },
+    ],
+    gaps: [],
+  };
+}
+
+describe('T15 P1 最终整分支审查回归：同包多组件与省略 ECharts 版本', () => {
+  it('同包不同 variantReleaseId（line/bar 共享包名+版本+摘要）：合法 planned 且 registryEvidence 同一 name@version 仅一条', async () => {
+    const root = vuePnpmProject('same-package-two-components');
+    const base = matchPlan().elements[0]!;
+    const plan = matchPlan({ elements: [
+      { ...base, instanceId: 'node-line', designId: '设计/Line', target: targetFixture() as MatchPlanV1['elements'][number]['target'] },
+      { ...base, instanceId: 'node-bar', designId: '设计/Bar', target: secondComponentTarget() as MatchPlanV1['elements'][number]['target'] },
+    ] });
+    // 先验断言：源 MatchPlan 与两个权威响应都必须结构合法（不能靠非法输入凑出结论）。
+    expect(validateMatchPlan(plan).ok, '同包两组件的源 MatchPlan 必须结构合法').toBe(true);
+    expect(validateComponentMatchResponse(matchedResponse()).ok, 'line 的权威响应必须结构合法').toBe(true);
+    expect(validateComponentMatchResponse(secondComponentResponse()).ok, 'bar 的权威响应必须结构合法').toBe(true);
+    const before = treeSnapshot(root);
+    // 权威 GET 按首次出现顺序（line、bar），最终复读再各一次。
+    apiResponses.push({ status: 200, body: matchedResponse() });
+    apiResponses.push({ status: 200, body: secondComponentResponse() });
+    apiResponses.push({ status: 200, body: matchedResponse() });
+    apiResponses.push({ status: 200, body: secondComponentResponse() });
+
+    const { result, thrown } = await runPlan(root, plan, planOptions());
+
+    expect(thrown, `合法同包 MatchPlan 应形成合法计划而非 schema crash（${describeThrown({ thrown })}）`).toBeUndefined();
+    expect(result!.status).toBe('planned');
+    expect(result!.conflicts).toEqual([]);
+    // 两个逻辑组件各自生成一个组件文件（按元素输入顺序编号）。
+    const generated = result!.changes.filter(c => c.kind === 'generated-component');
+    expect(generated.map(c => (c as { instanceId: string }).instanceId)).toEqual(['node-line', 'node-bar']);
+    expect(generated.map(c => c.path)).toEqual([
+      'src/components/zhinexus/component-0001.vue',
+      'src/components/zhinexus/component-0002.vue',
+    ]);
+    // 每个 variantReleaseId 都保留一条最终 GET 快照（两个目标都要有发布证据）。
+    expect(result!.publicationEvidence.map(e => e.response.target?.variantReleaseId).sort()).toEqual(
+      ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'],
+    );
+    // 同一 name@version 只允许一条 registryEvidence：契约 unique(/registryEvidence) 否则判 Duplicate or aliased entries。
+    const shared = result!.registryEvidence.filter(e => e.name === PACKAGE_NAME && e.version === PACKAGE_VERSION);
+    expect(shared.length, '同包两组件只能有一条平台摘要证据').toBe(1);
+    expect(shared[0]).toEqual({
+      name: PACKAGE_NAME, version: PACKAGE_VERSION, sha256: TARBALL_SHA256, integrity: TARBALL_INTEGRITY, verification: 'platform-sha256',
+    });
+    // 两个 variantReleaseId 各自都要权威 GET（首次 + 最终复读），且都带完整 packageName 绑定。
+    expect(new Set(apiRequests.map(r => r.query.get('componentId')))).toEqual(new Set(['line', 'bar']));
+    for (const request of apiRequests) {
+      expect(request.query.get('packageName'), '权威 GET 必须带 packageName 绑定').toBe(PACKAGE_NAME);
+    }
+    // 同包只读一次 tarball（重复读取没有意义）。
+    expect(registryRequests.filter(url => url === `/${PACKAGE_NAME}/-/${TARBALL_FILENAME}`).length, '同包只读一次 tarball').toBe(1);
+    // 计划本身必须通过运行时校验，且全程零目标写入。
+    expect(validateIntegrationPlan(result).ok).toBe(true);
+    expect(treeSnapshot(root)).toEqual(before);
+  });
+
+  it('MatchPlan 省略 context.echartsVersion 且本地已锁 ECharts：查询不发空 echartsVersion，也不 schema crash', async () => {
+    const root = vuePnpmProject('omit-echarts-version');
+    // 契约把 echartsVersion 列为可选；这里真正删除该键（而不是置为 undefined 的显式坏值）。
+    const plan = matchPlan({ context: { echartsVersion: undefined } });
+    expect(validateMatchPlan(plan).ok, '省略 echartsVersion 的源 MatchPlan 必须结构合法').toBe(true);
+    expect(validateComponentMatchResponse(matchedResponse()).ok, '6.1.0 的权威响应必须结构合法').toBe(true);
+    const before = treeSnapshot(root);
+    apiResponses.push({ status: 200, body: matchedResponse() });
+    apiResponses.push({ status: 200, body: matchedResponse() });
+
+    const { result, thrown } = await runPlan(root, plan, planOptions());
+
+    // 不得以 INVALID_SCHEMA 等执行错误崩溃：要么用本地已锁版本形成真实查询并正常返回，要么形成合法上下文冲突。
+    expect(thrown, `省略 echartsVersion 不得 schema crash（${describeThrown({ thrown })}）`).toBeUndefined();
+    expect(result).toBeDefined();
+    expect(['planned', 'conflicted']).toContain(result!.status);
+    expect(validateIntegrationPlan(result).ok).toBe(true);
+    // GET query 不得发送空 echartsVersion：要么不带该参数，要么带本地 inspected lock 的精确版本。
+    for (const request of apiRequests) {
+      const sent = request.query.get('echartsVersion');
+      expect(sent === null || sent === '6.1.0', `GET 不得发送空或编造的 echartsVersion，实际 ${JSON.stringify(sent)}`).toBe(true);
+    }
+    // 若形成 planned，则必须真正用了本地已锁版本，并把该依赖完整保留（不凭空补版本、不悄悄丢依赖）。
+    if (result!.status === 'planned') {
+      expect(apiRequests.length, 'planned 必须真的发出过权威 GET').toBeGreaterThan(0);
+      expect(apiRequests.every(r => r.query.get('echartsVersion') === '6.1.0')).toBe(true);
+      expect(result!.exactDependencies).toEqual(expect.arrayContaining([{ name: 'echarts', version: '6.1.0' }]));
+    }
+    expect(treeSnapshot(root)).toEqual(before);
+  });
+});

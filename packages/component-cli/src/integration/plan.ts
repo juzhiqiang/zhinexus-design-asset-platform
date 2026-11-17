@@ -100,18 +100,41 @@ function addConflict(
   });
 }
 
-/** 权威 GET 的 query：完整字段 + packageName 绑定已选包。 */
-function matchQuery(target: MatchTarget, context: MatchPlanV1['context'], reactDomVersion?: string): Record<string, string> {
+/**
+ * 权威 GET 的 query：完整字段 + packageName 绑定已选包。
+ *
+ * ECharts 版本以 MatchPlan 声明为准；声明省略时**不得发送空值**——用本地 inspected lock 已锁的
+ * 精确版本形成真实查询（来源仍是本地已证实的锁，不是凭空补“最新版”）。省略本身与本地已锁值
+ * 不一致属于上下文冲突，由 resolveLocalPlan 记 MATCH_CONTEXT_MISMATCH，这里不伪造一致性。
+ */
+function matchQuery(
+  target: MatchTarget,
+  context: MatchPlanV1['context'],
+  reactDomVersion: string | undefined,
+  lockedEcharts?: string,
+): Record<string, string> {
   const query: Record<string, string> = {
     componentId: target.componentId,
     framework: target.framework,
     packageName: target.packageName,
     packageVersion: target.packageVersion,
     frameworkVersion: context.frameworkVersion,
-    echartsVersion: context.echartsVersion ?? '',
+    echartsVersion: context.echartsVersion ?? lockedEcharts ?? '',
   };
   if (target.framework === 'react') query.reactDomVersion = reactDomVersion ?? '';
   return query;
+}
+
+/**
+ * 发布证据里的 gap 消息是远端可控文本（可能夹带凭据或内部信息）：只保留稳定 code，用固定措辞
+ * 描述；target/api/依赖等其余证据一律原样保留，不为了脱敏删空证据或丢 gap code。
+ */
+function sanitizePublicationResponse(response: ComponentMatchResponseV1): ComponentMatchResponseV1 {
+  if (response.gaps.length === 0) return response;
+  return {
+    ...response,
+    gaps: response.gaps.map(gap => ({ code: gap.code, message: `权威响应返回 gap：${gap.code}` })),
+  };
 }
 
 /**
@@ -129,8 +152,9 @@ const PROBE_PATHS = [
 
 function snapshotOf(root: string, relative: string): IntegrationFileSnapshot {
   const absolute = path.join(root, ...relative.split('/'));
-  // 先解析真实位置：经链接落在项目外的路径一律不读取、不记录摘要（禁止跟随链接取外部 bytes）。
-  if (!isInsideDirectory(root, realPathOf(absolute))) return { path: relative, exists: false };
+  // 先解析真实位置：无法证明落在项目内（含链接声明解析不到真实路径）的路径一律不读取、不记录摘要。
+  const real = realPathOf(absolute);
+  if (!real.ok || !isInsideDirectory(root, real.real)) return { path: relative, exists: false };
   if (!fs.existsSync(absolute)) return { path: relative, exists: false };
   const bytes = fs.readFileSync(absolute);
   return { path: relative, exists: true, sha256: createHash('sha256').update(bytes).digest('hex') };
@@ -163,6 +187,8 @@ export async function planIntegration(
   const inspection: LocalProjectInspectionV1 = resolution.inspection;
   const context = matchPlan.context;
   const reactDomVersion = resolution.lockedVersions.get('react-dom');
+  // MatchPlan 省略 ECharts 版本时，用本地 inspected lock 已锁的精确版本形成真实查询（不发空值）。
+  const lockedEcharts = resolution.lockedVersions.get('echarts');
 
   // ② 复读基准：在任何网络请求之前取关键文件的原始字节快照，供结束后检测并发编辑。
   // 除识别快照与目标清单/锁外，还包括影响识别但可能尚不存在的探测路径（以 exists:false 建立基准）。
@@ -181,7 +207,7 @@ export async function planIntegration(
   const reads: TargetRead[] = [];
   const remoteVerifiable = inspection.status === 'inspected';
   for (const entry of remoteVerifiable ? resolution.queries : []) {
-    const fetched = await fetchComponentMatch(endpoints, credentials, matchQuery(entry.target, context, reactDomVersion));
+    const fetched = await fetchComponentMatch(endpoints, credentials, matchQuery(entry.target, context, reactDomVersion, lockedEcharts));
     if (!fetched.ok) throw new IntegrationPlanError(fetched.code, fetched.message);
     const checked = validateComponentMatchResponse(fetched.body);
     if (!checked.ok) {
@@ -190,7 +216,7 @@ export async function planIntegration(
     }
     const response = checked.value;
     // 响应 query 必须与请求身份逐字段一致（含 packageName 绑定）。
-    const requested = matchQuery(entry.target, context, reactDomVersion);
+    const requested = matchQuery(entry.target, context, reactDomVersion, lockedEcharts);
     const mismatched = Object.entries(requested).filter(([key, value]) => (response.query as unknown as Record<string, unknown>)[key] !== value);
     if (mismatched.length > 0) {
       addConflict(conflicts, 'MATCH_CONTEXT_MISMATCH',
@@ -262,7 +288,17 @@ export async function planIntegration(
   };
   for (const read of reads) {
     if (!read.readable) continue;
-    for (const dependency of read.response.exactDependencies) pushDependency(dependency.name, dependency.version);
+    for (const dependency of read.response.exactDependencies) {
+      // 权威响应要求一个本地已锁但精确版本不同的依赖：显式结构化冲突，且不把该版本写进
+      // exactDependencies（那正是契约禁止的“静默升级已锁依赖”）。
+      const locked = resolution.lockedVersions.get(dependency.name);
+      if (locked !== undefined && locked !== dependency.version) {
+        addConflict(conflicts, 'DEPENDENCY_CONFLICT',
+          `权威响应要求 ${dependency.name}@${dependency.version}，与目标项目已锁版本 ${locked} 不同；不静默升级已锁依赖`);
+        continue;
+      }
+      pushDependency(dependency.name, dependency.version);
+    }
   }
   const packageReads = new Map<string, Promise<PackageDigestRead>>();
   /** 同一 name@version 只读一次：重复调用返回同一次读取，不再发起请求。 */
@@ -302,7 +338,7 @@ export async function planIntegration(
   // ⑥ 下载/元数据结束后复读全部唯一目标的资格/身份/摘要/API。
   const finalReads: TargetRead[] = [];
   for (const entry of resolution.queries) {
-    const fetched = await fetchComponentMatch(endpoints, credentials, matchQuery(entry.target, context, reactDomVersion));
+    const fetched = await fetchComponentMatch(endpoints, credentials, matchQuery(entry.target, context, reactDomVersion, lockedEcharts));
     if (!fetched.ok) throw new IntegrationPlanError(fetched.code, fetched.message);
     const checked = validateComponentMatchResponse(fetched.body);
     if (!checked.ok) {
@@ -344,11 +380,17 @@ export async function planIntegration(
   for (const conflict of generated.conflicts) addConflict(conflicts, conflict.code, conflict.message, conflict);
 
   // ⑨ 证据：平台摘要只能对“最终复读仍 matched 且摘要相符”的目标声称。
+  // 同一 name@version 只保留一条：多个 variantReleaseId/逻辑组件共用同一包时（如 line/bar），
+  // 契约 unique(/registryEvidence) 要求 name 唯一；各目标的发布证据仍按目标各自保留。
   const registryEvidence: IntegrationPlanV1['registryEvidence'] = [];
+  const evidenceKeys = new Set<string>();
   for (const read of finalReads) {
     const target = read.response.target!;
     const digest = packageDigests.get(read.target.variantReleaseId);
     if (!read.readable || !digest || digest.sha256 !== target.packageSha256) continue;
+    const evidenceKey = `${target.packageName}@${target.packageVersion}`;
+    if (evidenceKeys.has(evidenceKey)) continue;
+    evidenceKeys.add(evidenceKey);
     registryEvidence.push({
       name: target.packageName, version: target.packageVersion, sha256: digest.sha256, integrity: digest.integrity, verification: 'platform-sha256',
     });
@@ -430,7 +472,10 @@ export async function planIntegration(
     commands,
     changes,
     conflicts,
-    publicationEvidence: finalReads.map(read => ({ response: read.response, checkedAt: new Date().toISOString() })),
+    // 远端 gap 消息是远端可控文本，可能夹带凭据或内部信息：保留稳定 code，用固定措辞描述。
+    publicationEvidence: finalReads.map(read => ({
+      response: sanitizePublicationResponse(read.response), checkedAt: new Date().toISOString(),
+    })),
     registryEvidence,
   };
   // 自身守卫：产出必须通过运行时校验，否则说明实现与契约脱节，直接失败而不是交出非法计划。
