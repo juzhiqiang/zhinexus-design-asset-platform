@@ -1,6 +1,6 @@
 # T15 最终验收与本地主分支收口
 
-日期：2026-11-17（Asia/Shanghai）。本记录追加最终候选、门禁和清理证据，不改写此前 RED/GREEN 历史。当前状态：最终审查修复的宿主 P1 已通过，最终打包、全套门禁与 main 合并待验收。
+日期：2026-11-17（Asia/Shanghai）。本记录追加最终候选、门禁和清理证据，不改写此前 RED/GREEN 历史。当前状态：T15 技术验收完成，最终冻结 CLI 与集成树全套门禁通过；main 合并后复验与安全清理待执行。
 
 ## 范围与归属
 
@@ -44,15 +44,40 @@ C 的 `.superpowers/t15/final-five-red/` 保存原始日志、JSON、运行前�
 - React 0.0.12：`bbc6a1ad1fba272552cdb6468746c33a246c94f49941dfc8bde746fd9c8c5d28`。
 - 已安装 CLI 兼容采纳证据 SHA-256：`c61820814884126a3b8869b69079c7b3c286afd5e26acdd282b94f749c159cc7`。
 
-SDK 不重新 pack；CLI 产品修复后生成新版本候选并重新验证。
+SDK 未重新 pack。CLI 修复提交 `88b13803b3024bc4c57dd7f5fa737208a1f16c29`，由 `5347683d` 合入 C；独立版本提交 `e23ef890f12282c60916d31f42d84341108d4014` 升至 **0.0.13**。于 22:01:21 执行一次 pack 后冻结：
+
+- tarball：`company-component-cli-0.0.13.tgz`，**294872 bytes**。
+- SHA-256：`d071f7c17f62db75f36b8ed8c0cb44bab0ed8ff1eccda83abbe029cc31a0a7b6`。
+- 独立保存位置：`D:\project\zhinexus-design-asset-platform\.tools\operations\t15-final-2026-11-17\t15-cli-0.0.13\`，复制后逐文件核对摘要。
+- 仓外真实安装目录：`C:\Users\10208\AppData\Local\Temp\zhinexus-t15-installed-DQQge4`。P4 日志实际记录 `T15_INSTALLED_CLI`、版本及同一 SHA，不使用工作区链接或私有 contracts 运行时依赖。
 
 ## 最终门禁
 
-待最终产品提交后执行并追加实际命令、exit、数量、跳过数和日志：冻结安装、强制全图 build/typecheck、根 tsc、workspace 边界、根 test、真实平台 41 项、浏览器 18 项及新冻结 CLI 仓外 P4 25 项。在 main 合并后再次核对树、构建与同一已安装 CLI 专项。
+以下命令在 C 集成工作树通过固定 Node 26.13.0 / pnpm 12.18.0 运行，前缀均为 `.\scripts\pnpm.ps1`。完整日志及结构化结果在 `.superpowers/t15/`，清理前复制到主目录独立备份；既有 Node DEP0190 警告仍存在，本轮未改变相关 shell 调用。
+
+| 命令（去掉共同前缀） | 实际结果 | 日志 |
+| --- | --- | --- |
+| `exec vitest run tests/integration/project-inspect.test.ts tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts tests/integration/project-plan-consumer.test.ts tests/integration/project-plan-readonly.test.ts` | **183/183，0 skipped，exit 0，63.74s**；12 源摘要与 B 冻结字节一致 | `integrated-final.log` / `integrated-final-results.json` |
+| `install --frozen-lockfile` | exit 0，0.19s；锁文件未变 | `candidate-install.log` |
+| `exec turbo run build typecheck --force` | **20/20 tasks，0 cached，exit 0**，14.63s | `candidate-force-graph.log` |
+| `-PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')` | exit 0，0.59s | `candidate-root-tsc.log` |
+| `verify:workspace` | 10 成员、无环、公开包与服务闭包检查通过，exit 0，0.81s | `candidate-workspace.log` |
+| `test` | **T10 168/168、Vitest 83 文件 1494/1494，0 skipped，exit 0**；总 337.27s，Vitest 306.20s | `candidate-root-test.log` |
+| `exec vitest run --config tests/platform/vitest.config.ts tests/platform/matching.test.ts tests/platform/component-query.test.ts tests/platform/component-query-consumer.test.ts` | **41/41，0 skipped，exit 0**，61.57s（测试 57.45s） | `candidate-platform.log` / `candidate-platform-results.json` |
+| `exec playwright test --config tests/playwright.config.ts tests/browser/contracts-runtime.spec.ts tests/browser/phase2-component-query.spec.ts` | **18/18，0 skipped，exit 0**，12.30s（测试 11.5s）；启动前确认 5173–5176 无监听 | `candidate-browser.log` |
+| `exec vitest run --config tests/acceptance/phase3-plan.config.ts` | **25/25，0 skipped，exit 0**，32.78s（测试 29.57s） | `candidate-p4.log` / `candidate-p4-results.json` |
+
+P4 同时设置上述已核对的 `A10_FROZEN_BUNDLE`、`INSTALLED_CLI_EVIDENCE` 及唯一冻结 `PHASE3_CLI_TARBALL`；14 项 A 矩阵、Vue/React 真实兼容证据采纳、权限撤销/废弃、下载中撤权、损坏材料、选定包摘要不符、registry 故障和只读快照均实际执行。三个冻结 SDK、manifest、兼容证据及原始架构摘要保持前述值。P4 后 CLI SHA 再次一致，没有第二次 pack。
+
+五项 Review Focus 对应 P1 路径/锁/网络回归、D 黑盒的 Git filter 与全树控制，以及 P4 真实服务/安装结果。没有遗留审查阻断或延期 Minor。特殊 8.3 短名、所有文件系统并发竞争与超过 64 跳链接不由本轮用例全面证明；该限制不能转换成未来 apply 授权。
+
+main 合并后仍须再次核对树、强制构建与同一冻结 CLI 的仓外 P4。
 
 ## 边界与接续
 
 技术验收使用 synthetic 项目和隔离的真实 Nest/PostgreSQL/MinIO/Verdaccio；不代表两个真实业务试点或公司生产 G2。T16 安装、代码生成与安全回退，T17 验证、有限修复与 MCP，继续保持未完成。下一轮先冻结写入/恢复契约，取得具体目标项目、路由和路径授权后再实施。
+
+T16 开工交接：保留 A 的 14 案例与双框架差异表、D 的 35 个独立黑盒、原 `sourceMatchPlan` / 调用方 digest 与 T15 的 `executionAuthorized:false`。C 先定义 ApplyResult、备份和基于 afterHash 的恢复契约；B/Claude 桌面端承担 install/apply/patch/rollback 与 Vue SFC/React TSX 生成；A/Antigravity 核验生成期望及生命周期；D/Claude Code 独立验证失败恢复与并发修改保护。没有具体宿主、路由、路径和授权前，不运行 apply，也不将 CLI 计划命令当作安装授权。
 
 ## 执行裁定
 

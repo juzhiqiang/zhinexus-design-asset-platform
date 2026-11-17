@@ -476,16 +476,16 @@ flowchart LR
 
 ### T15：本地项目识别与安装计划（三期，8–12 人日）
 
-2026-11-16 首轮实施细化见 [T15 设计](../specs/2026-11-16-phase3-t15-design.md) 和 [四方计划](2026-11-16-phase3-t15-kickoff.md)。本轮完整交付只读 inspect/plan，新增 `LocalProjectInspectionV1` 承载本地锁/路径/脚本/快照，保持原 `ProjectContext` 二期结构兼容；`IntegrationPlanV1` 对应下述 IntegrationPlan 概念。C 先冻结契约，B/Claude 桌面端承担主要 CLI 开发，A/Antigravity 提供项目与 SDK 预期，D/Claude Code 独立验收；C 最终集成收口。下面原 T15–T17 勾选继续表示实现状态，规划交付不等于任务完成。
+2026-11-17 T15 技术验收完成，CLI `0.0.13`，见 [最终证据](../../verification/t15-completion-2026-11-17.md)。首轮实施细化见 [T15 设计](../specs/2026-11-16-phase3-t15-design.md) 和 [四方计划](2026-11-16-phase3-t15-kickoff.md)。本轮完整交付只读 inspect/plan，新增 `LocalProjectInspectionV1` 承载本地锁/路径/脚本/快照，保持原 `ProjectContext` 二期结构兼容；`IntegrationPlanV1` 对应下述 IntegrationPlan 概念。C 冻结契约，B/Claude 桌面端承担主要 CLI 开发，A/Antigravity 提供项目与 SDK 预期，D/Claude Code 独立验收，C 完成集成门禁。T16/T17 勾选保持未完成。
 
 **Files:** 创建 `packages/component-cli/src/integration/{inspect,resolve,plan,workspace}.ts`、`commands/integrate.ts`；`tests/integration/project-plan.test.ts`。
 
-**Interfaces:** `inspectProject(root): ProjectContext`；`planIntegration(root,matchPlan): IntegrationPlan`；命令 `component integrate plan --project <path> --match <file>`。IntegrationPlan 固定包含 baseFileHashes、allowedPaths、packageManager、exactDependencies、commands、changes、conflicts；此阶段不写项目。
+**Interfaces:** `inspectProject(root, options?): Promise<LocalProjectInspectionV1>`；`planIntegration(root,matchPlan,options): Promise<IntegrationPlanV1>`；命令 `component integrate plan --project <path> --match <file> --api-url <origin> --registry <origin>`。IntegrationPlan 固定包含 baseFileHashes、allowedPaths、packageManager、exactDependencies、commands、changes、conflicts；此阶段不写项目。
 
-- [ ] 写锁文件/工作区用例：npm/pnpm 分别使用对应锁；多锁冲突返回需选择；Vue/React/单仓目标识别不确定时拒绝猜测；现有工作区脏文件不被覆盖。
-- [ ] 实现依赖约束求交、已发布版本/摘要检查和安装预览；ReactDOM/React 成对约束，ECharts 取已验证组合；不偷偷升级宿主主版本。
-- [ ] 将影响文件和命令组成可审查计划；路径不得越过目标工作区；直接写入前验证 baseFileHashes 未变化。
-- [ ] 运行测试，断言 plan 命令不修改任何项目文件；提交。
+- [x] 写锁文件/工作区用例：npm/pnpm 分别使用对应锁；多锁冲突返回需选择；Vue/React/单仓目标识别不确定时拒绝猜测；现有工作区脏文件不被覆盖。
+- [x] 实现依赖约束求交、已发布版本/摘要检查和安装预览；ReactDOM/React 成对约束，ECharts 取已验证组合；不偷偷升级宿主主版本。
+- [x] 将影响文件和命令组成可审查计划；路径不得越过目标工作区；规划末复读 baseFileHashes。T15 不提供写入，直接写入前再次复验由 T16 apply 强制执行。
+- [x] 运行测试，断言 plan 命令不修改任何项目文件；提交。P1 + D 独立黑盒 183/183，已安装 CLI 真实服务 25/25，零跳过；不代表真实业务试点。
 
 ### T16：依赖安装、框架代码与数据事件接入（三期，14–20 人日）
 
