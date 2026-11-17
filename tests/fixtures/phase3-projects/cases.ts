@@ -512,16 +512,16 @@ const CASE_DEFS: readonly InternalCaseDef[] = [
   {
     meta: {
       caseId: 'conflict-missing-echarts',
-      title: '专项反例：宿主缺少 echarts 依赖',
+      title: '历史兼容 ID：宿主缺少 echarts 依赖（按 spec 第 5 条保持 inspected 且不伪造 echarts）',
       origin: 'synthetic',
       framework: 'vue',
       packageManager: 'npm',
       lockType: 'npm-v3',
       workspace: '.',
       lockSnapshotDir: 'conflict-missing-echarts',
-      expectedConflictCodes: ['ECHARTS_MISSING'],
+      expectedConflictCodes: [],
       expected: {
-        status: 'conflicted',
+        status: 'inspected',
         workspace: '.',
         packageManager: 'npm',
         lockfileFormat: 'npm-v3',
@@ -531,7 +531,7 @@ const CASE_DEFS: readonly InternalCaseDef[] = [
         scripts: [],
         gitStatus: 'unavailable',
         dirtyPaths: [],
-        conflictCodes: ['ECHARTS_MISSING'],
+        conflictCodes: [],
       },
     },
     rootPackageJson: {

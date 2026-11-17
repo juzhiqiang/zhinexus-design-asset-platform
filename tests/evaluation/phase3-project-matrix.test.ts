@@ -43,7 +43,6 @@ describe('P2 三期独立项目矩阵与双框架 SDK 审计', () => {
       'REACT_DOM_MISSING',
       'IMPORTER_MISSING',
       'FRAMEWORK_AMBIGUOUS',
-      'ECHARTS_MISSING',
       'WORKSPACE_REQUIRED',
     ] as const) {
       expect(conflictCodes.has(requiredCode)).toBe(true);
@@ -55,6 +54,20 @@ describe('P2 三期独立项目矩阵与双框架 SDK 审计', () => {
     expect(dirtyCase!.expected.gitStatus).toBe('dirty');
     expect(dirtyCase!.expected.dirtyPaths.length).toBeGreaterThan(0);
     expect(dirtyCase!.expected.status).toBe('inspected');
+  });
+
+  it('缺 ECharts 案例按 spec 第 5 条与 P0 契约保持 inspected 且不伪造 echarts 依赖', () => {
+    const missingEchartsCase = projectCases.find((c) => c.caseId === 'conflict-missing-echarts');
+    expect(missingEchartsCase).toBeDefined();
+    expect(missingEchartsCase!.expected.status).toBe('inspected');
+    expect(missingEchartsCase!.expectedConflictCodes).toEqual([]);
+    expect(missingEchartsCase!.expected.conflictCodes).toEqual([]);
+    expect(missingEchartsCase!.expected.resolvedDependencies).toEqual([
+      { name: 'vue', version: '3.5.45', specifier: '3.5.45' },
+    ]);
+    expect(
+      missingEchartsCase!.expected.resolvedDependencies.some((dep) => dep.name === 'echarts'),
+    ).toBe(false);
   });
 
   it('反例：矩阵校验拒绝缺少框架/包管理器组合、重复 caseId 与预期版本和锁不符', () => {
