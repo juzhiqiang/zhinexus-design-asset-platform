@@ -38,6 +38,22 @@
 - 待 A/B/D 冻结提交集成后，审查测试与实现、升版、冻结新 CLI，再运行 GREEN、完整图构建/类型检查、根测试、平台和浏览器专项。
 - 本记录不代表 T15 完成；合成绑定/布局不代表真实业务项目验收；T16/T17、G2 与真实业务试点仍有独立门槛。
 
+## D35 只读目标冲突修复与集成 GREEN（2026-11-17）
+
+- 先前集成候选的 D35 独立黑盒正式结果为 **34 passed / 1 failed / 0 skipped**。唯一失败是已存在目标组件同时属于 Git dirty path 时，`OUTPUT_EXISTS` 计划因缺少同路径 `DIRTY_TARGET` 被 IntegrationPlan 契约拒绝；原始失败和根因见上方交接文件及 B 记录。
+- 实际 Claude 桌面端按交接只改 `packages/component-cli/src/integration/plan.ts`：所有最终 `allowedPaths` 与 `inspection.git.dirtyPaths` 按 NFC + 小写键相交时补同路径 `DIRTY_TARGET`，保留 `OUTPUT_EXISTS`、`allowedPaths` 与用户 bytes。正式 P1 三组在 B 工作树复跑 **142/142 passed / 0 skipped / exit 0（35.12s）**；CLI build、CLI typecheck、根 tsc 均 exit 0。修复提交 `006f0547f80476f0ca3c1c811239e93cdba249b5`，以合并提交 `d41dbae5797165f4e039ea409601a40efa85069e` 集成至 C。
+- 在合并后的 C 集成树先运行 CLI build，再以固定 Node 26.13.0 / pnpm 12.18.0 执行 P1 三组与 D 独立黑盒五文件：
+
+  ```powershell
+  .\scripts\pnpm.ps1 --filter @company/component-cli build
+  .\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts tests/integration/project-plan.test.ts tests/integration/project-plan-network.test.ts tests/integration/project-plan-consumer.test.ts tests/integration/project-plan-readonly.test.ts --reporter=default --reporter=json --outputFile=.superpowers/t15/host-p1-d35-green-2026-11-17-results.json
+  .\scripts\pnpm.ps1 --filter @company/component-cli typecheck
+  .\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+  ```
+
+- 集成结果 **177/177 passed、0 skipped、exit 0（61.76s）**；5 个测试文件通过，D35 中原 `OUTPUT_EXISTS` 失败现已通过。CLI build 的 73 文件 package probe 无缺失、污染、链接或变更；CLI typecheck 和根 tsc 均 exit 0。正式 Vitest JSON：`.superpowers/t15/host-p1-d35-green-2026-11-17-results.json`。
+- `plan.ts` 本轮 SHA-256：`098518193D3CEC1AF0E78850E8BF7243D363567ED0C339CFD14EA770911B3CDD`。该记录只完成候选集成验证；尚未升 CLI 版本、打包、仓外安装或运行 P4 真实 Nest/PG/MinIO/Verdaccio 专项，T15 仍未完成。
+
 ## 中断恢复后的补充 RED（2026-11-17）
 
 - 保留此前记录，复用已有 C 隔离工作树、A 的 `c3c90e3d` 交付和完全相同的旧 CLI / SDK 冻结输入。
