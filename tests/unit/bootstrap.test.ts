@@ -8,11 +8,19 @@ describe('bootstrap entry points', () => {
     expect(await runCli(['--version'], '0.0.0')).toEqual({ exitCode: 0, stdout: '0.0.0\n', stderr: '' });
   });
   it('does not pretend future commands are implemented', async () => {
-    for (const command of ['init', 'dev', 'integrate', '--unknown']) {
+    for (const command of ['init', 'dev', '--unknown']) {
       const result = await runCli([command], '0.0.0');
       expect(result.exitCode).not.toBe(0);
       expect(result.stderr).toContain('尚未实现');
     }
+  });
+  it('reports integrate as implemented when its subcommand is missing', async () => {
+    const result = await runCli(['integrate'], '0.0.0');
+    expect(result.exitCode).toBe(1);
+    expect(JSON.parse(result.stdout)).toEqual({
+      status: 'error', error: { code: 'INVALID_ARGUMENTS', message: '缺少子命令' },
+    });
+    expect(result.stderr).toContain('component integrate inspect');
   });
   it('explains the bootstrap scope in help', async () => {
     expect((await runCli(['--help'], '0.0.0')).stdout).toContain('工程骨架');
