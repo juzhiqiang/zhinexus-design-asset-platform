@@ -2,6 +2,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { parseAllDocuments } from 'yaml';
 import { INTEGRATION_CONFLICT_CODES } from '@company/contracts';
 import { expectedSdkComponents, validateExpectedSdkMatrix } from '../fixtures/component-query-sdk.js';
 import { workspacePatternCases } from '../fixtures/integration-plan.js';
@@ -129,6 +130,31 @@ describe('P2 三期独立项目矩阵与双框架 SDK 审计', () => {
         const alignRes = verifyCaseLockfileAlignment(item);
         expect(alignRes).toEqual({ valid: true });
       }
+    } finally {
+      rmSync(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('conflict-missing-importer 必须真实存在目标 workspace/package.json 且 pnpm 锁正文不含该 importer', async () => {
+    const tempRoot = mkdtempSync(path.join(os.tmpdir(), 't15-p2-importer-'));
+    try {
+      const materialized = await createProjectCase('conflict-missing-importer', tempRoot);
+      expect(materialized.workspace).toBe('apps/missing-pkg');
+      expect(materialized.expected.conflictCodes).toEqual(['IMPORTER_MISSING']);
+      expect(
+        existsSync(path.join(materialized.projectRoot, 'apps/missing-pkg/package.json')),
+      ).toBe(true);
+
+      const lockDocs = parseAllDocuments(
+        readFileSync(path.join(materialized.projectRoot, 'pnpm-lock.yaml'), 'utf8'),
+      ).map((doc) => (doc.toJS() ?? {}) as { importers?: Record<string, unknown> });
+
+      const allImporters = Object.assign(
+        {},
+        ...lockDocs.map((doc) => doc.importers ?? {}),
+      ) as Record<string, unknown>;
+      expect(allImporters['apps/chart-react']).toBeDefined();
+      expect(allImporters['apps/missing-pkg']).toBeUndefined();
     } finally {
       rmSync(tempRoot, { recursive: true, force: true });
     }
