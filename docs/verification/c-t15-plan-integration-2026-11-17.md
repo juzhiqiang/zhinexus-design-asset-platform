@@ -85,3 +85,21 @@ C 的早期直接模块消费观察另外发现真实 pnpm 双文档被 B 错误
 ### 快照审查修复后的重跑（追加）
 
 按独立审查补齐 `__proto__` 文件快照反例并修复后，复用同一旧 CLI 与 SDK 冻结输入，重跑上述完整已安装专项：**25/25 行为失败、0 跳过、exit 1**，23.46 秒；仍为旧 CLI 缺新命令的预期 RED，服务准备与真实兼容采纳成功。日志为 `p4-installed-snapshot-red-2026-11-17.log`。快照反例自身 **1 RED→1 GREEN、0 跳过**，根 TypeScript **exit 0**；该补充只完善 P4 验收准备。
+
+## 首次冻结候选 0.0.12 的 P4 GREEN 与代理修正（追加）
+
+CLI 兼容新增能力按当前 0.x 规则单独升至 `0.0.12`，提交 `52acc3d1b201e4b69ccd41d09ffbcb5aa87e8b40`。构建后只 pack 一次：`.tools/operations/t15-cli-0.0.12/company-component-cli-0.0.12.tgz`，292730 bytes，SHA-256 `1372ed616d49c9c7e2969e64f2318c54a8ea1341045a94dac167bd582069ecda`。其后未改 CLI 产品源码，SDK 仍复用上述冻结 bundle；已安装兼容采纳证据 SHA-256 为 `c61820814884126a3b8869b69079c7b3c286afd5e26acdd282b94f749c159cc7`。
+
+首轮 P4 为 **24 passed / 1 failed / 0 skipped**。失败来自测试代理把所选组件和新增运行时依赖的 tarball 都损坏，后者触发 registry integrity 执行错误，遮挡所选组件的 `PACKAGE_DIGEST_MISMATCH`。先加断言要求只损坏所选包，窄跑得到 **1 failed / 24 未选中**；将代理限制到所选精确包身份后，同一冻结产物窄跑 **1 passed / 24 未选中**，完整重跑 **25/25 passed、0 skipped**。三个结果 JSON 分别为 `.superpowers/t15/host-p4-corrupt-proxy-red-2026-11-17-results.json`、`host-p4-corrupt-proxy-green-2026-11-17-results.json`、`host-p4-green-2-2026-11-17-results.json`。这是测试故障注入修正，不修改已发布 bytes，也不将标题筛选未运行项计为通过。
+
+中断恢复后，C 再次设置同一 `A10_FROZEN_BUNDLE`、`INSTALLED_CLI_EVIDENCE` 和 `PHASE3_CLI_TARBALL`，执行：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run --config tests/acceptance/phase3-plan.config.ts --reporter=default --reporter=json --outputFile=.superpowers/t15/final-p4-results.json
+.\scripts\pnpm.ps1 test
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+```
+
+P4 **25/25 passed、0 skipped、exit 0（27.93s）**，真实隔离服务、仓外安装、14 项目矩阵、双框架计划、撤权/废弃/损坏/传输错误及全树只读均执行。根 test **83 文件、1488 passed、0 skipped、exit 0（299.31s）**，其前置 T10 为 **168/168、0 skipped**；根 tsc **exit 0**。日志在 `.superpowers/t15/final-p4.log`、`final-root-test.log`、`final-root-tsc.log`。运行出现既有 Node `DEP0190` 警告，未把它描述成零诊断输出。
+
+这些结果只证明本候选的既有测试通过。最终整分支审查随后报告了同包多组件 registry 证据去重、远端 matched/unverified gap 文案泄漏、已锁运行时依赖冲突等残余；正在按原 B 负责范围补回归并复现，**0.0.12 不作为最终 T15 验收候选，尚不合入 main**。产品修复后必须冻结新版本并重新验收。T16/T17、G2 与真实业务试点继续开放。

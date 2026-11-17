@@ -28,10 +28,15 @@ const matches = new Map<string, MatchPlanV1>();
 let adopted = false;
 
 // Fault transport proxies the actual isolated Verdaccio. Published bytes stay immutable.
-async function registryFault(mode: 'corrupt-tarball' | 'unavailable' | 'deferred-tarball') {
+async function registryFault(
+  mode: 'corrupt-tarball' | 'unavailable' | 'deferred-tarball',
+  corruptionTarget?: { packageName: string; version: string },
+) {
+  if (mode === 'corrupt-tarball' && !corruptionTarget) throw new Error('corrupt-tarball requires a package identity');
   const upstream = localServices().registryOrigin;
   const seen: { path: string; authorized: boolean }[] = [];
   let corrupted = 0;
+  const corruptedPaths: string[] = [];
   let origin = '';
   let releaseDownload!: () => void;
   let notifyDownload!: () => void;
@@ -50,7 +55,13 @@ async function registryFault(mode: 'corrupt-tarball' | 'unavailable' | 'deferred
       let bytes = Buffer.from(await result.arrayBuffer());
       if (result.ok && url.pathname.endsWith('.tgz')) {
         if (mode === 'deferred-tarball') { notifyDownload(); await downloadGate; }
-        else { bytes = Buffer.from(bytes); bytes[0] = bytes[0]! ^ 1; corrupted++; }
+        else if (mode === 'corrupt-tarball') {
+          const name = corruptionTarget!.packageName.split('/').at(-1)!;
+          const targetPath = `/${corruptionTarget!.packageName}/-/${name}-${corruptionTarget!.version}.tgz`;
+          if (url.pathname === targetPath) {
+            bytes = Buffer.from(bytes); bytes[0] = bytes[0]! ^ 1; corrupted++; corruptedPaths.push(url.pathname);
+          }
+        }
       } else if (result.ok && contentType.includes('json')) {
         // Only dist.tarball URLs are rewritten; names, versions and integrity remain real.
         const rewrite = (value: unknown): unknown => {
@@ -72,7 +83,7 @@ async function registryFault(mode: 'corrupt-tarball' | 'unavailable' | 'deferred
   });
   await new Promise<void>(r => server.listen(0, '127.0.0.1', r));
   origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
-  return { origin, seen, corrupted: () => corrupted, downloadStarted, releaseDownload,
+  return { origin, seen, corrupted: () => corrupted, corruptedPaths: () => [...corruptedPaths], downloadStarted, releaseDownload,
     close: () => {
       releaseDownload(); server.closeAllConnections();
       return new Promise<void>((resolve, reject) => server.close(error => error ? reject(error) : resolve()));
@@ -299,10 +310,15 @@ describe('T15 actual installed CLI and isolated Nest/PG/MinIO/Verdaccio', () => 
     expect(result.stderr).not.toContain('命令尚未实现');
   });
   it('refuses corrupted bytes proxied from the actual immutable registry', async () => {
-    await adoptRealEvidence(); const match = await freshMatch('vue'); const fault = await registryFault('corrupt-tarball');
+    await adoptRealEvidence(); const match = await freshMatch('vue');
+    const selected = rows.find(row => row.framework === 'vue')!;
+    const pkg = manifest.packages.find(entry => entry.name === selected.metadata.packageName)!;
+    const name = pkg.name.split('/').at(-1)!;
+    const fault = await registryFault('corrupt-tarball', { packageName: pkg.name, version: pkg.version });
     try {
       const result = await callPlan('vue', match, { registry: fault.origin });
-      expect(fault.corrupted()).toBeGreaterThan(0);
+      expect(fault.corrupted()).toBe(1);
+      expect(fault.corruptedPaths()).toEqual([`/${pkg.name}/-/${name}-${pkg.version}.tgz`]);
       expect(fault.seen.every(request => request.authorized)).toBe(true);
       expect(result.code).toBe(2);
       expect(checkedOutput(result).conflicts.some(c => c.code === 'PACKAGE_DIGEST_MISMATCH')).toBe(true);
