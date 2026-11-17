@@ -1,0 +1,50 @@
+# T15 已安装 CLI 与真实服务验收记录
+
+日期：2026-11-17；负责人 C / Codex。状态：**RED 已确认，产品集成与 GREEN 尚未完成**。
+
+## 基线与隔离
+
+- P0 基线：`31ae120a270e84ab7c100d3ad77919b233d1d48b`；集成分支 `chore/t15-c-integration`。
+- B / Claude 桌面端：`feat/t15-b-integration-plan`；A / Antigravity：`chore/t15-a-project-matrix`；D / Claude Code：`chore/t15-d-plan-acceptance`。各自独立 worktree、工具链目录和依赖目录。
+- 专项配置 `tests/acceptance/phase3-plan.config.ts`，复用隔离 PostgreSQL / MinIO / Verdaccio 与实际 Nest HTTP 服务；默认根测试不包含本专项。
+- `A10_FROZEN_BUNDLE`、`PHASE3_CLI_TARBALL` 必填；成功计划额外要求 `INSTALLED_CLI_EVIDENCE`，缺环境或文件必须失败，不跳过。
+
+## 冻结输入
+
+- 已接受 SDK bundle 标识：`881238b3-2214-4ec8-bf0c-af5238b7fcd3`，199 个文件、14 份报告；manifest SHA-256 `04a7c4fb267dd2fe760c9c10f3706d28e23d03a5a0cc0fc3be8c6a2963f50aa1`。
+- core `0.0.11`，Vue/React `0.0.12`。逐文件核对原始 bytes/SHA，使用 `validateReleaseBundle` 校验关联报告，复用同一份 tarball，不重新打包 SDK。
+- RED 使用真实安装的 CLI `0.0.11`，tarball SHA-256 `14775474e4b0181fd3c891f6624ed15b11b2f52582731271063138e606420adf`。
+- 兼容记录经真实 API 接收既有工作区外探针证据，来源见 `sdk-label-adopt-acceptance-2026-11-16.md`。未直接插入伪造 passed；先验证未采纳时 unverified，再采纳、重新取得 MatchPlan。
+
+## 已执行的 RED
+
+命令：设置上述三个实际输入后运行：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run --config tests/acceptance/phase3-plan.config.ts
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+```
+
+- 第一次准备流程使用缺少报告参数的 manifest 校验，导致准备失败；已改为完整 bundle 校验。此失败是测试设施问题，**不计行为 RED**。
+- 第二次：服务准备、冻结发布 READY、真实兼容采纳均通过；6 个行为失败来自旧 CLI 未实现 `integrate plan`。一个网络测试只检查 exit 1，不能区分命令缺失与网络错误，未将它记为能力通过。
+- 第三次：收紧网络测试并加入 registry 故障传输后，**9/9 失败，0 跳过，exit 1**；Vue/React 未验证与已采纳场景明确报告“命令尚未实现”；故障场景没有发出所需请求或没有 JSON 输出。日志：`.superpowers/sdd/2026-11-16-phase3-t15-kickoff/p4-installed-red3.log`。
+- 根 TypeScript 检查 exit 0。
+
+## 测试边界与待验收项
+
+- CLI 以 `npm install --ignore-scripts` 安装到工作区外临时消费者；synthetic Vue/React 项目锁由固定 npm 实际生成。全树文件/目录和字节摘要在每次命令前后比较，输出检查 API/registry 凭证不泄漏。
+- 权限撤销、废弃、API 材料元数据损坏发生在隔离测试数据库；registry 故障通过代理真实 Verdaccio 的传输层注入，不覆盖或删除已发布包。
+- HTTP 故障代理保留真实元数据与 integrity，仅在损坏场景翻转下载字节，并检查实际请求和只读 token。该代理属于故障注入，不能描述成生产服务自然故障。
+- 待 A/B/D 冻结提交集成后，审查测试与实现、升版、冻结新 CLI，再运行 GREEN、完整图构建/类型检查、根测试、平台和浏览器专项。
+- 本记录不代表 T15 完成；合成绑定/布局不代表真实业务项目验收；T16/T17、G2 与真实业务试点仍有独立门槛。
+
+## 中断恢复后的补充 RED（2026-11-17）
+
+- 保留此前记录，复用已有 C 隔离工作树、A 的 `c3c90e3d` 交付和完全相同的旧 CLI / SDK 冻结输入。
+- 将撤权和废弃分成独立用例，避免前一个失败遮挡后一个。新增真实 Verdaccio 下载暂停屏障：必须观察到 tarball 请求后才在隔离 PostgreSQL 撤权；恢复下载后要求 CLI 返回 `TARGET_UNAVAILABLE`，结束时恢复隔离权限。
+- 根 TypeScript 检查 exit 0；专项实际运行 **11/11 行为失败、0 跳过、exit 1**。服务发布与兼容采纳准备成功；旧 CLI 没有新命令，撤权屏障用例在下载前观察到命令退出，符合预期 RED。
+- 完整日志：`.superpowers/sdd/2026-11-16-phase3-t15-kickoff/p4-installed-red4.log`。本次没有重新 pack SDK、没有覆盖或删除 Verdaccio 已发布版本。
+- B 已从目录授权恢复：宿主执行 inspection 测试的首次结果是缺模块的 suite 收集失败（0 tests），不计行为 RED；B 补最小失败入口后，固定工具链 **20/20 用例实际执行并失败，0 跳过**。日志由 B 工作树 `.superpowers/t15/host-inspect-behavior-red-2026-11-17.log` 保留，已交还实际 Claude 桌面端继续实现。
+- D 的黑盒断言由实际 Claude Code 复核后经 C 宿主校正：越界参数与被观察目录一致、用户并发编辑后完整快照一致、独立 API/registry origin、跨 origin redirect 零目标请求，以及错误响应回显令牌的脱敏反例。D 与 P4 均仍为 RED，等待 B 冻结产品后运行 GREEN。
+- 按 requesting-code-review 技能由独立 Codex 审查代理只读检查 P3/P4。C 的验收准备可聚焦提交；D 的三项 Important（错误分支全树快照、inspection 完整契约、API 500 实际请求）由 C 宿主补齐，另在 D 工作树记录复跑结果。审查代理未替代实际 Claude / Antigravity 客户端，也未声称执行真实服务验收。
+- A 项目矩阵复跑 5/5、`verify:workspace`、根 TypeScript、`git diff --check` 均通过。P4 后续新 CLI GREEN、完整根测试和平台/浏览器专项尚未运行；本次仅提交验收准备，不升版本、不合入 main。
