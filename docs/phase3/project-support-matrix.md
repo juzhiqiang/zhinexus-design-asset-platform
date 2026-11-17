@@ -26,7 +26,7 @@
 | `conflict-missing-react-dom` | `react` | `npm` | `npm-v3` | `.` | `conflicted` | `["REACT_DOM_MISSING"]` | React 19 缺少 `react-dom` |
 | `conflict-missing-importer` | `react` | `pnpm` | `pnpm-v9` | `apps/missing-pkg` | `conflicted` | `["IMPORTER_MISSING"]` | 指定 `--workspace` 在锁中无 importer |
 | `conflict-framework-ambiguous` | — | `pnpm` | `pnpm-v9` | `.` | `conflicted` | `["FRAMEWORK_AMBIGUOUS"]` | 同时声明 `vue` 与 `react` |
-| `conflict-missing-echarts` | `vue` | `npm` | `npm-v3` | `.` | `conflicted` | `["ECHARTS_MISSING"]` | 缺少 `echarts` |
+| `conflict-missing-echarts` | `vue` | `npm` | `npm-v3` | `.` | `inspected` | `[]` | 保留历史 `caseId` 与锁快照目录名；按 spec 第 5 条与 P0 契约，缺 `echarts` 时本地 `inspect` 保持 `inspected`（`resolvedDependencies` 仅含 `vue@3.5.45`，不伪造 `echarts`），待 `plan` 阶段采用 MatchPlan 候选版本重新查询 |
 | `conflict-workspace-required` | — | `pnpm` | `pnpm-v9` | — | `conflicted` | `["WORKSPACE_REQUIRED"]` | Monorepo 未指定 `--workspace` |
 
 同时完整保留 P0 冻结的 `tests/fixtures/integration-plan.ts#workspacePatternCases`（12 项 glob 正反边界用例）。
