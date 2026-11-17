@@ -101,3 +101,11 @@ B 修正两份 specifier 反例的前置锁夹具，补合法版本头以避免�
 2026-11-17 11:25，C 对 B 停写交付的新源码运行 inspection 测试、CLI build/typecheck 与根 TypeScript：**63/63 passed、0 skipped、exit 0**，9.28 秒；三项构建/类型命令均 **exit 0**。B 日志 `host-inspect-data-review-{green,build,typecheck,root-tsc-green}-2026-11-17.log`。测试 SHA `BB9A8FD62ACE38AF7F72D00E59BADBC1AFF96861923AB8A910D5E1E7C8643324`、inspect SHA `EEE0E9EAB46C997861DD09F5EC9ED16C0B442AAEEB8B10995BF418D62A11E729` 与交付一致；workspace/locks 原始文件和真实工具锁快照未被 C 改写。
 
 六项数据反例已通过本轮验证；第七项变换 filter 漏报已交实际 B 客户端按同一只读边界先补测试。inspection 聚焦提交、plan、独立黑盒及最终新 CLI 已安装验收仍待后续，不能以当前 GREEN 标 T15 完成。
+
+## 变换 filter 正式 RED 与 npm 近层残余（追加）
+
+B 仅追加两个变换型 clean filter 反例，保持三个实现文件与上一轮 GREEN 的摘要不变。C 于 2026-11-17 11:37 实际执行 `exec vitest run tests/integration/project-inspect.test.ts`：**2 failed / 63 passed / 0 skipped、exit 1**，10.96 秒。两个失败均为当前返回 clean、预期 dirty 的行为断言；helper 零执行及全树含 `.git` 字节不变的控制断言通过。测试前后 SHA 均为 `6E955229652FE5721ACF03916A62F95F809A6013793F64A1395DF4FC19E307B9`，inspect 源前后 SHA 均为 `EEE0E9EAB46C997861DD09F5EC9ED16C0B442AAEEB8B10995BF418D62A11E729`。日志位于 B `.superpowers/t15/host-inspect-filter-semantics-red-2026-11-17.log`。
+
+独立只读复审又确认原第六类 npm 近层记录的两条残余路径：无 `link:true` 的近层记录仍沿 `resolved` 采信任意旁边包的版本；显式 null 近层记录被当缺失后借用根提升版本。这是具体源码路径审查，不是 installed CLI 实验。反例与边界已写入 B 已授权目录 `.superpowers/t15/c-npm-near-record-review-2026-11-17.md`，实际 Claude 桌面端 B 已收到先追加测试、取得正式 RED 后一起 GREEN 的交接。
+
+实际 D Claude Code 同一会话已收到独立黑盒补充请求：分别在 Vue/pnpm、React/npm 中使用变换清单 filter，验证 inspect 精确 dirtyPaths、plan 的 blocking DIRTY_TARGET、零 helper 执行及全树不变。请求只让 D 产出测试代码，由 C 保存、审查和运行；此刻尚无补充代码或验证结果，不能记录为已通过。P1 产品继续由实际 B 开发；无版本升级、SDK 重打包、合 main 或 push。
