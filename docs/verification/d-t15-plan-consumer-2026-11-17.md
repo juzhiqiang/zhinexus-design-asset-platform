@@ -47,3 +47,23 @@ git diff --check
 ## 后续门槛
 
 B 冻结产品后按 A → B → D 次序集成，在同一候选运行 P3 GREEN、C 真实安装专项及完整回归。使用说明当前为草案，示例将在 GREEN 时实际复核。T16/T17、下载限额和超时的完整覆盖、14 案例消费及真实业务试点仍有各自验收门槛。
+
+## Git clean/process 黑盒补充（2026-11-17，追加）
+
+延续实际 Claude Code 会话 `bae14ee4-36a8-48f8-b530-6520d076b6c0`，D 根据宿主已实测的 Git filter 执行事实产出 helper 和两项黑盒测试，C 保存至 D 负责的 harness/readonly 文件并执行固定 Windows 工具链。代码经过同会话三轮审查修订：C 指出 CJS/ESM、pkt-line 编码与等长内容的 setup 问题，D 返回修订代码；最终 JSON 尾部被截断，C 仅补齐测试与 JSON 关闭符、删除重复导入，并纠正一处 helper 注释，没有改写产品实现。原始生成材料保留在忽略目录 `.superpowers/t15/filter-followup-{response,response2,response3,final-code}.json`。
+
+- helper 和 marker 位于 synthetic 项目根外；配置仅指向本次自有 helper。clean 原样透传 Buffer，process 实现 Git v2 pkt-line 握手并透传内容。
+- `git add` 控制正例必须实际写出对应 marker；process 还须出现 `command=clean`，失败即抛环境错误，零跳过。控制 Git add/commit/status 有 10 秒超时。
+- 10 字节 tracked payload 从 `1234567890` 改为 `abcdefghij`，mtime 明确增加 4 秒；随后黑盒依次检查 inspect/plan 的完整契约、真实 dirty 路径、marker 不存在和项目全树原字节保持不变。
+
+实际命令：
+
+```powershell
+.\scripts\pnpm.ps1 exec tsc --noEmit
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-plan-consumer.test.ts tests/integration/project-plan-readonly.test.ts
+git diff --check
+```
+
+根 TypeScript **exit 0**；完整专项 **33/33 行为 RED、0 跳过、exit 1**，耗时 16.62 秒。两项新增 filter 用例的控制正例与 commit 均成功，实际失败位于旧 CLI 尚无 `integrate inspect` 的退出码断言，不是 helper/权限/setup 失败。日志 `.superpowers/t15/p3-filter-red-host-2026-11-17.log`。该补充仅完善 P3 RED 准备，完整产品 GREEN、P4 和 T15 仍未完成。
+
+独立只读审查另要求计划结果也精确保留真实 dirty 信息。C 按审查补 `planJson.localProject.git` 的完整 `{status:'dirty',dirtyPaths:[payload]}` 比较，并将 inspect 路径集合收紧为精确值，避免省略 Git 读取或虚构路径通过。先用标题过滤复跑两项：2 RED，另 13 项被选择条件排除（不算完整零跳过验证）；随后重新执行根 TypeScript与**完整 33 项**，根检查 **exit 0**，**33/33 RED、0 跳过、exit 1**，12.54 秒，日志 `p3-filter-final-red-host-2026-11-17.log`。未改写此前历史结果，仍只提交验收准备。

@@ -11,7 +11,7 @@
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, statSync, writeFileSync } from 'node:fs';
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, readlinkSync, rmSync, statSync, utimesSync, writeFileSync } from 'node:fs';
 import * as http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import * as os from 'node:os';
@@ -483,3 +483,97 @@ export function proveMarkerMechanism(projectRoot: string, marker: string): void 
 
 export function exists(file: string): boolean { return existsSync(file); }
 export function isFile(file: string): boolean { return statSync(file).isFile(); }
+
+// ---------------------------------------------------------------------------------------------
+// P3 (role D): independent control that a Git user-defined filter helper (clean / process) writes a
+// marker when Git runs it, so the CLI tests can prove the same helper never runs during inspect/plan.
+// The experiment is fully synthetic inside a case temp directory: .gitattributes names the driver and
+// local config points it at our own helper. No real project configuration is involved.
+// ---------------------------------------------------------------------------------------------
+
+export function gitShellQuote(value: string): string {
+  return "'" + value.split("'").join("'\"'\"'") + "'";
+}
+
+/** Git-safe absolute path with forward separators (Git for Windows shells are POSIX sh). */
+export function gitPath(value: string): string {
+  return path.resolve(value).split(path.sep).join('/');
+}
+
+/** Git long-running-process helper (CJS): records each clean request and passes bytes through. */
+export function longRunningProcessHelperScript(): string {
+  return String.raw`const fs=require('node:fs');const marker=process.argv[2];fs.appendFileSync(marker,'process-start\n');
+function exact(n){const b=Buffer.alloc(n);let p=0;while(p<n){const k=fs.readSync(0,b,p,n-p,null);if(!k){if(!p)return undefined;throw Error('partial packet');}p+=k;}return b;}
+function packet(){const h=exact(4);if(!h)return undefined;const n=parseInt(h.toString(),16);if(n===0)return null;if(n<4)throw Error('invalid packet');return exact(n-4);}
+function list(){const a=[];for(;;){const p=packet();if(p===undefined)return undefined;if(p===null)return a;a.push(p);}}
+function send(b){if(typeof b==='string')b=Buffer.from(b);fs.writeSync(1,(b.length+4).toString(16).padStart(4,'0'));fs.writeSync(1,b);}function flush(){fs.writeSync(1,'0000');}
+const hello=list();if(!hello)process.exit(0);send('git-filter-server\n');send('version=2\n');flush();const caps=list();if(!caps)process.exit(0);send('capability=clean\n');flush();
+for(;;){const headers=list();if(!headers)break;const content=list();if(!content)break;fs.appendFileSync(marker,headers.map(x=>x.toString().trim()).join(' ')+'\n');send('status=success\n');flush();for(const b of content)send(b);flush();flush();}`;
+}
+
+/** Clean filter helper (CJS): records invocation, then passes stdin bytes through unchanged. */
+export function cleanHelperScript(): string {
+  return String.raw`const fs=require('node:fs');const marker=process.argv[2];fs.appendFileSync(marker,'clean-invoked\n');
+const chunks=[];for(;;){const b=Buffer.alloc(65536);const k=fs.readSync(0,b,0,b.length,null);if(!k)break;chunks.push(b.subarray(0,k));}
+fs.writeSync(1,Buffer.concat(chunks));`;
+}
+
+export type GitFilterExperiment = { driver: string; marker: string; helperFile: string; payload: string };
+
+export function installGitFilterExperiment(projectRoot: string, markerDir: string, kind: 'clean' | 'process'): GitFilterExperiment {
+  const driver = `t15d${kind}`;
+  const helperDir = path.join(markerDir, 'filter-helpers');
+  const marker = path.join(markerDir, `git-${kind}-EXECUTED.marker`);
+  const helperFile = path.join(helperDir, `filter-${kind}.cjs`);
+  mkdirSync(helperDir, { recursive: true });
+  writeFile(helperFile, kind === 'clean' ? cleanHelperScript() : longRunningProcessHelperScript());
+  const command = `${gitShellQuote(gitPath(cliNodeExecutable()))} ${gitShellQuote(gitPath(helperFile))} ${gitShellQuote(gitPath(marker))}`;
+  gitIn(projectRoot, ['config', '--local', `filter.${driver}.${kind}`, command]);
+  gitIn(projectRoot, ['config', '--local', `filter.${driver}.required`, 'true']);
+  const payload = 'data/payload.txt';
+  writeFile(path.join(projectRoot, '.gitattributes'), `data/** filter=${driver}\n`);
+  return { driver, marker, helperFile, payload };
+}
+
+function safeGitEnv(): Record<string, string> {
+  const env: Record<string, string> = { ...process.env as Record<string, string> };
+  for (const key of GIT_ENV_OVERRIDES) delete env[key];
+  env.GIT_CONFIG_NOSYSTEM = '1';
+  return env;
+}
+
+/** Local fixed-argv Git runner with a 10s timeout; returns status for explicit control assertions. */
+export function safeGit(projectRoot: string, args: readonly string[]): { status: number | null; stdout: string; stderr: string; timedOut: boolean } {
+  const result = spawnSync('git', args, { cwd: projectRoot, env: safeGitEnv(), encoding: 'utf8', timeout: 10_000 });
+  return { status: result.status, stdout: String(result.stdout ?? ''), stderr: String(result.stderr ?? ''), timedOut: result.error?.name === 'Error' && /ETIMEDOUT/.test(result.error.message) };
+}
+
+/**
+ * Control: a fresh git add MUST run the helper and leave the expected marker lines. Never returns early.
+ * Adds and commits the tracked payload with the timeout-bounded runner so the marker content is stable.
+ */
+export function proveGitFilterExecutes(projectRoot: string, experiment: GitFilterExperiment, kind: 'clean' | 'process', payloadText: string): void {
+  rmSync(experiment.marker, { force: true });
+  mkdirSync(path.dirname(path.join(projectRoot, experiment.payload)), { recursive: true });
+  writeFile(path.join(projectRoot, experiment.payload), payloadText);
+  const add = safeGit(projectRoot, ['add', '--', experiment.payload]);
+  if (add.status !== 0) throw new Error(`Environment error: control git add failed (status=${add.status} timedOut=${add.timedOut}) stderr=${add.stderr.slice(0, 500)}`);
+  const markerText = existsSync(experiment.marker) ? readFileSync(experiment.marker, 'utf8') : '';
+  const expected = kind === 'clean' ? 'clean-invoked' : 'process-start';
+  if (!markerText.includes(expected)) throw new Error(`Environment error: control did not execute the ${kind} helper (marker=${JSON.stringify(markerText.slice(0, 300))})`);
+  if (kind === 'process' && !/(^|\s)command=clean(\s|$)/m.test(markerText)) throw new Error(`Environment error: process control saw no command=clean packet (marker=${JSON.stringify(markerText.slice(0, 300))})`);
+  const commit = safeGit(projectRoot, ['add', '--all']);
+  if (commit.status !== 0) throw new Error(`Environment error: control git add --all failed (status=${commit.status}) stderr=${commit.stderr.slice(0, 500)}`);
+  const committed = safeGit(projectRoot, ['-c', 'user.name=t15-d', '-c', 'user.email=t15-d@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'synthetic filtered payload']);
+  if (committed.status !== 0) throw new Error(`Environment error: control commit failed (status=${committed.status}) stderr=${committed.stderr.slice(0, 500)}`);
+}
+
+/** Rewrite a tracked file with same-length bytes and a strictly newer mtime, forcing a content re-check. */
+export function dirtyTrackedFileWithSameLength(projectRoot: string, relative: string, replacement: string): void {
+  const file = path.join(projectRoot, relative);
+  const current = statSync(file);
+  if (current.size !== Buffer.byteLength(replacement)) throw new Error('Harness error: same-length rewrite expected');
+  writeFileSync(file, replacement);
+  const seconds = current.mtimeMs / 1000 + 4;
+  utimesSync(file, seconds, seconds);
+}

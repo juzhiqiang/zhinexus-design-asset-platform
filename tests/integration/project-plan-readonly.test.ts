@@ -428,3 +428,56 @@ describe('P3 read-only: output path safety', () => {
 
 // Keep lstatSync/symlinkSync imports referenced for non-Windows compilation paths.
 void lstatSync;
+
+import {
+  dirtyTrackedFileWithSameLength,
+  installGitFilterExperiment,
+  proveGitFilterExecutes,
+  safeGit,
+} from '../fixtures/phase3-cli-harness.js';
+import { validateIntegrationPlan, validateLocalProjectInspection } from '@company/contracts';
+
+// ---------------------------------------------------------------------------------------------
+// P3 read-only (prepared, not yet run): Git user-defined clean / process filters must never execute
+// during integrate inspect / plan, even when a same-length dirty tracked file forces Git to re-check
+// content. The positive control runs first and a setup failure throws; it is never skipped.
+// ---------------------------------------------------------------------------------------------
+
+describe.each(['clean', 'process'] as const)('P3 read-only: Git %s filter is never executed', (kind) => {
+  it(`a same-length dirty tracked file forces a re-check while the ${kind} helper marker stays absent`, async () => {
+    const context = await open({ framework: 'vue', packageManager: 'pnpm' });
+    try {
+      const experiment = installGitFilterExperiment(context.project.root, path.join(context.root, 'git-filter-marker'), kind);
+      proveGitFilterExecutes(context.project.root, experiment, kind, '1234567890');
+      const status = safeGit(context.project.root, ['status', '--porcelain', '--untracked-files=all']);
+      expect(status.status, `control status failed: ${status.stderr.slice(0, 500)}`).toBe(0);
+      const { rmSync } = await import('node:fs');
+      rmSync(experiment.marker, { force: true });
+      dirtyTrackedFileWithSameLength(context.project.root, experiment.payload, 'abcdefghij');
+      const before = snapshotTree(context.project.root);
+      const inspect = await runCliProcess(['integrate', 'inspect', '--project', context.project.root], { cwd: context.root, env: env() });
+      expect(inspect.exitCode, report(inspect)).toBe(0);
+      const inspectJson = parseCliJson(inspect).json;
+      expect(inspectJson.status).toBe('inspected');
+      const inspectChecked = validateLocalProjectInspection(inspectJson);
+      expect(inspectChecked.ok, inspectChecked.ok ? '' : JSON.stringify(inspectChecked.issues.slice(0, 5))).toBe(true);
+      expect(inspectJson.git.status).toBe('dirty');
+      expect(inspectJson.git.dirtyPaths).toEqual([experiment.payload]);
+      expect(markerExists(experiment.marker), `inspect executed the Git ${kind} helper`).toBe(false);
+      expectUnchanged(context, before);
+      const plan = await runCliProcess(planArgs(context), { cwd: context.root, env: env() });
+      expect(plan.exitCode, report(plan)).toBe(0);
+      const planJson = parseCliJson(plan).json;
+      expect(planJson.status).toBe('planned');
+      expect(planJson.executionAuthorized).toBe(false);
+      const planChecked = validateIntegrationPlan(planJson);
+      expect(planChecked.ok, planChecked.ok ? '' : JSON.stringify(planChecked.issues.slice(0, 5))).toBe(true);
+      expect(planJson.localProject.git).toEqual({ status: 'dirty', dirtyPaths: [experiment.payload] });
+      expect(markerExists(experiment.marker), `plan executed the Git ${kind} helper`).toBe(false);
+      expectNoSecrets(plan);
+      expectUnchanged(context, before);
+    } finally {
+      await context.stub.close();
+    }
+  });
+});
