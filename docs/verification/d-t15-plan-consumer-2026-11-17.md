@@ -67,3 +67,22 @@ git diff --check
 根 TypeScript **exit 0**；完整专项 **33/33 行为 RED、0 跳过、exit 1**，耗时 16.62 秒。两项新增 filter 用例的控制正例与 commit 均成功，实际失败位于旧 CLI 尚无 `integrate inspect` 的退出码断言，不是 helper/权限/setup 失败。日志 `.superpowers/t15/p3-filter-red-host-2026-11-17.log`。该补充仅完善 P3 RED 准备，完整产品 GREEN、P4 和 T15 仍未完成。
 
 独立只读审查另要求计划结果也精确保留真实 dirty 信息。C 按审查补 `planJson.localProject.git` 的完整 `{status:'dirty',dirtyPaths:[payload]}` 比较，并将 inspect 路径集合收紧为精确值，避免省略 Git 读取或虚构路径通过。先用标题过滤复跑两项：2 RED，另 13 项被选择条件排除（不算完整零跳过验证）；随后重新执行根 TypeScript与**完整 33 项**，根检查 **exit 0**，**33/33 RED、0 跳过、exit 1**，12.54 秒，日志 `p3-filter-final-red-host-2026-11-17.log`。未改写此前历史结果，仍只提交验收准备。
+
+## 变换清单 filter 黑盒补充（2026-11-17，追加）
+
+继续实际 D Claude Code 的同一会话，新增 Vue/pnpm 与 React/npm 两项独立进程用例。D 返回的 JSON/原始 TS 被截断，且包含双重转义、API 拼写及快照基准错误；C 保存全部原文与校正稿于 `.superpowers/t15/transform-filter-*`，补关闭符、恢复正确换行/NUL 和 Node API 名称，采用 D 后续明确给出的仅版本主号正则变换，并分别保存 whole-tree 与 project 快照。C 仅校正 D 负责的测试，不承担 B 产品开发。
+
+新用例从有效清单 version 1.0.0 开始，实际 `git add` 执行 helper 并将 2.0.0 字节存入索引；再将该索引字节写回工作区，推进 mtime。原生 Git status 必须精确报告 ` M package.json` 且执行 helper；清空 filter 的对照必须输出为空、零 helper，两个 status 均使用 `--no-optional-locks`，全树含 `.git` 原始字节保持不变。控制不成立直接失败，不跳过。之后黑盒要求 inspect 的完整契约和精确 dirtyPaths、plan 的 blocking `DIRTY_TARGET`、零 helper 执行、零凭据输出及所有树字节不变。
+
+C 实际运行：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-plan-readonly.test.ts -t 'transforming manifest filter'
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-plan-consumer.test.ts tests/integration/project-plan-readonly.test.ts
+git diff --check
+```
+
+窄跑 **2 项行为 RED**，另 15 项因标题筛选未运行；根 TypeScript **exit 0**。随后完整专项 **35/35 行为 RED、0 跳过、exit 1**，14.51 秒。新增两个用例全部真实 Git 控制及快照控制成功，失败位于旧 bin 缺 `integrate inspect` 的退出码断言；此时 plan 断言尚未执行，不能宣称 `DIRTY_TARGET` 已由产品满足。日志分别为 `p3-transform-filter-red-host-2026-11-17.log`、`p3-transform-filter-typecheck-2026-11-17.log`、`p3-transform-full-red-host-2026-11-17.log`。独立只读审查已派发；完整候选 GREEN、已安装 CLI 与 T15 仍待执行。
+
+独立只读审查确认本轮无阻塞项：两种框架真实控制成立，whole/project 快照基准一致；所选 MatchPlan 会新增图表依赖，确实需要修改 package.json，因此 DIRTY_TARGET 断言覆盖有效。审查未运行项目或修改文件；GREEN 边界保持上述说明。本轮仅聚焦提交独立 RED 准备，停止 D 写入并等待 B 冻结候选。

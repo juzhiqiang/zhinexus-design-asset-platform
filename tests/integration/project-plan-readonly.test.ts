@@ -481,3 +481,77 @@ describe.each(['clean', 'process'] as const)('P3 read-only: Git %s filter is nev
     }
   });
 });
+
+import { installTransformingManifestFilter } from '../fixtures/phase3-cli-harness.js';
+
+// P3 read-only (prepared, not yet run): a transforming clean filter on the tracked package.json must
+// not hide the user's manifest edit from inspect (dirty) or from plan (DIRTY_TARGET conflict).
+
+describe.each([
+  { framework: 'vue', packageManager: 'pnpm' },
+  { framework: 'react', packageManager: 'npm' },
+] as const)('P3 read-only: transforming manifest filter ($framework/$packageManager)', (variant) => {
+  it('reports package.json dirty and blocks the plan while the helper marker stays absent', async () => {
+    const context = await open({ framework: variant.framework, packageManager: variant.packageManager });
+    try {
+      const { rmSync } = await import('node:fs');
+      const manifestPath = path.join(context.project.root, 'package.json');
+      const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as { version?: string };
+      manifest.version = '1.0.0';
+      writeFile(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
+      const experiment = installTransformingManifestFilter(context.project.root, path.join(context.root, 'git-filter-marker'));
+      rmSync(experiment.marker, { force: true });
+      const add = safeGit(context.project.root, ['add', '--all']);
+      if (add.status !== 0) throw new Error(`Environment error: git add --all failed (status=${add.status} timedOut=${add.timedOut}) stderr=${add.stderr.slice(0, 500)}`);
+      if (!markerExists(experiment.marker)) throw new Error('Environment error: git add did not run the transforming clean helper');
+      const commit = safeGit(context.project.root, ['-c', 'user.name=t15-d', '-c', 'user.email=t15-d@example.invalid', '-c', 'commit.gpgsign=false', 'commit', '--quiet', '-m', 'synthetic transforming manifest']);
+      if (commit.status !== 0) throw new Error(`Environment error: control commit failed (status=${commit.status} timedOut=${commit.timedOut}) stderr=${commit.stderr.slice(0, 500)}`);
+      const shown = safeGit(context.project.root, ['show', ':package.json']);
+      if (shown.status !== 0) throw new Error(`Environment error: git show :package.json failed (status=${shown.status}) stderr=${shown.stderr.slice(0, 500)}`);
+      const staged = JSON.parse(shown.stdout) as { version?: string };
+      if (staged.version !== '2.0.0') throw new Error(`Environment error: expected transformed index version 2.0.0, got ${String(staged.version)}`);
+      writeFile(manifestPath, shown.stdout);
+      dirtyTrackedFileWithSameLength(context.project.root, 'package.json', shown.stdout);
+      rmSync(experiment.marker, { force: true });
+      const controlBefore = snapshotTree(context.root);
+      const native = safeGit(context.project.root, ['--no-optional-locks', 'status', '--porcelain', '-z']);
+      if (native.status !== 0) throw new Error(`Environment error: control git status failed (status=${native.status}) stderr=${native.stderr.slice(0, 500)}`);
+      if (native.stdout !== ' M package.json\0') throw new Error(`Environment error: control status expected ' M package.json', got ${JSON.stringify(native.stdout)}`);
+      if (!markerExists(experiment.marker)) throw new Error('Environment error: control status did not run the transforming helper');
+      rmSync(experiment.marker, { force: true });
+      const disabled = safeGit(context.project.root, ['-c', 'filter.t15transform.clean=', '-c', 'filter.t15transform.process=', '-c', 'filter.t15transform.smudge=', '-c', 'filter.t15transform.required=false', '--no-optional-locks', 'status', '--porcelain', '-z']);
+      if (disabled.status !== 0) throw new Error(`Environment error: filter-disabled control status failed (status=${disabled.status}) stderr=${disabled.stderr.slice(0, 500)}`);
+      if (disabled.stdout !== '') throw new Error(`Environment error: filter-disabled control must look clean, got ${JSON.stringify(disabled.stdout)}`);
+      if (markerExists(experiment.marker)) throw new Error('Environment error: disabled control unexpectedly ran the helper');
+      expect(compareTreeBytes(controlBefore, snapshotTree(context.root)), 'both status controls preserve all bytes').toEqual([]);
+      const beforeWhole = snapshotTree(context.root);
+      const before = snapshotTree(context.project.root);
+      const inspect = await runCliProcess(['integrate', 'inspect', '--project', context.project.root], { cwd: context.root, env: env() });
+      expect(inspect.exitCode, report(inspect)).toBe(0);
+      const inspectJson = parseCliJson(inspect).json;
+      const inspected = validateLocalProjectInspection(inspectJson);
+      expect(inspected.ok, inspected.ok ? '' : JSON.stringify(inspected.issues.slice(0, 5))).toBe(true);
+      expect(inspectJson.status).toBe('inspected');
+      expectNoSecrets(inspect);
+      expect(canonicalJson(inspectJson.git), 'exact git block').toBe(canonicalJson({ status: 'dirty', dirtyPaths: ['package.json'] }));
+      expect(markerExists(experiment.marker), 'inspect executed the transforming helper').toBe(false);
+      expect(compareTreeBytes(beforeWhole, snapshotTree(context.root)), 'inspect must not change project bytes (incl. .git)').toEqual([]);
+      expectUnchanged(context, before);
+      const plan = await runCliProcess(planArgs(context), { cwd: context.root, env: env() });
+      expect(plan.exitCode, report(plan)).toBe(2);
+      const planJson = parseCliJson(plan).json;
+      const planned = validateIntegrationPlan(planJson);
+      expect(planned.ok, planned.ok ? '' : JSON.stringify(planned.issues.slice(0, 5))).toBe(true);
+      expect(planJson.status).toBe('conflicted');
+      expect(planJson.executionAuthorized).toBe(false);
+      expect(planJson.conflicts).toContainEqual(expect.objectContaining({ code: 'DIRTY_TARGET', blocking: true, path: 'package.json' }));
+      expect(canonicalJson(planJson.localProject.git), 'plan keeps exact git block').toBe(canonicalJson({ status: 'dirty', dirtyPaths: ['package.json'] }));
+      expect(markerExists(experiment.marker), 'plan executed the transforming helper').toBe(false);
+      expectNoSecrets(plan);
+      expect(compareTreeBytes(beforeWhole, snapshotTree(context.root)), 'plan must not change project bytes (incl. .git)').toEqual([]);
+      expectUnchanged(context, before);
+    } finally {
+      await context.stub.close();
+    }
+  });
+});

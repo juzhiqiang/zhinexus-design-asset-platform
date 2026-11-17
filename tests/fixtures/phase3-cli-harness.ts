@@ -577,3 +577,23 @@ export function dirtyTrackedFileWithSameLength(projectRoot: string, relative: st
   const seconds = current.mtimeMs / 1000 + 4;
   utimesSync(file, seconds, seconds);
 }
+
+/** Synthetic transforming clean filter; helper and marker stay outside the target project. */
+export function installTransformingManifestFilter(projectRoot: string, markerDir: string): { driver: string; marker: string; helperFile: string } {
+  const driver = 't15transform';
+  const helperDir = path.join(markerDir, 'filter-helpers');
+  const marker = path.join(markerDir, 'git-transform-EXECUTED.marker');
+  const helperFile = path.join(helperDir, 'filter-transform.cjs');
+  mkdirSync(helperDir, { recursive: true });
+  writeFile(helperFile, String.raw`const fs=require('node:fs');const marker=process.argv[2];fs.appendFileSync(marker,'transform-invoked\n');
+const chunks=[];for(;;){const b=Buffer.alloc(65536);const k=fs.readSync(0,b,0,b.length,null);if(!k)break;chunks.push(b.subarray(0,k));}
+const out=Buffer.concat(chunks).toString('utf8').replace(/("version"\s*:\s*")(\d+)(\.\d+\.\d+")/,(m,p,a,b)=>p+(Number(a)+1)+b);
+fs.writeSync(1,out);`);
+  const command = `${gitShellQuote(gitPath(cliNodeExecutable()))} ${gitShellQuote(gitPath(helperFile))} ${gitShellQuote(gitPath(marker))}`;
+  for (const [key, value] of [['filter.t15transform.clean', command], ['filter.t15transform.required', 'true']] as const) {
+    const result = safeGit(projectRoot, ['config', '--local', key, value]);
+    if (result.status !== 0) throw new Error(`setup error: git config ${key} failed (status=${result.status} timedOut=${result.timedOut}) stderr=${result.stderr.slice(0, 500)}`);
+  }
+  writeFile(path.join(projectRoot, '.gitattributes'), 'package.json filter=t15transform\n');
+  return { driver, marker, helperFile };
+}
