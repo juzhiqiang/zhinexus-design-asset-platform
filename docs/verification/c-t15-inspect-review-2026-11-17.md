@@ -62,3 +62,24 @@ D RED 准备提交 `92ab7ccf` 已完成，31/31 行为 RED、0 跳过，全图 2
 ## 全树快照审查修复（追加）
 
 只读审查代理发现普通对象以文件相对路径作为键时，根文件 `__proto__` 的摘要赋值会被原型 setter 忽略。C 将现有快照逻辑提取至 `tests/fixtures/phase3-project-snapshot.ts`，新增真实临时文件的新增、修改、删除反例。固定工具链执行 `exec vitest run tests/integration/phase3-project-snapshot.test.ts`：旧逻辑 **1/1 RED、0 跳过、exit 1**，实际读取文件后键集合仍为空；改为无原型对象后 **1/1 GREEN、0 跳过、exit 0**。根 `exec tsc --noEmit` **exit 0**。日志为 C ledger `snapshot-review-{red,green,typecheck}-2026-11-17.log`。这一修复只加强验收快照，不表示 CLI 产品已通过验收。
+
+## Git 执行与路径边界最后一轮（追加）
+
+B 在实际 Claude 桌面端补充合法下划线 filter driver、配置枚举失败/截断、真实 staged rename、NUL 输出与截断反例。C 校正测试中的不合法路径和 spy 复位后，固定工具链正式 RED 为 **6 failed / 42 passed / 0 skipped、exit 1**；失败来自实际行为断言。测试源运行前后 SHA 一致，日志 `host-inspect-final-review-red-2026-11-17.log`。
+
+B 修复为 `git config -z --get-regexp` 枚举并在失败时停止 status，以 `--porcelain -z` 解析完整路径、同时保留 rename 源与目标，再限定到本次项目根；不可解析的输出整体为 unavailable。截断测试按 C 要求收紧为精确 `{status:'unavailable',dirtyPaths:[]}`，其余 47 项语义保持。
+
+2026-11-17 10:56（Asia/Shanghai），C 在 B 停写交付 `inspect-final-review-green-ready` 后实际执行：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run tests/integration/project-inspect.test.ts
+.\scripts\pnpm.ps1 --filter @company/component-cli build
+.\scripts\pnpm.ps1 --filter @company/component-cli typecheck
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+```
+
+测试 **48/48 passed、0 skipped、exit 0**，8.77 秒；CLI build/typecheck 与根 TypeScript 均 **exit 0**。日志位于 B `.superpowers/t15/host-inspect-final-review-{green,build,typecheck,root-tsc}-2026-11-17.log`。实际测试 SHA 为 `C26515925D78A10ACC5F5EDD6A2952BF8ED559BD3F93A8DB0BBDC2F396851A15`，inspect 源 SHA 为 `418F796DA1253F45872F9AC5FD17AA3E7409E455C54EA916973BF968B7A3088A`，与 B 交付一致。
+
+独立只读数据复审又发现六项 Important，C 核实源码后交实际 B 客户端先补 RED：原生 workspace 声明按实际包管理器选择；pnpm 多文档中错误类型 packages 不得跳过；项目锁版本头缺失/错误类型不得接受；pnpm importer 缺失/非字符串 specifier 不得绕过一致性检查；manifest 依赖、脚本、packageManager 错误类型不得被静默丢弃；npm 近层 link 遮蔽不能借用根提升版本。具体交接保存在 B 已授权目录 `.superpowers/t15/c-inspect-data-review-2026-11-17.md`。
+
+因此上述 48 项 GREEN 只关闭本轮 Git 反例，不表示 inspection 或 T15 全部完成。六项数据边界 RED→GREEN、plan 产品、D 黑盒、新冻结 CLI 真实验收仍待执行。未改 P0、冻结 SDK、真实锁快照或原架构；原架构 SHA 再次核对一致。
