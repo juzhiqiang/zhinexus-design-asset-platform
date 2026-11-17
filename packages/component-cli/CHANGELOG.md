@@ -2,6 +2,16 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.12] - 2026-11-17
+
+### Added
+
+- 新增 `component integrate inspect` 与 `component integrate plan`，只读识别本地项目并生成可审查的组件接入计划。
+
+### Fixed
+
+- 已存在的生成目标同时属于 Git 未提交路径时，同时报告 `OUTPUT_EXISTS` 与同路径 `DIRTY_TARGET`，保持计划符合契约并保留用户文件。
+
 ## [0.0.11] - 2026-11-16
 
 ### Fixed
