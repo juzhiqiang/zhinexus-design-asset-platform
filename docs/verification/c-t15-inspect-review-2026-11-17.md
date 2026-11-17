@@ -109,3 +109,13 @@ B 仅追加两个变换型 clean filter 反例，保持三个实现文件与上�
 独立只读复审又确认原第六类 npm 近层记录的两条残余路径：无 `link:true` 的近层记录仍沿 `resolved` 采信任意旁边包的版本；显式 null 近层记录被当缺失后借用根提升版本。这是具体源码路径审查，不是 installed CLI 实验。反例与边界已写入 B 已授权目录 `.superpowers/t15/c-npm-near-record-review-2026-11-17.md`，实际 Claude 桌面端 B 已收到先追加测试、取得正式 RED 后一起 GREEN 的交接。
 
 实际 D Claude Code 同一会话已收到独立黑盒补充请求：分别在 Vue/pnpm、React/npm 中使用变换清单 filter，验证 inspect 精确 dirtyPaths、plan 的 blocking DIRTY_TARGET、零 helper 执行及全树不变。请求只让 D 产出测试代码，由 C 保存、审查和运行；此刻尚无补充代码或验证结果，不能记录为已通过。P1 产品继续由实际 B 开发；无版本升级、SDK 重打包、合 main 或 push。
+
+## 近层残余 RED、77 项 GREEN 与关联边界复审（追加）
+
+B 追加两条 npm 近层记录反例及一条合法 link 守卫后，C 于 2026-11-17 11:43 实际运行同一 inspection 命令：**4 failed / 64 passed / 0 skipped、exit 1**，11.10 秒。两条 npm 记录为 inspected 应为 conflicted，两条 filter 为 clean 应为 dirty；合法 link 守卫通过，无 setup 失败。测试 SHA 前后一致 `0D567462FE62A2E7D13D88DAD9FB17D54986250BA4FAF9C58B8B4C5368DF607E`，源摘要仍为上轮实现。日志 `host-inspect-near-record-red-2026-11-17.log`。
+
+B 修复两类行为并追加九条只读属性枚举边界测试后，C 于 11:54 运行 inspection、CLI build/typecheck 与根 TypeScript：**77/77 passed、0 skipped、exit 0**，17.17 秒；三项构建/类型命令均 **exit 0**。测试前后 SHA 同为 `18A4F0DC7E8132A861CFDB458FF6AAB18B5602D31814547B9971B42E73D7B56A`，inspect 前后 SHA 同为 `3EFE46412731860825D8855758DB88326B2821BDBE72FF7FC5315D1A037BD5E5`，均与交付一致。日志 `host-inspect-filter-near-{green,build,typecheck,root-tsc}-2026-11-17.log`。
+
+只读复审关闭 npm 无 link/null 残余及普通变换 filter 主路径，仍确认两项 Important：ls-files 的完整 NUL 集合未验证每条路径非空/合法；check-attr 的 set/unset/unspecified 输出与同名 driver 会碰撞并把未关联路径一概标脏。具体输入及不引入漏报的修复边界已写 B 授权目录 `c-filter-association-final-review-2026-11-17.md`，实际 B 已收到先补测试的交接。这些是尚未关闭的候选边界，77 项 GREEN 不等于 inspection 或 T15 完成。
+
+D 变换清单 filter 补充已经完成独立 RED 准备，提交 `a946cdea`：全组 **35/35 行为 RED、0 跳过、exit 1**，根 TypeScript exit 0，独立只读审查无阻塞。两种框架真实 Git 控制成立；产品 plan 断言尚未执行，完整结果见 D 新增独立记录，不重写此前 33 项历史。D 原始交付、宿主校正稿和日志已备份至 C 忽略 ledger，D 保持干净停写等待候选集成。
