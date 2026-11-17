@@ -2,15 +2,17 @@ import { beforeAll, afterAll, describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { mkdtemp, readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
+import { mkdtemp, readFile, mkdir, writeFile } from 'node:fs/promises';
 import { join, resolve, dirname } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createServer } from 'node:http';
-import { canonicalJson, validateIntegrationPlan, validateMatchPlan, validateComponentApi, validateReleaseBundle, type ReleaseManifestV1, type MatchPlanV1 } from '@company/contracts';
+import { canonicalJson, validateIntegrationPlan, validateLocalProjectInspection, validateMatchPlan, validateComponentApi, validateReleaseBundle, type ReleaseManifestV1, type MatchPlanV1 } from '@company/contracts';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { platformHarness, grant, upload, release } from '../platform/http-support.js';
 import { registryToken, realRegistry } from '../platform/t06-support.js';
 import { localServices } from '../platform/support.js';
+import { createProjectCase, projectCases } from '../fixtures/phase3-projects/cases.js';
+import { snapshot } from '../fixtures/phase3-project-snapshot.js';
 
 const execute = promisify(execFile);
 const digest = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -77,19 +79,6 @@ async function registryFault(mode: 'corrupt-tarball' | 'unavailable' | 'deferred
     } };
 }
 
-async function snapshot(root: string): Promise<Record<string, string>> {
-  const result: Record<string, string> = {};
-  async function walk(directory: string, prefix = ''): Promise<void> {
-    for (const item of (await readdir(directory, { withFileTypes: true })).sort((a, b) => a.name.localeCompare(b.name))) {
-      const relative = prefix + item.name;
-      if (item.isSymbolicLink()) throw new Error('Unexpected link in acceptance target');
-      if (item.isDirectory()) { result[relative + '/'] = 'directory'; await walk(join(directory, item.name), relative + '/'); }
-      else result[relative] = digest(await readFile(join(directory, item.name)));
-    }
-  }
-  await walk(root); return result;
-}
-
 async function freshMatch(framework: 'vue' | 'react'): Promise<MatchPlanV1> {
   const row = rows.find(r => r.framework === framework)!;
   const checked = validateComponentApi(JSON.parse(await readFile(join(sdkRoot, row.metadata.api.path), 'utf8')));
@@ -128,6 +117,23 @@ async function callPlan(framework: 'vue' | 'react', match: MatchPlanV1, override
   expect(await snapshot(root)).toEqual(before);
   expect(stdout + stderr).not.toContain(apiToken); expect(stdout + stderr).not.toContain(readToken);
   await writeFile(join(area, `last-${framework}.json`), JSON.stringify({ code, stdout, stderr }));
+  return { code, stdout, stderr };
+}
+async function callInspect(projectRoot: string, workspace?: string) {
+  const before = await snapshot(projectRoot);
+  let code = 0; let stdout = ''; let stderr = '';
+  try {
+    const result = await execute(process.execPath, [bin, 'integrate', 'inspect', '--project', projectRoot,
+      ...(workspace === undefined ? [] : ['--workspace', workspace])],
+    { cwd: area, timeout: 30_000, maxBuffer: 4 * 1024 * 1024,
+      env: { ...process.env, ZHINEXUS_API_TOKEN: apiToken, ZHINEXUS_REGISTRY_TOKEN: readToken } });
+    stdout = result.stdout; stderr = result.stderr;
+  } catch (error) {
+    const result = error as { code?: number; stdout?: string; stderr?: string };
+    code = typeof result.code === 'number' ? result.code : -1; stdout = result.stdout ?? ''; stderr = result.stderr ?? '';
+  }
+  expect(await snapshot(projectRoot)).toEqual(before);
+  expect(stdout + stderr).not.toContain(apiToken); expect(stdout + stderr).not.toContain(readToken);
   return { code, stdout, stderr };
 }
 function checkedOutput(result: Awaited<ReturnType<typeof callPlan>>) {
@@ -196,6 +202,31 @@ beforeAll(async () => {
 afterAll(async () => { await h?.close(); });
 
 describe('T15 actual installed CLI and isolated Nest/PG/MinIO/Verdaccio', () => {
+  it.each(projectCases)('installed CLI consumes independent project matrix: $caseId', async item => {
+    const materialized = await createProjectCase(item.caseId, join(area, 'independent-matrix'));
+    const result = await callInspect(materialized.projectRoot, materialized.workspace);
+    const expected = materialized.expected;
+    expect(result.code, result.stderr).toBe(expected.status === 'inspected' ? 0 : 2);
+    const checked = validateLocalProjectInspection(JSON.parse(result.stdout));
+    expect(checked.ok, checked.ok ? '' : JSON.stringify(checked.issues)).toBe(true);
+    if (!checked.ok) throw new Error('Installed CLI inspection contract invalid');
+    const actual = checked.value;
+    expect(actual.status).toBe(expected.status); expect(actual.workspace).toBe(expected.workspace);
+    expect(actual.conflicts.map(c => c.code).sort()).toEqual([...expected.conflictCodes].sort());
+    expect([...actual.resolvedDependencies].sort((a, b) => a.name.localeCompare(b.name)))
+      .toEqual([...expected.resolvedDependencies].sort((a, b) => a.name.localeCompare(b.name)));
+    expect([...actual.scripts].sort()).toEqual([...expected.scripts].sort());
+    expect(actual.git).toEqual({ status: expected.gitStatus, dirtyPaths: expected.dirtyPaths });
+    // Incomplete inspection may omit a field; any reported value must still agree with independent evidence.
+    if (actual.status === 'inspected' || actual.packageManager !== undefined) expect(actual.packageManager).toBe(expected.packageManager);
+    if (actual.status === 'inspected' || actual.framework !== undefined) expect(actual.framework).toBe(expected.framework);
+    if (actual.status === 'inspected' || actual.lockfile !== undefined) {
+      expect(actual.lockfile).toEqual({ format: expected.lockfileFormat, path: expected.lockfilePath });
+    }
+    for (const guard of actual.fileSnapshots) {
+      if (guard.exists) expect(digest(await readFile(join(materialized.projectRoot, guard.path)))).toBe(guard.sha256);
+    }
+  });
   it.each(['vue', 'react'] as const)('%s preserves unverified real publication as conflicted with no project writes', async framework => {
     expect(matches.get(framework)!.elements[0]!.target!.compatibility.status).not.toBe('verified');
     const result = await callPlan(framework, matches.get(framework)!);

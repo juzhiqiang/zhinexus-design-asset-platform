@@ -48,3 +48,24 @@
 - D 的黑盒断言由实际 Claude Code 复核后经 C 宿主校正：越界参数与被观察目录一致、用户并发编辑后完整快照一致、独立 API/registry origin、跨 origin redirect 零目标请求，以及错误响应回显令牌的脱敏反例。D 与 P4 均仍为 RED，等待 B 冻结产品后运行 GREEN。
 - 按 requesting-code-review 技能由独立 Codex 审查代理只读检查 P3/P4。C 的验收准备可聚焦提交；D 的三项 Important（错误分支全树快照、inspection 完整契约、API 500 实际请求）由 C 宿主补齐，另在 D 工作树记录复跑结果。审查代理未替代实际 Claude / Antigravity 客户端，也未声称执行真实服务验收。
 - A 项目矩阵复跑 5/5、`verify:workspace`、根 TypeScript、`git diff --check` 均通过。P4 后续新 CLI GREEN、完整根测试和平台/浏览器专项尚未运行；本次仅提交验收准备，不升版本、不合入 main。
+
+## 独立项目矩阵的已安装 CLI RED 补充（2026-11-17）
+
+A 根据批准 spec 对缺 ECharts 预期补行为 RED→GREEN，提交 `5a508567`；C 在来源工作树复跑矩阵 **6/6、0 跳过**、窄 TypeScript 和 diff 检查通过，以 `67ffc2ab` 合入 C 并再次复跑 6/6。冻结实际 pnpm/npm 锁快照原字节保持不变。
+
+P4 追加使用实际已安装 CLI 消费 A 的全部 14 个 synthetic 案例。每项命令前后比较项目全树目录集合与文件 SHA，完整校验 inspection，核对独立预期冲突/精确依赖/脚本/Git 与已输出字段，逐项复核实际文件摘要；不足信息允许省略契约可选字段，不允许报告错误值。
+
+设置与前次完全相同的三个冻结输入，实际运行：
+
+```powershell
+.\scripts\pnpm.ps1 exec vitest run --config tests/acceptance/phase3-plan.config.ts
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+```
+
+专项 **25/25 行为失败、0 跳过、exit 1**：新增 14 项和原 11 项均已收集并执行，旧 CLI 0.0.11 缺 `integrate inspect/plan`，服务准备、冻结发布 READY 和真实兼容采纳均成功。运行时间 29.82 秒；日志 `.superpowers/sdd/2026-11-16-phase3-t15-kickoff/p4-installed-matrix-red-2026-11-17.log`。旧 tarball SHA 再次实际读取为 `14775474e4b0181fd3c891f6624ed15b11b2f52582731271063138e606420adf`。根 TypeScript **exit 0**（测试新代码先改为兼容仓库 ES2022 lib 的复制后 sort，未更改工具链或编译配置）。
+
+C 的早期直接模块消费观察另外发现真实 pnpm 双文档被 B 错误当成两份项目锁、A 的 missing importer 案例目标目录不存在；分别交实际 B/A 客户端补独立失败测试与修复，见 `c-t15-inspect-review-2026-11-17.md`。本次 RED 不掩盖夹具缺陷，25 项仍等待修正候选及新 CLI GREEN；不标记 T15 完成。
+
+### 快照审查修复后的重跑（追加）
+
+按独立审查补齐 `__proto__` 文件快照反例并修复后，复用同一旧 CLI 与 SDK 冻结输入，重跑上述完整已安装专项：**25/25 行为失败、0 跳过、exit 1**，23.46 秒；仍为旧 CLI 缺新命令的预期 RED，服务准备与真实兼容采纳成功。日志为 `p4-installed-snapshot-red-2026-11-17.log`。快照反例自身 **1 RED→1 GREEN、0 跳过**，根 TypeScript **exit 0**；该补充只完善 P4 验收准备。
