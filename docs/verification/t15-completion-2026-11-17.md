@@ -1,6 +1,6 @@
 # T15 最终验收与本地主分支收口
 
-日期：2026-11-17（Asia/Shanghai）。本记录追加最终候选、门禁和清理证据，不改写此前 RED/GREEN 历史。当前状态：T15 技术验收完成，最终冻结 CLI 与集成树全套门禁通过；main 合并后复验与安全清理待执行。
+日期：2026-11-17（Asia/Shanghai）。本记录追加最终候选、门禁和清理证据，不改写此前 RED/GREEN 历史。当前状态：**T15 技术验收与本地 main 收口完成**，最终冻结 CLI、集成树及 main 复验通过；四个工作分支和工作树均已安全删除。
 
 ## 范围与归属
 
@@ -71,7 +71,7 @@ P4 同时设置上述已核对的 `A10_FROZEN_BUNDLE`、`INSTALLED_CLI_EVIDENCE`
 
 五项 Review Focus 对应 P1 路径/锁/网络回归、D 黑盒的 Git filter 与全树控制，以及 P4 真实服务/安装结果。没有遗留审查阻断或延期 Minor。特殊 8.3 短名、所有文件系统并发竞争与超过 64 跳链接不由本轮用例全面证明；该限制不能转换成未来 apply 授权。
 
-main 合并后仍须再次核对树、强制构建与同一冻结 CLI 的仓外 P4。
+main 合并后再次核对树、强制构建与同一冻结 CLI 的仓外 P4，实际通过结果见本文末尾。
 
 ## 边界与接续
 
@@ -95,4 +95,37 @@ T16 开工交接：保留 A 的 14 案例与双框架差异表、D 的 35 个独
 
 ## 本地合并与清理
 
-待验证后追加 main hash、来源祖先检查、客户端停写、工作树状态、忽略证据备份与链接检查、分支删除结果。不强制移除工作树，不递归清理共享 junction，不 push。
+本地 `main` 从 `31ae120a270e84ab7c100d3ad77919b233d1d48b` **快进至 `49968d96a0a0f051527c3a903cf6c132aeae9fa1`**；Git 树为 `1c1581b36ae7150ef5b4e1e286e0b3f2a3b12b04`，与已验收 C 集成树逐字节一致。首次树查询的 PowerShell 未引用 `^{tree}` 被解释为脚本块，查询报错后停止；补单引号后重新查询一致，没有修改文件或重做合并。
+
+在主工作区重新执行以下命令，全部 exit 0：
+
+```powershell
+.\scripts\pnpm.ps1 install --frozen-lockfile
+.\scripts\pnpm.ps1 exec turbo run build typecheck --force
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+.\scripts\pnpm.ps1 verify:workspace
+.\scripts\pnpm.ps1 exec vitest run --config tests/acceptance/phase3-plan.config.ts --reporter=default --reporter=json --outputFile=.tools/operations/t15-final-2026-11-17/main-p4-results.json
+```
+
+强制全图 **20/20，0 cached，14.486s**；main P4 于 **22:17:06** 开始，**25/25，0 failed，0 skipped，exit 0，43.92s**。仍使用上文同一 SDK、兼容证据和独立备份的 CLI tarball，结束后 SHA 仍为 `d071f7c1…31a0a7b6`。完整日志、结果及 `main-merge.json` / `main-gates.json` 位于主工作区 `.tools/operations/t15-final-2026-11-17/`。
+
+本轮关键提交与来源如下；各来源 tip 在删除前均以 `git merge-base --is-ancestor <tip> HEAD` 实际确认 exit 0：
+
+| 提交 | 目的 |
+| --- | --- |
+| `31ae120a` | P0 本地项目/接入计划契约，已先行合 main |
+| `7c274ad166bf8693dd6c38359b24822cd3fe65e0` | A 独立矩阵最终来源，补齐真实子包 fixture |
+| `99bf0f46` / `c5ca0e49` | B 只读识别与计划产品交付 |
+| `a946cdea2ff5b3a1f3d9f05f43ab696f111b1871` | D 独立黑盒最终来源，35 项断言保留 |
+| `88b13803b3024bc4c57dd7f5fa737208a1f16c29` | B 最终五项审查修复及六条回归 |
+| `5347683d` | C 合入 B 最终修复，集成 183/183 |
+| `e23ef890f12282c60916d31f42d84341108d4014` | CLI 0.0.13 独立升版与 CHANGELOG |
+| `49968d96a0a0f051527c3a903cf6c132aeae9fa1` | C 完整验收/交接文档，最终 main 快进目标 |
+
+A/D 已停写且工作树干净；实际 Claude 桌面端明确回复 `final-five-green-ready`，12 个产品/测试摘要复核一致，B 聚焦提交后干净；C 所有改动提交后干净。未提交用户改动没有混入任何提交。
+
+删除前将忽略证据复制到上述独立备份根并逐文件 SHA-256 核对：A **2 文件**、B **131 文件 / 2225752 bytes**、C **179 文件 / 4516559 bytes**、D **37 文件**；B 的两份临时 probe 一并保留。0.0.12 历史候选、0.0.13 最终候选及 frozen manifest 分别保留，哈希清单为 `*-hashes.json`。所有工作树各 **1054** 个 reparse point 均只指向本工作树，无 main 或其它外部目标；逐个解除链接本身后才移除目录。
+
+A 首次 `git worktree remove` 报 `Invalid argument`，注册已解除但目录残留；随后原生 PowerShell 删除实际报 `node.exe` 被占用。核对进程链确认是 A 先前 `pnpm exec node -v` 留下的交互式 Node 与 pnpm（PID 44240 / 7088），只结束这两个任务进程，未停止 Antigravity 应用。再次确认残留目录无链接和绝对根正确后，以原生 `Remove-Item -LiteralPath ... -Recurse` 清理成功。B/C/D 在相同链接检查后通过普通 `git -c core.longpaths=true worktree remove` 成功；未用 `--force`、`branch -D`、reset 或跨 shell 递归删除。
+
+以下四个来源分支均通过 **`git branch -d`** 删除：`chore/t15-a-project-matrix`、`feat/t15-b-integration-plan`、`chore/t15-c-integration`、`chore/t15-d-plan-acceptance`。`git worktree list --porcelain` 仅列主工作区，`git branch --list` 仅列 `main`，四个原目录均不存在。主目录 Node/pnpm 与原架构摘要在清理前后完全一致。没有 push、tag 或生产发布；T16/T17、生产 G2、真实业务试点继续保持未完成。

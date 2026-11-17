@@ -115,9 +115,9 @@ P0 验证后合入 main，A/B/D 和 C 集成分支从同一完整 P0 hash 起步
 - [x] 最终运行 `install --frozen-lockfile`、`exec turbo run build typecheck --force`、`-PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`、`verify:workspace`；设置真实 `A10_FROZEN_BUNDLE` 后运行根 `test`，运行 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/matching.test.ts tests/platform/component-query.test.ts tests/platform/component-query-consumer.test.ts`。记录实际 exit、失败/跳过及日志路径，不把缓存命中当作本轮证据。
 - [x] 本轮无 UI 改动不新增浏览器场景；contracts 公共变更在全图 build 后运行 `exec playwright test --config tests/playwright.config.ts tests/browser/contracts-runtime.spec.ts tests/browser/phase2-component-query.spec.ts`，顺序占用端口。若扩大了受影响面，再按实际变更补回归。
 - [x] 核对五项 Review Focus、原架构 SHA、冻结 SDK SHA、npm 包无私有运行时依赖及工作区外可用；新增验收记录，不改写历史。仅所有 T15 门槛通过才标记 T15 完成，T16/T17、G2 和真实业务试点保持各自状态。
-- [ ] 验证后的集成分支合入 main，在 main 复核树/构建与 installed CLI 专项；逐一确认来源 branch tip 是 main 祖先、客户端停写、工作树干净、需要的日志/忽略文件有独立备份后，安全删除本轮已合并分支。
-- [ ] managed worktree 优先原生可恢复归档；删除/归档前检查 Windows junction 与共享 `.tools`/node_modules 目标。不得递归清理指向主目录的链接，避免重演二期缓存清空。主 checkout 被工具保护时保留并报告；不强制 remove、不用 `branch -D`、不 push。
-- [ ] 报告 commit/merge hash、实际验证、残留 worktree/分支及原因，并发布 T16 开工交接。
+- [x] 验证后的集成分支合入 main，在 main 复核树/构建与 installed CLI 专项；逐一确认来源 branch tip 是 main 祖先、客户端停写、工作树干净、需要的日志/忽略文件有独立备份后，安全删除本轮已合并分支。
+- [x] managed worktree 优先原生可恢复归档；删除/归档前检查 Windows junction 与共享 `.tools`/node_modules 目标。不得递归清理指向主目录的链接，避免重演二期缓存清空。主 checkout 被工具保护时保留并报告；不强制 remove、不用 `branch -D`、不 push。
+- [x] 报告 commit/merge hash、实际验证、残留 worktree/分支及原因，并发布 T16 开工交接。
 
 ## 接续两轮
 
@@ -132,4 +132,4 @@ P0 验证后合入 main，A/B/D 和 C 集成分支从同一完整 P0 hash 起步
 
 每次实际派发必须包含：本 spec 与计划绝对路径、角色/P 编号、独立 worktree 绝对路径、完整基线 hash、唯一文件范围、所需 fixture/契约、验证命令、记录路径、停写条件。客户端无法接收任务或不能执行固定 Windows 工具链时如实登记；宿主补跑命令注明由 C 执行。
 
-2026-11-17：P0–P4 产品与技术验收门槛已完成。实际客户端 A/B/D 均已停写，C 集成树的 P1 + D35 为 183/183、CLI 0.0.13 冻结仓外 P4 为 25/25；根测试 1494/1494 + T10 168/168、平台 41/41、浏览器 18/18、强制全图 20/20（0 cached）全部通过。原始 RED/GREEN 历史保留，最终证据见 [收口记录](../../verification/t15-completion-2026-11-17.md)。main 合并后复验和安全清理仍按上方未勾选项执行；T16/T17 尚未开发。
+2026-11-17：P0–P4 产品与技术验收门槛已完成。实际客户端 A/B/D 均已停写，C 集成树的 P1 + D35 为 183/183、CLI 0.0.13 冻结仓外 P4 为 25/25；根测试 1494/1494 + T10 168/168、平台 41/41、浏览器 18/18、强制全图 20/20（0 cached）全部通过。原始 RED/GREEN 历史保留，最终证据见 [收口记录](../../verification/t15-completion-2026-11-17.md)。main 已快进至 49968d96 并完成相同冻结 CLI 的仓外 P4 25/25 与强制全图 20/20 复验；四个来源 tip 均为 main 祖先，四个工作分支和工作树已安全删除，证据独立备份。T16/T17 尚未开发。
