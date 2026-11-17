@@ -119,3 +119,31 @@ B 修复两类行为并追加九条只读属性枚举边界测试后，C 于 11:
 只读复审关闭 npm 无 link/null 残余及普通变换 filter 主路径，仍确认两项 Important：ls-files 的完整 NUL 集合未验证每条路径非空/合法；check-attr 的 set/unset/unspecified 输出与同名 driver 会碰撞并把未关联路径一概标脏。具体输入及不引入漏报的修复边界已写 B 授权目录 `c-filter-association-final-review-2026-11-17.md`，实际 B 已收到先补测试的交接。这些是尚未关闭的候选边界，77 项 GREEN 不等于 inspection 或 T15 完成。
 
 D 变换清单 filter 补充已经完成独立 RED 准备，提交 `a946cdea`：全组 **35/35 行为 RED、0 跳过、exit 1**，根 TypeScript exit 0，独立只读审查无阻塞。两种框架真实 Git 控制成立；产品 plan 断言尚未执行，完整结果见 D 新增独立记录，不重写此前 33 项历史。D 原始交付、宿主校正稿和日志已备份至 C 忽略 ledger，D 保持干净停写等待候选集成。
+
+## 关联枚举正式 RED 与同名属性实证（追加）
+
+2026-11-17 12:07（Asia/Shanghai），C 对 B 停写交付的 86 项测试运行同一完整 inspection 命令：**6 failed / 80 passed / 0 skipped、exit 1**，22.53 秒。三条非法 ls-files 路径仍被送入 check-attr，三条特殊名歧义仍把未关联文件标脏；三个守卫通过。测试 SHA 前后一致 `82E2184C73F59C8F63484ABEEA76523B0C7666C51097E5C9CC60580DEE816162`，inspect 源摘要仍为 77 项 GREEN 对应版本。日志 B `host-inspect-association-final-red-2026-11-17.log`。
+
+独立代理仅在自有 synthetic 仓库运行 12 个实际场景：三种名字 set/unset/unspecified 分别搭配无属性、裸 filter、-filter、显式同名 driver。check-attr 的特殊状态输出与显式同名 driver 完全相同；只有显式 driver 执行 helper。变换型显式 driver 的 native status 会执行 helper 并报 dirty，屏蔽后会漏报。完整项目含 .git 字节保持不变。证据 C ledger `special-driver-result-2026-11-17.json`，SHA `55bc90b03ba3f0118cea2d26c186daafa0981afb92519c686cb4694348249c1d`。可靠边界为特殊值且枚举到同名 driver 时整体 unavailable，不能简单跳过特殊值。
+
+## 子模块递归执行实证与控制（追加）
+
+固定 Node 26.13.0 / pnpm 12.18.0 / Git 2.48.1.windows.1 下，独立自有本地 file-clone 子模块实验确认：父仓 filter 枚举 exit 1 且空，初始化 vendor/child 的子仓仅有本地 childonly.clean；add 将清单版本 1→索引 2，工作文件改写为索引 2 后，父仓当前固定完整 status 参数仍执行子仓 helper，marker 精确证明 2→3，stdout ` M vendor/child`。项目含 .git 字节不变，只有项目外 synthetic marker 新增。此为命令实证，未运行 B 模块或 CLI。JSON SHA `f6619e1aae26e24720013537bd0bc62061e2467fc136c6bcc1c8e69ebfbffe10`。
+
+四项最小控制确认：`ls-files --stage -z` 安全输出 160000 gitlink；所有 status 加 `--ignore-submodules=all` 与 `-c status.submoduleSummary=false` 后零 marker、全树不变；嵌套 project 的 ls-files 只列项目范围，但 status 仍需禁递归，避免执行项目外子仓 helper。项目内 gitlink 无法完整安全识别时应明确 unavailable；普通项目维持既有 Git 识别。控制 JSON SHA `fa06350ca267b00fa65f98d785349ef665afba819da0ffca70b84653f9a36457`。两份完整材料已备份 C ledger 并交 B。
+
+## Partial clone 缺失对象自动 fetch 实证（追加）
+
+最后一项有界配置实验只使用自有本地 source 与真正 `--filter=blob:none --no-checkout --no-local` clone：有 .promisor pack、read-tree 建索引、缺失索引中的 .gitattributes blob，未删除任何对象。remote 指向自有 ext transport helper（fixture 单独允许 ext），写项目外 marker 后立即 exit 1，未访问真实网络。
+
+当前固定 B base argv 的 check-attr 和 status 均在属性索引回退时自动 fetch 并执行 helper，exit 128；分别加全局 `--no-lazy-fetch` 后 exit 0、零 marker，check-attr 返回 unspecified，status 为删除 .gitattributes。ls-files、stage 枚举、config、rev-parse 加/不加均未执行 helper。12 个窄范围控制的仓库含 .git 字节一致，清除预期 marker 后完整实验树一致；不是产品或已安装 CLI 验收。证据 C ledger `partial-clone-lazy-fetch-result-2026-11-17.json`，SHA `cafa466b65e8ef2245876b4bc17d0c2b2ea97b6c39ec3b83357a22f2fe59d3a5`，已复制 B 授权目录并发送实际客户端，同批先补行为 RED。共享 argv 可采用 --no-lazy-fetch，旧 Git 不支持时 unavailable，不能重试无保护命令。
+
+## Windows 子模块夹具前提校正（追加）
+
+B 追加两条真实子模块反例及普通项目守卫，C 于 12:20 跑完整 89 项：**6 项关联行为失败 + 2 项子模块 setup 控制失败 / 81 passed / 0 skipped、exit 1**，26.69 秒。测试 SHA 前后一致 `6C4CD3247D371942C792830A9E5076CB72DBC1E017C461100266158F1E7BE609`。两条 setup 未到产品断言，不记为行为 RED。原日志 `host-inspect-submodule-red-2026-11-17.log` 保留不改。
+
+C 使用 B 同款 helper 和完整创建顺序在自有临时目录作对照：宿主 core.autocrlf=true 时，clone 后 CRLF 工作文件与 LF 索引的 stat size 不同，status 可直接标脏而不调用 filter；仅在 seed/parent/child synthetic 本地配置 core.autocrlf=false 后，控制真实写 marker。推进 mtime 单独不能消除此大小差异。两份诊断 JSON `b-submodule-fixture-probe[-stable-eol]-2026-11-17.json` 保存在 C ledger。
+
+C 仅给 B 子模块 fixture 三个自有仓库固定上述行尾配置，未修改任何产品或断言。12:27 窄范围复跑实际 **2 行为失败 / 1 passed**，5.40 秒；`-t` 排除了其余 86 项，明确记录为 86 skipped，不能作为完整全组证据。两项均到达 `inspect 不得执行子模块 helper` marker 断言。测试 SHA 前后一致 `804840E75F1D9BA1BB00C9291DF0CADEA484B7EF4B3E32EAA294E3320FCE6745`，日志 `host-inspect-submodule-corrected-red-2026-11-17.log`。完整重跑、partial-clone 行为 RED 与同批 GREEN 仍待后续；T15 不提前完成。
+
+随后于 12:27:34 完整重跑同一 inspection 命令：**8 failed / 81 passed / 0 skipped、exit 1**，29.05 秒，全部失败为行为断言（6 项关联边界、2 项子模块执行），无 setup 失败。测试摘要前后一致 `804840E75F1D9BA1BB00C9291DF0CADEA484B7EF4B3E32EAA294E3320FCE6745`，三实现源摘要未变。日志 `host-inspect-submodule-corrected-full-red-2026-11-17.log`。此证据只关闭子模块夹具前提，产品四边界同批修复尚未开始。
