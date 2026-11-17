@@ -44,3 +44,13 @@ C 再次执行同一两个测试文件及根 TypeScript。13:44:42 开始，**31
 2. network 测试 409 的源 target 为 OTHER_SHA256，但首次 API 默认返回正常 TARBALL_SHA256，下载前已是 TARGET_CHANGED。摘要损坏反例需要首次和最终 API 都稳定声称 OTHER_SHA256，与实际 tarball bytes 独立不符，才能核对 PACKAGE_DIGEST_MISMATCH。
 
 C 核对源码后已将两处精准校正交实际 B，保持产品 stub、原有结果合法性断言和既定范围。31 项首轮完整 RED 不被改写，也不因为没有触及这些后续输入/网络前提就宣称夹具全部有效；两处校正后的完整 RED 和原 GREEN 待后续记录。reviewer 未执行项目、服务或改文件。
+
+## 两处前提关闭后的最终 RED 与实现交接（追加）
+
+B 于 13:53:38 更新停写报告。C 只复核上述两处残余：unverified 补 COMPATIBILITY_UNVERIFIED；缺 prop source、event handler、layout 真正删除对应可选字段并补各自 gap，入口前恢复 validateMatchPlan 成功断言；摘要损坏反例首次与最终 API 都稳定声明 OTHER_SHA256，实际 tarball bytes 保持独立，并要求真实下载请求。原有结果契约断言保留，四个产品 throwing stub 未变。
+
+C 通过同一固定工具链执行前述完整两个测试文件与根 TypeScript。13:56:02 开始，**31 项实际执行并失败、0 通过、0 跳过、exit 1**，817ms；根 TypeScript **exit 0**。全部失败为 NOT_IMPLEMENTED 与预期结构化结果/错误码不符，或 stub 先 settled 而未进入请求屏障；没有源输入合法性、setup、收集或屏障超时失败。此结果证明当前 RED 行为与已核对前提，成功网络链路仍须由 GREEN 实现运行证明。
+
+两测试 SHA 前后一致：plan `C8DFC9100B158A16EE3472CF28913F577BD405BB23C54109531F3FAF5F0F7A85`、network `E1AC8A98896E536D271FBB36A7236014C1A4C18EB741B70858BDFD12D496DFF9`。四 stub SHA 与首批 RED 相同。独立新日志为 B `.superpowers/t15/host-plan-final-fixture-red-2026-11-17.log`、`host-plan-final-fixture-red-hashes-2026-11-17.json`、`host-plan-final-fixture-red-root-tsc-2026-11-17.log`，另备份到 C 忽略 ledger；历史日志和记录保留。
+
+正式 RED 与原 P1 GREEN 授权已通过实际 Claude 桌面端送达 B，界面确认消息已发送且输入框清空。B 继续 resolve/registry/plan、integrate 与 cli/index 接线，保留 93 inspection 与 31 plan 行为断言；公共契约、独立 A/C/D 测试、根配置/锁/版本仍由各负责人维护。B 停在 plan-green-ready 后由 C 正式执行三组 P1 测试、CLI build/typecheck、根 tsc 与候选审查。独立黑盒、冻结 CLI 的真实安装/服务验收、最终全图验证及 main 集成尚未完成；未升版、pack 或 push。
