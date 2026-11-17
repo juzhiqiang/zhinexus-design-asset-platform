@@ -390,6 +390,18 @@ export async function planIntegration(
     }
   }
 
+  // ⑩.5 契约收口：任一 allowedPath 与识别到的未提交改动路径（NFC/大小写不敏感键）相交，
+  // 都必须带**同路径** DIRTY_TARGET。拟生成组件同样列入 allowedPaths，因此这里在最终
+  // allowedPaths 形成后统一补齐；清单/锁在 resolveLocalPlan 中已按同一措辞记录，重复会自动去重。
+  // 不删除任何 allowedPath 来规避该约束。
+  if (inspection.git.status === 'dirty') {
+    const dirtyKeys = new Set(inspection.git.dirtyPaths.map(entry => entry.normalize('NFC').toLowerCase()));
+    for (const relative of allowedPaths) {
+      if (!dirtyKeys.has(relative.normalize('NFC').toLowerCase())) continue;
+      addConflict(conflicts, 'DIRTY_TARGET', `拟修改的目标文件存在未提交改动：${relative}`, { path: relative });
+    }
+  }
+
   const baseFileHashes: IntegrationFileSnapshot[] = [...inspection.fileSnapshots.map(entry => ({ ...entry }))];
   const guarded = new Set(baseFileHashes.map(entry => entry.path));
   for (const relative of new Set([

@@ -424,6 +424,37 @@ EF51E0C924A82177A79C3C15E8A0F52297E2F03A0691302516ED309454CF1736  tests/integrat
 
 CLI 失败 envelope 只有沙箱子进程冒烟，**没有已提交测试覆盖**；`realPathOf` 在 Windows junction / 大小写不敏感 / 8.3 短名下的行为未在宿主实测（沙箱仅验证 Linux 目录符号链接）；未跑真实 Nest/PG/MinIO/Verdaccio 联调，也未安装已打包 CLI 做仓外验证。`redirect: 'manual'` 拒绝 3xx 的两条运行时形态（`opaqueredirect` 与直接回显 302）都已覆盖，宿主 Node 26.13.0 由「跨 origin 重定向」用例正式确认。
 
+# 二十一、D35 独立黑盒真实 RED → 最小产品 GREEN（宿主 P1 142/142 已确认；停写 dirty-target-green-ready）
+
+宿主固定工具链正式执行 P1 完整三组：**142/142 passed、0 skipped、exit 0（31.01s）**，CLI build/typecheck 与根 tsc 均 exit 0，12 个文件 SHA 前后稳定；已代 B 提交 `c5ca0e4962a3b803b8653e75c2b243c1de279ef9` 并按 A→B→D 合入 C 集成树，源 bytes 不变。随后 C 在集成树执行 D 的原始 35 项黑盒：**34 passed / 1 failed / 0 skipped**。
+
+**唯一失败**：`tests/integration/project-plan-readonly.test.ts`「an existing target component file is reported as an OUTPUT_EXISTS conflict without overwriting it」。用例在**已 commit** 的 synthetic 项目中创建未跟踪的 `src/components/zhinexus/component-0001.vue`，预期 exit 2 + conflicted + `OUTPUT_EXISTS` 且保留用户 bytes；实际 exit 1 `INVALID_SCHEMA`，运行时报 `Missing blocking DIRTY_TARGET conflict`。
+
+**根因**：`resolve.ts` 只为 manifest/lock 计算 `DIRTY_TARGET`，而 `plan.ts` 把拟生成组件也列入 `allowedPaths`；公共契约 `contracts/integration-plan.ts` 对任一 allowedPath 与 `inspection.git.dirtyPaths` 的 NFC/大小写不敏感键相交都要求同路径 `DIRTY_TARGET`。P1 原有「输出已存在」用例没有 Git 前提，故未暴露。
+
+**最小修复（只改 `plan.ts`）**：在最终 allowedPaths 形成之后、组装 `baseFileHashes` 之前，按与契约完全相同的键为所有相交的 allowedPath 补同路径 `DIRTY_TARGET`（措辞与 `resolveLocalPlan` 既有记录逐字一致，重复自动去重）。保留 `OUTPUT_EXISTS` 与全部其他冲突、保留 allowedPaths 中的拟生成组件；未改 D 测试/fixtures、公共 contracts、冻结 inspection 三源、根配置/锁/版本，未改 P1 原 142 测试（三个测试文件 SHA 与宿主 142/142 GREEN 时逐字节一致）。
+
+**自检（沙箱，非正式）**：`tsc -p tsconfig.t15plan.json` exit 0；三组复跑 139 passed | 3 failed (142)（3 项均为沙箱 Git 2.34.1 缺 `--no-lazy-fetch` 的已知限制，与本轮无关）；D35 场景复现（临时用例，未入仓库）得到 conflicted + `OUTPUT_EXISTS` + 同路径 `DIRTY_TARGET` + `validateIntegrationPlan` 通过 + 用户 bytes 保留；**RED 证明**：仅移除新增代码块后同一用例抛 `IntegrationPlanError(INVALID_SCHEMA)` 且 issue 恰为 `/conflicts Missing blocking DIRTY_TARGET conflict`，与 D35 观察逐字一致；真实 CLI 子进程得到 exit 2 + stdout 仅 JSON + stderr 空，失败矩阵与网络/endpoint 共 13 项仍全部 exit 1 + 单一 JSON。**不代表宿主固定工具链，未宣称任何正式通过。**
+
+## 本轮文件摘要（SHA-256）
+
+```
+098518193D3CEC1AF0E78850E8BF7243D363567ED0C339CFD14EA770911B3CDD  packages/component-cli/src/integration/plan.ts   （本轮唯一改动；宿主 142/142 GREEN 时为 DB12F7150855…2057A9）
+8502273D5451221016AB31AA289D066D91029A022D2E23C0A46B5CED6A229FCB  packages/component-cli/src/integration/inspect.ts    （未改）
+5445B08FB6283F54BE1468D4067D3DF714CF599865F9CE519A739CA094B08576  packages/component-cli/src/integration/workspace.ts  （未改）
+8C9B8BA31E833E5CE63444F402E4E95CA0E526743899076BD701D9C5438EAF46  packages/component-cli/src/integration/locks.ts      （未改）
+BA12B90B5C9BB780FA1DDAC4776CC7A5904AB54AE8EDBE15D13E209C23DA3155  packages/component-cli/src/integration/resolve.ts    （未改）
+E43D40390DE185B99D2D674E17510FBFD4777DB5C271F244433296AEB262E245  packages/component-cli/src/integration/registry.ts   （未改）
+882123BF72D31FAE59AB4054E0327533BC68A8DB4EC8178BDC4152FCEF984EB0  packages/component-cli/src/commands/integrate.ts      （未改）
+9551DC19379543F6C14321A5057AAD9A2447930B202D8344119E0F24E6D2A167  packages/component-cli/src/cli.ts                    （未改）
+4D0E4FBFB1809908F81DAD9A9A262EFDF428D7E98D67A60077347E0245A0CA46  packages/component-cli/src/index.ts                  （未改）
+AAE56CE74A74599D86AF2138FCE15591DDF9FA50A5928337FD49587479C76C27  tests/integration/project-inspect.test.ts           （未改，93 项）
+C6887A7F6CB62F152EB29F3125F856185BA947AEA6F8860445AAEA32B154C798  tests/integration/project-plan.test.ts              （未改，20 项）
+EF51E0C924A82177A79C3C15E8A0F52297E2F03A0691302516ED309454CF1736  tests/integration/project-plan-network.test.ts      （未改，29 项）
+```
+
+**仍未覆盖**：D35 该场景没有已提交测试覆盖（D 黑盒在集成树执行，P1 原 142 未含带 Git 前提的 OUTPUT_EXISTS 用例），是否补 B 侧回归由 C 决定；`DIRTY_TARGET` 现对 manifest/lock 与拟生成组件统一按相同键计算，未来若 allowedPaths 增加新类别需保持同一收口；Windows junction/大小写/8.3、真实服务联调、仓外已打包 CLI 验证仍未覆盖。
+
 ## 宿主 C 正式 GREEN（2026-11-17 16:30:57–16:31:31 +08:00，追加）
 
 B 已停在 plan-review-green-ready，C 在本 B 独立工作树使用固定 Node 26.13.0 / pnpm 12.18.0 执行完整三组 P1：
