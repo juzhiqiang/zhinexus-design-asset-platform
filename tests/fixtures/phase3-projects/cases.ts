@@ -464,6 +464,15 @@ const CASE_DEFS: readonly InternalCaseDef[] = [
           dependencies: { react: '19.3.1', 'react-dom': '19.3.1', echarts: '6.1.0' },
         },
       },
+      {
+        relDir: 'apps/missing-pkg',
+        packageJson: {
+          name: '@synthetic/missing-pkg',
+          version: '0.0.0',
+          private: true,
+          dependencies: { react: '19.3.1', 'react-dom': '19.3.1', echarts: '6.1.0' },
+        },
+      },
     ],
     copyLocks: [{ fromDir: 'pnpm-workspace-explicit', fileName: 'pnpm-lock.yaml' }],
   },
