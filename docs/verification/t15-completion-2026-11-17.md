@@ -1,6 +1,6 @@
 # T15 最终验收与本地主分支收口
 
-日期：2026-11-17（Asia/Shanghai）。本记录追加最终候选、门禁和清理证据，不改写此前 RED/GREEN 历史。当前状态：最终审查修复进行中，尚未合入 main。
+日期：2026-11-17（Asia/Shanghai）。本记录追加最终候选、门禁和清理证据，不改写此前 RED/GREEN 历史。当前状态：最终审查修复的宿主 P1 已通过，最终打包、全套门禁与 main 合并待验收。
 
 ## 范围与归属
 
@@ -14,11 +14,11 @@
 
 | 发现 | 合格结果 | 当前证据 |
 | --- | --- | --- |
-| 同包不同组件重复 registry 证据 | 每个精确包一条，保留各实现发布证据 | 待宿主 RED/GREEN |
-| matched/unverified 远端 gap 文案含令牌 | 完整输出无 API/registry 凭据，保留稳定缺口 code | 待宿主 RED/GREEN |
-| 本地已锁运行时依赖与 GET 版本不符 | 合法 `DEPENDENCY_CONFLICT`，不升级、不写文件 | 待宿主 RED/GREEN |
-| Windows dangling junction | `PATH_UNSAFE`，不跟随到项目外读写 | 待宿主 RED/GREEN |
-| MatchPlan 省略可选 ECharts 版本 | 查询使用可证实精确宿主值，保留所需上下文冲突，不输出非法计划 | 待宿主 RED/GREEN |
+| 同包不同组件重复 registry 证据 | 每个精确包一条，保留各实现发布证据 | 正式 RED → P1 GREEN |
+| matched/unverified 远端 gap 文案含令牌 | 完整输出无 API/registry 凭据，保留稳定缺口 code | 正式 RED → P1 GREEN |
+| 本地已锁运行时依赖与 GET 版本不符 | 合法 `DEPENDENCY_CONFLICT`，不升级、不写文件 | 正式 RED → P1 GREEN |
+| Windows dangling junction | `PATH_UNSAFE`，不跟随到项目外读写 | 单跳及两跳正式 RED → P1 GREEN |
+| MatchPlan 省略可选 ECharts 版本 | 查询使用可证实精确宿主值，保留所需上下文冲突，不输出非法计划 | 正式 RED → P1 GREEN |
 
 第五项核对：ProjectContext 允许省略 ECharts，但 IntegrationPlan 附加规则要求与已锁宿主不一致时含 `MATCH_CONTEXT_MISMATCH`。源 MatchPlan 和摘要必须保持原样；安全查询采用本地值不代表可消除离线输入缺口。
 
@@ -31,7 +31,11 @@
 
 C 的 `.superpowers/t15/final-five-red/` 保存原始日志、JSON、运行前后摘要与源副本审计：11 份副本与 RED 一致，network 测试在运行结束后补入 CLI 全树断言，因此该副本不冒称原 RED bytes，差异在 `copy-audit.json` 明记。实际 Claude 桌面会话已收到最小 GREEN 交接。新②③测试补 CLI 调用后的全树对照，原断言保留；最终产品与测试仍待正式 GREEN。
 
+第四项在修复窄复核中补真实两跳 dangling：`src → 项目内 bridge/future`，`bridge → 项目外不存在目录`。单次 readlink 后信任词法落点仍不足以证明安全。实际 B 只补回归后，宿主 C 用相同三组命令（输出文件改为 `host-two-hop-red-results.json`）于 21:40:40 运行：**148 项中 1 failed / 147 passed / 0 skipped，exit 1，36.69s**。原五项及原 142 全通过，唯一行为失败为两跳路径实际 `planned` 而未 `PATH_UNSAFE`。12 源前后 SHA 一致且逐件复制核对成功；日志、JSON、摘要和原始源保存在 `.superpowers/t15/two-hop-red/`。该补充仍属原第四项失败关闭修复，未开展第二次整分支审查或新增功能。
+
 ## 冻结输入
+
+最终 GREEN：C 在 B 工作树于 **21:46:58** 运行完整三组 P1，**148/148 passed、0 failed、0 skipped，exit 0，37.01s**。12 个产品和测试源 SHA 前后一致；根 `tsc -p tsconfig.json --noEmit`、CLI `build` 与 `typecheck` 全部 exit 0，构建探针 73 文件白名单复核通过。日志为 B `.superpowers/t15/host-final-green*`。原 142 项及新增六项均保留；产品仅修改 `plan.ts`、`resolve.ts`，新回归仅位于 B 的两份计划测试。构建后再次核对 12 个摘要一致。这组结果关闭五项审查行为缺陷，不能替代 D35、冻结 CLI P4 或最终全图门禁。
 
 - 原架构 SHA-256：`e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723`。
 - SDK manifest SHA-256：`04a7c4fb267dd2fe760c9c10f3706d28e23d03a5a0cc0fc3be8c6a2963f50aa1`。
