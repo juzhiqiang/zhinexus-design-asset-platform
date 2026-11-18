@@ -45,3 +45,5 @@ P0：合法四种契约、授权错绑、旧计划授权 false、路径/摘要/�
 P1 的 options、安装 argv、环境白名单、暂存产物进入目标的方法和首批产品 RED 用例由 [B 安装隔离 brief](../plans/2026-11-18-t16-b-install-isolation-brief.md) 冻结；安装隔离仍须以真实 Windows npm/pnpm 进程验收，不以文档或 mock 验收。
 
 产品：npm/pnpm × Vue/React、显式 workspace；真实仓外冻结 SDK 安装，真实类型与构建；未知 prop/event、危险绑定表达式、原始文件变化、安装失败、中途编辑、Windows 路径和双跳 junction、恢复前/期间改动保护。独立进程验收与同一冻结 CLI 真实服务验收后方可称技术完成；两个真实授权业务项目 diff 仍是完整 T16 门槛。版本按公开 CLI 既有 0.x 规则独立升级，不发布生产或 push。
+
+2026-11-19 同次 apply 恢复补充：本次执行可以从最后成功持久化、绑定 backupRef id/hash 与上下文的可信不可变内存备份恢复源码；磁盘祖先被替换后不再读取该路径，冷启动 rollback 仍完整拒绝不可信磁盘路径。未落盘候选不算备份，安装副作用分类和用户编辑保护保持原契约。精确外部目录所有权标记及独立 RED 见 [安装 brief](../plans/2026-11-18-t16-b-install-isolation-brief.md) 与 [本轮记录](../../verification/t16-hot-recovery-2026-11-19.md)。

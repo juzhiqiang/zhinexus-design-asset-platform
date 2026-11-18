@@ -118,3 +118,11 @@ pnpm staging YAML 由产品固定：nodeLinker: hoisted、packageImportMethod: c
 旧树的完整安全清单与摘要必须在受控 rename 前后复核；并发改写时停止新树交付，保留真实用户字节（原目录或 quarantine），不得清理或冒称 applied。多目录第二次交付失败时，第一目录真实新树、各旧树 quarantine 与日志都保留，不伪造恢复了依赖目录。
 
 cleanup 对 staging/env/ready 任一目录删除失败或删除后仍存在，都不得返回 applied；安装已启动则源码保守恢复并保持 reinstall-required。失败返回也尽力清除本次隔离凭据，错误对象和运行日志不得含 token。操作系统持续拒绝清理时记录未清理边界，不声称目录或凭据已删除；不删除用户目标目录。
+
+## 2026-11-19 C 补充：精确所有权与同次 apply 恢复
+
+stage/env/ready 清理只删除可证明属于本次操作的树：根 `.t16-owner.json` 为普通单链接文件，精确 JSON 字节绑定固定 `kind:'t16-external-root'`、本次 `operationId` 和对应 role。目录名前缀不能授权删除未知树。测试 helper 仅允许并严格核验 stage 的此精确标记，不放宽 manifest/YAML 或凭据白名单。
+
+日志窗口备份祖先被换为 junction 后，禁止穿链接读取或写回。正在执行的同次 apply 可从最近一次成功持久化、与 backupRef id/hash 和项目/计划/原字节绑定的不可变内存备份恢复源码；不能使用未落盘候选，第二次持久化失败保留第一次成功版本，不能伪造 installStarted。冷启动 rollback 仍从磁盘执行原完整验证，不能因此放宽祖先拒绝。
+
+安装已启动时，干净恢复返回 `rolled-back + reinstall-required + INSTALL_FAILED`；源码用户编辑或恢复 I/O 失败返回现有 `recovery-required` 分类。保留最后成功 backupRef，但不声称被替换路径可达，不改写外部、日志或 quarantine 现场。独立三条 RED 和未覆盖边界见 [同次恢复记录](../../verification/t16-hot-recovery-2026-11-19.md)。
