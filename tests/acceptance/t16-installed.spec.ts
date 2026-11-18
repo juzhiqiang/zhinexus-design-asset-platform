@@ -262,6 +262,23 @@ beforeAll(async () => {
 });
 afterAll(async () => { await h?.close(); });
 
+// C supplies live services and frozen inputs; the actual D author owns every
+// installation/recovery assertion in the separate Node black-box file.
+it('D independently verifies installed frozen CLI installation and recovery', async () => {
+  const tarball = required('PHASE3_CLI_TARBALL'), digest = sha(await readFile(tarball));
+  const matchFile = join(area, 'd-installed-recovery-match.json');
+  await writeFile(matchFile, JSON.stringify(await match('vue', 'npm')));
+  const dTestFile = process.env.T16_D_TEST_FILE ? required('T16_D_TEST_FILE') : join(repo, 'tests/acceptance/t16-d/cli-installed-recovery.test.mjs');
+  const output = await processResult(node, ['--test', dTestFile], repo,
+    { ...process.env, T16_D_CLI_ENTRY: bin, T16_D_FIXED_NODE: node, T16_D_NPM_CLI: npm,
+      T16_D_MATCH_FILE: matchFile, T16_D_API_URL: h!.origin(), T16_D_REGISTRY_URL: localServices().registryOrigin,
+      T16_D_CLI_CWD: repo, ZHINEXUS_API_TOKEN: await freshApiToken(), ZHINEXUS_REGISTRY_TOKEN: readToken },
+    join(area, 'd-installed-recovery-process.json'));
+  expect(output.code, output.stdout + output.stderr).toBe(0);
+  expect(sha(await readFile(tarball))).toBe(digest);
+  console.log(JSON.stringify({ event: 'T16_D_INSTALLED_RECOVERY', sha256: digest, evidence: join(area, 'd-installed-recovery-process.json'), productionAcceptance: false }));
+});
+
 async function createProject(item: typeof matrix[number], options: { next?: boolean } = {}) {
   const root = join(area, `${item.id} 项目`), importer = item.workspace ? 'apps/client' : '.', target = join(root, importer);
   await mkdir(join(target, 'src'), { recursive: true });
