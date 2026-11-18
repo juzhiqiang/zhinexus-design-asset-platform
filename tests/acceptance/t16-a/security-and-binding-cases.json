@@ -1,0 +1,405 @@
+{
+  "schemaVersion": 1,
+  "origin": "synthetic",
+  "description": "T16 A/P2 独立生成与安全绑定案例集（不依赖 B 产品输出，matchPlanInput 对齐公共 MatchPlanV1）",
+  "validCases": [
+    {
+      "caseId": "vue-line-proto-vs-constructor",
+      "origin": "synthetic",
+      "componentId": "line",
+      "framework": "vue",
+      "matchPlanInput": {
+        "schemaVersion": 1,
+        "source": "design-id",
+        "inputDigest": "1111111111111111111111111111111111111111111111111111111111111111",
+        "ruleSetId": "synthetic-t16-rules",
+        "revision": "rev-1",
+        "context": {
+          "framework": "vue",
+          "frameworkVersion": "3.5.45",
+          "echartsVersion": "6.1.0",
+          "packageManager": "pnpm",
+          "requirements": []
+        },
+        "elements": [
+          {
+            "instanceId": "inst-line-vue-1",
+            "designId": "synthetic/LineChart#__proto__",
+            "status": "mapped",
+            "target": {
+              "variantReleaseId": "00000000-0000-4000-8000-000000000101",
+              "variantId": "line-vue",
+              "componentId": "line",
+              "framework": "vue",
+              "packageName": "@company/charts-vue",
+              "packageVersion": "0.0.12",
+              "packageSha256": "51f19262aecc3d81135aa06fce4b630bd37d297d54487eab8b016b61a5bd38d9",
+              "exportName": "LineChart",
+              "exportPath": "./line",
+              "evidence": [
+                {
+                  "kind": "api",
+                  "path": "api/line-vue.json",
+                  "sha256": "41e38469674e0a51e281d97fa5d6a01229a25ef8a6b25bc4c0d9e2f3771a757d"
+                },
+                {
+                  "kind": "docs",
+                  "path": "docs/line-vue.md",
+                  "sha256": "a4bba35c1bb4d87f0b633e56c2483f0456b333b67a374aa56fdba65e3f642bef"
+                }
+              ],
+              "compatibility": { "status": "verified", "recordIds": ["synthetic-t16-vue-line"] },
+              "examples": [{ "id": "example-line-vue-default", "previewEntry": "preview/line-vue/index.html" }],
+              "styleExport": "./style.css",
+              "readyMethod": "whenRendered",
+              "notes": []
+            },
+            "props": [
+              { "name": "data", "type": "ChartData", "required": true, "source": "__proto__" }
+            ],
+            "events": [
+              { "name": "point-click", "payload": "ChartEvent", "handler": "constructor" }
+            ],
+            "layout": "grid </script><script>alert(1)</script>",
+            "gaps": []
+          }
+        ],
+        "exactDependencies": [{ "name": "@company/charts-vue", "version": "0.0.12" }],
+        "gaps": []
+      },
+      "expected": {
+        "componentId": "line",
+        "framework": "vue",
+        "importSpecifier": "@company/charts-vue/line",
+        "exportName": "LineChart",
+        "styleImport": "@company/charts-vue/style.css",
+        "readyMethod": "whenRendered",
+        "outputExtension": ".vue",
+        "propBindings": [{ "prop": "data", "sourceKey": "__proto__" }],
+        "callbackBindings": [{ "event": "point-click", "templateBinding": "@point-click", "handlerKey": "constructor" }],
+        "mustRetainAsStringKeys": ["__proto__", "constructor"],
+        "forbiddenExecutableSyntax": ["</script><script>", "eval(", "Function("]
+      }
+    },
+    {
+      "caseId": "react-line-dangerous-injection-strings",
+      "origin": "synthetic",
+      "componentId": "line",
+      "framework": "react",
+      "matchPlanInput": {
+        "schemaVersion": 1,
+        "source": "design-id",
+        "inputDigest": "2222222222222222222222222222222222222222222222222222222222222222",
+        "ruleSetId": "synthetic-t16-rules",
+        "revision": "rev-1",
+        "context": {
+          "framework": "react",
+          "frameworkVersion": "19.3.1",
+          "echartsVersion": "6.1.0",
+          "packageManager": "npm",
+          "requirements": []
+        },
+        "elements": [
+          {
+            "instanceId": "inst-line-react-1",
+            "designId": "synthetic/LineChart#dangerous",
+            "status": "mapped",
+            "target": {
+              "variantReleaseId": "00000000-0000-4000-8000-000000000102",
+              "variantId": "line-react",
+              "componentId": "line",
+              "framework": "react",
+              "packageName": "@company/charts-react",
+              "packageVersion": "0.0.12",
+              "packageSha256": "bbc6a1ad1fba272552cdb6468746c33a246c94f49941dfc8bde746fd9c8c5d28",
+              "exportName": "LineChart",
+              "exportPath": "./line",
+              "evidence": [
+                {
+                  "kind": "api",
+                  "path": "api/line-react.json",
+                  "sha256": "7017e79ffe964b1e70b2e7f58f77157d82be9b9c2c93a14e7130b5c6d002ce6c"
+                },
+                {
+                  "kind": "docs",
+                  "path": "docs/line-react.md",
+                  "sha256": "5070900d59e9c81ce26979aeed7266c1d5a659a0de3253f69fc0e4ff9dca365f"
+                }
+              ],
+              "compatibility": { "status": "verified", "recordIds": ["synthetic-t16-react-line"] },
+              "examples": [{ "id": "example-line-react-default", "previewEntry": "preview/line-react/index.html" }],
+              "styleExport": "./style.css",
+              "readyMethod": "whenRendered",
+              "notes": []
+            },
+            "props": [
+              {
+                "name": "data",
+                "type": "ChartData",
+                "required": true,
+                "source": "\" onclick=\"alert(1)\n\\</script>{{process.exit(1)}}${globalThis.eval('1')}"
+              }
+            ],
+            "events": [
+              {
+                "name": "onPointClick",
+                "payload": "ChartEvent",
+                "handler": "(() => { require('fs').writeFileSync('pwned','1'); })()\r\n'\"\\"
+              }
+            ],
+            "layout": "flex ${require('child_process').execSync('whoami')}",
+            "gaps": []
+          }
+        ],
+        "exactDependencies": [{ "name": "@company/charts-react", "version": "0.0.12" }],
+        "gaps": []
+      },
+      "expected": {
+        "componentId": "line",
+        "framework": "react",
+        "importSpecifier": "@company/charts-react/line",
+        "exportName": "LineChart",
+        "styleImport": "@company/charts-react/style.css",
+        "readyMethod": "whenRendered",
+        "outputExtension": ".tsx",
+        "propBindings": [
+          {
+            "prop": "data",
+            "sourceKey": "\" onclick=\"alert(1)\n\\</script>{{process.exit(1)}}${globalThis.eval('1')}"
+          }
+        ],
+        "callbackBindings": [
+          {
+            "event": "onPointClick",
+            "templateBinding": "onPointClick",
+            "handlerKey": "(() => { require('fs').writeFileSync('pwned','1'); })()\r\n'\"\\"
+          }
+        ],
+        "mustRetainAsStringKeys": [
+          "\" onclick=\"alert(1)\n\\</script>{{process.exit(1)}}${globalThis.eval('1')}",
+          "(() => { require('fs').writeFileSync('pwned','1'); })()\r\n'\"\\"
+        ],
+        "forbiddenExecutableSyntax": [
+          "process.exit(1)",
+          "globalThis.eval('1')",
+          "require('fs').writeFileSync",
+          "require('child_process').execSync"
+        ]
+      }
+    },
+    {
+      "caseId": "vue-ranking-constructor-vs-proto",
+      "origin": "synthetic",
+      "componentId": "ranking",
+      "framework": "vue",
+      "matchPlanInput": {
+        "schemaVersion": 1,
+        "source": "design-id",
+        "inputDigest": "3333333333333333333333333333333333333333333333333333333333333333",
+        "ruleSetId": "synthetic-t16-rules",
+        "revision": "rev-1",
+        "context": {
+          "framework": "vue",
+          "frameworkVersion": "3.5.45",
+          "echartsVersion": "6.1.0",
+          "packageManager": "pnpm",
+          "requirements": []
+        },
+        "elements": [
+          {
+            "instanceId": "inst-ranking-vue-1",
+            "designId": "synthetic/Ranking#swapped",
+            "status": "mapped",
+            "target": {
+              "variantReleaseId": "00000000-0000-4000-8000-000000000103",
+              "variantId": "ranking-vue",
+              "componentId": "ranking",
+              "framework": "vue",
+              "packageName": "@company/charts-vue",
+              "packageVersion": "0.0.12",
+              "packageSha256": "51f19262aecc3d81135aa06fce4b630bd37d297d54487eab8b016b61a5bd38d9",
+              "exportName": "Ranking",
+              "exportPath": "./ranking",
+              "evidence": [
+                {
+                  "kind": "api",
+                  "path": "api/ranking-vue.json",
+                  "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                },
+                {
+                  "kind": "docs",
+                  "path": "docs/ranking-vue.md",
+                  "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+                }
+              ],
+              "compatibility": { "status": "verified", "recordIds": ["synthetic-t16-vue-ranking"] },
+              "examples": [{ "id": "example-ranking-vue-default", "previewEntry": "preview/ranking-vue/index.html" }],
+              "styleExport": "./style.css",
+              "readyMethod": "whenRendered",
+              "notes": []
+            },
+            "props": [
+              { "name": "data", "type": "ChartData", "required": true, "source": "constructor" }
+            ],
+            "events": [
+              { "name": "point-click", "payload": "ChartEvent", "handler": "__proto__" }
+            ],
+            "layout": "column '{{ 7*7 }}'",
+            "gaps": []
+          }
+        ],
+        "exactDependencies": [{ "name": "@company/charts-vue", "version": "0.0.12" }],
+        "gaps": []
+      },
+      "expected": {
+        "componentId": "ranking",
+        "framework": "vue",
+        "importSpecifier": "@company/charts-vue/ranking",
+        "exportName": "Ranking",
+        "styleImport": "@company/charts-vue/style.css",
+        "readyMethod": "whenRendered",
+        "outputExtension": ".vue",
+        "propBindings": [{ "prop": "data", "sourceKey": "constructor" }],
+        "callbackBindings": [{ "event": "point-click", "templateBinding": "@point-click", "handlerKey": "__proto__" }],
+        "mustRetainAsStringKeys": ["constructor", "__proto__"],
+        "forbiddenExecutableSyntax": ["{{ 7*7 }}"]
+      }
+    },
+    {
+      "caseId": "react-proportion-eval-and-quotes",
+      "origin": "synthetic",
+      "componentId": "proportion",
+      "framework": "react",
+      "matchPlanInput": {
+        "schemaVersion": 1,
+        "source": "design-id",
+        "inputDigest": "4444444444444444444444444444444444444444444444444444444444444444",
+        "ruleSetId": "synthetic-t16-rules",
+        "revision": "rev-1",
+        "context": {
+          "framework": "react",
+          "frameworkVersion": "19.3.1",
+          "echartsVersion": "6.1.0",
+          "packageManager": "pnpm",
+          "requirements": []
+        },
+        "elements": [
+          {
+            "instanceId": "inst-proportion-react-1",
+            "designId": "synthetic/Proportion#eval",
+            "status": "mapped",
+            "target": {
+              "variantReleaseId": "00000000-0000-4000-8000-000000000104",
+              "variantId": "proportion-react",
+              "componentId": "proportion",
+              "framework": "react",
+              "packageName": "@company/charts-react",
+              "packageVersion": "0.0.12",
+              "packageSha256": "bbc6a1ad1fba272552cdb6468746c33a246c94f49941dfc8bde746fd9c8c5d28",
+              "exportName": "Proportion",
+              "exportPath": "./proportion",
+              "evidence": [
+                {
+                  "kind": "api",
+                  "path": "api/proportion-react.json",
+                  "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+                },
+                {
+                  "kind": "docs",
+                  "path": "docs/proportion-react.md",
+                  "sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+                }
+              ],
+              "compatibility": { "status": "verified", "recordIds": ["synthetic-t16-react-proportion"] },
+              "examples": [{ "id": "example-proportion-react-default", "previewEntry": "preview/proportion-react/index.html" }],
+              "styleExport": "./style.css",
+              "readyMethod": "whenRendered",
+              "notes": []
+            },
+            "props": [
+              { "name": "data", "type": "ChartData", "required": true, "source": "kpi['__proto__']\n</script>" }
+            ],
+            "events": [
+              { "name": "onPointClick", "payload": "ChartEvent", "handler": "eval('alert(1)')" }
+            ],
+            "layout": "card",
+            "gaps": []
+          }
+        ],
+        "exactDependencies": [{ "name": "@company/charts-react", "version": "0.0.12" }],
+        "gaps": []
+      },
+      "expected": {
+        "componentId": "proportion",
+        "framework": "react",
+        "importSpecifier": "@company/charts-react/proportion",
+        "exportName": "Proportion",
+        "styleImport": "@company/charts-react/style.css",
+        "readyMethod": "whenRendered",
+        "outputExtension": ".tsx",
+        "propBindings": [{ "prop": "data", "sourceKey": "kpi['__proto__']\n</script>" }],
+        "callbackBindings": [{ "event": "onPointClick", "templateBinding": "onPointClick", "handlerKey": "eval('alert(1)')" }],
+        "mustRetainAsStringKeys": ["kpi['__proto__']\n</script>", "eval('alert(1)')"],
+        "forbiddenExecutableSyntax": ["eval('alert(1)')"]
+      }
+    }
+  ],
+  "negativeCases": [
+    {
+      "caseId": "neg-fake-sdk-import",
+      "reason": "伪 SDK import（非真实 @company/charts-* 子路径）必须被拒绝",
+      "framework": "react",
+      "componentId": "line",
+      "expectedRejectedRule": "INVALID_SDK_IMPORT"
+    },
+    {
+      "caseId": "neg-other-component-prop",
+      "reason": "传入另一组件专属 prop 或未知 prop（如 Ranking 传入 xAxisUnit）必须被拒绝",
+      "framework": "vue",
+      "componentId": "ranking",
+      "expectedRejectedRule": "UNKNOWN_OR_FOREIGN_PROP"
+    },
+    {
+      "caseId": "neg-wrong-framework-event",
+      "reason": "跨框架错用事件名（Vue 使用 @onPointClick 或 React 使用 point-click）必须被拒绝",
+      "framework": "vue",
+      "componentId": "line",
+      "expectedRejectedRule": "WRONG_EVENT_NAME"
+    },
+    {
+      "caseId": "neg-unrendered-function",
+      "reason": "仅导入或声明函数但未在模板/JSX 实际渲染组件必须被拒绝",
+      "framework": "react",
+      "componentId": "line",
+      "expectedRejectedRule": "COMPONENT_NOT_RENDERED"
+    },
+    {
+      "caseId": "neg-local-shadowing",
+      "reason": "局部同名声明（const LineChart = ...）遮蔽 SDK 导入必须被拒绝",
+      "framework": "react",
+      "componentId": "line",
+      "expectedRejectedRule": "LOCAL_SYMBOL_SHADOWING"
+    },
+    {
+      "caseId": "neg-unrelated-literal",
+      "reason": "仅在字符串字面量或注释中出现导出名/包名而未真实导入渲染必须被拒绝",
+      "framework": "vue",
+      "componentId": "ranking",
+      "expectedRejectedRule": "UNRELATED_STRING_LITERAL_ONLY"
+    },
+    {
+      "caseId": "neg-trailing-spread-override",
+      "reason": "在必需 prop 之后使用后置 spread（{...extra} / v-bind=\"extra\"）覆盖绑定必须被拒绝",
+      "framework": "react",
+      "componentId": "line",
+      "expectedRejectedRule": "TRAILING_SPREAD_OVERRIDE"
+    },
+    {
+      "caseId": "neg-unknown-required-binding",
+      "reason": "缺少必需 data 绑定或 source/handler 为未知空绑定必须被拒绝",
+      "framework": "vue",
+      "componentId": "line",
+      "expectedRejectedRule": "MISSING_REQUIRED_BINDING"
+    }
+  ]
+}
