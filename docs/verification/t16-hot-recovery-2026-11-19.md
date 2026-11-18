@@ -33,3 +33,41 @@ Ruling：同次 apply 可使用最近一次成功 persistBackup 的可信不可�
 B20 已发送实际 Claude 桌面 GLM-5.3 High，限 `apply.ts` 及 B 原测试 `expectStagingClean` helper；尚未完整接收或验证。D10 实际 Claude Code GLM-5.3 exit 0，交付重复声明删除与 JSON 备份候选过滤两处补丁；机械拼回的是未接收证据候选，D11 正返修摘要断言和部分启动服务器关闭，并须完整采用候选后才能落 tracked。未把文本交付声称为测试通过。
 
 尚未升版、pack 或合 main。产品全 GREEN、D 完整黑盒、独立审查、全图回归及最终冻结消费者通过后，按用户已有授权本地合 main；不 push、tag 或生产发布，保留 worktree 和原始证据。没有真实授权业务项目，完整 T16/T17 保持未验收。
+
+## B20 机械接收与真实 GREEN 补充
+
+实际 Claude 桌面完整回复已确认停写并通过响应 Copy 保存为 `b20-desktop-raw.txt`（11845 bytes，SHA-256 `243cb9c7df9d2db00a7a037ed04c6d77737a611c96d3b86edae1b3328a56d003`）。末尾原文为“未执行；交付完毕，停写待C实”，保留原样；不将作者静态推演计作通过。六个 hunk 的旧上下文均唯一且有序命中，仅机械重算行号；`git apply --check` 后应用。唯一范围为 `apply.ts` 与 `expectStagingClean` helper，原有 manifest/YAML/凭据断言保留，新增精确所有权标记断言。
+
+固定命令及实际结果：
+
+```powershell
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','vitest','run','tests/integration/project-install-isolation.test.ts','-t','日志.*备份','--reporter=json','--outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/c-hot-recovery-green-01.json')
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','vitest','run','tests/integration/project-apply.test.ts','tests/integration/project-rollback.test.ts','tests/integration/project-install-isolation.test.ts','--reporter=json','--outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/product-b20-full-01.json')
+.\scripts\pnpm.ps1 -PnpmArgs @('--filter','@company/component-cli','build')
+.\scripts\pnpm.ps1 -PnpmArgs @('--filter','@company/component-cli','typecheck')
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')
+.\scripts\pnpm.ps1 -PnpmArgs @('verify:workspace')
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','turbo','run','build','typecheck','--force')
+```
+
+三条恢复测试 **51 collected / 3 passed / 0 failed / 48 unselected，exit 0**；完整产品 **134 collected / 134 passed / 0 failed / 0 pending，exit 0**。CLI build/typecheck 和根 fixtures tsc 均 exit 0，构建内 probe73 文件零缺失、污染、链接或改动。workspace 十成员检查通过；全图强制执行 **20/20，0 cached，exit 0**。日志分别为 `b20-cli-{build,typecheck}.log`、`b20-fixtures-typecheck.log`、`b20-workspace.log`、`b20-full-graph-02.log`。首次全图命令同时传 `--force` 和 `--cache=local:rw` 被 Turbo 拒绝，保留 `b20-full-graph.log`，不计作验证；第二次仅 `--force` 完整执行。
+
+架构原文摘要复核仍为 `e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723`。产品最终独立审查已交回既有 reviewer，根测试和最终冻结消费者仍待完成。
+
+D11 实际 Claude Code GLM-5.3 exit 0 / success，明确采用完整候选，但三个 diff 旧上下文中的中文注释被改写，机械匹配失败；另遗漏 `closeAllConnections`，停写声明截为“停写待”。未落 tracked、未执行、未修改 D 正文。D12 已向同一实际作者提供精确小段旧文，要求重交三个修复并完整停写。此次运行状态不证明 D 黑盒通过。
+
+## C21 独立审查 RED 与根回归补充
+
+既有只读 reviewer 对 B20 提出三个 Important：真实源码提交后登记晚于读回、备份 temp 写入后提交前缺少原始路径链复核、安装根 recursive mkdir 会认领窗口内出现的未知用户树。C 仅修改独立测试，不代写 B 产品。
+
+四条 C21 通过真实文件系统注入确认：目标 rename 真实成功后首次 readFile 一次 EACCES；version/latest 的真实 temp 写入后、rename 前移动专用祖先并置换 junction；stage mkdir 前创建无标记普通树及用户 sentinel。备份两例保留 outside 的完整字节快照（包括真实 temp），禁止沿不可信路径提交或清理。首版 `c21-review-red-01` 保留作历史，最终夹具以 `-02` 的提交窗口为准。
+
+```powershell
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','vitest','run','tests/integration/project-apply.test.ts','tests/integration/project-install-isolation.test.ts','-t','C21','--reporter=json','--outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/c21-review-red-02.json')
+```
+
+实际 **109 collected / 0 passed / 4 failed / 105 unselected，exit 1**。四条均在实质断言失败，无收集错误：残留源码原树 2 项变 6 项、version/latest 改动 outside、用户 sentinel 被删除。B21 已发送实际 Claude 桌面 GLM-5.3 High，限 apply/backup/install 三文件必要精确 diff，详见 [B21 brief](../superpowers/plans/2026-11-19-t16-b21-review-brief.md)。尚未接收或修复，不撤销历史 B20 134/134 的范围证据。
+
+根 typecheck 日志为 14/14、14 cached；缓存输出本身不代替前述强制全图 20/20 零缓存。随后根 test 实际结束 exit 1：T10 node:test **161 passed / 7 skipped / 0 failed**；普通 Vitest **89 文件（88 passed / 1 failed），1749 tests（1744 passed / 3 failed / 2 skipped）**。三失败对应新增 C21 的源码及两备份用例。根测试启动后测试文件发生 C21 补测更新，stage 新例未计入该次根结果；不得称根回归通过，B21 接收后需完整复跑。日志 `b20-root-{typecheck,test}.log` 保留。
+
+D12 receipt 确认十分钟超时、无 parseable result，输出仅持续 thinking（未取得完整测试交付）；8,146,668 bytes 原始 NDJSON 与摘要 `171ffb4bc950ca7e9fc6c27ad8de5af98be35ff56df158e5f8408c49e98b1316` 保留。未拼接部分文本或修改 D 正文。改为同模型更小替换片段请求，单进程降低 thinking/output 上限，不改全局配置。D 完整黑盒、最终冻结消费者与本地 main 合并继续待全部门槛通过。架构原文摘要再次与基线一致。
