@@ -489,15 +489,15 @@ flowchart LR
 
 ### T16：依赖安装、框架代码与数据事件接入（三期，14–20 人日）
 
-2026-11-19 新增技术检查点：B26 产品 141/141，CLI `0.0.14` 已一次 pack；同一冻结 CLI 的真实仓外矩阵/配置拒绝/Next 共 13 项、浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5。根完整复跑 1753 项及 T10 168 项通过；平台首轮 135 项通过、2 项跳过，独立补验 2/2 通过。D 安装恢复及字段控制待最终结果；本地 main 尚未合并。下面前三项已具备产品和 synthetic 工程证据，最终技术收口后更新其子项；真实授权 Vue/React 业务项目仍缺，最后一项与完整 T16/T17 保持未完成。详见 [冻结技术验收](../../verification/t16-technical-acceptance-2026-11-19.md)。
+2026-11-19 新增技术检查点：B26 产品 141/141，CLI `0.0.14` 已一次 pack；同一冻结 CLI 的真实仓外矩阵/配置拒绝/Next 共 13 项、浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5。根完整复跑 1753 项及 T10 168 项通过；平台首轮 135 项通过、2 项跳过，独立补验 2/2 通过。实际 D 新增安装/备份/字段/恢复四段黑盒 1/1、零失败或跳过。下面前三项依据产品与冻结 synthetic 工程证据完成；最终全树审查和本地 main 复验仍在推进。真实授权 Vue/React 业务项目仍缺，最后一项与完整 T16/T17 保持未完成。详见 [冻结技术验收](../../verification/t16-technical-acceptance-2026-11-19.md)和[独立 D 记录](../../verification/t16-d-installed-recovery-2026-11-19.md)。
 
 **Files:** 创建 `packages/component-cli/src/integration/{apply,install,generate-vue,generate-react,patch}.ts`、`templates/{vue,react}/`；`tests/integration/project-apply.test.ts`。
 
 **Interfaces:** `applyIntegration(root,plan): ApplyResult`；命令 `component integrate apply --plan <file>`。ApplyResult 含 changedFiles、beforeHashes、afterHashes、installedVersions、backupRef。生成器消费真实 API 和 MatchPlan，不编造业务接口与鉴权。
 
-- [ ] 写失败测试：未知 props/事件阻断生成，hash 不符拒绝应用，锁文件安装失败可恢复，用户现有修改保留；Vue 必须生成 SFC，React 必须生成 TSX。
-- [ ] 实现受控依赖安装与目标锁文件更新；把新增布局/数据适配/事件函数局限到计划路径。未知数据接口生成显式待接入项并让验证失败或报告缺口，不用假接口宣称完整成功。
-- [ ] 应用前保存受影响文件原始字节；记录自身修改；回退前做 afterHash 检查，只恢复仍匹配本次输出的文件，避免抹掉用户后续编辑。
+- [x] 写失败测试：未知 props/事件阻断生成，hash 不符拒绝应用，锁文件安装失败可恢复，用户现有修改保留；Vue 必须生成 SFC，React 必须生成 TSX。原 RED 62/62，最终产品 141/141，独立 D 冻结黑盒 5/5 和新增四段 1/1。
+- [x] 实现受控依赖安装与目标锁文件更新；把新增布局/数据适配/事件函数局限到计划路径。未知数据接口生成显式待接入项并让验证失败或报告缺口，不用假接口宣称完整成功。冻结八矩阵实际安装/构建/迁移及 Next/配置拒绝通过。
+- [x] 应用前保存受影响文件原始字节；记录自身修改；回退前做 afterHash 检查，只恢复仍匹配本次输出的文件，避免抹掉用户后续编辑。产品真实故障回归及 D 备份、篡改、冷拒绝、原字节恢复通过；不承诺 node_modules 回滚。
 - [ ] 在两个真实类型的样例项目运行测试与构建，再到授权试点项目生成可审查 diff；提交工具实现。
 
 ### T17：本地验证、有限修复与 MCP 暴露（三期，13–18 人日）

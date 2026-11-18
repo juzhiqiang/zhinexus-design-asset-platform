@@ -4,6 +4,8 @@
 
 **Goal:** 接续 T15，交付受控安装、Vue/React 代码生成、备份及保留用户编辑的恢复；没有真实项目时保持完整 T16 未验收。
 
+2026-11-19 当前收口检查点：B26 产品 141/141、契约与镜像 166/166、冻结消费者 13 项、浏览器 287 项、冻结 T15 25 项均已通过；实际 D 既有冻结黑盒 5/5，新增 16 个模块完成真实安装、备份、字段篡改与恢复四段，1/1、零失败/skipped/todo。CLI 0.0.14 保持同一冻结 tarball。最终树 frozen install、workspace、强制全图 20/20（0 cached）和根回归 Vitest 1753/1753、T10 168/168 均已通过；D 增量终审无新增 Critical/Important/Minor，保留既有两项 Minor。D 模块及 C 桥接已聚焦提交，最终文档审查、本地 main 合并与 main 复验继续推进。完整 T16/T17、真实授权 Vue/React 业务项目与生产 G2 保持开放。详见 [技术验收](../../verification/t16-technical-acceptance-2026-11-19.md) 和 [实际 D 新增记录](../../verification/t16-d-installed-recovery-2026-11-19.md)。下方检查点为保留的历史证据。
+
 **Architecture:** C 先冻结四个新增协议与 fixture；B 在现有 CLI 实现 apply/install/generate/rollback；A 提供独立预期，D 做黑盒恢复验收，C 集成真实冻结 CLI/SDK 与服务。已有 inspect/plan 零写入和 schemaVersion 保持兼容。
 
 **Tech Stack:** 固定 Windows x64 / Node 26.13.0 / pnpm 12.18.0 / TypeScript 7.0.2 / 既有 Vitest、本地 Playwright 与三存储；npm lock v3 / pnpm lock v9。
@@ -70,7 +72,7 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 ### Task 3: A / P2 与 D / P3 独立验收
 
 - [x] A 实际 Antigravity 交付安全字符串绑定、SFC/TSX、14 实现 API 差异和独立案例期望；不改 B 或 contracts。独立预期收口于 `0504d599`，三轮 18/18、窄 TS7 exit 0；此项不替代冻结消费者的真实类型/构建验收。
-- [ ] D 实际 Claude Code 以构建 CLI 独立进程验证授权、未知字段、hash 改变、失败恢复、用户后续编辑保护和副作用范围；不从产品计算 expected。
+- [x] D 实际 Claude Code 以冻结安装 CLI 独立进程验证授权、未知字段、hash 改变、失败恢复、用户后续编辑保护和副作用范围；不从产品计算 expected。既有 D26 5/5，新增安装恢复 1/1、零失败/skipped/todo；冷 stale 控制不声称运行时竞态。
 
 ### Task 4: C / P4 集成与本地收口
 

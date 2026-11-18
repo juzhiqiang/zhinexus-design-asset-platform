@@ -4,7 +4,7 @@
 
 ## 当前收口状态
 
-产品与冻结消费者已通过下列检查。根完整复跑及平台专项已得到最终通过结果；D 安装恢复和字段篡改待原作者交付与验证，尚未合 main。缺少真实授权 Vue/React 业务项目，完整 T16/T17 与公司生产验收保持开放。
+产品与冻结消费者已通过下列检查。根完整复跑及平台专项已得到通过结果；实际 D 的 16 个新增模块已交付停写，经机械接收运行真实冻结安装、备份、字段篡改和恢复四段黑盒，1 个顶层测试通过，零失败或跳过。最终全树审查、本地 main 合并和 main 复验继续推进。缺少真实授权 Vue/React 业务项目，完整 T16/T17 与公司生产验收保持开放。
 
 ## 单一冻结材料
 
@@ -35,6 +35,7 @@
 | 根完整复跑 | `test --maxWorkers=2`，同一冻结 T10 输入 | Vitest 89 文件/1753 测试，T10 168 测试全部通过，零失败/skipped/todo，exit 0 | `cli-0014-root-test-02.log` |
 | 平台专项 | `test:platform` | 33 文件/135 测试通过，2 文件/2 测试因缺画廊 origin 跳过，exit 0 | `cli-0014-platform.log` |
 | 两项真实画廊补验 | 启动已构建 gallery preview，设置 `PHASE2_GALLERY_ORIGIN` 后运行 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/matching-gallery.test.ts tests/platform/search-gallery.test.ts` | 2 文件/2 测试全部通过，零跳过，exit 0 | `cli-0014-platform-gallery.log` |
+| D 新增冻结安装恢复 | `exec vitest run --config tests/acceptance/t16-installed.config.ts -t 'D independently verifies installed frozen CLI installation and recovery'`，指向指定 D 主 runner | Vitest 14 collected / 1 passed / 0 failed / 13 unselected；实际 D 子进程 1/1、零 skipped/todo、exit 0 | `cli-0014-d-installed-01.json/.log`、仓外 `d-installed-recovery-process.json` |
 
 13 项消费者覆盖 Vue/React × npm/pnpm × standalone/workspace 的八组实际安装、类型/构建与迁移，四组 hostile 配置拒绝，以及 Next Server Page 控制。顶层 D 桥接刻意被筛选排除，不能将该报告写成 14/14。该轮随机隔离服务 ID `6372fbed-97be-4908-9d8d-0eb7e018f27d`；仓外证据目录后缀 `zhinexus-t16-installed-HYtFn4`，其中 `frozen-cli.json` 核对安装版本和 tarball 摘要；测试通过仓外 `node_modules/@company/component-cli/dist/bin.js` 启动真实 CLI 证明安装入口。T15 隔离服务 ID `29be1321-3975-4edf-8588-2ef5aace2023`。所有本机真实服务证据均为 `productionAcceptance: false`。
 
@@ -58,3 +59,22 @@ B26 原始交付 SHA-256 `3fa689e38c56e1676808ac7d4df13d62fc800b800b71c6b2a92241
 C 浏览器路由及 D 桥接增量只读审查为 Critical/Important/Minor 均 0；桥接未执行，不计验收通过。当前文档两项 Minor（五份当前状态及 frozen-cli.json 入口证据措辞）修正后复核关闭；限定复核无新增问题。记录 `c-frozen-docs-readonly-review-2026-11-19.md` SHA-256 `6de3dda91192fb4c8d057bf7d75ee39925ce2923bc557bda38b57ca129dca01b`。最终 D 增量与 main 仍待后续验收和审查。
 
 本轮不 push、不 tag、不生产发布，保留全部 worktrees 与原始证据。真实授权业务项目、公司 OIDC/独立预览域及完整生产 G2 不由 synthetic 消费者结果替代。
+
+## 最终 D 新增黑盒补验
+
+上述“D 桥接未执行”和“D 增量待验收”为较早审查时点。2026-11-19 最终实际执行已通过：随机三存储服务 `c9692e53-c49f-4717-b2c7-58ac697c5607`，仓外 `zhinexus-t16-installed-aIvqa2` 安装同一冻结 CLI，D 工程 `t16-d-xdG6GV` 完成四段真实控制。原始正文、拒收与明确授权收据、逐字段篡改、真实旧不可变版本及有效恢复的范围和 SHA-256 见 [独立新增记录](t16-d-installed-recovery-2026-11-19.md)。没有重新 pack，没有以导出 helper 的语法检查或空测试替代真实执行。冷 stale-ref 不声称运行时竞态；用户后续编辑保护由既有 D26 和产品回归覆盖。
+
+## 合并前最终树检查与接收提交
+
+2026-11-19 顺序执行 `install --frozen-lockfile`、`verify:workspace`、`exec turbo run build typecheck --force`、`test --maxWorkers=2`，各命令经 `scripts/pnpm.ps1 -PnpmArgs @(...)` 执行，四个 exit 均为 0。固定冻结 SDK 同时设为 `A10_FROZEN_BUNDLE` 与 `ZHINEXUS_SDK_BUNDLE_DIR`。工作区 10 成员且服务依赖闭包合规；强制全图 20/20、0 cached；根 Vitest 89 文件/1753 测试与 T10 168 测试全部通过，零失败或跳过。日志与独立 `.exit.txt` 位于上述证据根，不改写此前命令结果。
+
+| 最终检查日志 | SHA-256 |
+| --- | --- |
+| `final-install.log` | `ae4a603ff2e917e8e8eb2a7685725033b745d004f1b726ca08f758fcd51c0c64` |
+| `final-workspace.log` | `6937eb8c08c6db032212b3ac8189bd2d5ae43801e6e3641c8ff956a7d3161732` |
+| `final-force-build-typecheck.log` | `326294787f5e15e0a85a5a659dcbeb02ef49a94b53f4be63d93774d601825b88` |
+| `final-root-test.log` | `244bfde5ea7c68b803b8d7346b20ae16c3bf8ed353f9cf1dc2eaa873bfea33f6` |
+
+D/C 增量终审记录 `c-d-bridge-current-review-2026-11-19.md` 此时 165094 bytes，SHA-256 `15e666bdbebf4cc6cb9fe700a5b3881c2d33dcf9f1242ee9dea249ec7ef63445`；16 模块与实际作者来源摘要一致，11 份保留候选与目标全文一致，新增 Critical/Important/Minor 均 0，既有两项 Minor 保留。此结论覆盖 D/C 增量及真实 GREEN，最终全树文档与 main 复验另行记录。
+
+实际 D 分支提交 `9bca63fd`，16 文件/563 新增行；B/C 原样 cherry-pick 为 `11659bca`。C 桥接提交 `b20921b9`，仅 17 行环境与进程编排，所有安装/恢复断言仍由实际 D 模块拥有。Git 原 `.gitattributes` 的 `.mjs` 为 `text=auto`、未指定 eol，仓库 `core.autocrlf=true` 导致 add 的 LF→CRLF 提示；实查全部 16 文件 index/worktree 均 LF、无纯行尾改动，未修改规则或作者正文。此时 main 尚未合并；main 默认 D 文件路径的真实复验继续推进。
