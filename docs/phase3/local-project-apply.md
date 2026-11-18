@@ -2,6 +2,10 @@
 
 状态：2026-11-18 开发审查修复中。B08 后产品窄测 117 条，97 通过、20 失败、无 pending；失败项阻断合并。B05 的产品 84/84 与真实隔离安装/构建/迁移矩阵 12/12 保留为历史阶段证据。D 首条参数黑盒已通过真实开发 CLI，完整独立黑盒、全量回归与最终冻结 CLI 验收尚未完成。完整 T16 仍需真实授权 Vue/React 业务项目，T17 独立待验收。见 [产品审查记录](../verification/t16-product-review-2026-11-18.md) 和 [实际客户端交付记录](../verification/t16-client-text-delivery-2026-11-18.md)。
 
+后续状态补充：B10 完整产品120条，106通过、14失败、无pending，exit1；D参数拒绝黑盒4/4通过，仅证明该已测范围。B11修复与D授权apply/恢复案例继续推进，安装末摘要、依赖安全、既有依赖树journal及Next/RSC等仍阻断最终交付。最终冻结CLI、全量回归和main合并尚未完成，前文B08/B05结果保留为历史。
+
+最新独立检查点：B11 五条回归全部通过，完整产品120条中111通过、9失败，exit1。B12依赖协议/候选锁修复执行中。D授权apply/rollback首份源码尚不符合公开接口及真实证据要求，已纠正brief后退原作者；未执行或通过该成功控制。依赖树quarantine/journal、Next/RSC及异常恢复边界继续验收，技术交付和main合并未完成。
+
 先按 [只读接入计划](integration-plan.md) 执行 inspect/plan，把计划 JSON 保存到目标工程外。计划的 `executionAuthorized` 始终为 `false`；每次显式 apply 调用授权当前工程和计划，随后重新检查文件摘要、发布资格和 API。
 
 ```text

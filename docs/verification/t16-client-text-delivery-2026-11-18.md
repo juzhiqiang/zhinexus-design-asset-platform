@@ -117,3 +117,27 @@ $env:INSTALLED_CLI_EVIDENCE='D:\project\zhinexus-design-asset-platform\.tools\sd
 D 实际 Claude Code GLM-5.3 修正版会话从 `2026-11-18T13:43:05.668Z` 至 `13:46:50.079Z`，child exit 0、timedOut false、is_error false、success、num_turns 1。stdout SHA-256 `2cd98932432d0428cb4ce7ef91eca780caae185d5489898b22c5bc4eef05369d`。C 仅提取完整 fenced 原文并补末尾 LF，落盘 D 指定 worktree 的 `tests/acceptance/t16-d/cli-required-arguments.test.mjs`，源码 SHA-256 `63824ed39fa0aff40c9668ee9cbfe4f0c227b718fbef3a6b2ddc960ae3e6064b`。固定 Node 26.13.0 `node --check` exit 0；设置 `T16_D_CLI_ENTRY` 为 B+C 开发 CLI 后 `node --test` **1 passed/0 failed/0 skipped/0 todo，exit 0**。缺 plan 拒绝、严格单 JSON/exit 1、synthetic tokens 零回显、工程/backup 快照零变化和 lifecycle marker 未执行均通过。证据为 `d-required-arguments-dev-green-01.log`、`d-single-repair-source-receipt.json`；临时目录 `t16-d-cli-required-bBnezt` 保留。
 
 B09 已真实发送四条写入/恢复 RED；D 三条输入拒绝任务于 `2026-11-18T13:52:33.230Z` 启动（`d-glm-input-matrix-01`，7078 bytes prompt，GLM-5.3、tools 空、max-turns 1）。本检查点尚无新交付，不报告通过。CLI 升版、一次冻结 pack、完整技术验收和本地 main 合并待通过；缺真实授权业务项目，完整 T16/T17 保持未完成。
+
+## B10 与 D02 接收补充
+
+最后一个文档检查点为 `2ddc543bfa9286c58869e9b645d2c68efc6c53c1`。本节追加后续原始作者交付与实跑证据，不覆盖前文。
+
+B09 原文 SHA-256 `80d1b03e742bb42ed26d6850898cbd43e0be530bd0f08fc978a611b000b679a0`；完整产品 120/100/20/0、四窄测 3 passed/1 failed，均 exit 1。C 在真实 validator 诊断后纠正首次提交前并发用户新建文件的测试期望：零产品写入不得返回 recovery-required，应 rolled-back、空写入证据、not-run、有效 backupRef 与 WRITE_FAILED；用户原字节始终保留，不放宽契约。纠正测试先 RED，再由 B10 转 GREEN，详见 [产品审查补充](t16-product-review-2026-11-18.md)。
+
+B10 原文 `b-glm-original-reply-10.md` 由实际 Claude 桌面最后一条消息 Copy 保存为 UTF-8 无 BOM，SHA-256 `a96859a13830837666d5433956117792e2863e5e1e33a51ec77207e09c1ed0cf`。`receive-b-text.mjs 10` 只提取完整 fenced diff，对 apply.ts/backup.ts 逐一精确核对旧文；机械行尾与 hunk 头处理后两份 --check exit 0，再按相同参数应用。C 未改写作者产品正文。CLI build/typecheck/probe 73 文件通过，完整产品 **120/106/14/0，exit 1**；五条真实 backup 链接拒绝和首次零提交恢复转 GREEN。证据为 `b10-{build,typecheck}-01.log` 与 `product-b10-review-full-01.{json,log}`。
+
+D02 实际 Claude Code GLM-5.3 无工具文本任务运行 `2026-11-18T14:04:52.978Z`–`14:07:24.771Z`，child exit 0、is_error false、success、num_turns 1；保持全局模型配置。stdout SHA-256 `bbb7ceb8299ef003a83f649eca825ab3ea9e46673e434ff8e2180ba560345289`，完整源码 SHA-256 `4115e201f3c8dd4dafd38b343bb668297c06b86b16aead70a029989461edce81`。C 逐字提取 fenced body，加末尾 LF；作者 BEGIN_D_FILE 标记误发成 _FILE，已记录 receipt；正文范围仅四处 INVALID_PLAN→INVALID_MATCH_PLAN、一处 MatchPlanV1→IntegrationPlanV1。落盘指定 D worktree 的 cli-input-rejection.test.mjs，固定 Node --check exit 0。
+
+D 两文件真实运行：设置 `T16_D_CLI_ENTRY` 为 B+C `packages/component-cli/dist/bin.js`，固定 Node 26.13.0 执行 `--test tests/acceptance/t16-d/cli-required-arguments.test.mjs tests/acceptance/t16-d/cli-input-rejection.test.mjs`，**4 passed / 0 failed / 0 skipped / 0 todo，exit 0**（`d-input-rejection-dev-03.log`）。02 曾误用 dist/cli.js，不属于有效产品失败，日志保留；03 更正入口。新增覆盖 apply 缺 allow-install、合法 JSON 不符公开计划、rollback 缺 backup-sha256，严格 JSON/exit、synthetic token 不回显、两根快照和恶意 script marker 未执行均通过。此范围仍不证明授权 apply、恢复或冻结安装成功。
+
+D 后续真实 apply/rollback 六案例文本任务于本地 22:21 启动，GLM-5.3、tools 空、max-turns 1、effort low，独立原生进程仍运行，尚无完整交付，不能报告通过。公开上下文提示为 `d-glm-apply-recovery-01-prompt.txt`。B11 纯文本修复任务已真实发出；当前只能报告产品106/120和参数黑盒4/4，所有最终门槛保持未完成。
+
+## B11 / D apply-recovery 续接证据
+
+B11 在实际 Claude 桌面 GLM-5.3 High 完整交付并停写；Copy 原文 SHA-256 `40fa2df8d6778cc8852b83d878bc53ff72b341bda2cb417e20d112e108c27e63`。`receive-b-text.mjs 11` 机械接收 bindings.ts/apply.ts，唯一精确旧文、两份 --check exit 0 后 apply。固定 build/typecheck/probe 通过，五窄测5/5，完整120/111/9/0 exit1，详见产品审查补充。B12提示90123字节已真实发送，仅授权八条现有依赖输入/候选锁RED；当前实际窗口显示 GLM-5.3 High 正在执行，未接收新源码。
+
+D 六例第一轮实际运行 `2026-11-18T14:21:24.644Z`–`14:39:18.948Z`，child exit1、error_max_turns、实际 num_turns2（args max-turns1），没有源码。stdout SHA-256 `8e107d4ff86ead989e7daac820011970265b3eba7a4c37231ee3513b129861f9`。原生会话只有 thinking 与不存在的 Pencil skill 调用，不能算交付。
+
+D 单成功控制第二轮实际运行 `2026-11-18T14:43:16.571Z`–`14:51:43.031Z`，child exit0、timedOut false、is_error false、success、实际 num_turns4（args max-turns2），GLM-5.3。prompt7899字节 SHA-256 `9e358e147289214f56d25102e20ecff3c7c2a1f8d4ccc4ba4d83225c437d2d9a`；stdout18796字节 SHA-256 `05ef80dc00186913b5dcdf96c8c0ec6f2792de17a5635c9ddd04556e29c7c0bf`，result16766字符。完整文件源码存在，但 ESM __filename、API路径、env键、registry地址、MatchPlan写错文件、plan漏registry、YAML及备份/快照断言等有错误；末尾没有完整停写标记。C未机械落盘或执行，不能当通过。
+
+其中 API 路径和无安装备份候选预期为 C brief 错误，已按公开端点与 IntegrationBackupV1 纠正，未改产品。第三轮于 `2026-11-18T14:56:31.664Z` 启动，prompt32865字节，只要求同一个成功控制原作者返修，GLM-5.3/no tools，未改全局配置。证据前缀 `d-glm-apply-recovery-0{1,2,3}` 保留 prompt/raw/stderr/receipt，第三轮尚无最终结果。参数黑盒4/4历史范围不扩大到apply/rollback或冻结消费者。

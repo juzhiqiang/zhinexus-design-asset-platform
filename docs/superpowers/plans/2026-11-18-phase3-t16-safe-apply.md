@@ -8,6 +8,8 @@
 
 **Tech Stack:** 固定 Windows x64 / Node 26.13.0 / pnpm 12.18.0 / TypeScript 7.0.2 / 既有 Vitest、本地 Playwright 与三存储；npm lock v3 / pnpm lock v9。
 
+2026-11-18 独立续接检查点：B11 五条回归5/5，完整产品120 collected/111 passed/9 failed/0 pending，exit1；B12八条依赖输入与候选锁RED已交实际桌面，旧树quarantine和未补边界仍开放。D apply/recovery首轮无源码失败，第二轮完整源码有错误尚未接收；C纠正公开API路径和无安装备份候选brief后退实际Claude Code第三轮。完整GREEN、全图/浏览器、升版与冻结消费者通过后才本地合main，保留全部worktrees和原始证据，不push。见两份2026-11-18独立验证记录，前文历史不改。
+
 **Spec:** [T16 设计](../specs/2026-11-18-phase3-t16-design.md)，上位 T16 条目与 T15 交接保持原验收边界。
 
 ## Global Constraints
@@ -80,3 +82,5 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 2026-11-18 第五份 B 安装文本补丁：scope workspace junction 按精确成员资格重建，已知 pnpm 根元数据经普通/非硬链接检查后省略，未知条目仍失败关闭。原文 SHA-256 `c28eaa7883d61fc632d87a775396c8c72b12f599e6e48d17891f2d32cb7454d9`，C 机械应用后 build/typecheck、probe 73 文件、产品窄测 84/84 和 diff 检查通过。完整八组真实安装/迁移与四组 hostile 配置矩阵正在执行，D 大上下文无 stdout 已结束并保存 receipt，小上下文 GLM-5.3 重试仍等待；产品只读审查已确认接收。详细证据与未覆盖边界追加在上述实际客户端记录，最终冻结 CLI、全量验收与本地主分支合并保持待通过，不清理 worktrees。
 
 2026-11-18 独立审查修复补充：第五轮开发 CLI 真实矩阵最终 12/12、exit 0，仍需最终冻结产物复验。B05 独立审查发现 13 项 Important；C 新增 RED 后 B06/B07/B08 完整产品结果依次为 97/91/6、115/93/22、117/97/20（collected/passed/failed，均零 pending、exit 1）。B08 四条安装配置清理与包名 RED 转 GREEN，固定 build/typecheck 和 probe 通过。D 首份完整修正版黑盒真实执行 1/1、exit 0，只证明缺 plan 边界。B09 四条写入/恢复修复及 D 三条输入拒绝任务运行中；[产品审查记录](../../verification/t16-product-review-2026-11-18.md)逐项保留已覆盖和未覆盖范围。Task 3/4、最终冻结 CLI、全量验收和 main 合并仍未完成；保留全部 worktrees、原始证据及架构原字节。
+
+2026-11-18 B10/D02 新补充：B09 完整 120/100/20，B10 为 120/106/14（均零 pending、exit 1），固定 CLI build/typecheck/probe73通过。C 首写并发测试按真实契约纠正后 RED→B10 GREEN，零产品提交返回 rolled-back；backup五类真实链接拒绝转 GREEN。D 参数拒绝两文件实际开发 CLI 黑盒4/4、exit0，先前误用 dist/cli.js 的失败保留并以 dist/bin.js 重跑更正。B11 已交实际 Claude 桌面修前5条RED；D六条授权apply/恢复任务仍等完整原文。独立 journal、Next/RSC、cleanup宽故障、依赖校验与既有依赖树交付、冻结矩阵、全量回归和本地合main仍待通过，Task3/4及完整T16/T17不勾完成。详细原文摘要与命令追加于[实际客户端交付记录](../../verification/t16-client-text-delivery-2026-11-18.md)，保留工作树和证据，不push。

@@ -48,3 +48,23 @@ D 首个完整修正版原始 stdout SHA-256 `2cd98932432d0428cb4ce7ef91eca780ca
 20 条实质产品失败及未补审查边界继续交原作者修复。B09 已发送四条写入/恢复 RED，D 新增三个输入拒绝案例的文本任务已启动；交付不等于验收。最终需要完整独立 D、真实安装矩阵重跑、强制全图零缓存、根 typecheck/test 和受影响平台/浏览器验收，再升 CLI 版本、一次 pack 冻结并以同一 CLI/SDK 验收。未经这些结果不得合 main。
 
 不要求跨多个目录原子事务、不触碰冻结 SDK 或原架构。缺真实授权 Vue/React 业务项目，因此技术验收即使通过，也不将完整 T16/T17 勾为完成。
+
+## B09–B10 与恢复期望纠正的独立补充
+
+本节追加新证据，前文 B08 状态保留为历史。B09 完整三文件套件为 **120 collected / 100 passed / 20 failed / 0 pending，exit 1**（`product-b09-review-full-01.{json,log}`）；四窄测为 3 passed / 1 failed / 77 未选择，exit 1（`product-b09-four-green-01`）。不可把窄测 reporter 的未选择计入执行通过，也不可沿用 B08 的 117 条口径。
+
+C 纠正之前首写并发测试的恢复期望：用户在首次提交前新建文件，产品没有提交，`changedFiles`、`beforeHashes`、`afterHashes` 为空、`installState=not-run`。诊断中的 `recovery-required`、`WRITE_FAILED+USER_EDITED` 被真实 validator 拒绝，原诊断为 `Unresolved recovery requires write or installation side-effect evidence`。用户字节已保留，不应把用户写入伪造为产品副作用。C 移除诊断 spy，永久测试改为零提交 `rolled-back`、有效 backupRef、空写入证据、not-run 和同路径 WRITE_FAILED；未放宽契约。纠正后 RED 为 1 failed / 53 未选择，exit 1（`product-c-apply-late-create-corrected-red-01`）；B10 完整运行该例 GREEN。已提交后用户编辑仍走 preserved/USER_EDITED，独立 rollback 保留全部备份候选四组覆盖。
+
+B10 原文 SHA-256 `a96859a13830837666d5433956117792e2863e5e1e33a51ec77207e09c1ed0cf`。C 只机械接收 backup.ts 和 apply.ts 两份完整 diff，旧上下文唯一匹配，只统一行尾、重算 hunk 头；两份 `git apply --unidiff-zero --check` exit 0 后用相同选项应用。实跑 CLI build/typecheck exit 0，内联 probe 73 文件全部符合（`b10-build-01.log`、`b10-typecheck-01.log`）。原架构摘要保持 `e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723`。
+
+完整三文件套件命令与前文相同，输出改为 `product-b10-review-full-01.json`：**120 collected / 106 passed / 14 failed / 0 pending，exit 1**。B10 六条 RED 转 GREEN：首写零提交合法恢复，以及 latest-hardlink、operation-junction、root-junction、version-hardlink、versions-parent-junction。原路径逐级 lstat 及不可变版本复核已覆盖这些案例；父链变换、临时写独占和 cleanup 更广泛故障仍待补测，五条通过不能代表整个 backup 发现闭环。
+
+14 条仍失败：React/Vue 可选 chart-color 生成不可编译源码 2 条；物化期间改组件/清单/锁后仍 applied 3 条；非目标成员六类禁止协议在候选锁前未阻断 6 条；SDK 候选锁 integrity/origin 偏离后仍启动物化 2 条；安全既有 node_modules 未实施 quarantine 1 条。实际 B11 已收到前 5 条修复任务，限定 bindings.ts/apply.ts；其余依赖安全、逐目录 journal、Next/RSC 和异常出口继续独立验收。产品、冻结消费者、全图回归及 main 合并仍未完成。
+
+## B11 实跑与下一轮边界
+
+B11 原文 SHA-256 `40fa2df8d6778cc8852b83d878bc53ff72b341bda2cb417e20d112e108c27e63`；bindings.ts 一 hunk、apply.ts 三 hunks 的旧文均唯一精确匹配。C 只统一行尾并重算 hunk 头，两份 `git apply --unidiff-zero --check` exit 0 后按相同参数应用。未改写产品正文。固定 CLI build/typecheck exit 0，probe 73 文件复核通过；真实 dist/integration/apply.js 已包含最终摘要复核逻辑。
+
+固定 wrapper 执行 `exec vitest run tests/integration/project-apply.test.ts tests/integration/project-install-isolation.test.ts -t '可选 chart-color|物化期间用户修改' --reporter=json --outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/b11-focused-01.json`：**5 passed / 0 failed / 88 未选择，exit 0**。完整三文件命令同前文，报告 `product-b11-review-full-01.json`：**120 collected / 111 passed / 9 failed / 0 pending，exit 1**。日志为 `b11-{build,typecheck}-01.log` 与两个报告同名 `.log`。未选择不能计作执行通过。
+
+第十二轮实际 B 桌面已收到剩余八条依赖协议和候选锁身份 RED，仅允许 install.ts/apply.ts；本检查点未收到其源码。安全旧树 quarantine 仍有一条 RED；多目录 journal、部分交付、Next/RSC、备份父链/独占/同卷及 cleanup 自身失败仍需独立覆盖。完整 GREEN、冻结产物与 main 合并门槛未变。
