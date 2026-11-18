@@ -489,6 +489,8 @@ flowchart LR
 
 ### T16：依赖安装、框架代码与数据事件接入（三期，14–20 人日）
 
+2026-11-19 新增技术检查点：B26 产品 141/141，CLI `0.0.14` 已一次 pack；同一冻结 CLI 的真实仓外矩阵/配置拒绝/Next 共 13 项、浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5。根完整复跑 1753 项及 T10 168 项通过；平台首轮 135 项通过、2 项跳过，独立补验 2/2 通过。D 安装恢复及字段控制待最终结果；本地 main 尚未合并。下面前三项已具备产品和 synthetic 工程证据，最终技术收口后更新其子项；真实授权 Vue/React 业务项目仍缺，最后一项与完整 T16/T17 保持未完成。详见 [冻结技术验收](../../verification/t16-technical-acceptance-2026-11-19.md)。
+
 **Files:** 创建 `packages/component-cli/src/integration/{apply,install,generate-vue,generate-react,patch}.ts`、`templates/{vue,react}/`；`tests/integration/project-apply.test.ts`。
 
 **Interfaces:** `applyIntegration(root,plan): ApplyResult`；命令 `component integrate apply --plan <file>`。ApplyResult 含 changedFiles、beforeHashes、afterHashes、installedVersions、backupRef。生成器消费真实 API 和 MatchPlan，不编造业务接口与鉴权。

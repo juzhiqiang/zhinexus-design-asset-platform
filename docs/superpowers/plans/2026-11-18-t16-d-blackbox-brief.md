@@ -1,5 +1,11 @@
 # T16 D / P3 独立 CLI 黑盒验收交接
 
+2026-11-19 当前冻结交接：CLI `0.0.14` tarball SHA-256 `94ecf07ebd1f3bb10bb78e0b35cb01e7b7bb851ba1ebf2884b0047a244f24207`；B26 产品 141/141，D 既有三文件在仓外实际安装入口 5/5。D27 超时无源码，D28 静态错误未接收；D29 独立辅助文件、后续主测试和字段控制由实际 Claude Code GLM-5.3 原作者继续交付。当前不合 main，历史 brief 状态保留。C 提供真实 API/registry、同一冻结 SDK、固定 Node/npm 和已安装 CLI 入口；所有 D 断言仍由实际 D 编写。
+
+纠错：`changedFiles` 是 `string[]`，`beforeHashes` / `afterHashes` 是 `{path,exists,sha256?}[]`，`installedVersions` 是 `{name,version}[]`；备份 `originalBase64` 在 files 项上，与 `before` 同级。URL 环境不能使用文件绝对路径判断；Windows 协议 root 使用规范化正斜杠，与实际路径独立归一后比较。基线 npm 不继承进程凭据或用户 npm 环境，两个空 config 必须为普通文件。源码快照只排除根 `node_modules`，备份快照不排除条目；两者 lstat 拒绝链接/硬链接。生命周期毒脚本必须实际写到传入的本轮绝对 marker。禁止占位断言或把数组索引当路径。
+
+冷无效备份公开 CLI：exit 1、单 JSON `status:error,error.code:EXECUTION_FAILED` 和固定脱敏信息，无写入；不是 exit 2 的有效 recovery-required 报告。原字节/root/id 字段篡改须重新建立对应 SHA 命名版本文件并同步最新 journal，然后以新引用调用冷 rollback；故意篡改后的 snapshot 才是失败零写入对照。陈旧 ref 使用真实新旧合法版本/journal证明，不能以缺文件或引用失配冒充字段校验。无法稳定注入竞态时明确未覆盖交 C。
+
 日期：2026-11-18。D 必须为实际 Claude Code，C 为 Codex。用户已授权产品 GREEN、技术验收通过后本地合 main；不 push/tag/生产发布。
 
 唯一工作树：C:/Users/10208/.codex/worktrees/t16-blackbox-cases/zhinexus-design-asset-platform，基线 b951f43dd65fef9bd97a564455e608ce6857db42。仅写 tests/acceptance/t16-d/** 与新增 docs/verification/t16-d-blackbox-2026-11-18.md。不改 main、B、SDK、contracts、根配置/锁、产品、既有测试、原架构。不提交/pack/升版。使用 executing-plans，设计已批准。
