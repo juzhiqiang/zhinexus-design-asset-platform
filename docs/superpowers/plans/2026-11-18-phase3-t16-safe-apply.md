@@ -21,6 +21,12 @@
 
 ## Review Focus
 
+### 2026-11-18 实际客户端文本交付补充
+
+B 的实际 Claude 桌面和 D 的实际 Claude Code 保持各自作者职责。因渠道的文件工具参数/解析持续失败，允许实际客户端直接返回原始 unified diff 或完整文件文本；C 保留原始交付与摘要，核对唯一文件范围、当前上下文和停写状态后机械应用。应用失败或内容需修正时交回原作者，不由 C 改写产品或独立黑盒测试，也不放宽既有断言。D 本次以 `--tools ""` 禁用内置工具，原文上下文由 C 提供；按用户后续授权仅本次覆盖 GLM-5.3，不改全局配置，不伪造本次测试执行。最终成功仍须真实 CLI 进程、冻结 tarball 与消费者验收。
+
+Ruling：文本是实际客户端的可追溯代码产物，可替代故障文件工具的落盘步骤；不能替代作者或验收。判断错误的成本是退回交付、重新执行验证，未经验证不得合 main。保留全部 worktree 和原始证据至可靠归档，当前不清理。
+
 1. 备份跨项目或错误 plan 绑定：拒绝恢复到其他 root；P0 结构与 P1/P3 真实 root 检查。
 2. Windows 路径、大小写、链接/硬链接及并发替换：失败关闭，用户新编辑保留；P1/P3。
 3. npm/pnpm 配置 hooks、环境和安装脚本：禁止任意命令和凭据泄漏；P1/P3。
@@ -66,3 +72,7 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 - [ ] 无真实授权项目 diff 时只标记技术交付；T16 总任务与 T17 不勾选完成。
 
 2026-11-18 C 补充验收：产品当前 84 collected / 73 passed / 11 failed；真实 npm 安装 exit 0 仍被交付阶段拒绝，不能标为成功。C 已增加恢复、固定 Node/pnpm 与 npm metadata 断言并交 B 补修，见 [安装交付记录](../../verification/t16-npm-installed-delivery-2026-11-18.md)。验收令牌期限问题已按独立 RED→GREEN 修复，见 [令牌与检查点记录](../../verification/t16-acceptance-token-2026-11-18.md)。B 等待当前目录权限窗口，D 默认模型仍因工具调用解析失败未交付；产品 GREEN、真实矩阵、D 黑盒与本地合并保持未完成。本轮保留 worktree 与原始证据，不清理、不 push。
+
+2026-11-18 后续文本接收检查点：B 首份原始补丁机械应用后 CLI build 通过，产品窄测 84 collected / 83 passed / 1 failed，React 公共 API 类型/ref 案例仍失败。Vue/npm standalone 真实安装、构建和迁移通过，四个 hostile 配置拒绝通过；Vue/npm workspace 与 pnpm 两矩阵失败，C 定位为作用域成员链接及已知 pnpm 元数据在交付层被拒绝，三个诊断目标快照未变。B 第二份回复截断，未应用，已退实际 B 修正。用户已授权 D 本次 GLM-5.3；真实文件工具任务因必要参数缺失耗尽轮数，没有测试，现为无工具分阶段文本交付，保持实际作者并不改全局配置。详细原始摘要、命令和未覆盖边界见 [实际客户端文本交付记录](../../verification/t16-client-text-delivery-2026-11-18.md)。产品、完整安装矩阵、D 黑盒、冻结产物和本地 main 合并门槛均未完成，保留全部 worktree 与原始证据。
+
+2026-11-18 第四份 B React 文本补丁：作者更正首 hunk并授权拼回原其余八段，C机械校验应用；CLI build/typecheck exit 0、probe 73 文件复核通过，产品三份窄测 84/84、零失败（`product-b-glm-patch-04.json`）。安装三处 delivery 拒绝已退 B 第五轮修正；D 文本第一阶段仍无交付。产品窄测 GREEN 不替代仓外真实编译、完整安装矩阵、独立黑盒及冻结 CLI 验收，Task 3/4 尚未完成。
