@@ -48,7 +48,7 @@ export type IntegrationApplyResultV1 = {
 };
 export type IntegrationRollbackResultV1 = {
   schemaVersion: 1; operation: 'rollback'; operationId: string; projectRoot: string; planDigest: string;
-  status: 'rolled-back' | 'recovery-required'; restoredPaths: string[]; unchangedPaths: string[]; preservedPaths: string[];
+  status: 'rolled-back' | 'recovery-required'; restoredPaths: string[]; unchangedPaths: string[]; preservedPaths: string[]; unresolvedPaths: string[];
   issues: IntegrationApplyIssue[]; installState: 'not-run' | 'reinstall-required';
 };
 /** Expected values must come from the trusted invocation boundary, not the same untrusted JSON. */
@@ -80,8 +80,8 @@ export const integrationApplyResultSchema: Schema = {
 };
 export const integrationRollbackResultSchema: Schema = {
   ...object({ ...identity, operation: { type: 'string', const: 'rollback' }, status: choice('rolled-back', 'recovery-required'), restoredPaths: array(integrationPathSchema),
-    unchangedPaths: array(integrationPathSchema), preservedPaths: array(integrationPathSchema), issues: array(issue), installState: choice('not-run', 'reinstall-required') }),
-  description: 'Runtime checks disjoint restored, unchanged and preserved coverage plus backup identity. Caller compares actual hashes before restoring; node_modules is not restored by file rollback.',
+    unchangedPaths: array(integrationPathSchema), preservedPaths: array(integrationPathSchema), unresolvedPaths: array(integrationPathSchema), issues: array(issue), installState: choice('not-run', 'reinstall-required') }),
+  description: 'Runtime checks disjoint restored, unchanged, preserved and unresolved coverage plus backup identity. Caller compares actual hashes before restoring; node_modules is not restored by file rollback.',
 };
 
 const pathKey = (p: string) => p.normalize('NFC').toLowerCase();
@@ -192,7 +192,7 @@ export function validateIntegrationApplyResult(input: unknown, context?: Integra
       restrictIssueCodes(p.issues, BLOCKED_ISSUE_CODES, add);
     }
     if (p.status === 'rolled-back') {
-      if (!p.changedFiles.length || !['not-run', 'reinstall-required'].includes(p.installState)) add('/status', 'File rollback requires attempted writes and an honest installation state');
+      if (!p.backupRef || !['not-run', 'reinstall-required'].includes(p.installState)) add('/status', 'A fully recovered apply failure retains its backup and an honest installation state');
       restrictIssueCodes(p.issues, ROLLED_BACK_ISSUE_CODES, add);
     }
     if (p.status === 'recovery-required') {
@@ -218,19 +218,21 @@ export function validateIntegrationApplyResult(input: unknown, context?: Integra
 export function validateIntegrationRollbackResult(input: unknown, backup?: IntegrationBackupV1): ValidationResult<IntegrationRollbackResultV1> {
   const checked = validateSchema<IntegrationRollbackResultV1>(integrationRollbackResultSchema, input); if (!checked.ok) return checked;
   const p = checked.value; const issues: ValidationIssue[] = []; const { add, paths, root } = checks(issues);
-  root(p.projectRoot); paths([...p.restoredPaths, ...p.unchangedPaths, ...p.preservedPaths], '/restoredPaths');
+  root(p.projectRoot); paths([...p.restoredPaths, ...p.unchangedPaths, ...p.preservedPaths, ...p.unresolvedPaths], '/restoredPaths');
   validateIssueMessages(p.issues, add);
-  if (p.status === 'rolled-back' && (p.preservedPaths.length || p.issues.length)) add('/status', 'Successful rollback has no preserved or unresolved paths');
-  if (p.status === 'recovery-required' && (!p.preservedPaths.length || !p.issues.length)) add('/status', 'Unresolved rollback names preserved paths and issues');
+  if (p.status === 'rolled-back' && (p.preservedPaths.length || p.unresolvedPaths.length || p.issues.length)) add('/status', 'Successful rollback has no preserved or unresolved paths');
+  if (p.status === 'recovery-required' && ((!p.preservedPaths.length && !p.unresolvedPaths.length) || !p.issues.length)) add('/status', 'Unresolved rollback names preserved or unresolved paths and issues');
   for (const path of p.preservedPaths) if (!p.issues.some(i => i.code === 'USER_EDITED' && i.path === path)) add('/issues', 'Each preserved path requires a matching USER_EDITED issue');
   for (const i of p.issues) if (i.code === 'USER_EDITED' && (!i.path || !p.preservedPaths.includes(i.path))) add('/issues', 'USER_EDITED issues must identify a preserved file');
+  for (const path of p.unresolvedPaths) if (!p.issues.some(i => (i.code === 'WRITE_FAILED' || i.code === 'RECOVERY_REQUIRED') && i.path === path)) add('/issues', 'Each unresolved path requires a matching recovery issue');
+  for (const i of p.issues) if ((i.code === 'WRITE_FAILED' || i.code === 'RECOVERY_REQUIRED') && (!i.path || !p.unresolvedPaths.includes(i.path))) add('/issues', 'Recovery issues must identify an unresolved file');
   if (backup) {
     const checkedBackup = validateIntegrationBackup(backup);
     if (!checkedBackup.ok) add('/backup', 'A valid backup is required');
     else {
       const validBackup = checkedBackup.value;
       if (p.operationId !== validBackup.operationId || p.planDigest !== validBackup.planDigest || p.projectRoot !== validBackup.projectRoot) add('/operationId', 'Backup operation, project and plan must match');
-      if (!sameSet([...p.restoredPaths, ...p.unchangedPaths, ...p.preservedPaths], validBackup.files.map(f => f.path))) add('/restoredPaths', 'Recovery must account for every backup candidate');
+      if (!sameSet([...p.restoredPaths, ...p.unchangedPaths, ...p.preservedPaths, ...p.unresolvedPaths], validBackup.files.map(f => f.path))) add('/restoredPaths', 'Recovery must account for every backup candidate');
       if (p.installState !== (validBackup.installStarted ? 'reinstall-required' : 'not-run')) add('/installState', 'File rollback cannot restore an installation that started');
     }
   }

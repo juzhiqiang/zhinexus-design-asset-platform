@@ -30,7 +30,7 @@ export function applyResultFixture() {
 export function rollbackResultFixture() {
   return { schemaVersion: 1, operation: 'rollback', operationId: applyOperation, projectRoot: applyRoot,
     planDigest: applyDigest, status: 'rolled-back', restoredPaths: [...validIntegrationPlanFixture().allowedPaths],
-    unchangedPaths: [], preservedPaths: [], issues: [], installState: 'reinstall-required' };
+    unchangedPaths: [], preservedPaths: [], unresolvedPaths: [], issues: [], installState: 'reinstall-required' };
 }
 export function authorizationContextFixture() {
   return { plan: validIntegrationPlanFixture() as IntegrationPlanV1, planDigest: applyDigest, projectRoot: applyRoot };

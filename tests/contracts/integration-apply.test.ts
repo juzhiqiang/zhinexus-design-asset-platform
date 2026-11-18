@@ -112,6 +112,12 @@ describe('T16 apply authorization and recovery contracts', () => {
   ])('rejects blocked results carrying fabricated %s evidence', (_, mutate) => {
     const p: any = applyResultFixture(); mutate(p); reject(result(p));
   });
+  it('represents a first write failure after backup without inventing committed files', () => {
+    const p: any = applyResultFixture(); p.status = 'rolled-back'; p.changedFiles = []; p.beforeHashes = []; p.afterHashes = [];
+    p.installedVersions = []; p.installState = 'not-run';
+    p.issues = [{ code: 'WRITE_FAILED', message: 'A planned file write failed.' }];
+    expect(result(p)).toMatchObject({ ok: true });
+  });
   it('rejects recovery-required without write or installation side-effect evidence', () => {
     const p: any = applyResultFixture(); p.status = 'recovery-required'; p.changedFiles = []; p.beforeHashes = []; p.afterHashes = [];
     p.installedVersions = []; p.installState = 'not-run';
@@ -158,6 +164,22 @@ describe('T16 apply authorization and recovery contracts', () => {
   it('accounts for backup candidates that were never written without claiming a restoration', () => {
     const p: any = rollbackResultFixture(); p.unchangedPaths.push(p.restoredPaths.pop());
     expect(rollback(p, applyBackupFixture())).toMatchObject({ ok: true });
+  });
+  it('separately accounts for a rollback write failure without mislabeling it as a user edit', () => {
+    const p: any = rollbackResultFixture(); p.status = 'recovery-required'; p.unresolvedPaths = [p.restoredPaths.pop()];
+    p.issues = [
+      { code: 'WRITE_FAILED', path: p.unresolvedPaths[0], message: 'A planned file write failed.' },
+      { code: 'RECOVERY_REQUIRED', path: p.unresolvedPaths[0], message: 'Manual recovery is required.' },
+    ];
+    expect(rollback(p, applyBackupFixture())).toMatchObject({ ok: true });
+  });
+  it.each(['WRITE_FAILED', 'RECOVERY_REQUIRED'])('rejects pathless %s instead of hiding it behind a preserved user edit', (code) => {
+    const p: any = rollbackResultFixture(); p.status = 'recovery-required'; p.preservedPaths.push(p.restoredPaths.pop());
+    p.issues = [
+      { code: 'USER_EDITED', path: p.preservedPaths[0], message: 'A user-edited file was preserved.' },
+      { code, message: code === 'WRITE_FAILED' ? 'A planned file write failed.' : 'Manual recovery is required.' },
+    ];
+    reject(rollback(p, applyBackupFixture()));
   });
   it('requires reinstall only when installation actually started, not merely when it was planned', () => {
     const b: any = applyBackupFixture(); b.installStarted = false;

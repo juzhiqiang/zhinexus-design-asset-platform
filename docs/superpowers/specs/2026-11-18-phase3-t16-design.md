@@ -16,7 +16,9 @@
 
 新增 `IntegrationBackupV1`：schemaVersion=1、operationId、projectRoot、planDigest、installPlanned、installStarted、files。`installPlanned` 绑定计划意图；`installStarted` 是恢复日志中的实际副作用证据，安装进程启动前必须先持久写为 true。files 逐项包含 path、before 快照、after 快照、originalBase64?。旧文件必须提供原始字节（允许空文件的空串），新增文件禁止提供原始字节。快照 path 必须与外层 path 完全一致；所有路径按 NFC + 大小写去重。JSON Schema 给结构，运行时验证器补所有交叉约束；原字节 SHA-256 必须由本地恢复代码实际复算，不由同步纯结构校验器伪称验证。
 
-新增 `IntegrationRollbackResultV1`：schemaVersion=1、operation=`rollback`、operationId、projectRoot、planDigest、status=`rolled-back|recovery-required`、restoredPaths、unchangedPaths、preservedPaths、issues、installState=`not-run|reinstall-required`。三组路径互斥、去重并完整覆盖备份候选集：匹配 afterHash 且安全恢复的进入 restoredPaths，仍匹配 beforeHash 或仍不存在的未写入候选进入 unchangedPaths，任何其他后续编辑进入 preservedPaths + `USER_EDITED` 且不得覆盖。仅在无 preservedPaths 时 rolled-back 且无 issues。只有安装实际启动时，文件恢复才必须返回 reinstall-required；单有安装计划不能伪造副作用。
+新增 `IntegrationRollbackResultV1`：schemaVersion=1、operation=`rollback`、operationId、projectRoot、planDigest、status=`rolled-back|recovery-required`、restoredPaths、unchangedPaths、preservedPaths、必填 unresolvedPaths、issues、installState=`not-run|reinstall-required`。四组路径互斥、去重并完整覆盖备份候选集：匹配 afterHash 且安全恢复的进入 restoredPaths，仍匹配 beforeHash 或仍不存在的未写入候选进入 unchangedPaths，实际发现后续编辑的进入 preservedPaths + `USER_EDITED` 且不得覆盖；读取、删除或恢复写入失败的进入 unresolvedPaths + 同路径 `WRITE_FAILED` 或 `RECOVERY_REQUIRED`，不得误报用户编辑。仅在 preservedPaths 和 unresolvedPaths 都为空时 rolled-back 且无 issues。只有安装实际启动时，文件恢复才必须返回 reinstall-required；单有安装计划不能伪造副作用。
+
+2026-11-18 恢复补充：备份落盘后首个目标写入失败且安全恢复完成，apply 可返回 rolled-back、空 changedFiles / beforeHashes / afterHashes、not-run 和 WRITE_FAILED，保留有效 backupRef；不能虚构已提交写入以适配状态机。每次持久化 installStarted 或改变备份字节后，必须重新计算 backupRef.sha256，返回与最后落盘字节一致的不可变引用。rollback 的 WRITE_FAILED / RECOVERY_REQUIRED 必须显式绑定 unresolvedPaths 内的路径，不接受无路径的全局摘要问题。
 
 固定 issue code：`INVALID_PLAN`、`AUTHORIZATION_REQUIRED`、`AUTHORIZATION_MISMATCH`、`PROJECT_CHANGED`、`PATH_UNSAFE`、`DIRTY_TARGET`、`TARGET_CHANGED`、`DEPENDENCY_CONFLICT`、`API_MISMATCH`、`BINDING_UNSUPPORTED`、`INSTALL_FAILED`、`INSTALLED_VERSION_MISMATCH`、`BACKUP_INVALID`、`WRITE_FAILED`、`USER_EDITED`、`RECOVERY_REQUIRED`。消息为固定脱敏说明，可附合法相对 path，不能回显网络/子进程原文或令牌。
 
@@ -26,7 +28,7 @@
 2. 重跑 inspection 和远端计划核验。比较原始 MatchPlan、精确发布/摘要/API、依赖、文件快照和写入意图；忽略 checkedAt 等纯检查时间字段。任何差异失败关闭；API / registry 两套凭据不互传。
 3. 生成器消费权威 API 与已验证 MatchPlan。生成文件不直接注入 source/handler/layout 文本为源码；业务源/事件名通过安全字符串 key 和显式 props/callbacks 适配，未知必需数据不得伪造。Vue 用 SFC，React 用 TSX 和客户端边界；styles 使用真实导出，事件采用真实框架 API。不自动修改已有路由或页面。
 4. 依赖安装前，仓外暂存区生成候选锁，禁用生命周期脚本和项目自定义包管理器 hooks/config。暂存区仅复制明确允许的 manifests/锁/workspace 配置；不支持的本地依赖/动态配置明确拒绝，不执行。读取官方 npm/pnpm 对应版本资料后在产品计划中固定具体 argv 与环境。暂存安装不触碰目标。
-5. 写入前备份原字节到目标外独占目录；只接受安全普通文件，无符号链接/junction/hardlink；限制大小，校验原字节摘要。备份在任何目标写入前完整落盘。逐文件再次检查 base hash，再以独占新增或受控替换写入；每次原子操作前复查父路径，拒绝 root 外路径。恢复时对全部备份候选逐项按当前 before/after 摘要归入 restored、unchanged 或 preserved，部分写入不得把未写入候选冒称为恢复。并发不能完全由字符串校验证明，测试覆盖实际发现边界，文档明确限制。
+5. 写入前备份原字节到目标外独占目录；只接受安全普通文件，无符号链接/junction/hardlink；限制大小，校验原字节摘要。备份在任何目标写入前完整落盘。逐文件再次检查 base hash，再以独占新增或受控替换写入；每次原子操作前复查父路径，拒绝 root 外路径。恢复时对全部备份候选逐项归入 restored、unchanged、preserved 或 unresolved，部分写入不得把未写入候选冒称为恢复，I/O 失败不得冒称为用户编辑。并发不能完全由字符串校验证明，测试覆盖实际发现边界，文档明确限制。
 6. 需要安装时显式授权 `allowInstall=true`，使用确定的包管理器和候选冻结锁安装；启动安装进程前先将备份恢复日志的 installStarted 持久化为 true。不执行项目 typecheck/build（T17），不把离线 plan 的命令传给 shell。node_modules 属于明确的安装副作用，不属于源码备份范围；不递归删除或覆盖未知链接。
 7. 安装后实际读取直接依赖版本、目标清单/锁与生成文件 SHA；成功才输出 applied。失败后按 afterHash 恢复可恢复文件；任何新编辑保留并返回 recovery-required，依赖状态明确 reinstall-required。不可假称完全回滚 node_modules。
 
@@ -38,6 +40,8 @@ CLI `component integrate apply --project <root> --plan <file> --api-url <origin>
 
 ## 验收
 
-P0：合法四种契约、授权错绑、旧计划授权 false、路径/摘要/快照错配、空旧文件、坏 base64、重复/别名路径、状态造假、伪造 installedVersions、计划安装与实际启动区分、部分写入恢复三分覆盖集及 Schema/CLI 副本同步；固定工具链构建、类型、全图及根回归。
+P0：合法四种契约、授权错绑、旧计划授权 false、路径/摘要/快照错配、空旧文件、坏 base64、重复/别名路径、状态造假、伪造 installedVersions、计划安装与实际启动区分、首写失败无虚构写入、恢复四组覆盖及 Schema/CLI 副本同步；固定工具链构建、类型、全图及根回归。
+
+P1 的 options、安装 argv、环境白名单、暂存产物进入目标的方法和首批产品 RED 用例由 [B 安装隔离 brief](../plans/2026-11-18-t16-b-install-isolation-brief.md) 冻结；安装隔离仍须以真实 Windows npm/pnpm 进程验收，不以文档或 mock 验收。
 
 产品：npm/pnpm × Vue/React、显式 workspace；真实仓外冻结 SDK 安装，真实类型与构建；未知 prop/event、危险绑定表达式、原始文件变化、安装失败、中途编辑、Windows 路径和双跳 junction、恢复前/期间改动保护。独立进程验收与同一冻结 CLI 真实服务验收后方可称技术完成；两个真实授权业务项目 diff 仍是完整 T16 门槛。版本按公开 CLI 既有 0.x 规则独立升级，不发布生产或 push。

@@ -1,5 +1,7 @@
 # Zhinexus 组件资产平台
 
+2026-11-18 T16 P0 补充：恢复结果新增必填 unresolvedPaths，独立表达恢复 I/O 失败；首写失败允许已备份但没有已提交文件。Schema、CLI 内联副本和设计已同步。B / Claude 桌面端按 [安装隔离 brief](docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md) 先交产品失败测试，C 在 Windows 确认 RED 后再进入实现。恢复与验证证据见 [本轮补充记录](docs/verification/t16-recovery-sync-2026-11-18.md)；T16 产品安装与真实项目验收仍未完成。
+
 2026-11-17 T15 本地项目识别与只读接入计划已完成技术验收，CLI 为 `0.0.13`。`component integrate inspect/plan` 支持 Vue/React、npm/pnpm 和显式工作区，计划始终为 `executionAuthorized: false`。Claude 桌面端完成 CLI 产品，Antigravity 提供独立矩阵，Claude Code 提供黑盒验收，Codex 完成契约、真实服务与冻结包验证。使用方式见 [接入计划说明](docs/phase3/integration-plan.md)，命令、摘要、验证及本地合并清理结果见 [T15 收口记录](docs/verification/t15-completion-2026-11-17.md)。T16 安装/代码生成、T17 验证修复/MCP、生产 G2 和真实业务试点仍待完成。
 
 Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；SDK 提供折线、柱状、饼图、散点、趋势卡、排名和占比共 14 个 Vue/React 实现。已有冻结 Bundle、消费者截图、网页手动发布、身份/上传/基线 API、持久化发布 worker 与隔离静态预览。合法 PENDING 作业须由独立 worker 通过三存储校验后进入 Ready。

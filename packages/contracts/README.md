@@ -118,9 +118,9 @@ src/schemas.ts 和 src/api.ts 的结构定义生成 schemas/*.schema.json（2020
 
 普通契约测试同时检查提交的 Schema 内容与格式是否和运行时定义精确一致。需要重新生成时，在仓库根运行 `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate`；命令先构建本包，再运行 `packages/contracts/scripts/generate-schemas.ts`。生成脚本不再承担检查模式。
 
-T16 受控应用契约（2026-11-18）新增 apply authorization、apply result、backup 与 rollback result 四份 v1 Schema。它们只校验 JSON 结构和显式上下文交叉引用，不证明人类授权、realpath 安全、计划新鲜度、真实字节摘要或安装结果。备份以 projectRoot + planDigest 绑定项目，区分 installPlanned 与启动前持久化的 installStarted；恢复结果用 restoredPaths、unchangedPaths、preservedPaths 互斥覆盖全部备份候选，避免部分写入时把未改文件冒称为已恢复。真实执行仍必须在 CLI 本地边界完成链接、并发、摘要、凭据隔离和后续用户编辑保护。
+T16 受控应用契约（2026-11-18）新增 apply authorization、apply result、backup 与 rollback result 四份 v1 Schema。它们只校验 JSON 结构和显式上下文交叉引用，不证明人类授权、realpath 安全、计划新鲜度、真实字节摘要或安装结果。备份以 projectRoot + planDigest 绑定项目，区分 installPlanned 与启动前持久化的 installStarted；恢复结果用 restoredPaths、unchangedPaths、preservedPaths、必填 unresolvedPaths 四组互斥覆盖全部备份候选，分别表达恢复成功、原字节已匹配、保留用户编辑及恢复 I/O 失败。备份日志字节变化后必须重新计算 backupRef.sha256，真实执行仍须在 CLI 本地边界完成链接、并发、摘要、凭据隔离和后续用户编辑保护。
 
-apply result 采用显式状态/证据矩阵：applied 必须有完整写入、无 issue，并与计划的安装状态一致；blocked 只能表达写入和安装前的守卫失败，不得带 changedFiles、backupRef、安装副作用或写后错误码；rolled-back 必须保留已尝试写入的证据；recovery-required 必须带 backupRef，并至少证明发生过写入或安装副作用。issue message 由 code 映射到固定脱敏文本，任意 stderr、URL、凭证或错配消息均拒绝。rollback 中每个 preserved path 必须有同路径 USER_EDITED，USER_EDITED 也不得指向 preserved 集合外；畸形 backup 上下文返回 ValidationResult 失败，不得抛出运行时异常。
+apply result 采用显式状态/证据矩阵：applied 必须有完整写入、无 issue，并与计划的安装状态一致；blocked 只能表达写入和安装前的守卫失败，不得带 changedFiles、backupRef、安装副作用或写后错误码；rolled-back 必须有 backupRef，首写失败时允许空 changedFiles/beforeHashes/afterHashes、not-run 和 WRITE_FAILED，不虚构已提交文件；recovery-required 必须带 backupRef，并至少证明发生过写入或安装副作用。issue message 由 code 映射到固定脱敏文本，任意 stderr、URL、凭证或错配消息均拒绝。rollback 中 preserved 与同路径 USER_EDITED 双向绑定，unresolved 与同路径 WRITE_FAILED/RECOVERY_REQUIRED 双向绑定；rolled-back 不得有 preserved、unresolved 或 issues。畸形 backup 上下文返回 ValidationResult 失败，不得抛出运行时异常。
 
 修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/g1-contracts-2026-11-12.md、docs/superpowers/plans/2026-11-12-g1-review-g2-access.md。
 

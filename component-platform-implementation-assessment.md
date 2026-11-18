@@ -145,6 +145,8 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 ## 8. 二、三期与“全三期年底完成”的可行性
 
+2026-11-18 T16 P0 恢复补充：四组恢复路径完整覆盖候选，unresolvedPaths 单独承载 I/O 失败；首写失败保留真实备份并允许空提交证据。Schema、CLI 内联副本和设计同步，产品按 [安装隔离 brief](docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md) 先 RED；所有包管理器进程在目标工程外暂存运行，冻结安装启动前持久化日志并更新备份摘要。验证见 [补充记录](docs/verification/t16-recovery-sync-2026-11-18.md)。该交付仅为 P0，P1–P4、真实 npm/pnpm 安装矩阵及业务项目验收仍未完成。
+
 2026-11-17 T15 已完成技术验收：CLI `0.0.13` 交付只读项目/锁识别、发布身份与摘要复查及 `IntegrationPlanV1`；四个实际客户端完成各自职责，最终冻结 CLI 仓外真实服务 25/25、根测试 1494/1494 + T10 168/168、平台 41/41、浏览器 18/18。详见 [T15 收口记录](docs/verification/t15-completion-2026-11-17.md)。T16/T17 及真实业务项目仍待实施；以下原估算保留量级参考，不以本轮 synthetic 技术验收推断三期整体完成。
 
 2026-11-16 三期规划沿用 T15–T17，先完成 T15 的项目/锁文件识别、发布身份/摘要复验和只读 IntegrationPlan，再推进安装/代码生成与验证/MCP。用户允许 Antigravity、Claude 桌面端、Claude Code、Codex 独立分支开发并在完成后合并删除；主要开发优先 Claude 桌面端。设计选择、文件所有权和开工/验收门槛见 [T15 设计](docs/superpowers/specs/2026-11-16-phase3-t15-design.md)、[四方计划](docs/superpowers/plans/2026-11-16-phase3-t15-kickoff.md)。原 35–50 开发人日及 10–15 独立测试人日仅供量级参考，四客户端不直接折算为确定日历工期。真实项目接入及生产条件独立验收。

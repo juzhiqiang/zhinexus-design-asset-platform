@@ -35,7 +35,7 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 
 **Files:** 上述 C P0 文件及 `packages/contracts/README.md`。不实现 CLI 写入命令。
 
-**Interfaces:** 四个类型 `IntegrationApplyAuthorizationV1`、`IntegrationApplyResultV1`、`IntegrationBackupV1`、`IntegrationRollbackResultV1`；四个同名 `validate...` 函数返回既有 ValidationResult。`validateIntegrationApplyAuthorization(input,plan?)` 可做路径集合匹配；另三者可选关联 plan/backup 做交叉验证。备份同时记录 installPlanned 与持久化 installStarted，恢复以 restored/unchanged/preserved 三组覆盖全部备份候选，避免把未写入文件冒称已恢复。纯 JSON 校验不得导入 node:crypto/fs/path。
+**Interfaces:** 四个类型 `IntegrationApplyAuthorizationV1`、`IntegrationApplyResultV1`、`IntegrationBackupV1`、`IntegrationRollbackResultV1`；四个同名 `validate...` 函数返回既有 ValidationResult，关联参数以 `IntegrationApplyContext` 或 backup 类型为准。备份同时记录 installPlanned 与持久化 installStarted，恢复以 restored/unchanged/preserved/unresolved 四组覆盖全部备份候选，避免把未写入文件冒称已恢复或把 I/O 失败冒称用户编辑。首写失败可携有效 backupRef 和空写入证据返回 rolled-back。纯 JSON 校验不得导入 node:crypto/fs/path。
 
 - [x] 先写 RED：用 namespace 查找导出，缺能力应为行为断言失败。覆盖四种合法对象、存在/不存在/空原文件、缺守卫、别名重复/父子路径、错状态、未知 issue、错误授权/摘要/路径集合、计划安装与实际启动区分、备份候选的 restored/unchanged/preserved 覆盖不一致。无函数缺失的 import/collect 失败。
 - [x] 运行 `exec vitest run tests/contracts/integration-apply.test.ts`，预期收集全部用例且因缺少 validator 失败，保存日志。
@@ -45,7 +45,7 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 
 ### Task 2: B / P1 产品实现
 
-**Interfaces:** `applyIntegration(root,plan,options)`、`rollbackIntegration(root,backupRef,options)`，输出 P0 类型；真实 replan 与路径核验独立实现，不能只信任离线 Schema。具体 options 与固定安装 argv 在 P0 提交后先写入 B 执行 brief，并按官方 npm/pnpm 资料核实。
+**Interfaces:** `applyIntegration(root,plan,options)`、`rollbackIntegration(root,backupRef,options)`，输出 P0 类型；真实 replan 与路径核验独立实现，不能只信任离线 Schema。具体 options、固定安装 argv、配置与凭据隔离、依赖目录受控交付及首批 RED 范围见 [B 安装隔离 brief](2026-11-18-t16-b-install-isolation-brief.md)。先编写产品测试，C 在 Windows 确认 RED 后再开 GREEN。
 
 - [ ] P0 完整 hash 交接后，B 实际 Claude 桌面端先写失败行为测试并由 Windows 宿主确认 RED。
 - [ ] 实现生成器、暂存安装、原字节备份、写前/写后 hash 守卫、用户后续编辑保护及 CLI 显式调用；T15 行为保持。

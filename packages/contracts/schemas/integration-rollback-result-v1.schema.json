@@ -64,6 +64,16 @@
       },
       "minItems": 0
     },
+    "unresolvedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 0
+    },
     "issues": {
       "type": "array",
       "items": {
@@ -144,9 +154,10 @@
     "restoredPaths",
     "unchangedPaths",
     "preservedPaths",
+    "unresolvedPaths",
     "issues",
     "installState"
   ],
   "additionalProperties": false,
-  "description": "Runtime checks disjoint restored, unchanged and preserved coverage plus backup identity. Caller compares actual hashes before restoring; node_modules is not restored by file rollback."
+  "description": "Runtime checks disjoint restored, unchanged, preserved and unresolved coverage plus backup identity. Caller compares actual hashes before restoring; node_modules is not restored by file rollback."
 }
