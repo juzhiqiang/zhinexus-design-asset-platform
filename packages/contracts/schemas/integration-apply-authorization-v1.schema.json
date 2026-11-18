@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "integration-apply-authorization-v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "operation": {
+      "type": "string",
+      "const": "apply"
+    },
+    "projectRoot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z]:/"
+    },
+    "planDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "allowedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 1
+    },
+    "allowInstall": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operation",
+    "projectRoot",
+    "planDigest",
+    "allowedPaths",
+    "allowInstall"
+  ],
+  "additionalProperties": false,
+  "description": "Explicit invocation scope only; not proof of human authorization. Runtime checks exact plan scope; caller verifies digest and physical root."
+}

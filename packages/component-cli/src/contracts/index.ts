@@ -20,6 +20,7 @@ export * from './component-api.js';
 export * from './match-plan.js';
 export * from './component-match.js';
 export * from './integration-plan.js';
+export * from './integration-apply.js';
 export { CONTRACT_SCHEMAS } from './schemas.js';
 export const MANIFEST_SCHEMA_VERSION = 1 as const;
 export type BootstrapHealth = {

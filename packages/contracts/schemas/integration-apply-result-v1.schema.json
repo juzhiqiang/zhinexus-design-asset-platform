@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "integration-apply-result-v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "operationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$"
+    },
+    "projectRoot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z]:/"
+    },
+    "planDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "operation": {
+      "type": "string",
+      "const": "apply"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "applied",
+        "blocked",
+        "rolled-back",
+        "recovery-required"
+      ]
+    },
+    "changedFiles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 0
+    },
+    "beforeHashes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "exists"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "afterHashes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          },
+          "exists": {
+            "type": "boolean"
+          },
+          "sha256": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          }
+        },
+        "required": [
+          "path",
+          "exists"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "installedVersions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)(?:-(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\\.(?:0|[1-9][0-9]*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$"
+          }
+        },
+        "required": [
+          "name",
+          "version"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "INVALID_PLAN",
+              "AUTHORIZATION_REQUIRED",
+              "AUTHORIZATION_MISMATCH",
+              "PROJECT_CHANGED",
+              "PATH_UNSAFE",
+              "DIRTY_TARGET",
+              "TARGET_CHANGED",
+              "DEPENDENCY_CONFLICT",
+              "API_MISMATCH",
+              "BINDING_UNSUPPORTED",
+              "INSTALL_FAILED",
+              "INSTALLED_VERSION_MISMATCH",
+              "BACKUP_INVALID",
+              "WRITE_FAILED",
+              "USER_EDITED",
+              "RECOVERY_REQUIRED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "Integration plan is invalid.",
+              "Explicit apply authorization is required.",
+              "Apply authorization does not match the current plan.",
+              "Project state changed after planning.",
+              "A target path is unsafe.",
+              "A target file has local changes.",
+              "A target file changed during apply.",
+              "Requested dependencies conflict with the project.",
+              "The verified component API no longer matches the plan.",
+              "A requested binding is unsupported.",
+              "Dependency installation failed.",
+              "Installed dependency versions do not match the plan.",
+              "The recovery backup is invalid.",
+              "A planned file write failed.",
+              "A user-edited file was preserved.",
+              "Manual recovery is required."
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "backupRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$"
+        },
+        "sha256": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{64}$"
+        }
+      },
+      "required": [
+        "id",
+        "sha256"
+      ],
+      "additionalProperties": false
+    },
+    "installState": {
+      "type": "string",
+      "enum": [
+        "not-run",
+        "succeeded",
+        "failed",
+        "reinstall-required"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "projectRoot",
+    "planDigest",
+    "operation",
+    "status",
+    "changedFiles",
+    "beforeHashes",
+    "afterHashes",
+    "installedVersions",
+    "issues",
+    "installState"
+  ],
+  "additionalProperties": false,
+  "description": "Evidence of attempted writes, not a verified byte claim. Runtime enforces status/guard/scope consistency. Applied needs exact installed dependencies when context supplied."
+}

@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "integration-rollback-result-v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "operationId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_-]{0,127}$"
+    },
+    "projectRoot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z]:/"
+    },
+    "planDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "operation": {
+      "type": "string",
+      "const": "rollback"
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "rolled-back",
+        "recovery-required"
+      ]
+    },
+    "restoredPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 0
+    },
+    "unchangedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 0
+    },
+    "preservedPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 0
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "INVALID_PLAN",
+              "AUTHORIZATION_REQUIRED",
+              "AUTHORIZATION_MISMATCH",
+              "PROJECT_CHANGED",
+              "PATH_UNSAFE",
+              "DIRTY_TARGET",
+              "TARGET_CHANGED",
+              "DEPENDENCY_CONFLICT",
+              "API_MISMATCH",
+              "BINDING_UNSUPPORTED",
+              "INSTALL_FAILED",
+              "INSTALLED_VERSION_MISMATCH",
+              "BACKUP_INVALID",
+              "WRITE_FAILED",
+              "USER_EDITED",
+              "RECOVERY_REQUIRED"
+            ]
+          },
+          "message": {
+            "type": "string",
+            "enum": [
+              "Integration plan is invalid.",
+              "Explicit apply authorization is required.",
+              "Apply authorization does not match the current plan.",
+              "Project state changed after planning.",
+              "A target path is unsafe.",
+              "A target file has local changes.",
+              "A target file changed during apply.",
+              "Requested dependencies conflict with the project.",
+              "The verified component API no longer matches the plan.",
+              "A requested binding is unsupported.",
+              "Dependency installation failed.",
+              "Installed dependency versions do not match the plan.",
+              "The recovery backup is invalid.",
+              "A planned file write failed.",
+              "A user-edited file was preserved.",
+              "Manual recovery is required."
+            ]
+          },
+          "path": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+          }
+        },
+        "required": [
+          "code",
+          "message"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "installState": {
+      "type": "string",
+      "enum": [
+        "not-run",
+        "reinstall-required"
+      ]
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "operationId",
+    "projectRoot",
+    "planDigest",
+    "operation",
+    "status",
+    "restoredPaths",
+    "unchangedPaths",
+    "preservedPaths",
+    "issues",
+    "installState"
+  ],
+  "additionalProperties": false,
+  "description": "Runtime checks disjoint restored, unchanged and preserved coverage plus backup identity. Caller compares actual hashes before restoring; node_modules is not restored by file rollback."
+}
