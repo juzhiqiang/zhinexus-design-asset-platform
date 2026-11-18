@@ -76,6 +76,8 @@ import {
 import {
   readBackupFiles,
   storedBackup,
+  backupEntry,
+  type BackupDocument,
 } from './t16-support/backup-store.js';
 import {
   installProcessInterceptor,
@@ -320,6 +322,30 @@ function expectCoverage(result: IntegrationRollbackResultV1, candidates: readonl
   expect(new Set(union).size, '四组必须互斥').toBe(union.length);
 }
 
+/** 从一次真实 apply 的布局派生自包含备份 fixture；绝不冒称 apply 原始证据。
+ * 新版本按实算摘要另存，真实 latest 仅替换摘要；合法控制证明不因缺索引失败。
+ */
+function derivedBackup(
+  backupRoot: string,
+  reference: IntegrationBackupRef,
+  change: (document: BackupDocument) => void,
+): IntegrationBackupRef {
+  const stored = storedBackup(backupRoot, reference);
+  const journalPath = path.join(path.dirname(path.dirname(stored.path)), 'latest.json');
+  const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8')) as Record<string, unknown>;
+  expect(journal['operationId']).toBe(reference.id);
+  expect(journal['sha256']).toBe(stored.sha256);
+  const document = structuredClone(stored.document);
+  change(document);
+  const bytes = Buffer.from(JSON.stringify(document, null, 2) + '\n');
+  const sha256 = sha256Hex(bytes);
+  const version = path.join(path.dirname(stored.path), `backup-${sha256}.json`);
+  fs.writeFileSync(version, bytes);
+  fs.writeFileSync(journalPath, JSON.stringify({ ...journal, sha256 }, null, 2) + '\n');
+  expect(sha256Hex(fs.readFileSync(version))).toBe(sha256);
+  return { id: reference.id, sha256 };
+}
+
 
 beforeAll(async () => {
   installProcessInterceptor(processes);
@@ -457,6 +483,40 @@ describe('T16 B / P1 rollbackIntegration 有效备份恢复', () => {
 // ─── ⑩ 用户编辑与恢复 I/O 失败 ───
 
 describe('T16 B / P1 rollbackIntegration 用户编辑与 I/O 失败', () => {
+  it('恢复暂存原字节后用户改写目标：保留新编辑并归入 preserved，而非覆盖后冒称 restored', async () => {
+    const root = vuePnpmNewDependencyProject('rollback-during-replace');
+    const backupRoot = externalRoot('rollback-during-replace-store');
+    const { plan, applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const realFs = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const target = projectFile(root, 'package.json');
+    const userBytes = Buffer.from('{"user":"edit-during-restore"}\n');
+    const originalInterceptor = fsFaults.intercept;
+    let edited = false;
+    fsFaults.intercept = (op, paths, data) => {
+      const temporary = paths[0];
+      if (!edited && op === 'writeFile' && temporary && path.dirname(temporary) === root
+        && path.basename(temporary).startsWith('.package.json.t16-')) {
+        edited = true;
+        realFs.writeFileSync(target, userBytes);
+      }
+      return originalInterceptor?.(op, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptRollback(root, applied.backupRef!, backupRoot);
+      expect(edited, '必须命中真实暂存写入与目标 rename 之间的可观测窗口').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(result).toBeDefined();
+      expect(readBytes(root, 'package.json'), '恢复期间新编辑不得被覆盖').toEqual(userBytes);
+      expect(result!.status).toBe('recovery-required');
+      expect(result!.preservedPaths).toEqual(['package.json']);
+      expect(result!.restoredPaths).not.toContain('package.json');
+      expect(result!.issues.some(issue => issue.code === 'USER_EDITED' && issue.path === 'package.json')).toBe(true);
+      expectCoverage(result!, plan.allowedPaths);
+    } finally {
+      fsFaults.intercept = originalInterceptor;
+    }
+  });
+
   it('用户后续编辑单个文件：preserved + USER_EDITED，字节原样保留，状态 recovery-required', async () => {
     const root = vuePnpmLockedProject('rollback-user-edit');
     const backupRoot = externalRoot('rollback-user-edit-backup');
@@ -516,6 +576,60 @@ describe('T16 B / P1 rollbackIntegration 用户编辑与 I/O 失败', () => {
 // ─── ⑫ 备份可信性、跨 root 与链接 ───
 
 describe('T16 B / P1 rollbackIntegration 备份可信性与链接边界', () => {
+  it('真实布局的合法派生备份可达：空原字节恢复为存在的零字节文件', async () => {
+    const root = vuePnpmLockedProject('rollback-empty-original');
+    const backupRoot = externalRoot('rollback-empty-original-store');
+    const { plan, applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const reference = derivedBackup(backupRoot, applied.backupRef!, document => {
+      const entry = backupEntry(document, GENERATED_VUE_PATH);
+      entry.before = { path: GENERATED_VUE_PATH, exists: true, sha256: sha256Hex(Buffer.alloc(0)) };
+      entry.originalBase64 = '';
+    });
+    const { result, thrown } = await attemptRollback(root, reference, backupRoot);
+    expect(thrown, '合法自包含 fixture 必须通过真实索引读取').toBeUndefined();
+    expect(result!.status).toBe('rolled-back');
+    expectCoverage(result!, plan.allowedPaths);
+    expect(result!.restoredPaths).toContain(GENERATED_VUE_PATH);
+    expect(fileExists(root, GENERATED_VUE_PATH)).toBe(true);
+    expect(readBytes(root, GENERATED_VUE_PATH)).toEqual(Buffer.alloc(0));
+  });
+
+  const corruptions: [string, (document: BackupDocument) => void][] = [
+    ['原字节与 before 摘要不符', document => {
+      const entry = backupEntry(document, GENERATED_VUE_PATH);
+      entry.before = { path: GENERATED_VUE_PATH, exists: true, sha256: sha256Hex(Buffer.alloc(0)) };
+      entry.originalBase64 = Buffer.from('not empty').toString('base64');
+    }],
+    ['root 与调用不符', document => { document.projectRoot += '-different-root'; }],
+    ['operationId 与真实引用不符', document => { document.operationId += '-different-id'; }],
+    ['planDigest 格式非法', document => { document.planDigest = 'invalid-plan-digest'; }],
+  ];
+  it.each(corruptions)('引用与版本字节摘要一致时仍独立拒绝：%s', async (_label, change) => {
+    const root = vuePnpmLockedProject('rollback-field-binding');
+    const backupRoot = externalRoot('rollback-field-binding-store');
+    const { applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const expected = treeSnapshot(root);
+    const reference = derivedBackup(backupRoot, applied.backupRef!, change);
+    const outcome = await attemptRollback(root, reference, backupRoot);
+    expectBackupInvalid(outcome);
+    expect(treeSnapshot(root)).toEqual(expected);
+  });
+
+  it('latest 的 schemaVersion 不受支持：拒绝恢复且目标零写入', async () => {
+    const root = vuePnpmLockedProject('rollback-journal-version');
+    const backupRoot = externalRoot('rollback-journal-version-store');
+    const { applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const stored = storedBackup(backupRoot, applied.backupRef!);
+    const journalPath = path.join(path.dirname(path.dirname(stored.path)), 'latest.json');
+    const journal = JSON.parse(fs.readFileSync(journalPath, 'utf8')) as Record<string, unknown>;
+    expect(journal['schemaVersion']).toBe(1);
+    expect(journal['sha256']).toBe(stored.sha256);
+    const expected = treeSnapshot(root);
+    fs.writeFileSync(journalPath, JSON.stringify({ ...journal, schemaVersion: 999 }) + '\n');
+    expectBackupInvalid(await attemptRollback(root, applied.backupRef!, backupRoot));
+    expect(treeSnapshot(root)).toEqual(expected);
+  });
+
   it('备份字节被篡改（引用摘要不再匹配）：抛 BACKUP_INVALID，目标零改动且异常脱敏', async () => {
     const root = vuePnpmLockedProject('rollback-tampered-bytes');
     const backupRoot = externalRoot('rollback-tampered-bytes-backup');

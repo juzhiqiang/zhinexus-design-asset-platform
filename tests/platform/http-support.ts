@@ -58,9 +58,9 @@ export async function platformHarness(overrides: Record<string, unknown> = {}, s
     app = await buildServer(options);
     await app.listen(0, '127.0.0.1');
     let origin = await app.getUrl();
-    const token = (subject = 'alice', roles = ['publisher'], client = 'web') => new SignJWT({ roles, azp: client })
+    const token = (subject = 'alice', roles = ['publisher'], client = 'web', expiration = '5m') => new SignJWT({ roles, azp: client })
       .setProtectedHeader({ alg: 'RS256', kid: 'test-key' }).setIssuer(oidc.issuer).setAudience(oidc.audience)
-      .setSubject(subject).setIssuedAt().setExpirationTime('5m').sign(keys.privateKey);
+      .setSubject(subject).setIssuedAt().setExpirationTime(expiration).sign(keys.privateKey);
     return {
       db, store, token, options, origin: () => origin, platform: () => app!.get(Platform),
       request: (path: string, body: unknown, auth?: string, method = 'POST', extra: Record<string, string> = {}) => fetch(`${origin}${path}`, {

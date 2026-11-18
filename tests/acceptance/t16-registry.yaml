@@ -1,0 +1,22 @@
+# T16 local acceptance only: real public dependencies, private frozen SDK.
+# The shared and production Verdaccio configurations stay closed.
+storage: /verdaccio/storage
+auth:
+  htpasswd:
+    file: /run/secrets/registry_users
+    max_users: -1
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+packages:
+  '@company/*':
+    access: g2reader g2publisher
+    publish: g2publisher
+    unpublish: []
+  '**':
+    access: g2reader g2publisher
+    publish: []
+    unpublish: []
+    proxy: npmjs
+log: { type: stdout, format: json, level: warn }
+listen: 0.0.0.0:4873

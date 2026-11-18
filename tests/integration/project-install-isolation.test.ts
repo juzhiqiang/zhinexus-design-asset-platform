@@ -164,6 +164,7 @@ const HOSTILE_ENV: Record<string, string> = {
   PNPM_HOME: '/tmp/t16-evil-pnpm',
   COREPACK_ENABLE_STRICT: '0',
   COREPACK_ROOT: '/tmp/t16-evil-corepack',
+  PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS: 'true',
   npm_config_registry: 'https://attacker.example.invalid/',
   npm_config_userconfig: '/tmp/t16-evil-user.npmrc',
   npm_config_globalconfig: '/tmp/t16-evil-global.npmrc',
@@ -372,10 +373,11 @@ function expectEnvWhitelist(call: RecordedProcessCall, projectRoot: string): voi
   const env = new Map(Object.entries(call.env).filter(([,v]) => v !== undefined).map(([k,v]) => [k.toLowerCase(), v!]));
   const windows = ['systemroot', 'windir', 'comspec', 'pathext'];
   const dirs = ['tmp', 'temp', 'userprofile', 'home', 'appdata', 'localappdata'];
-  const configs = ['npm_config_userconfig', 'npm_config_globalconfig'];
+  const configs = ['npm_config_userconfig', 'npm_config_globalconfig', 'pnpm_config_manage_package_manager_versions'];
   const allowed = new Set([...windows, ...dirs, ...configs, 'path', 'ci', 'no_color']);
   for (const key of env.keys()) expect(allowed.has(key), '非白名单环境键：'+key).toBe(true);
   expect(env.get('ci')).toBe('true'); expect(env.get('no_color')).toBe('1');
+  expect(env.get('pnpm_config_manage_package_manager_versions')).toBe('false');
   for (const key of windows) {
     const host = Object.entries(process.env).find(([k]) => k.toLowerCase() === key)?.[1];
     if (host !== undefined) expect(env.get(key)).toBe(host);
@@ -383,7 +385,7 @@ function expectEnvWhitelist(call: RecordedProcessCall, projectRoot: string): voi
   const allowedTools = [path.dirname(nodeExe), path.dirname(pnpmExe), path.join(toolRoot, 'bin')].map(p=>p.toLowerCase());
   expect(env.get('path'), '必须构造固定工具 PATH').toBeDefined();
   for (const p of env.get('path')!.split(path.delimiter)) expect(allowedTools).toContain(path.resolve(p).toLowerCase());
-  for (const key of [...dirs, ...configs]) if (env.has(key)) {
+  for (const key of [...dirs, 'npm_config_userconfig', 'npm_config_globalconfig']) if (env.has(key)) {
     expect(path.isAbsolute(env.get(key)!)).toBe(true); expect(isOutsideProject(env.get(key), projectRoot)).toBe(true);
   }
   expect(JSON.stringify(call.env)).not.toContain(SYNTHETIC_API_TOKEN);
@@ -396,7 +398,7 @@ function expectStagingClean(cwd: string, projectRoot: string): void {
   const calls = installCalls().filter(c=>c.cwd === cwd);
   expect(calls.length, '必须有真实 staging 启动记录').toBeGreaterThan(0);
   const manifestKeys = new Set(['name','version','private','type','dependencies','devDependencies','peerDependencies','optionalDependencies','engines','workspaces']);
-  const settings = { nodeLinker:'hoisted', packageImportMethod:'copy', enableGlobalVirtualStore:false, strictPeerDependencies:true, engineStrict:true, managePackageManagerVersions:false, ignoreScripts:true, ignorePnpmfile:true };
+  const settings = { nodeLinker:'hoisted', packageImportMethod:'copy', enableGlobalVirtualStore:false, strictPeerDependencies:true, engineStrict:true, pmOnFail:'error', ignoreScripts:true, ignorePnpmfile:true };
   for (const call of calls) {
     const files=capturedFiles(call);
     expect(files[path.join(cwd,'package.json')], 'staging 根 manifest 必须在启动前存在').toBeDefined();
@@ -474,6 +476,41 @@ afterEach(() => {
 // ─── ⑦ 暂存进程边界 ───
 
 describe('T16 B / P1 安装隔离：暂存进程 cwd/argv', () => {
+  it.each([
+    { label: '错误 Node 版本', version: 'v25.0.0\n', status: 0, allowed: false },
+    { label: 'Node 探针失败', version: '', status: 1, allowed: false },
+    { label: '固定 Node 版本', version: 'v26.13.0\n', status: 0, allowed: true },
+  ])('$label 必须在候选锁与物化前真实校验', async ({ version, status, allowed }) => {
+    const root = vueNpmNewDependencyProject('isolate-node-version');
+    const backupRoot = externalRoot('isolate-node-version-backup');
+    const plan = await buildPlan(root, 'npm');
+    processes.dependencies = plan.exactDependencies;
+    const original = treeSnapshot(root), previous = processes.intercept;
+    const isNodeProbe = (command: string, args: readonly string[]) =>
+      /(?:^|[\\/])node\.exe$/i.test(command) && args.length === 1 && args[0] === '--version';
+    processes.intercept = request => isNodeProbe(request.command, request.args) ? {
+      syncResult: { pid: 4242, output: [null, Buffer.from(version), Buffer.alloc(0)],
+        stdout: Buffer.from(version), stderr: Buffer.alloc(0), status, signal: null },
+    } : previous?.(request);
+    try {
+      const { result, thrown } = await attemptApply(root, plan, backupRoot);
+      expect(thrown).toBeUndefined();
+      const probes = processes.calls.filter(call => isNodeProbe(call.command, call.args));
+      expect(probes, '必须启动裸 node.exe --version，不能把 npm 版本当 Node 版本').toHaveLength(1);
+      expect(probes[0]!.shell).toBe(false);
+      if (allowed) {
+        expect(result!.status).toBe('applied');
+        expect(processes.calls.indexOf(probes[0]!)).toBeLessThan(processes.calls.indexOf(candidateLockCalls(processes)[0]!));
+      } else {
+        expect(result!.status).not.toBe('applied');
+        expect(result!.issues.map(issue => issue.code)).toContain('INSTALL_FAILED');
+        expect(candidateLockCalls(processes)).toEqual([]);
+        expect(materializationCalls(processes)).toEqual([]);
+        expect(treeSnapshot(root)).toEqual(original);
+      }
+    } finally { processes.intercept = previous; }
+  });
+
   it('pnpm 候选锁与冻结物化：argv 逐个匹配固定表，cwd 在工程外同卷 staging', async () => {
     const root = vuePnpmNewDependencyProject('isolate-pnpm-argv');
     const backupRoot = externalRoot('isolate-pnpm-argv-backup');
@@ -788,6 +825,50 @@ describe('T16 B / P1 安装隔离：核验与目录交付', () => {
       expect(manifest.version, '交付版本必须与计划精确一致').toBe(dependency.version);
     }
     expect(fileExists(root, 'src/components/zhinexus/component-0001.vue')).toBe(true);
+  });
+
+  it.each(['普通文件', '工程外链接'] as const)('npm 隐藏锁元数据为%s：仅安全文件允许依赖交付', async kind => {
+    // Real npm ci creates node_modules/.package-lock.json. Rejecting every
+    // root file breaks successful installs; bypassing the link guard is unsafe.
+    const root = vueNpmNewDependencyProject('isolate-npm-hidden-lock');
+    const backupRoot = externalRoot('isolate-npm-hidden-lock-backup');
+    const outside = externalRoot('isolate-npm-hidden-lock-outside');
+    writeFiles(outside, { 'user-data.txt': 'must remain unchanged' });
+    const outsideBefore = treeSnapshot(outside);
+    const plan = await buildPlan(root, 'npm');
+    processes.dependencies = plan.exactDependencies;
+    const previous = processes.intercept;
+    let metadataCreated = false;
+    processes.intercept = request => {
+      const response = previous?.(request);
+      if (request.args.includes('ci') && request.cwd) {
+        const metadata = path.join(request.cwd, 'node_modules', '.package-lock.json');
+        if (kind === '普通文件') fs.writeFileSync(metadata, JSON.stringify({
+          name: 'synthetic-hidden-lock', version: '1.0.0', lockfileVersion: 3,
+          requires: true, packages: {},
+        }));
+        else linkDirectory(metadata, outside);
+        metadataCreated = true;
+      }
+      return response;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, backupRoot);
+      expect(thrown).toBeUndefined();
+      expect(metadataCreated, '必须在物化后创建真实隐藏元数据条目').toBe(true);
+      expect(treeSnapshot(outside)).toEqual(outsideBefore);
+      if (kind === '普通文件') {
+        expect(result!.status, 'npm 自身的安全隐藏锁不能导致合法安装回退').toBe('applied');
+        expect(result!.installState).toBe('succeeded');
+        for (const dependency of plan.exactDependencies) {
+          const installed = JSON.parse(readText(root, `node_modules/${dependency.name}/package.json`)!);
+          expect(installed.version).toBe(dependency.version);
+        }
+      } else {
+        expect(result!.status).not.toBe('applied');
+        expect(fileExists(root, `node_modules/${VUE_PACKAGE_NAME}/package.json`)).toBe(false);
+      }
+    } finally { processes.intercept = previous; }
   });
 
   it('影响解析且尚未支持的工程配置：DEPENDENCY_CONFLICT 阻断，且不启动任何安装进程', async () => {

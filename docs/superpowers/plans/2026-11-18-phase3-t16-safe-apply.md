@@ -47,13 +47,15 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 
 **Interfaces:** `applyIntegration(root,plan,options)`、`rollbackIntegration(root,backupRef,options)`，输出 P0 类型；真实 replan 与路径核验独立实现，不能只信任离线 Schema。具体 options、固定安装 argv、配置与凭据隔离、依赖目录受控交付及首批 RED 范围见 [B 安装隔离 brief](2026-11-18-t16-b-install-isolation-brief.md)。先编写产品测试，C 在 Windows 确认 RED 后再开 GREEN。
 
-- [ ] P0 完整 hash 交接后，B 实际 Claude 桌面端先写失败行为测试并由 Windows 宿主确认 RED。
+- [x] P0 完整 hash 交接后，B 实际 Claude 桌面端先写失败行为测试并由 Windows 宿主确认 RED。最终提交 `b951f43d`，62 collected / 62 failed，无收集或fixture错误，见独立 RED 记录。
 - [ ] 实现生成器、暂存安装、原字节备份、写前/写后 hash 守卫、用户后续编辑保护及 CLI 显式调用；T15 行为保持。
 - [ ] 真实 Vue/React 样例类型/构建、npm/pnpm/workspace、故障恢复及网络资格复验全部通过后停写交 C。
 
+2026-11-18 后续授权：用户明确选择继续产品 GREEN 与验收，通过后本地合 main；新阶段遵循 [B 产品 GREEN brief](2026-11-18-t16-b-product-green-brief.md)，RED 历史中的禁止实现仅属于此前测试阶段。
+
 ### Task 3: A / P2 与 D / P3 独立验收
 
-- [ ] A 实际 Antigravity 交付安全字符串绑定、SFC/TSX、14 实现 API 差异和独立案例期望；不改 B 或 contracts。
+- [x] A 实际 Antigravity 交付安全字符串绑定、SFC/TSX、14 实现 API 差异和独立案例期望；不改 B 或 contracts。独立预期收口于 `0504d599`，三轮 18/18、窄 TS7 exit 0；此项不替代冻结消费者的真实类型/构建验收。
 - [ ] D 实际 Claude Code 以构建 CLI 独立进程验证授权、未知字段、hash 改变、失败恢复、用户后续编辑保护和副作用范围；不从产品计算 expected。
 
 ### Task 4: C / P4 集成与本地收口
@@ -62,3 +64,5 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 - [ ] 精确版本升 CLI、单独 CHANGELOG 提交；pack 一次后冻结，仓外安装同一 CLI 与 SDK 运行真实服务和本地双框架项目验收。
 - [ ] 强制全图、根测试、受影响平台/浏览器验收和 main 复验；记录范围与限制，合 main 后安全清理分支/工作树。
 - [ ] 无真实授权项目 diff 时只标记技术交付；T16 总任务与 T17 不勾选完成。
+
+2026-11-18 C 补充验收：产品当前 84 collected / 73 passed / 11 failed；真实 npm 安装 exit 0 仍被交付阶段拒绝，不能标为成功。C 已增加恢复、固定 Node/pnpm 与 npm metadata 断言并交 B 补修，见 [安装交付记录](../../verification/t16-npm-installed-delivery-2026-11-18.md)。验收令牌期限问题已按独立 RED→GREEN 修复，见 [令牌与检查点记录](../../verification/t16-acceptance-token-2026-11-18.md)。B 等待当前目录权限窗口，D 默认模型仍因工具调用解析失败未交付；产品 GREEN、真实矩阵、D 黑盒与本地合并保持未完成。本轮保留 worktree 与原始证据，不清理、不 push。

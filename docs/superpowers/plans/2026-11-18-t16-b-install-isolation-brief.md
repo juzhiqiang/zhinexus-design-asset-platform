@@ -69,9 +69,11 @@ Windows 宿主使用工作区 .tools 内固定 Node 26.13.0（随附 npm **11.20
 | pnpm 候选锁 | pnpm.exe install --lockfile-only --no-frozen-lockfile --ignore-scripts --ignore-pnpmfile --registry=R --store-dir=C |
 | pnpm 冻结物化 | pnpm.exe install --frozen-lockfile --ignore-scripts --ignore-pnpmfile --registry=R --store-dir=C |
 
-pnpm staging YAML 由产品固定：nodeLinker: hoisted、packageImportMethod: copy、enableGlobalVirtualStore: false、strictPeerDependencies: true、engineStrict: true、managePackageManagerVersions: false、ignoreScripts: true、ignorePnpmfile: true；所有动态 config dependencies / pnpmfile / hooks 被排除。版本不存在某设置或无法证明它生效时须停止该安装分支，先补版本证据，不能静默移除安全设置。
+pnpm staging YAML 由产品固定：nodeLinker: hoisted、packageImportMethod: copy、enableGlobalVirtualStore: false、strictPeerDependencies: true、engineStrict: true、pmOnFail: error、ignoreScripts: true、ignorePnpmfile: true；所有动态 config dependencies / pnpmfile / hooks 被排除。版本不存在某设置或无法证明它生效时须停止该安装分支，先补版本证据，不能静默移除安全设置。
 
-不继承完整 process.env。仅保留 Windows 必需的 SystemRoot/WINDIR/COMSPEC/PATHEXT 及产品构造的固定工具目录 PATH，外部 TMP/TEMP、USERPROFILE/HOME/APPDATA/LOCALAPPDATA，CI=true、NO_COLOR=1。npm_config_userconfig/globalconfig 指向隔离文件；环境中 NODE_OPTIONS、NODE_PATH、PNPM_HOME、COREPACK_*、npm_config_* 的外部值、代理/自定义 CA/registry 设置、平台/API token 全部不继承。项目父目录配置也不得通过 cwd 的祖先发现：stage 放在独占隔离根，检测/阻断已有祖先 .npmrc 或包管理器工作区配置。内部正确构造的配置键不受上述“外部值”排除规则影响。
+2026-11-18 固定版本兼容裁定：pnpm 12.18.0 拒绝旧 YAML `managePackageManagerVersions`。C 实际 characterization 确认上述固定 YAML 加产品内部环境 `PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS=false` 可生成候选锁、冻结物化且不执行脚本/pnpmfile；错误 pnpm pin 在创建锁和依赖目录前退出。内部值必须固定 false，不继承宿主同名键。不得用拼写建议 `initPackageManager` 代替安装隔离。见 [本轮版本证据](../../verification/t16-pnpm12-isolation-2026-11-18.md)。
+
+不继承完整 process.env。仅保留 Windows 必需的 SystemRoot/WINDIR/COMSPEC/PATHEXT 及产品构造的固定工具目录 PATH，外部 TMP/TEMP、USERPROFILE/HOME/APPDATA/LOCALAPPDATA，CI=true、NO_COLOR=1。npm_config_userconfig/globalconfig 指向隔离文件，内部 PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS 固定 false；环境中 NODE_OPTIONS、NODE_PATH、PNPM_HOME、COREPACK_*、npm_config_* 的外部值、代理/自定义 CA/registry 设置、平台/API token 全部不继承。项目父目录配置也不得通过 cwd 的祖先发现：stage 放在独占隔离根，检测/阻断已有祖先 .npmrc 或包管理器工作区配置。内部正确构造的配置键不受上述“外部值”排除规则影响。
 
 如 registry 需要认证，仅在隔离 U 中为精确 registry host/path 写入 registryToken，权限最小化，任务结束安全删除本任务创建的凭据文件；不得设置全局通用 _authToken，不把 apiToken 传子进程，不在 argv 放令牌。重定向不能携带认证到其他 origin，TLS 验证不得关闭。临时凭据文件虽可能被包管理器读取，也不进入备份、结果、公开 tarball 或可交付证据。
 

@@ -33,6 +33,8 @@ import type {
   IntegrationRollbackResultV1,
 } from '../../packages/component-cli/src/contracts/integration-apply.js';
 import type { IntegrationPlanV1 } from '../../packages/component-cli/src/contracts/integration-plan.js';
+import type { ComponentApiV1 } from '../../packages/component-cli/src/contracts/component-api.js';
+import { sdkApiAuditMatrix } from '../acceptance/t16-a/sdk-api-matrix.js';
 import { validateComponentMatchResponse } from '../../packages/component-cli/src/contracts/component-match.js';
 import { validateMatchPlan } from '../../packages/component-cli/src/contracts/match-plan.js';
 import type { MatchPlanV1 } from '../../packages/component-cli/src/contracts/match-plan.js';
@@ -77,7 +79,7 @@ import {
   startSyntheticNetwork,
   type SyntheticNetwork,
 } from './t16-support/loopback-services.js';
-import { readBackupFiles } from './t16-support/backup-store.js';
+import { readBackupFiles, storedBackup } from './t16-support/backup-store.js';
 import {
   EXECUTION_PRIMITIVES,
   expectBoundString,
@@ -311,6 +313,20 @@ async function buildPlan(root: string, framework: 'vue' | 'react', bindings?: { 
     '夹具权威响应必须结构合法').toBe(true);
   const plan = await planIntegration(root, source, planOptions());
   expect(plan.status, `夹具必须产出 planned 计划（冲突：${plan.conflicts.map(c => c.code).join(',')}）`).toBe('planned');
+  return plan;
+}
+
+/** 独立 API 期望来自 A 的 SDK 审计；保持离线绑定与权威响应逐字段相同。 */
+async function buildReactPlanWithApi(root: string, api: ComponentApiV1): Promise<IntegrationPlanV1> {
+  const source = matchPlan('react');
+  source.elements[0]!.props = api.props.map(prop => ({ ...prop, ...(prop.required ? { source: 'sales' } : {}) }));
+  source.elements[0]!.events = api.events.map(event => ({ ...event, handler: 'showDetail' }));
+  expect(validateMatchPlan(source).ok).toBe(true);
+  const response = { ...(matchedResponse(reactTarget(), 'react', dependenciesOf('react')) as Record<string, unknown>), api };
+  expect(validateComponentMatchResponse(response).ok, '独立 API 夹具必须通过公共契约').toBe(true);
+  respondWith('react', body => { body['api'] = api; });
+  const plan = await planIntegration(root, source, planOptions());
+  expect(plan.status, plan.conflicts.map(conflict => conflict.code).join(',')).toBe('planned');
   return plan;
 }
 
@@ -678,10 +694,10 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
     expect(generated!.length).toBeGreaterThan(0);
     expect(generated).toContain('LineChart');
     expect(generated).toContain('style.css');
-    expectBoundString(generated!, 'sales');
-    expectBoundString(generated!, 'showDetail');
-    expectBoundString(generated!, 'grid cell 1');
-    const scan = scanSource(generated!);
+    expectBoundString(generated!, 'sales', { framework: 'vue', prop: 'data' });
+    expectBoundString(generated!, 'showDetail', { framework: 'vue', prop: 'onPointClick' });
+    const scan = scanSource(generated!, 'vue');
+    expect(scan.boundValues.has('grid cell 1'), '布局字符串必须参与真实模板绑定').toBe(true);
     for (const primitive of EXECUTION_PRIMITIVES) {
       expect(scan.codeText, `生成源码不得出现执行原语 ${primitive}`).not.toContain(primitive);
     }
@@ -701,13 +717,41 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
     expect(generated!.length).toBeGreaterThan(0);
     expect(generated).toContain('LineChart');
     expect(generated).toContain('style.css');
-    expectBoundString(generated!, 'sales');
-    expectBoundString(generated!, 'showDetail');
-    expectBoundString(generated!, 'grid cell 1');
-    const scan = scanSource(generated!);
+    expectBoundString(generated!, 'sales', { framework: 'react', prop: 'data' });
+    expectBoundString(generated!, 'showDetail', { framework: 'react', prop: 'onPointClick' });
+    const scan = scanSource(generated!, 'react');
+    expect(scan.boundValues.has('grid cell 1'), '布局字符串必须参与真实 JSX 绑定').toBe(true);
     for (const primitive of EXECUTION_PRIMITIVES) {
       expect(scan.codeText, `生成源码不得出现执行原语 ${primitive}`).not.toContain(primitive);
     }
+  });
+
+  it('React 完整 SDK API：内建类型、样式与 ref 可选透传不能误判为不支持的核心类型', async () => {
+    const root = reactNpmLockedProject('apply-react-real-api');
+    const backupRoot = externalRoot('apply-react-real-api-backup');
+    const audited = sdkApiAuditMatrix.find(entry => entry.componentId === 'line' && entry.framework === 'react')!;
+    const api = { ...(componentApi('react') as ComponentApiV1),
+      props: [...audited.requiredProps, ...audited.optionalProps].map(prop => ({ ...prop })),
+      events: audited.events.map(({ name, payload }) => ({ name, payload })),
+    };
+    const plan = await buildReactPlanWithApi(root, api);
+    const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+    expect(thrown).toBeUndefined();
+    expect(result?.status, JSON.stringify(result?.issues)).toBe('applied');
+    const generated = readText(root, GENERATED_REACT_PATH)!;
+    expectBoundString(generated, 'sales', { framework: 'react', prop: 'data' });
+    expectBoundString(generated, 'showDetail', { framework: 'react', prop: 'onPointClick' });
+  });
+
+  it('React 已带 on 前缀的权威事件：回调必须绑定 onPointClick，不能二次转换', async () => {
+    const root = reactNpmLockedProject('apply-react-prefixed-event');
+    const backupRoot = externalRoot('apply-react-prefixed-event-backup');
+    // 只保留既有可支持的图表属性以隔离事件问题；完整 API 另有独立案例。
+    const api = { ...(componentApi('react') as ComponentApiV1), events: [{ name: 'onPointClick', payload: 'ChartEvent' }] };
+    const plan = await buildReactPlanWithApi(root, api);
+    const { result } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+    expect(result?.status, JSON.stringify(result?.issues)).toBe('applied');
+    expectBoundString(readText(root, GENERATED_REACT_PATH)!, 'showDetail', { framework: 'react', prop: 'onPointClick' });
   });
 
   const hostileBindings: [string, string][] = [
@@ -719,11 +763,13 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
     ['原型键', '__proto__'],
     ['构造器键', 'constructor'],
   ];
+  const distinctHandler = (source: string): string => source === '__proto__' ? 'constructor' : source === 'constructor' ? '__proto__' : `callback:${source}`;
 
   it.each(hostileBindings)('Vue 危险绑定文本（%s）：按字符串数据落地且无可执行表达式，或显式阻断', async (_label, payload) => {
     const root = vuePnpmLockedProject('apply-hostile-binding');
     const backupRoot = externalRoot('apply-hostile-binding-backup');
-    const plan = await buildPlan(root, 'vue', { source: payload, handler: payload, layout: `grid ${payload}` });
+    const handler = distinctHandler(payload);
+    const plan = await buildPlan(root, 'vue', { source: payload, handler, layout: `grid ${payload}` });
     const expected = treeSnapshot(root);
 
     const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
@@ -734,7 +780,8 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
       const generated = readText(root, GENERATED_VUE_PATH);
       expect(generated, 'applied 必须真实生成组件').toBeDefined();
       // 扫描器同时覆盖转义、单/双引号与模板字符串：绑定字符串值 + 无可执行位置 + 无执行原语。
-      expectSafeBinding(generated!, payload);
+      expectSafeBinding(generated!, payload, { framework: 'vue', prop: 'data' });
+      expectSafeBinding(generated!, handler, { framework: 'vue', prop: 'onPointClick' });
     } else {
       expect(result!.status, '未应用时必须显式阻断').toBe('blocked');
       expect(codes(result!)).toContain('BINDING_UNSUPPORTED');
@@ -746,7 +793,8 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
   it.each(hostileBindings)('React 危险绑定文本（%s）：安全字符串绑定或显式阻断', async (_label, payload) => {
     const root = reactNpmLockedProject('apply-hostile-binding-react');
     const backupRoot = externalRoot('apply-hostile-binding-react-backup');
-    const plan = await buildPlan(root, 'react', { source: payload, handler: payload, layout: `grid ${payload}` });
+    const handler = distinctHandler(payload);
+    const plan = await buildPlan(root, 'react', { source: payload, handler, layout: `grid ${payload}` });
     const expected = treeSnapshot(root);
 
     const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
@@ -756,7 +804,8 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
     if (result!.status === 'applied') {
       const generated = readText(root, GENERATED_REACT_PATH);
       expect(generated, 'applied 必须真实生成组件').toBeDefined();
-      expectSafeBinding(generated!, payload);
+      expectSafeBinding(generated!, payload, { framework: 'react', prop: 'data' });
+      expectSafeBinding(generated!, handler, { framework: 'react', prop: 'onPointClick' });
     } else {
       expect(result!.status, '未应用时必须显式阻断').toBe('blocked');
       expect(codes(result!)).toContain('BINDING_UNSUPPORTED');
@@ -769,6 +818,100 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
 // ─── ④⑤⑥ 写入失败、安装生命周期与备份 ───
 
 describe('T16 B / P1 applyIntegration 写入失败与安装生命周期', () => {
+  const backupFaults = [
+    ['version', 'writeFile'], ['version', 'rename'],
+    ['latest', 'writeFile'], ['latest', 'rename'],
+  ] as const;
+
+  it.each(backupFaults)('初始备份 %s 的 %s 一次性失败：目标零写入且安装零启动', async (kind, operation) => {
+    const root = vuePnpmLockedProject('apply-initial-backup-fault');
+    const backupRoot = externalRoot('apply-initial-backup-fault-store');
+    const plan = await buildPlan(root, 'vue');
+    const expected = treeSnapshot(root);
+    const originalInterceptor = fsFaults.intercept;
+    let injected = false;
+    fsFaults.intercept = (op, paths, data) => {
+      const target = paths.at(-1);
+      const name = target && path.basename(target);
+      const matches = kind === 'version'
+        ? (operation === 'writeFile' ? name?.startsWith('.backup-') : name?.startsWith('backup-'))
+        : (operation === 'writeFile' ? name?.startsWith('.latest-') : name === 'latest.json');
+      if (!injected && op === operation && target?.startsWith(backupRoot + path.sep) && matches) {
+        injected = true;
+        return true;
+      }
+      return originalInterceptor?.(op, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+      expect(injected, '必须命中真实备份写入接点').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(result).toBeDefined();
+      expect(result!.status).toBe('blocked');
+      expect(codes(result!)).toContain('BACKUP_INVALID');
+      expect(result!.changedFiles).toEqual([]);
+      expect(result!.backupRef).toBeUndefined();
+      expect(result!.installState).toBe('not-run');
+      expect(materializationCalls(processes)).toEqual([]);
+      expect(treeSnapshot(root)).toEqual(expected);
+    } finally {
+      fsFaults.intercept = originalInterceptor;
+    }
+  });
+
+  it.each(backupFaults)('installStarted 备份 %s 的 %s 一次性失败：恢复源码且不启动物化', async (kind, operation) => {
+    const root = vuePnpmNewDependencyProject('apply-start-journal-fault');
+    const backupRoot = externalRoot('apply-start-journal-fault-store');
+    const plan = await buildPlan(root, 'vue');
+    processes.dependencies = plan.exactDependencies;
+    const expected = treeSnapshot(root);
+    const originalInterceptor = fsFaults.intercept;
+    const startedDigests = new Set<string>();
+    let injected = false;
+    fsFaults.intercept = (op, paths, data) => {
+      const target = paths.at(-1);
+      if (op === 'writeFile' && Buffer.isBuffer(data) && target?.startsWith(backupRoot + path.sep)) {
+        try {
+          if ((JSON.parse(data.toString('utf8')) as { installStarted?: boolean }).installStarted === true) {
+            startedDigests.add(sha256Hex(data));
+          }
+        } catch { /* 非备份 JSON 不参与选择。 */ }
+      }
+      const name = target && path.basename(target);
+      const matches = kind === 'version'
+        ? (operation === 'writeFile' ? name?.startsWith('.backup-') : name?.startsWith('backup-'))
+        : (operation === 'writeFile' ? name?.startsWith('.latest-') : name === 'latest.json');
+      // latest 的目的文件不含摘要，从真实 journal 内容/rename 源文件取得对应版本。
+      let started = paths.some(p => [...startedDigests].some(digest => p.includes(digest)));
+      if (!started && op === 'writeFile' && Buffer.isBuffer(data)) {
+        try { started = startedDigests.has((JSON.parse(data.toString('utf8')) as { sha256: string }).sha256); } catch { /* 无关写入。 */ }
+      }
+      if (!injected && op === operation && matches && started) {
+        injected = true;
+        return true;
+      }
+      return originalInterceptor?.(op, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+      expect(injected, '必须在 installStarted=true 的真实备份提交处失败').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(result).toBeDefined();
+      expect(result!.status).toBe('rolled-back');
+      expect(result!.installState).toBe('not-run');
+      expect(codes(result!).some(code => code === 'BACKUP_INVALID' || code === 'WRITE_FAILED')).toBe(true);
+      expect(materializationCalls(processes), '备份状态持久化成功前不得启动安装').toEqual([]);
+      expect(treeSnapshot(root)).toEqual(expected);
+      expect(result!.backupRef).toBeDefined();
+      const stored = storedBackup(backupRoot, result!.backupRef!);
+      expect(stored.document.installStarted).toBe(false);
+      const latest = JSON.parse(fs.readFileSync(path.join(backupRoot, result!.operationId, 'latest.json'), 'utf8')) as { sha256: string };
+      expect(latest.sha256, '失败后返回引用仍应是可达最新版本').toBe(stored.sha256);
+    } finally {
+      fsFaults.intercept = originalInterceptor;
+    }
+  });
+
   it('首个写入失败：备份已落盘，写入证据为空，WRITE_FAILED + rolled-back + not-run，原始字节不变', async () => {
     const root = vuePnpmLockedProject('apply-first-write');
     const backupRoot = externalRoot('apply-first-write-backup');
