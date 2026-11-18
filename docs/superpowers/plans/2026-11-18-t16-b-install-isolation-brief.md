@@ -126,3 +126,13 @@ stage/env/ready 清理只删除可证明属于本次操作的树：根 `.t16-own
 日志窗口备份祖先被换为 junction 后，禁止穿链接读取或写回。正在执行的同次 apply 可从最近一次成功持久化、与 backupRef id/hash 和项目/计划/原字节绑定的不可变内存备份恢复源码；不能使用未落盘候选，第二次持久化失败保留第一次成功版本，不能伪造 installStarted。冷启动 rollback 仍从磁盘执行原完整验证，不能因此放宽祖先拒绝。
 
 安装已启动时，干净恢复返回 `rolled-back + reinstall-required + INSTALL_FAILED`；源码用户编辑或恢复 I/O 失败返回现有 `recovery-required` 分类。保留最后成功 backupRef，但不声称被替换路径可达，不改写外部、日志或 quarantine 现场。独立三条 RED 和未覆盖边界见 [同次恢复记录](../../verification/t16-hot-recovery-2026-11-19.md)。
+
+## 2026-11-19 C 补充：认领即时标记与备份最终双路径复核
+
+env/stage/ready 的独占目录认领完成时立即写入精确 owner marker，不能等 context 成型或后续暂存写入才补证明。context 成型前的失败回收也必须核验当前普通目录及本次 operationId/role 对应的精确标记；原路径被替换为无标记用户树时，不认领、不删除该树，保留移走的原树和原始错误。
+
+latest 原子替换成功并读回真实 journal 后，在返回成功 backupRef、授权任何目标源码提交前，复核 latest 与不可变 version **各自完整祖先链**及普通单链接叶文件。version 本身同字节且为普通文件，不能替代 versions 目录祖先复核；仅检查 latest 的祖先也不充分。发现任一链已被换为 junction 即失败关闭，目标源码、外部副本和移走的原备份树均保持原样。此规则收紧现有磁盘信任边界，不新增协议字段、不放宽冷启动恢复。
+
+独立 C24 两条和 C25 的真实 Windows 文件系统安排、RED 与 B25 接收边界见 [新增验证记录](../../verification/t16-b25-c25-d22-2026-11-19.md)。B25 已关闭 C24，C25 在 B25 仍 RED；B26 待原作者交付及实跑，不能把本段设计要求当成实现通过。
+
+2026-11-19 B26 实跑更新：最终 version 祖先链复核已由实际 B 交付、C 机械应用；C21/C24/C25 七条回归和完整产品141/141通过，强制全图20/20零缓存及workspace通过。独立审查确认 B25 的 ensureImmutableVersion 已在版本读回后对完整链及叶文件复核；B26 正文的额外疑虑不作为扩修依据。上述历史“B26待交付”由本检查点更新，最终冻结安装验收仍待实际通过，详见[新增验证记录](../../verification/t16-b25-c25-d22-2026-11-19.md)。

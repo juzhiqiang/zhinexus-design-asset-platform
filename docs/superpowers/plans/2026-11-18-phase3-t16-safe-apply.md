@@ -16,6 +16,8 @@
 
 2026-11-19 后续交接：D21 达 20 分钟上限，无 assistant text、无可接收测试；原始记录与超时 receipt 保留。D22 以 28880 bytes 公共上下文缩范围重试，实际作者仍为 Claude Code GLM-5.3。B25 仍在桌面 Starting up；C24 两条 RED 未关闭。契约同步报告已核对 **166/166，零失败/pending**，不替代产品或冻结验收。
 
+2026-11-19 新增 B25/C25 检查点：B25 原始交付已完整停写，九个 hunk 经唯一上下文及 `git apply --check` 机械接收。C24 两条 GREEN，C25 在 B25 仍 RED（112 collected / 2 passed / 1 failed / 109 unselected，exit 1），完整产品和最终冻结尚未重跑。B26 已交实际桌面原作者补 version 完整祖先链最终复核。D22 输出上限失败，无测试正文；D23 缩为单个原字节 hash 改变案例，实际 Claude Code GLM-5.3 运行中。根 fixtures tsc 用真实 `tsconfig.json` 重跑 exit 0；误用不存在的配置的失败日志保留。设计与安装 brief 已追加要求，Schema/CLI 副本同步仍为已核验 166/166。详细摘要及命令见 [新增独立记录](../../verification/t16-b25-c25-d22-2026-11-19.md)。全部技术验收通过后本地合 main，当前不合并、不清理、不 push，完整 T16/T17 未验收。
+
 ## Global Constraints
 
 - 用户没有真实试点项目；只在仓外 synthetic 工程安装/构建，完整 T16 与真实业务试点保持未完成。
@@ -104,3 +106,5 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 2026-11-19 C21 补充：独立审查三个 Important 已由四条真实文件系统 C21 用例确认 RED，最终 `c21-review-red-02` 为 **109/0/4/105，exit 1**（collected/passed/failed/unselected）。实际 B21 已交桌面原作者修 apply/backup/install。根普通 Vitest **1744 passed / 3 failed / 2 skipped，exit 1**，三失败对应新增源码与备份用例；stage 新用例未计入本次根执行，修后须完整复跑。D12 十分钟 thinking 超时无完整交付，保留原文及 receipt，实际同模型续写请求缩小。Task 3/4、最终冻结验收及 main 合并继续待通过，不 push、不清理、不勾完整 T16/T17。详见 [同次恢复记录](../../verification/t16-hot-recovery-2026-11-19.md) 和 [B21 brief](2026-11-19-t16-b21-review-brief.md)。
 
 2026-11-19 原作者续写：C21 fixtures tsc exit 0，既有只读 reviewer 确认最终四条夹具无失真。B21 Read 参数失败未交付，实际 B22 已收到当前完整三文件与测试片段的自包含文本；C 未改产品。公共 apply 契约与 Schema 复核 113/113、exit 0。D14 的独立规范摘要编码错误未接收，D15 输出上限失败未交付，同模型小片段继续返修。全 GREEN、D 完整范围、冻结矩阵与 main 合并仍待通过；命令和原文摘要追加于上述同次恢复记录。
+
+2026-11-19 B26 当前检查点：实际桌面一个 backup.ts hunk 已机械接收，C25 RED→GREEN；完整产品141/141、零失败/pending，C21/C24/C25窄测7passed/105unselected。根fixtures tsc、CLI typecheck、workspace及强制全图20/20、0cached均exit0。独立审查无新增Critical/Important；B25 ensureImmutableVersion版本读回后已做完整链复核，不据B26正文误扩修。D23正文尚未接收，空集合及issue子串断言退原作者D24收紧；根、完整D及最终冻结验收仍待通过。本段更新此前检查点，保留历史证据。详见[本轮新增记录](../../verification/t16-b25-c25-d22-2026-11-19.md)，main未合并，完整T16/T17未验收。
