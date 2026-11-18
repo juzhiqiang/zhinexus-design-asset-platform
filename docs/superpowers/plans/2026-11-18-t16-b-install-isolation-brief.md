@@ -108,3 +108,13 @@ pnpm staging YAML 由产品固定：nodeLinker: hoisted、packageImportMethod: c
 运行 `scripts/pnpm.ps1 --filter @company/component-cli build`，再 `scripts/pnpm.ps1 exec vitest run tests/integration/project-apply.test.ts tests/integration/project-rollback.test.ts tests/integration/project-install-isolation.test.ts`。保留全量 RED 日志；报告 failures/passes、collect 是否成功、明确缺能力。不得在本轮 RED 后自动 GREEN。
 
 后续真实 frozen SDK/CLI、npm/pnpm/workspace、网络资格复验和独立 D 黑盒仍是 P1/P4 门槛。synthetic 测试与 mocks 不替代真实授权业务项目；完整 T16/T17 保持未完成。
+
+## 2026-11-18 C 补充：依赖目录日志与清理失败的可观察约定
+
+本段具体化前文已批准的逐目录日志，不改变公开 IntegrationBackupV1 或源码 rollback 契约。运行日志保存在工程外已核验备份操作目录 `<backupRoot>/<operationId>/install-delivery.json`，与不可变源码备份版本分开；cleanup 不删除它或 quarantine。JSON 为 `{schemaVersion:1, kind:'t16-install-delivery', operationId, projectRoot, planDigest, entries}`。每项为 `{importer, target, hadOriginal, quarantine?, state}`；target 是工程相对 node_modules 路径，quarantine 是同卷工程外绝对路径，state 为 `planned`、`quarantined`、`delivered`。entries 精确覆盖真实 ready 交付范围，不把未交付成员计入成功。
+
+任何目标目录 rename 前，完整 planned 日志必须以独占临时文件和受控原子替换实际持久化；移动旧树后记录 quarantined、交付新树后记录 delivered。写日志失败立即停止后续目录动作，保留最后成功日志、quarantine 和实际目录现场，源码恢复且 installState 为 reinstall-required。日志与目录状态不承诺跨文件原子事务，planned/quarantined 的动作可能处于意图与完成更新之间，诊断必须复核磁盘，不能仅凭日志宣称动作未发生。备份父链、日志文件、临时文件须遵守普通路径、独占和防链接约束，不跟随并发替换。
+
+旧树的完整安全清单与摘要必须在受控 rename 前后复核；并发改写时停止新树交付，保留真实用户字节（原目录或 quarantine），不得清理或冒称 applied。多目录第二次交付失败时，第一目录真实新树、各旧树 quarantine 与日志都保留，不伪造恢复了依赖目录。
+
+cleanup 对 staging/env/ready 任一目录删除失败或删除后仍存在，都不得返回 applied；安装已启动则源码保守恢复并保持 reinstall-required。失败返回也尽力清除本次隔离凭据，错误对象和运行日志不得含 token。操作系统持续拒绝清理时记录未清理边界，不声称目录或凭据已删除；不删除用户目标目录。

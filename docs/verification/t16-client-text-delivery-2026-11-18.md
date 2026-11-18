@@ -141,3 +141,37 @@ D 六例第一轮实际运行 `2026-11-18T14:21:24.644Z`–`14:39:18.948Z`，chi
 D 单成功控制第二轮实际运行 `2026-11-18T14:43:16.571Z`–`14:51:43.031Z`，child exit0、timedOut false、is_error false、success、实际 num_turns4（args max-turns2），GLM-5.3。prompt7899字节 SHA-256 `9e358e147289214f56d25102e20ecff3c7c2a1f8d4ccc4ba4d83225c437d2d9a`；stdout18796字节 SHA-256 `05ef80dc00186913b5dcdf96c8c0ec6f2792de17a5635c9ddd04556e29c7c0bf`，result16766字符。完整文件源码存在，但 ESM __filename、API路径、env键、registry地址、MatchPlan写错文件、plan漏registry、YAML及备份/快照断言等有错误；末尾没有完整停写标记。C未机械落盘或执行，不能当通过。
 
 其中 API 路径和无安装备份候选预期为 C brief 错误，已按公开端点与 IntegrationBackupV1 纠正，未改产品。第三轮于 `2026-11-18T14:56:31.664Z` 启动，prompt32865字节，只要求同一个成功控制原作者返修，GLM-5.3/no tools，未改全局配置。证据前缀 `d-glm-apply-recovery-0{1,2,3}` 保留 prompt/raw/stderr/receipt，第三轮尚无最终结果。参数黑盒4/4历史范围不扩大到apply/rollback或冻结消费者。
+
+
+## B12–B14 与 D03–D05 追加接收证据
+
+检查点 `fa79ffb72be789a12a81ebb5cd87b64beb248cef` 后，B12完整原文SHA-256 `06a10b8df6ac3565a6d4e9b03f58e0c705fbce36efb21a462ce90346553a7adc`，机械接收后固定build/typecheck/probe73通过，八窄测通过，完整120/119/1/0 exit1。C追加四条目录journal/rename窗口/stage与ready清理RED，完整实跑为124/119/5/0 exit1（`product-b12-c4-full-01`）。见 [本轮产品证据](t16-product-review-2026-11-18.md)。
+
+B13实际桌面回复已完整Copy并wx保存 `b-glm-original-reply-13.md`（21246 bytes，SHA-256 `b99e89a3a3e9a8e61492fa991a649e0481a247761726bccc1f6aa4bbdaaec536`）。作者明示未执行且停写。接收器因apply hunks倒序exit1；重复函数/缺import、journal路径与状态推进等静态阻断已退原作者，未应用B13正文，不从作者推演报告GREEN。B14提示162915 bytes已实际填入并发送，当前GLM-5.3 High执行中。
+
+D03十分钟超时stdout0；D04十分钟后exit1，明确响应超过本次14000 output token，stdoutSHA-256 `38aa8eb11d8ec9466e69816e97c2171374c5100c6f433359455ca0d26d837def`，无源码交付。D05已于15:23:15.808Z启动，单子进程提高上限32000，不改全局模型配置、不重复运行D04。保持实际Claude Code作者；完整原文接收、真实CLI执行和同冻结产物D验收尚未完成。main未合并。
+
+## B14 拒收、B15 续写与 D05–D06 追加证据
+
+B14 实际桌面原文完整 Copy 保存为 `b-glm-original-reply-14.md`，25056 bytes，SHA-256 `13c9e33416139f2ab9a75be41bc41c67ee739f63c1acca798c41f01f2bd2cecb`。`receive-b-text-blocks.mjs 14` exit 1、scope rejected：新 `deliverReadyTree` 在带文件头的 diff 中，删除旧函数却放在无文件头/hunk 的独立代码块，并要求接收方按说明拼接。C 未应用或改写产品正文，产品仍为 B12。B15 已通过同一实际 Claude 桌面 GLM-5.3 High 发送，要求完整有序 diff、当前唯一精确上下文、完整日志/quarantine 父链及 rename 后安全复核；提示保留为 `b15-prompt.txt`。当前作者仍执行，不能声称交付或 GREEN。
+
+D05 实际子进程于 `2026-11-18T15:23:15.808Z`–`15:31:42.073Z` 运行，child exit 0、is_error false、GLM-5.3、num_turns 2；stdout 28484 bytes，SHA-256 `d737136d16737c2f9558cb87a724b18c477d607a1265229e742c44215e830c7b`，result 25429 字符。完整文本存在，但异步快照未 await、无效占位断言、registry 请求未记录、备份层级与恢复四组字段不符公共契约、停写标记不完整，静态拒收，未落盘或执行。D06 于 `2026-11-18T15:40:17.601Z` 启动，唯一 GLM-5.3 子进程、无工具、max-turns 2、effort low、单进程输出上限 32000，不改全局配置；公开类型重建提示 9615 bytes，只要求一个真实无安装 plan→apply→rollback 控制。`d-glm-apply-recovery-06` 前缀保留 prompt/raw/stderr/receipt，当前尚无最终交付，不扩大历史参数黑盒 4/4 的证明范围。
+
+## C 日志持久化与 Next Server Page 新证据
+
+`c-journal-persistence-red-01.{json,log}`：固定工具执行 `project-install-isolation.test.ts` 两条日志 I/O 用例，45 collected、2 failed、43 skipped，exit 1。两例分别在“必须真实命中首份 install-delivery.json 原子提交失败”和“必须真实命中旧树 rename 后日志更新失败”的 false→true 断言失败。B12 尚无该日志路径，不能称已经注入真实日志 I/O 故障；接收 B15 后必须重跑并确认注入实际命中。
+
+Next 消费者 01/02 两次 exit 1 属 C fixture 修复：01 普通 Server Page 缺 `@types/node`；02 控制构建通过，消费构建 TS 因 `.tsx` 扩展名及无效必需绑定失败。第三轮只选该消费者，证据 `c-next-consumer-red-03.{json,log}`：13 collected、1 failed、12 skipped，exit 1。实际隔离服务标识 `3a6bd922-45b3-4bfa-8211-fdfefb2c7ca4`；工作区外消费者固定 Next 16.4.6、Node 26.13.0、`@types/node` 26.6.6 与冻结 SDK 精确依赖，CLI 实际 apply 为 applied/succeeded。普通 Server Page 控制 build exit 0；不改生成文件、不加客户端 wrapper，Server Page 用合法 Server Action 传事件后，消费 build 编译与 TypeScript 通过，预渲染报 `TypeError: (0 , ad.useRef) is not a function`、exit 1。这是开发 CLI 的真实客户端边界 RED，仍需原作者修复及最终冻结 CLI 复验。
+
+第三轮子进程证据保留于临时消费者 `react-npm-next-server-page-{control-build,generated-build,apply}.json`，生成原文件 SHA-256 `2e116db9104be35571a6ffeef12ef89717995c9164598cea34dbf2357b91f66a`。C fixture 修改后固定 `exec tsc -p tsconfig.json --noEmit` exit 0（`c-fixture-typecheck-01.log`），只证明根测试类型检查，不替代完整 typecheck/全图验收。新增 fixture 已交独立只读审查。无 commit、升版、pack 或 main 合并，保留 worktrees 和证据。
+## B15 接收前的 C 完整回归与桌面观察限制
+
+2026-11-18 C 在未接收 B15 的 B12 产品上执行三个 project 测试文件，`product-b12-c6-full-01.{json,log}` 最终 **126 collected / 119 passed / 7 failed / 0 pending，exit 1**；七条名称与真实失败位置见 [产品审查记录](t16-product-review-2026-11-18.md)。这次有实际完整输出，取代当前套件数量的推测，不修改此前 124 条历史记录。
+
+桌面工具返回唯一 Claude 窗口，但重新选取与激活后连续捕获其他应用画面。C 停止界面输入，已请用户将本机 Claude 置于前台，避免误发或误接收；尚未复制 B15 或发送 B16。D06 原有唯一进程继续等待，未重复启动。文件侧验证继续，main 与产品作者分工保持不变。
+
+## 2026-11-19 桌面恢复与 D06 超时追加
+
+用户回复 Claude 已前台后，C 重新定位唯一返回窗口并刷新，已确认正确的 B 产品任务画面；GLM-5.3 High 仍在生成 B15，尚无完整停写交付，没有复制或应用 B15，也未发送 B16。
+
+D06 原进程最终于 `2026-11-18T16:00:17.708Z` 结束，started `15:40:17.601Z`，timedOut=true、exitCode=null、stdout 0 bytes；receipt 与空原文保留，不能当测试交付。D07 于 `16:02:34.190Z` 启动，仅请求实际 D 对其 D05 原文给有序修正 diff，减少完整重写输出。单一 GLM-5.3 子进程、无内置工具、禁用 slash commands、stream-json 仅供观察事件计数、不改全局配置；提示30844 bytes。C 仍不代写 D 测试，收到完整停写文本后才机械接收及真实执行。历史黑盒4/4不扩大证明范围。

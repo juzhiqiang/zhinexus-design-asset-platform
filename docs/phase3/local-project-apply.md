@@ -24,3 +24,9 @@ stdout 为单个 JSON；exit 0 表示操作成功或已安全回退，exit 2 表
 rollback 逐文件核对当前摘要：已匹配原状态的归入 unchangedPaths，可安全恢复的归入 restoredPaths，用户后续编辑归入 preservedPaths，读取/恢复 I/O 失败归入 unresolvedPaths。后两组存在时返回 recovery-required。依赖物化一旦开始，文件恢复后的 installState 保持 reinstall-required；源码备份不保证恢复 node_modules。workspace 多个依赖目录也不承诺跨目录原子事务，部分交付证据与 quarantine 应保留供诊断。
 
 同一冻结 CLI 与 SDK 的消费者验收通过后才可记录技术交付完成。合成工程的成功不替代真实业务项目 diff 或生产验收。
+
+
+追加检查点：B12+C4完整实跑124条，119通过、5失败（exit1）。B13未通过机械接收，已退B14原作者；D05独立黑盒仍待交付。Next App Router消费与日志/备份宽竞态未验收，尚未冻结CLI或合main。详见 [产品审查追加](../verification/t16-product-review-2026-11-18.md)。
+
+后续实跑：B14机械拒收，B15续写中；C两条日志持久化测试尚未命中产品日志路径。Next App Router普通Server Page控制构建通过，但直接消费实际安装生成React组件的预渲染失败，客户端边界已确认产品RED。当前恢复契约与Schema复核113/113、C夹具根类型检查通过；D06无安装控制仍待完整交付。产品与冻结消费者、全图验收及main合并保持未完成，前述124条为新增日志测试前的历史口径。
+2026-11-18 新增完整回归：B12 当前产品 **119/126 通过，7 失败，零跳过，exit 1**；七条目录交付、日志持久化和清理 RED 加入后的实际完整证据为 `product-b12-c6-full-01`，此前 124 条为历史结果。Next Server Page 客户端边界仍为产品 RED。B15 尚未接收，最终版本冻结和本地 main 合并仍待全部验收通过。

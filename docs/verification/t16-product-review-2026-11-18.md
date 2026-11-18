@@ -68,3 +68,50 @@ B11 原文 SHA-256 `40fa2df8d6778cc8852b83d878bc53ff72b341bda2cb417e20d112e108c2
 固定 wrapper 执行 `exec vitest run tests/integration/project-apply.test.ts tests/integration/project-install-isolation.test.ts -t '可选 chart-color|物化期间用户修改' --reporter=json --outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/b11-focused-01.json`：**5 passed / 0 failed / 88 未选择，exit 0**。完整三文件命令同前文，报告 `product-b11-review-full-01.json`：**120 collected / 111 passed / 9 failed / 0 pending，exit 1**。日志为 `b11-{build,typecheck}-01.log` 与两个报告同名 `.log`。未选择不能计作执行通过。
 
 第十二轮实际 B 桌面已收到剩余八条依赖协议和候选锁身份 RED，仅允许 install.ts/apply.ts；本检查点未收到其源码。安全旧树 quarantine 仍有一条 RED；多目录 journal、部分交付、Next/RSC、备份父链/独占/同卷及 cleanup 自身失败仍需独立覆盖。完整 GREEN、冻结产物与 main 合并门槛未变。
+
+
+## B12、C4 与 B13 接收阻断（独立追加）
+
+最后已提交检查点为 `fa79ffb72be789a12a81ebb5cd87b64beb248cef`。B12 实际 Claude 桌面原文 17889 bytes，SHA-256 `06a10b8df6ac3565a6d4e9b03f58e0c705fbce36efb21a462ce90346553a7adc`；C 机械提取 install.ts 五 hunks/apply.ts 一 hunk，旧文唯一匹配、只统一 LF 与重算 hunk 头，两份 `git apply --unidiff-zero --check` 后应用均 exit 0。固定 CLI build/typecheck exit 0，内联 probe 73 文件无污染、缺失、链接或清单外条目（`b12-{build,typecheck}-01.log`）。八条现有依赖协议/候选锁身份窄测 8 passed/0 failed/31 未选择，exit 0（`b12-focused-01`）。完整原120条为119 passed/1 failed/0 pending，exit 1（`product-b12-review-full-01`）；安全旧依赖树 quarantine 仍失败。
+
+C 在安装隔离测试中独立增加四条真实目录交付/清理故障案例：第二 workspace 目录 ready 交付失败前完整 planned 日志、部分 delivered/quarantined 与旧树保留；旧树 rename 窗口用户新增字节保护；stage 与 ready 各自持续拒绝清理不得 applied。固定 wrapper 实跑 `c-directory-cleanup-red-01` 为43 collected/0 passed/4 failed/39 未选择，exit 1，无fixture错误。安装 brief 追加独立 install-delivery.json 约定，不改公共 IntegrationBackupV1。
+
+固定 wrapper 完整命令：
+
+```powershell
+.\scripts\pnpm.ps1 -PnpmArgs @(
+  'exec','vitest','run',
+  'tests/integration/project-apply.test.ts',
+  'tests/integration/project-install-isolation.test.ts',
+  'tests/integration/project-rollback.test.ts',
+  '--reporter=json',
+  '--outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/product-b12-c4-full-01.json'
+)
+```
+
+`product-b12-c4-full-01.{json,log}` 实际 exit 1，独立解析 **124 collected/119 passed/5 failed/0 pending，success=false**。五条为安全既有旧树 quarantine、第二目录交付日志、旧树 rename 窗口编辑、stage清理失败、ready清理失败；没有新增其它回归。不同collected口径不混算。
+
+B13 实际桌面完整回复并停写，Copy保存原文21246 bytes、SHA-256 `b99e89a3a3e9a8e61492fa991a649e0481a247761726bccc1f6aa4bbdaaec536`。机械接收器 `receive-b-text-blocks.mjs 13` exit 1，apply hunks倒序触发 `not uniquely exact ordered context`；**未对产品运行 git apply，也未改写产品正文**。另有静态阻断：保留重复旧函数并要求C文字修正；cleanupInstallBestEffort缺导入；journal父目录计算错误且检查前recursive mkdir；禁止已存在目标使状态更新必拒绝；planned未记录真实hadOriginal；旧树检查使用无关stage边界；树摘要只有路径/大小，无法证明相同长度字节未改；strict清理未记本次rm异常。以上是未应用补丁的审查发现，不计成实跑RED或GREEN。B14 162915-byte精确返修提示已实际发送，窗口确认 GLM-5.3 High 正在执行，限定install.ts/apply.ts与原5条RED，C未代写。
+
+D03 于14:56:31.664Z–15:06:31.706Z超时，stdout0，exit null。D04 于15:09:36.938Z–15:19:50.004Z结束，child exit1、timedOut=false、is_error=true、实际num_turns4，报告响应超过14000输出token，无可接收源码；stdout SHA-256 `38aa8eb11d8ec9466e69816e97c2171374c5100c6f433359455ca0d26d837def`。D05于15:23:15.808Z启动（PID4112），仅子进程输出上限32000，GLM-5.3/no tools/effort low与全局模型配置保持，尚无交付。prompt/raw/stderr/receipt按轮完整保留。历史参数黑盒4/4不扩大到授权apply/rollback。
+
+原架构本次再次实测SHA-256仍为 `e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723`。Next真实消费者、journal/backup更宽竞态、完整D、全图/根/平台/浏览器、同份冻结CLI/SDK和main复验仍待通过。当前未升版、pack、合并、push、tag或清理worktree。缺真实授权Vue/React业务项目，完整T16/T17保持未完成。
+
+## 日志持久化两例与 Next 客户端边界独立补充
+
+新增两条日志测试用固定 wrapper 选取 `首份交付日志持久化失败|旧树移出后的日志更新失败`，报告 `c-journal-persistence-red-01`：45 collected、2 failed、43 skipped、exit 1。均在故障“必须真实命中”断言失败，因为 B12 无日志提交路径；尚不能证明日志 I/O 故障已经注入。测试不使用假 journal，接收新产品后需再确认注入实际命中及恢复断言通过。B14 未通过完整 hunk 机械接收，B15 正在实际作者处续写，当前没有应用新产品。
+
+Next 第三轮通过工作区外真实 npm 安装的原文生成组件消费，用固定 wrapper 执行 `exec vitest run --config tests/acceptance/t16-installed.config.ts -t 'Next App Router Server Page' --reporter=json --outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/c-next-consumer-red-03.json`。实际 13 collected、1 failed、12 skipped、exit 1；普通 Server Page 控制 build exit 0，生成组件消费的编译和 TypeScript 通过，预渲染因 `useRef is not a function` 失败。前两轮 fixture 的类型/依赖错误保留，不能算产品 RED。React API 的 data 是唯一必需 prop；Server Page/layout 无 client wrapper，事件使用合法 inline Server Action，生成原文 SHA-256 与 apply.afterHashes 一致。独立只读 reviewer 复核相同子进程证据、冻结 API 和实际 SDK 后确认该 RED 有效；第11项客户边界仍阻断合并。
+
+固定根测试 `exec tsc -p tsconfig.json --noEmit` exit 0（`c-fixture-typecheck-01.log`）。另以固定 wrapper 复核 `tests/contracts/integration-apply.test.ts` 与 `tests/contracts/api-schema.test.ts`，**113 collected/113 passed/0 failed/0 pending，exit 0**（`c-contract-schema-recheck-01`），包含当前恢复契约与 Schema 一致性；这不替代产品 GREEN、最终内联产物复核或全图测试。原架构 SHA-256 再次保持不变。新增 C 测试后完整产品数量需实际运行重新确认，不沿用124作为当前总数。
+## C 六条补测加入后的完整产品检查点
+
+独立追加，保留此前 124 条历史口径。2026-11-18 固定工具执行：
+
+```powershell
+.\scripts\pnpm.ps1 -PnpmArgs @('exec','vitest','run','tests/integration/project-apply.test.ts','tests/integration/project-install-isolation.test.ts','tests/integration/project-rollback.test.ts','--reporter=json','--outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/product-b12-c6-full-01.json')
+```
+
+最终 **126 collected / 119 passed / 7 failed / 0 pending，exit 1**。报告与日志为 `product-b12-c6-full-01.{json,log}`。七条失败为安全旧 node_modules 交付、首份日志提交失败、旧树移出后日志更新失败、workspace 第二目录交付失败、quarantine rename 窗口编辑保护、stage 持续清理失败、ready 持续清理失败。日志及 rename 窗口用例仍失败在必须实际命中注入的断言，不能称已执行到对应日志 I/O 故障或目录交付竞态；清理两例真实返回 applied，违反失败恢复预期。
+
+本轮未接收 B15，产品仍为 B12；该完整结果不能替代待交付实现的 GREEN。Next Server Page 产品 RED 独立记录保持有效。main 未合并，未升版、pack、push 或清理证据。
