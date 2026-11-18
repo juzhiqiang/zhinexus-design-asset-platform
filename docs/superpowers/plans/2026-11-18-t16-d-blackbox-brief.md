@@ -20,3 +20,11 @@
 C/B当前产品62测试为42passed/20failed，安装选址正在修复。你此阶段写harness与独立测试，最终真实CLI执行留待C提供冻结路径后再次启动D。本机依赖初始未安装，C可安装；可用B固定 scripts/pnpm.ps1，但含-p参数必须数组splat。SDK冻结目录 D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/881238b3-2214-4ec8-bf0c-af5238b7fcd3，manifest sha256 04a7c4fb267dd2fe760c9c10f3706d28e23d03a5a0cc0fc3be8c6a2963f50aa1。日志不得记录凭据。仓外synthetic只证明技术验收，完整T16/T17保持未完成。
 
 交付后停写，报告实际文件/命令/exit/未覆盖边界；不擅自宣称产品GREEN。
+
+## 2026-11-18 单成功控制交接纠错
+
+C 提供的 apply/recovery 第二轮文本 brief 曾错误给出 API `/v1/integration-targets`；实际公开查询路径为 GET `/v1/matching/components`。子进程凭据使用公开 `ZHINEXUS_API_TOKEN` / `ZHINEXUS_REGISTRY_TOKEN`，不能用 harness 私有变量名代替。完整 MatchPlan 写入 match 文件，真实 plan stdout 保存到外部 plan 文件，再交 apply；plan 也必须显式传 registry。此纠错不修改产品适配测试。
+
+无安装、只有 generated-component 的成功控制中，未变清单与锁的原字节通过完整工程快照证明。公开 IntegrationBackupV1 是 JSON，files 仅覆盖计划变更候选；不能要求未变 package.json/锁出现在备份或恢复候选中，也不能把任意 index/manifest/首文件当 backupRef 证据。递归 lstat 拒绝链接和硬链接，独立实算唯一版本文档 SHA-256 匹配真实 backupRef；核对 operation/root/plan 身份、候选 before/after 与实际字节。rollback 四组互斥完整覆盖该真实候选集。此控制未覆盖既有文件原字节恢复，须后续另立案例。
+
+实际 D 第二轮原文完整但有 ESM 入口、端点/凭据、fixture 和证据断言错误，C 未落盘、未执行、未改写。第三轮已按上述纠错退回原作者重交完整同文件。不得据交付状态宣称黑盒成功。
