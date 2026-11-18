@@ -23,6 +23,13 @@ export * from './integration/resolve.js';
 export * from './integration/registry.js';
 export * from './integration/plan.js';
 export * from './integration/workspace.js';
+export * from './integration/bindings.js';
+export * from './integration/patch.js';
+export * from './integration/backup.js';
+export * from './integration/generate-vue.js';
+export * from './integration/generate-react.js';
+export * from './integration/install.js';
+export * from './integration/apply.js';
 
 const isDirectRun =
   process.argv[1] &&

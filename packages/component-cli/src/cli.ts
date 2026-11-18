@@ -19,6 +19,8 @@ export async function runCli(
   component echarts verify --bundle <dir> [--version <x.y.z> | --latest | --echarts <x.y.z>] [--frameworks <vue,react>] [--components <list>] [--presentations <list>] [--registry <url|offline>] [--peer <strict|legacy|strict-only>] [--baseline <files>] [--out <dir>] [--label <name>] [--consumer-root <dir>] [--keep] [--timeout <ms>] [--skip-browser] [--probe-entry <path>] [--json]
   component integrate inspect --project <path> [--workspace <relative-path>]
   component integrate plan --project <path> [--workspace <relative-path>] --match <file> --api-url <origin> --registry <origin> [--output-dir <relative-path>]
+  component integrate apply --project <path> --plan <file> --api-url <origin> --registry <origin> --backup-root <outside-root> --allow-install <true|false> [--workspace <relative-path>] [--output-dir <relative-path>]
+  component integrate rollback --project <path> --backup-id <id> --backup-sha256 <sha256> --backup-root <dir>
   component --version
   component --help
 
@@ -26,13 +28,16 @@ export async function runCli(
   check            本地构建、冻结、干净消费者验证、截图与报告生成闭环
   prepare-release  整理并生成合法的 ReleaseManifestV1 与完整冻结发布材料 Bundle
   baseline         管理与确认本地自动验证产生的视觉回归基线
-  integrate        只读识别目标项目（inspect）并生成可审查的只读接入计划（plan）
+  integrate        只读识别目标项目（inspect）、生成可审查的只读接入计划（plan），
+                   或按显式授权执行受控应用（apply）与保留用户编辑的恢复（rollback）
   init/dev/release/status  (部分开发中)
 
-只读边界: component integrate 不写入目标项目、不创建目录/缓存/备份、不执行安装/构建/
-项目脚本/浏览器；stdout 只有结构化 JSON，诊断走 stderr；凭据仅从环境变量
-ZHINEXUS_API_TOKEN / ZHINEXUS_REGISTRY_TOKEN 读取，不进入任何输出。
-退出码: 0 无已知阻塞；2 含 conflicts 的结构化结果；1 参数/JSON/读取/网络错误。
+只读边界: component integrate inspect/plan 不写入目标项目、不创建目录/缓存/备份、不执行安装/构建/
+项目脚本/浏览器；apply/rollback 的写入、安装与恢复范围由产品边界决定（授权只来自本次显式调用，
+plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout 只有结构化 JSON，诊断走 stderr；
+凭据仅从环境变量 ZHINEXUS_API_TOKEN / ZHINEXUS_REGISTRY_TOKEN 读取，不进入任何输出。
+退出码: 0 无已知阻塞或操作成功；2 含 conflicts 的结构化结果或 blocked/recovery-required；
+1 参数/JSON/读取/网络错误。
 `,
       stderr: '',
     };

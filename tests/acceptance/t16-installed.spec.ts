@@ -14,6 +14,8 @@ import { platformHarness, grant, upload, release } from '../platform/http-suppor
 import { registryToken, realRegistry } from '../platform/t06-support.js';
 import { localServices } from '../platform/support.js';
 import { expectBoundString } from '../integration/t16-support/source-scan.js';
+import { createInstallContext, generateCandidateLock, materializeFrozenDependencies, planDelivery,
+  buildReadyTree, cleanupInstall, type InstallContext } from '../../packages/component-cli/src/integration/install.js';
 
 // This suite deliberately launches the CLI and real package managers. No product function,
 // runner, filesystem or network mock supplies the installation result or expected versions.
@@ -121,6 +123,49 @@ async function diagnoseCandidateLock(root: string, plan: IntegrationPlanV1, labe
     '--cache', env.npm_config_cache!], stage, env, join(area, `${label}-candidate-diagnostic.json`));
 }
 
+// Armed only for a failed development apply. Real low-level stages locate the
+// failure while the isolated registry is alive; no target delivery occurs and
+// these diagnostics never replace the subprocess apply assertion.
+async function diagnoseInstallStages(root: string, plan: IntegrationPlanV1, label: string) {
+  let context: InstallContext | undefined;
+  let phase = 'context';
+  const phases: string[] = [];
+  const evidence = join(area, `${label}-install-stages.json`);
+  try {
+    const manifest = JSON.parse(await readFile(join(root, 'package.json'), 'utf8'));
+    manifest.dependencies = { ...manifest.dependencies,
+      ...Object.fromEntries(plan.exactDependencies.map(dependency => [dependency.name, dependency.version])) };
+    context = createInstallContext({ operationId: `diagnostic-${label}`, projectRoot: root, packageManager: 'npm',
+      registryOrigin: localServices().registryOrigin, registryToken: readToken, workspace: '.', members: [],
+      manifests: [{ relative: 'package.json', manifest }], lockRelative: 'package-lock.json',
+      exactDependencies: plan.exactDependencies, registryEvidence: plan.registryEvidence });
+    phases.push(phase); phase = 'candidate-lock';
+    const lock = generateCandidateLock(context);
+    phases.push(phase); phase = 'materialization';
+    materializeFrozenDependencies(context, lock);
+    phases.push(phase); phase = 'delivery-plan';
+    const delivery = planDelivery(context);
+    phases.push(phase); phase = 'ready-tree';
+    buildReadyTree(context, delivery);
+    phases.push(phase);
+    await writeFile(evidence, JSON.stringify({ diagnosticOnly: true, phases, stage: context.stagingRoot }, null, 2));
+  } catch (error) {
+    const detail = error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error);
+    const credentials = [...apiTokens, readToken].filter(Boolean);
+    const safeDetail = credentials.reduce((text, token) => text.replaceAll(token, '[REDACTED]'), detail);
+    await writeFile(evidence, JSON.stringify({ diagnosticOnly: true, phases, failedPhase: phase,
+      error: safeDetail, stage: context?.stagingRoot }, null, 2));
+    expect(credentials.some(token => detail.includes(token)), 'diagnostic error exposed a credential').toBe(false);
+    if (context && (phase === 'candidate-lock' || phase === 'materialization')) {
+      await processResult(context.toolchain.nodeExe, [context.toolchain.npmCli,
+        phase === 'candidate-lock' ? 'install' : 'ci', ...(phase === 'candidate-lock' ? ['--package-lock-only'] : []),
+        '--ignore-scripts', '--no-audit', '--no-fund', '--registry', context.input.registryOrigin,
+        '--userconfig', context.userConfig, '--globalconfig', context.globalConfig, '--cache', context.cacheDirectory],
+      context.stagingRoot, context.environment, join(area, `${label}-failed-stage-process.json`));
+    }
+  } finally { if (context) cleanupInstall(context); }
+}
+
 // Resolve the package from the actual ESM importer without executing SDK code or
 // bypassing its exports. Public SDK packages intentionally hide package.json.
 async function installedPackage(name: string, importer: string) {
@@ -142,7 +187,7 @@ async function installedPackage(name: string, importer: string) {
   }
 }
 
-async function match(framework: Framework, manager: Manager) {
+async function match(framework: Framework, manager: Manager, options: { requiredPropsOnly?: boolean } = {}) {
   const row = rows.find(item => item.framework === framework)!;
   const checked = validateComponentApi(JSON.parse(await readFile(join(sdkRoot, row.metadata.api.path), 'utf8')));
   if (!checked.ok) throw new Error('Frozen API invalid');
@@ -152,7 +197,7 @@ async function match(framework: Framework, manager: Manager) {
     elements: [{ instanceId: 'installed-line', designId: 'synthetic/line' }] },
     context: { framework, frameworkVersion: framework === 'vue' ? '3.5.45' : '19.3.1', echartsVersion: '6.1.0', packageManager: manager, requirements: [] },
     ...(framework === 'react' ? { reactDomVersion: '19.3.1' } : {}),
-    bindings: [{ instanceId: 'installed-line', props: checked.value.props.map(prop => ({ name: prop.name, source: `source.${prop.name}` })),
+    bindings: [{ instanceId: 'installed-line', props: checked.value.props.filter(prop => !options.requiredPropsOnly || prop.required).map(prop => ({ name: prop.name, source: `source.${prop.name}` })),
       events: checked.value.events.map(event => ({ name: event.name, handler: `handler.${event.name}` })), layout: 'synthetic technical acceptance' }],
   }, await freshApiToken());
   expect(result.status, await result.clone().text()).toBe(200);
@@ -217,13 +262,13 @@ beforeAll(async () => {
 });
 afterAll(async () => { await h?.close(); });
 
-async function createProject(item: typeof matrix[number]) {
+async function createProject(item: typeof matrix[number], options: { next?: boolean } = {}) {
   const root = join(area, `${item.id} 项目`), importer = item.workspace ? 'apps/client' : '.', target = join(root, importer);
   await mkdir(join(target, 'src'), { recursive: true });
   const scripts = { preinstall: 'node poison.cjs', install: 'node poison.cjs', postinstall: 'node poison.cjs', build: 'node poison.cjs', typecheck: 'node poison.cjs' };
   const deps = { [item.framework]: item.framework === 'vue' ? '3.5.45' : '19.3.1',
     ...(item.framework === 'react' ? { 'react-dom': '19.3.1' } : {}), echarts: '6.1.0' };
-  const dev = { vite: '8.3.8', typescript: '6.0.3',
+  const dev = { vite: '8.3.8', typescript: '6.0.3', ...(options.next ? { next: '16.4.6', '@types/node': '26.6.6' } : {}),
     ...(item.framework === 'vue' ? { 'vue-tsc': '3.3.14', '@vitejs/plugin-vue': '6.0.10' } :
       { '@types/react': '19.3.0', '@types/react-dom': '19.3.0', '@vitejs/plugin-react': '6.3.0' }), yaml: '2.9.1' };
   await writeFile(join(root, 'package.json'), JSON.stringify({ name: `t16-${item.id}`, version: '1.0.0', private: true, type: 'module',
@@ -275,6 +320,66 @@ async function buildProject(root: string, importer: string, framework: Framework
 }
 
 describe('T16 real isolated services and actual dependency installation', () => {
+  // Removing the generated module's client boundary must break this real RSC build.
+  // The preceding plain Server Page build distinguishes a product failure from tool setup.
+  it('Next App Router Server Page directly consumes the installed generated React client component', async () => {
+    const id = 'react-npm-next-server-page';
+    const project = await createProject({ framework: 'react', manager: 'npm', workspace: false, id }, { next: true });
+    const matchFile = join(area, `${id}-match.json`);
+    await writeFile(matchFile, JSON.stringify(await match('react', 'npm', { requiredPropsOnly: true })));
+    const planned = await cli(['plan', '--project', project.root, '--match', matchFile, '--api-url', h!.origin(),
+      '--registry', localServices().registryOrigin], `${id}-plan`);
+    expect(planned.code, planned.stdout + planned.stderr).toBe(0);
+    const checked = validateIntegrationPlan(JSON.parse(planned.stdout));
+    if (!checked.ok) throw new Error(JSON.stringify(checked.issues));
+    expect(checked.value.status).toBe('planned');
+    const planFile = join(area, `${id}-plan-input.json`), backup = join(area, `${id}-backup`);
+    await writeFile(planFile, JSON.stringify(checked.value)); await mkdir(backup);
+    const applied = await cli(['apply', '--project', project.root, '--plan', planFile, '--api-url', h!.origin(),
+      '--registry', localServices().registryOrigin, '--backup-root', backup, '--allow-install', 'true'], `${id}-apply`);
+    expect(applied.code, applied.stdout + applied.stderr).toBe(0);
+    const result = validateIntegrationApplyResult(JSON.parse(applied.stdout));
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+    if (result.value.status !== 'applied' && process.env.T16_DIAGNOSE_INSTALL === '1') {
+      await diagnoseInstallStages(project.root, checked.value, id);
+    }
+    expect(result.value.status).toBe('applied');
+    const generated = checked.value.changes.find(change => change.kind === 'generated-component');
+    expect(generated).toBeDefined();
+    const source = await readFile(join(project.root, generated!.path), 'utf8');
+    const exportName = source.match(/export function (Zhinexus[A-Za-z0-9_]+)/)?.[1];
+    expect(exportName).toBeDefined();
+    expect((await installedPackage('next', project.target)).value.version).toBe('16.4.6');
+    for (const dependency of checked.value.exactDependencies) {
+      expect((await installedPackage(dependency.name, project.target)).value.version).toBe(dependency.version);
+    }
+    const app = join(project.target, 'src/app'); await mkdir(app);
+    await writeFile(join(app, 'layout.tsx'),
+      'import type { ReactNode } from "react"; export default function Layout({children}:{children:ReactNode}){return <html><body>{children}</body></html>;}');
+    await writeFile(join(app, 'page.tsx'), 'export default function Page(){return <main>Plain Server Page control</main>;}');
+    await writeFile(join(project.target, 'next.config.mjs'), 'export default {experimental:{cpus:2}};');
+    const nextBin = join(project.target, 'node_modules/next/dist/bin/next');
+    const buildEnv = { ...await cleanManagerEnvironment(`${id}-next-build`), NEXT_TELEMETRY_DISABLED: '1' };
+    const control = await processResult(node, [nextBin, 'build', '--webpack'], project.target, buildEnv,
+      join(area, `${id}-control-build.json`));
+    expect(control.code, control.stdout + control.stderr).toBe(0);
+    const specifier = './' + relative(app, join(project.root, generated!.path)).replaceAll('\\', '/').replace(/\.tsx$/, '');
+    // A Server Action is the serializable callback reference supported by Next RSC.
+    // Keep the Page and layout as Server Components, and pass valid source values.
+    // The CLI's generated file is used unchanged, without a test-authored client wrapper.
+    await writeFile(join(app, 'page.tsx'), `import {${exportName}} from ${JSON.stringify(specifier)};
+async function onPointClick(){'use server';}
+export default function Page(){return <${exportName} dataSources={{'source.data':{series:[]}}}
+handlers={{'handler.onPointClick':onPointClick}}/>;}`);
+    const consumed = await processResult(node, [nextBin, 'build', '--webpack'], project.target, buildEnv,
+      join(area, `${id}-generated-build.json`));
+    expect(consumed.code, consumed.stdout + consumed.stderr).toBe(0);
+    expect(await readFile(join(project.root, generated!.path), 'utf8')).toBe(source);
+    await expect(lstat(join(area, `${id}-POISON`))).rejects.toMatchObject({ code: 'ENOENT' });
+    if (process.env.PHASE3_CLI_TARBALL) expect(sha(await readFile(required('PHASE3_CLI_TARBALL'))))
+      .toBe(JSON.parse(await readFile(join(area, 'frozen-cli.json'), 'utf8')).sha256);
+  });
+
   it.each((['npm', 'pnpm'] as const).flatMap(manager => ['.npmrc', '.pnpmfile.cjs'].map(config => ({ manager, config }))))(
     '$manager rejects hostile $config without project writes or hook execution', async ({ manager, config }) => {
       const id = `blocked-${manager}-${config.replaceAll('.', '')}`;

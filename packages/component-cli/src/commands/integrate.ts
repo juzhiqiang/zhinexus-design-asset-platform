@@ -9,39 +9,60 @@
  *                       --api-url <origin> --registry <origin> [--output-dir <relative-path>]
  * ```
  *
- * 边界：目标项目零写入、零执行（不执行安装/构建/项目脚本/浏览器，不创建目录/缓存/备份）；
+ * 边界：inspect/plan 对目标项目零写入、零执行（不执行安装/构建/项目脚本/浏览器，
+ * 不创建目录/缓存/备份）；apply/rollback 的写入、安装与恢复范围由 applyIntegration /
+ * rollbackIntegration 的产品边界决定（授权只来自本次显式调用，plan.commands 只是
+ * 展示数据，仍不执行项目 build/typecheck）。
  * stdout 只写结构化 JSON，诊断一律 stderr；凭据只从环境 `ZHINEXUS_API_TOKEN` /
  * `ZHINEXUS_REGISTRY_TOKEN` 读取（不读项目配置），两类令牌分别注入且互不转发，绝不进入输出。
  *
- * 退出码：0 = 只读检查/计划完成且无已知阻塞；2 = 形成了含 conflicts 的结构化结果；
- * 1 = 参数/JSON/文件读取/网络等执行错误。
+ * 退出码：0 = 只读检查/计划完成且无已知阻塞，或 apply/rollback 成功；
+ * 2 = 形成了含 conflicts 的结构化结果，或 apply/rollback 返回 blocked / recovery-required；
+ * 1 = 参数/JSON/文件读取/网络/执行错误。
  *
  * 执行错误同样只往 stdout 写一个 JSON 对象（命令本地最小稳定对象
- * `{status:'error',error:{code,message}}`，不冒称 IntegrationPlan），诊断走 stderr；
- * 错误 code 分为参数（INVALID_ARGUMENTS）、MatchPlan 输入（INVALID_MATCH_PLAN）、
- * 透传 IntegrationPlanError.code 与兜底 EXECUTION_FAILED 四类，均不含凭据或远端原文。
+ * {status:'error',error:{code,message}}，不冒称 IntegrationPlan / IntegrationApplyResult），
+ * 诊断走 stderr；错误 code 分为参数（INVALID_ARGUMENTS）、MatchPlan 输入（INVALID_MATCH_PLAN）、
+ * 透传 IntegrationPlanError / IntegrationApplyError 的 code 与兜底 EXECUTION_FAILED 四类，
+ * 均不含凭据或远端/子进程原文。
  */
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { createHash } from 'node:crypto';
 import { validateMatchPlan } from '../contracts/match-plan.js';
+import { validateIntegrationPlan } from '../contracts/integration-plan.js';
 import { inspectProject } from '../integration/inspect.js';
 import { planIntegration, IntegrationPlanError } from '../integration/plan.js';
-import type { LocalProjectInspectionV1 } from '../contracts/integration-plan.js';
+import {
+  applyIntegration,
+  canonicalProjectRoot,
+  IntegrationApplyError,
+  rollbackIntegration,
+} from '../integration/apply.js';
+import { canonicalJson } from '../contracts/schema.js';
+import type { IntegrationApplyAuthorizationV1 } from '../contracts/integration-apply.js';
+import type { IntegrationPlanV1, LocalProjectInspectionV1 } from '../contracts/integration-plan.js';
 
 export type IntegrateCommandResult = { exitCode: number; stdout: string; stderr: string };
 
 const USAGE = `用法:
   component integrate inspect --project <path> [--workspace <relative-path>]
   component integrate plan --project <path> [--workspace <relative-path>] --match <file> --api-url <origin> --registry <origin> [--output-dir <relative-path>]
+  component integrate apply --project <path> --plan <file> --api-url <origin> --registry <origin> --backup-root <outside-root> --allow-install <true|false> [--workspace <relative-path>] [--output-dir <relative-path>]
+  component integrate rollback --project <path> --backup-id <id> --backup-sha256 <sha256> --backup-root <dir>
 
 只读边界: inspect 仅本地读取；plan 只读取目标项目与远端元数据/包内容，
 不写入目标项目、不创建目录/缓存/备份、不执行安装/构建/项目脚本/浏览器。
+apply/rollback 的写入、安装与恢复范围由产品边界决定：授权只来自本次显式调用，
+plan.commands 只是展示数据，不执行项目 build/typecheck。
 凭据从环境变量 ZHINEXUS_API_TOKEN / ZHINEXUS_REGISTRY_TOKEN 读取，不进入任何输出。
-退出码: 0 无已知阻塞；2 含 conflicts 的结构化结果；1 参数/JSON/读取/网络错误。`;
+退出码: 0 无已知阻塞或操作成功；2 含 conflicts 的结构化结果或 blocked/recovery-required；1 参数/JSON/读取/网络错误。`;
 
 /** 只认显式给出的标志；重复或缺失都按参数错误处理（exit 1）。 */
 const INSPECT_FLAGS = new Set(['--project', '--workspace']);
 const PLAN_FLAGS = new Set(['--project', '--workspace', '--match', '--api-url', '--registry', '--output-dir']);
+const APPLY_FLAGS = new Set(['--project', '--workspace', '--plan', '--api-url', '--registry', '--backup-root', '--allow-install', '--output-dir']);
+const ROLLBACK_FLAGS = new Set(['--project', '--backup-id', '--backup-sha256', '--backup-root']);
 
 type ParsedArgs =
   | { ok: true; values: Map<string, string> }
@@ -80,11 +101,13 @@ function parseArgs(args: readonly string[], allowed: ReadonlySet<string>): Parse
   const values = new Map<string, string>();
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
+    // argv 不可信：错误消息不回显参数原文（可能夹带 synthetic 令牌）；
+    // 仅回显已通过 allowed 白名单校验的契约参数名。
     if (arg === undefined || !arg.startsWith('--')) {
-      return { ok: false, message: `无法识别的参数 ${arg ?? '(空)'}` };
+      return { ok: false, message: '存在未以 -- 开头或缺失的 argv 参数（原文已脱敏）' };
     }
     if (!allowed.has(arg)) {
-      return { ok: false, message: `未知参数 ${arg}` };
+      return { ok: false, message: '未知参数（参数名已脱敏，可用参数见用法）' };
     }
     if (values.has(arg)) {
       return { ok: false, message: `参数重复 ${arg}` };
@@ -113,6 +136,11 @@ function tokenFromEnv(name: string): string | undefined {
   return raw;
 }
 
+/** 计划的规范摘要（与授权/备份中的 planDigest 同口径）。 */
+function sha256OfCanonical(plan: IntegrationPlanV1): string {
+  return createHash('sha256').update(canonicalJson(plan)).digest('hex');
+}
+
 /**
  * 失败路径统一形态：exit 1 + **单一 JSON stdout** + stderr 诊断。
  * stdout 是命令本地最小稳定对象（共享 contracts 没有专用执行错误 envelope，不冒称 IntegrationPlan）。
@@ -131,17 +159,19 @@ function executionFailure(error: unknown): IntegrateCommandResult {
   if (error instanceof IntegrationPlanError) {
     return failureEnvelope(error.code, error.message);
   }
+  if (error instanceof IntegrationApplyError) {
+    return failureEnvelope(error.code, error.message);
+  }
   if (error instanceof IntegrateCommandError) {
     return failureEnvelope(error.code, error.message, error.detail);
   }
-  const message = error instanceof Error ? error.message : String(error);
-  return failureEnvelope(EXECUTION_ERROR, message);
+  return failureEnvelope(EXECUTION_ERROR, '受控应用执行失败');
 }
 
-/** 结构化结果：stdout 只有 JSON；conflicts 非空按 exit 2，否则 exit 0。 */
-function structuredResult(payload: unknown, conflicts: readonly unknown[]): IntegrateCommandResult {
+/** 结构化结果：stdout 只有 JSON；blocked/recovery-required/conflicts 非空按 exit 2，否则 exit 0。 */
+function structuredResult(payload: unknown, blocking: readonly unknown[]): IntegrateCommandResult {
   return {
-    exitCode: conflicts.length > 0 ? 2 : 0,
+    exitCode: blocking.length > 0 ? 2 : 0,
     stdout: `${JSON.stringify(payload, null, 2)}\n`,
     stderr: '',
   };
@@ -149,6 +179,105 @@ function structuredResult(payload: unknown, conflicts: readonly unknown[]): Inte
 
 function emitInspection(inspection: LocalProjectInspectionV1): IntegrateCommandResult {
   return structuredResult(inspection, inspection.conflicts);
+}
+
+/** apply 结果的退出码依据：blocked / recovery-required 是结构化人工处置结果（exit 2）。 */
+function applyBlocking(result: { status: string; issues: readonly unknown[] }): readonly unknown[] {
+  return result.status === 'blocked' || result.status === 'recovery-required' ? result.issues : [];
+}
+
+async function runApply(values: Map<string, string>): Promise<IntegrateCommandResult> {
+  const project = requireValue(values, '--project');
+  const planFile = requireValue(values, '--plan');
+  const apiUrl = requireValue(values, '--api-url');
+  const registryUrl = requireValue(values, '--registry');
+  const backupRoot = requireValue(values, '--backup-root');
+  const allowInstall = requireValue(values, '--allow-install');
+  const workspace = values.get('--workspace');
+  const outputDir = values.get('--output-dir');
+  if (allowInstall !== 'true' && allowInstall !== 'false') {
+    // 不可信值不回显：值文本可能夹带 synthetic 令牌（契约参数名保留）。
+    throw argumentsError('--allow-install 只接受 true 或 false');
+  }
+
+  // 输入 IntegrationPlanV1：坏 JSON / 非法结构都是执行错误（exit 1），不冒充计划。
+  let plan: unknown;
+  try {
+    plan = JSON.parse(fs.readFileSync(path.resolve(planFile), 'utf8'));
+  } catch {
+    // 不可信路径不回显（可能夹带 synthetic 令牌）；契约参数名保留。
+    throw matchPlanError('无法读取或解析 --plan 文件（路径已脱敏）');
+  }
+  const checked = validateIntegrationPlan(plan);
+  if (!checked.ok) {
+    // issue path/message 可能反射输入 JSON 的未知字段名等不可信文本，一律脱敏。
+    throw matchPlanError(`--plan 不是合法的 IntegrationPlanV1（${checked.issues.length} 个结构性问题，细节已脱敏）`);
+  }
+
+  const apiToken = tokenFromEnv('ZHINEXUS_API_TOKEN');
+  const registryToken = tokenFromEnv('ZHINEXUS_REGISTRY_TOKEN');
+  const planDigest = sha256OfCanonical(checked.value);
+  // 授权只来自本次显式调用边界：由本命令按计划重新派生，磁盘计划本身不构成授权。
+  const authorization: IntegrationApplyAuthorizationV1 = {
+    schemaVersion: 1,
+    operation: 'apply',
+    projectRoot: canonicalProjectRoot(path.resolve(project)),
+    planDigest,
+    allowedPaths: [...checked.value.allowedPaths],
+    allowInstall: allowInstall === 'true',
+  };
+  const result = await applyIntegration(path.resolve(project), checked.value, {
+    authorization,
+    apiUrl,
+    registryUrl,
+    backupRoot: path.resolve(backupRoot),
+    ...(workspace !== undefined ? { workspace } : {}),
+    ...(outputDir !== undefined ? { outputDir } : {}),
+    ...(apiToken !== undefined ? { apiToken } : {}),
+    ...(registryToken !== undefined ? { registryToken } : {}),
+  });
+  return structuredResult(result, applyBlocking(result));
+}
+
+async function runRollback(values: Map<string, string>): Promise<IntegrateCommandResult> {
+  const project = requireValue(values, '--project');
+  const backupId = requireValue(values, '--backup-id');
+  const backupSha256 = requireValue(values, '--backup-sha256');
+  const backupRoot = requireValue(values, '--backup-root');
+  const result = await rollbackIntegration(
+    path.resolve(project),
+    { id: backupId, sha256: backupSha256 },
+    { backupRoot: path.resolve(backupRoot) },
+  );
+  return structuredResult(result, applyBlocking(result));
+}
+
+export async function runIntegrateCommand(args: readonly string[]): Promise<IntegrateCommandResult> {
+  const [subcommand, ...rest] = args;
+  if (subcommand === undefined) {
+    return failureEnvelope(ARGUMENTS_ERROR, '缺少子命令', USAGE);
+  }
+  if (subcommand === '--help' || subcommand === '-h') {
+    return { exitCode: 0, stdout: `${USAGE}\n`, stderr: '' };
+  }
+  if (subcommand !== 'inspect' && subcommand !== 'plan' && subcommand !== 'apply' && subcommand !== 'rollback') {
+    return failureEnvelope(ARGUMENTS_ERROR, '未知 integrate 子命令（子命令已脱敏）', USAGE);
+  }
+
+  const flags = subcommand === 'inspect' ? INSPECT_FLAGS
+    : subcommand === 'plan' ? PLAN_FLAGS
+      : subcommand === 'apply' ? APPLY_FLAGS
+        : ROLLBACK_FLAGS;
+  const parsed = parseArgs(rest, flags);
+  if (!parsed.ok) return failureEnvelope(ARGUMENTS_ERROR, parsed.message, USAGE);
+
+  try {
+    if (subcommand === 'inspect') return await runInspect(parsed.values);
+    if (subcommand === 'plan') return await runPlan(parsed.values);
+    return subcommand === 'apply' ? await runApply(parsed.values) : await runRollback(parsed.values);
+  } catch (error) {
+    return executionFailure(error);
+  }
 }
 
 async function runInspect(values: Map<string, string>): Promise<IntegrateCommandResult> {
@@ -171,12 +300,13 @@ async function runPlan(values: Map<string, string>): Promise<IntegrateCommandRes
   try {
     matchPlan = JSON.parse(fs.readFileSync(path.resolve(matchFile), 'utf8'));
   } catch {
-    // 不回显底层读取/解析异常原文（JSON 解析错误可能夹带文件内容摘录）。
-    throw matchPlanError(`无法读取或解析 --match 文件：${matchFile}`);
+    // 不回显底层读取/解析异常原文（JSON 解析错误可能夹带文件内容摘录）；路径同样脱敏。
+    throw matchPlanError('无法读取或解析 --match 文件（路径已脱敏）');
   }
   const checked = validateMatchPlan(matchPlan);
   if (!checked.ok) {
-    throw matchPlanError(`--match 不是合法的 MatchPlanV1：${checked.issues.map(issue => `${issue.path} ${issue.message}`).join('; ')}`);
+    // issue path/message 可能反射输入的不可信字段名，一律脱敏。
+    throw matchPlanError(`--match 不是合法的 MatchPlanV1（${checked.issues.length} 个结构性问题，细节已脱敏）`);
   }
 
   const apiToken = tokenFromEnv('ZHINEXUS_API_TOKEN');
@@ -190,26 +320,4 @@ async function runPlan(values: Map<string, string>): Promise<IntegrateCommandRes
     ...(registryToken !== undefined ? { registryToken } : {}),
   });
   return structuredResult(plan, plan.conflicts);
-}
-
-export async function runIntegrateCommand(args: readonly string[]): Promise<IntegrateCommandResult> {
-  const [subcommand, ...rest] = args;
-  if (subcommand === undefined) {
-    return failureEnvelope(ARGUMENTS_ERROR, '缺少子命令', USAGE);
-  }
-  if (subcommand === '--help' || subcommand === '-h') {
-    return { exitCode: 0, stdout: `${USAGE}\n`, stderr: '' };
-  }
-  if (subcommand !== 'inspect' && subcommand !== 'plan') {
-    return failureEnvelope(ARGUMENTS_ERROR, `未知 integrate 子命令 ${subcommand}`, USAGE);
-  }
-
-  const parsed = parseArgs(rest, subcommand === 'inspect' ? INSPECT_FLAGS : PLAN_FLAGS);
-  if (!parsed.ok) return failureEnvelope(ARGUMENTS_ERROR, parsed.message, USAGE);
-
-  try {
-    return subcommand === 'inspect' ? await runInspect(parsed.values) : await runPlan(parsed.values);
-  } catch (error) {
-    return executionFailure(error);
-  }
 }

@@ -26,7 +26,10 @@ import {
 } from './t16-support/fs-faults.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { createRequire } from 'node:module';
+import { runIntegrateCommand } from '../../packages/component-cli/src/commands/integrate.js';
 import { canonicalJson } from '../../packages/component-cli/src/contracts/schema.js';
+import { validateIntegrationApplyResult } from '../../packages/component-cli/src/contracts/integration-apply.js';
 import type {
   IntegrationApplyAuthorizationV1,
   IntegrationApplyResultV1,
@@ -58,6 +61,7 @@ import {
   VUE_PACKAGE_NAME,
   externalRoot,
   fileExists,
+  projectFile,
   readBytes,
   readText,
   releaseSyntheticDirs,
@@ -813,6 +817,345 @@ describe('T16 B / P1 applyIntegration 代码生成绑定', () => {
       expectNoSideEffects(root, expected, backupRoot);
     }
   });
+});
+
+// C 审查验收：布局仍是数据，不能关闭 SFC 的 HTML script 元素。
+describe('T16 C 审查安全边界', () => {
+  it('C25 latest 真实读回窗口仅替换 versions：同字节外部版本不能授权源码提交', async () => {
+    const root = vuePnpmLockedProject('review-backup-versions-readback-window');
+    const backupRoot = externalRoot('review-backup-versions-readback-store');
+    const outside = externalRoot('review-backup-versions-readback-outside');
+    const holder = externalRoot('review-backup-versions-readback-holder');
+    const savedVersions = path.join(holder, 'saved-versions');
+    const plan = await buildPlan(root, 'vue');
+    const before = treeSnapshot(root);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const previous = fsFaults.intercept, previousRead = fsFaults.readIntercept;
+    let latestTarget: string | undefined, swapped = false, sawPersistedPair = false;
+    let outsideBefore: Map<string, string> | undefined, savedBefore: Map<string, string> | undefined;
+    fsFaults.intercept = (operation, paths, data) => {
+      const target = paths[1];
+      if (!latestTarget && operation === 'rename' && target?.startsWith(backupRoot + path.sep)
+        && path.basename(target) === 'latest.json') latestTarget = target;
+      return previous?.(operation, paths, data) ?? false;
+    };
+    fsFaults.readIntercept = (operation, paths, data) => {
+      if (!swapped && latestTarget && operation === 'readFile' && paths[0] === latestTarget) {
+        const journalBytes = actual.readFileSync(latestTarget);
+        const journal = JSON.parse(journalBytes.toString('utf8')) as { schemaVersion: number; operationId: string; sha256: string };
+        const versions = path.join(path.dirname(latestTarget), 'versions');
+        const version = path.join(versions, 'backup-' + journal.sha256 + '.json');
+        const versionBytes = actual.readFileSync(version);
+        sawPersistedPair = journal.schemaVersion === 1 && journal.operationId === path.basename(path.dirname(latestTarget))
+          && sha256Hex(versionBytes) === journal.sha256;
+        expect(sawPersistedPair, 'latest 真实 rename 成功且引用真实不可变版本后才替换 versions').toBe(true);
+        actual.cpSync(versions, outside, { recursive: true });
+        outsideBefore = treeSnapshot(outside);
+        actual.renameSync(versions, savedVersions);
+        savedBefore = treeSnapshot(savedVersions);
+        actual.symlinkSync(outside, versions, 'junction');
+        swapped = true;
+        expect(actual.lstatSync(path.dirname(latestTarget)).isSymbolicLink(), 'latest 自身祖先仍普通').toBe(false);
+        expect(actual.lstatSync(versions).isSymbolicLink(), '仅 versions 为真实 junction').toBe(true);
+        expect(actual.lstatSync(version).isFile(), 'version 文件本身仍表现为普通文件').toBe(true);
+        expect(actual.readFileSync(latestTarget), 'latest 字节未改变').toEqual(journalBytes);
+        expect(actual.readFileSync(version), '外部 version 字节与原始持久化版本一致').toEqual(versionBytes);
+      }
+      return previousRead?.(operation, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+      expect(swapped && sawPersistedPair, '必须命中真实提交后的 versions-only 替换窗口').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(treeSnapshot(outside), '不得沿版本 junction 写入或清理外部副本').toEqual(outsideBefore);
+      expect(treeSnapshot(savedVersions), '真实原版本必须原样保留').toEqual(savedBefore);
+      expect(treeSnapshot(root), '不可冷恢复的版本路径不能授权目标源码提交').toEqual(before);
+      expect(result?.status).toBe('blocked');
+      expect(codes(result!)).toContain('BACKUP_INVALID');
+      expect(result?.changedFiles).toEqual([]);
+      expect(result?.installState).toBe('not-run');
+      expect(packageManagerCalls(processes)).toEqual([]);
+    } finally { fsFaults.intercept = previous; fsFaults.readIntercept = previousRead; }
+  });
+
+  it('C24 latest 真实 rename 后读回窗口替换 backup 祖先：不得返回不可冷恢复引用并提交源码', async () => {
+    const root = vuePnpmLockedProject('review-backup-latest-readback-window');
+    const holder = externalRoot('review-backup-latest-readback-holder');
+    const ancestor = path.join(holder, 'dedicated-parent');
+    const backupRoot = path.join(ancestor, 'store');
+    const outside = externalRoot('review-backup-latest-readback-outside');
+    const plan = await buildPlan(root, 'vue');
+    const before = treeSnapshot(root);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const previous = fsFaults.intercept, previousRead = fsFaults.readIntercept;
+    let latestTarget: string | undefined, swapped = false, sawPersistedPair = false;
+    let outsideBefore: Map<string, string> | undefined, savedBefore: Map<string, string> | undefined;
+    const savedParent = path.join(holder, 'saved-parent');
+    fsFaults.intercept = (operation, paths, data) => {
+      const target = paths[1];
+      if (!latestTarget && operation === 'rename' && target?.startsWith(backupRoot + path.sep)
+        && path.basename(target) === 'latest.json') latestTarget = target;
+      return previous?.(operation, paths, data) ?? false;
+    };
+    fsFaults.readIntercept = (operation, paths, data) => {
+      if (!swapped && latestTarget && operation === 'readFile' && paths[0] === latestTarget) {
+        const journalBytes = actual.readFileSync(latestTarget);
+        const journal = JSON.parse(journalBytes.toString('utf8')) as { schemaVersion: number; operationId: string; sha256: string };
+        const version = path.join(path.dirname(latestTarget), 'versions', 'backup-' + journal.sha256 + '.json');
+        const versionBytes = actual.readFileSync(version);
+        sawPersistedPair = journal.schemaVersion === 1 && journal.operationId === path.basename(path.dirname(latestTarget))
+          && sha256Hex(versionBytes) === journal.sha256;
+        expect(sawPersistedPair, 'latest 已真实 rename 成功且引用真实不可变版本才注入读回窗口').toBe(true);
+        actual.cpSync(ancestor, outside, { recursive: true });
+        outsideBefore = treeSnapshot(outside);
+        actual.renameSync(ancestor, savedParent);
+        savedBefore = treeSnapshot(savedParent);
+        actual.symlinkSync(outside, ancestor, 'junction');
+        swapped = true;
+        expect(actual.readFileSync(latestTarget), '放行的真实读回仍能得到同一 latest 字节').toEqual(journalBytes);
+      }
+      return previousRead?.(operation, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+      expect(swapped && sawPersistedPair, '必须命中真实 latest rename 成功后的读回窗口').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(treeSnapshot(outside), '同字节的 junction 备份路径不能授权向外写入或清理').toEqual(outsideBefore);
+      expect(treeSnapshot(savedParent)).toEqual(savedBefore);
+      expect(treeSnapshot(root), '不可冷恢复的持久化引用不能授权任何目标源码提交').toEqual(before);
+      expect(result?.status).toBe('blocked');
+      expect(codes(result!)).toContain('BACKUP_INVALID');
+      expect(result?.changedFiles).toEqual([]);
+      expect(result?.installState).toBe('not-run');
+      expect(packageManagerCalls(processes)).toEqual([]);
+    } finally { fsFaults.intercept = previous; fsFaults.readIntercept = previousRead; }
+  });
+
+  it('C21 首次真实提交后读回一次 EACCES：已提交源码必须恢复并纳入副作用证据', async () => {
+    const root = vuePnpmLockedProject('review-post-commit-read-failure');
+    const backupRoot = externalRoot('review-post-commit-read-failure-store');
+    const plan = await buildPlan(root, 'vue');
+    const before = treeSnapshot(root);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const target = projectFile(root, GENERATED_VUE_PATH);
+    const previous = fsFaults.intercept, previousRead = fsFaults.readIntercept;
+    let committed = false, readFailed = false, sawCommittedBytes = false;
+    fsFaults.intercept = (operation, paths, data) => {
+      if (!committed && operation === 'rename' && paths[1] === target) committed = true;
+      return previous?.(operation, paths, data) ?? false;
+    };
+    fsFaults.readIntercept = (operation, paths, data) => {
+      if (committed && !readFailed && operation === 'readFile' && paths[0] === target) {
+        sawCommittedBytes = actual.existsSync(target) && actual.readFileSync(target).length > 0;
+        readFailed = true;
+        return true;
+      }
+      return previousRead?.(operation, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+      expect(committed && readFailed && sawCommittedBytes, '真实 rename 后才注入一次读回失败').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(treeSnapshot(root), '不能报告干净回退却留下已经提交的源码').toEqual(before);
+      expect(result?.status).toBe('rolled-back');
+      expect(result?.changedFiles).toContain(GENERATED_VUE_PATH);
+      expect(result?.beforeHashes).toContainEqual({ path: GENERATED_VUE_PATH, exists: false });
+      expect(result?.afterHashes?.find(entry => entry.path === GENERATED_VUE_PATH)?.exists).toBe(true);
+      expect(result?.installState).toBe('not-run');
+      expect(validateIntegrationApplyResult(result).ok).toBe(true);
+      expect(packageManagerCalls(processes)).toEqual([]);
+    } finally { fsFaults.intercept = previous; fsFaults.readIntercept = previousRead; }
+  });
+
+  it.each(['version', 'latest'] as const)('C21 初次 %s 临时写入窗口替换 backup 祖先：阻断并保留外部树与目标', async kind => {
+    const root = vuePnpmLockedProject('review-initial-backup-window');
+    const holder = externalRoot('review-initial-backup-holder');
+    const ancestor = path.join(holder, 'dedicated-parent');
+    const backupRoot = path.join(ancestor, 'store');
+    const outside = externalRoot('review-initial-backup-outside');
+    const plan = await buildPlan(root, 'vue');
+    const before = treeSnapshot(root);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const previous = fsFaults.intercept, previousRead = fsFaults.readIntercept;
+    let temporaryPath: string | undefined, swapped = false, outsideBefore: Map<string, string> | undefined;
+    fsFaults.intercept = (operation, paths, data) => {
+      const temporary = paths[0];
+      const prefix = kind === 'version' ? '.backup-' : '.latest-';
+      if (!temporaryPath && operation === 'writeFile' && temporary?.startsWith(backupRoot + path.sep)
+        && path.basename(temporary).startsWith(prefix)) temporaryPath = temporary;
+      return previous?.(operation, paths, data) ?? false;
+    };
+    fsFaults.readIntercept = (operation, paths, data) => {
+      if (!swapped && temporaryPath && operation === 'lstat' && paths[0]?.startsWith(backupRoot + path.sep)
+        && actual.existsSync(temporaryPath)) {
+        actual.cpSync(ancestor, outside, { recursive: true });
+        outsideBefore = treeSnapshot(outside);
+        actual.renameSync(ancestor, path.join(holder, 'saved-parent'));
+        actual.symlinkSync(outside, ancestor, 'junction');
+        swapped = true;
+      }
+      return previousRead?.(operation, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+      expect(swapped, '真实临时文件已写入后、提交前才替换祖先').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(treeSnapshot(outside), '临时写入窗口的路径替换不能授权向外提交备份或 latest').toEqual(outsideBefore);
+      expect(treeSnapshot(root)).toEqual(before);
+      expect(result?.status).toBe('blocked');
+      expect(codes(result!)).toContain('BACKUP_INVALID');
+      expect(result?.changedFiles).toEqual([]);
+      expect(packageManagerCalls(processes)).toEqual([]);
+    } finally { fsFaults.intercept = previous; fsFaults.readIntercept = previousRead; }
+  });
+
+  // 契约允许连字符属性名；applied 必须交付可编译组件，不能生成非法解构声明。
+  it.each(['react', 'vue'] as const)('%s 可选 chart-color 透传：真实编译通过或写入前显式阻断', async framework => {
+    const root = framework === 'react' ? reactNpmLockedProject('review-optional-prop') : vuePnpmLockedProject('review-optional-prop');
+    const backupRoot = externalRoot('review-optional-prop-backup');
+    const api: ComponentApiV1 = {
+      ...(componentApi(framework) as ComponentApiV1),
+      props: [...(componentApi(framework) as ComponentApiV1).props, { name: 'chart-color', type: 'string', required: false }],
+    };
+    const source = matchPlan(framework);
+    source.elements[0]!.props = api.props.map(prop => ({ ...prop, ...(prop.required ? { source: 'sales' } : {}) }));
+    expect(validateMatchPlan(source).ok, '可选属性必须为合法公开输入').toBe(true);
+    const response = { ...(matchedResponse(framework === 'react' ? reactTarget() : vueTarget(), framework, dependenciesOf(framework)) as Record<string, unknown>), api };
+    expect(validateComponentMatchResponse(response).ok, '权威 API 必须为合法公开输入').toBe(true);
+    respondWith(framework, body => { body['api'] = api; });
+    const plan = await planIntegration(root, source, planOptions());
+    expect(plan.status, plan.conflicts.map(conflict => conflict.code).join(',')).toBe('planned');
+    const expected = treeSnapshot(root);
+    const { result, thrown } = await attemptApply(root, plan, applyOptions({ backupRoot, authorization: authorizationFor(root, plan) }));
+    expect(thrown).toBeUndefined();
+    expect(result).toBeDefined();
+    if (result!.status === 'blocked') {
+      expect(codes(result!)).toContain('BINDING_UNSUPPORTED');
+      expectNoSideEffects(root, expected, backupRoot);
+      return;
+    }
+    expect(result!.status).toBe('applied');
+    const generated = readText(root, framework === 'react' ? GENERATED_REACT_PATH : GENERATED_VUE_PATH)!;
+    expect(generated).toBeDefined();
+    expect(() => scanSource(generated, framework), 'applied 不得交付编译器拒绝的源码').not.toThrow();
+    if (framework === 'vue') {
+      const parsed = vueCompiler.parse(generated);
+      expect(() => vueCompiler.compileScript(parsed.descriptor, { id: 'review-optional-prop' })).not.toThrow();
+    }
+    expectBoundString(generated, 'sales', { framework, prop: 'data' });
+  });
+
+  it('apply 暂存目标字节期间用户创建目标：提交前重新核对 hash 并保留新编辑', async () => {
+    const root = vuePnpmLockedProject('review-apply-late-edit');
+    const backupRoot = externalRoot('review-apply-late-edit-backup');
+    const plan = await buildPlan(root, 'vue');
+    const realFs = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const target = projectFile(root, GENERATED_VUE_PATH);
+    const userBytes = Buffer.from('<!-- concurrent user file -->\n');
+    const previous = fsFaults.intercept;
+    let edited = false;
+    fsFaults.intercept = (op, paths, data) => {
+      const temporary = paths[0];
+      if (!edited && op === 'writeFile' && temporary && path.dirname(temporary) === path.dirname(target)
+        && path.basename(temporary).startsWith('.component-0001.vue.t16-')) {
+        realFs.writeFileSync(target, userBytes);
+        edited = true;
+      }
+      return previous?.(op, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptApply(root, plan, applyOptions({
+        backupRoot, authorization: authorizationFor(root, plan),
+      }));
+      expect(edited, '必须命中目标临时文件写入与 rename 之间的真实窗口').toBe(true);
+      expect(readBytes(root, GENERATED_VUE_PATH), 'apply 不得覆盖提交窗口内新建的用户文件').toEqual(userBytes);
+      expect(thrown).toBeUndefined();
+      expect(result?.status, '零已提交写入且未启动安装：保留备份并诚实报告干净回退').toBe('rolled-back');
+      expect(result?.changedFiles).toEqual([]);
+      expect(result?.beforeHashes).toEqual([]);
+      expect(result?.afterHashes).toEqual([]);
+      expect(result?.installState).toBe('not-run');
+      expect(result?.backupRef).toBeDefined();
+      expect(result?.issues.some(issue => issue.code === 'WRITE_FAILED' && issue.path === GENERATED_VUE_PATH)).toBe(true);
+      expect(validateIntegrationApplyResult(result).ok, '用户新字节保留且返回契约有效结果').toBe(true);
+      expect(packageManagerCalls(processes)).toEqual([]);
+    } finally { fsFaults.intercept = previous; }
+  });
+
+  const parserRequire = createRequire(createRequire(import.meta.url).resolve('@vitejs/plugin-react'));
+  const vueCompiler = parserRequire('vue/compiler-sfc') as {
+    parse(source: string): { descriptor: { script: unknown; scriptSetup: unknown }; errors: unknown[] };
+    compileScript(descriptor: unknown, options: { id: string }): unknown;
+  };
+
+  it.each([
+    '</script><script>globalThis.t16Injected = true</script><script setup lang="ts">',
+    '</ScRiPt><script>globalThis.t16Injected = true</script><script setup lang="ts">',
+  ])('Vue layout 的 SFC 结束标签必须保持字符串数据：%s', async layout => {
+    const root = vuePnpmLockedProject('review-sfc-layout');
+    const backupRoot = externalRoot('review-sfc-layout-backup');
+    const plan = await buildPlan(root, 'vue', { layout });
+    const expected = treeSnapshot(root);
+    const { result, thrown } = await attemptApply(root, plan, applyOptions({
+      backupRoot, authorization: authorizationFor(root, plan),
+    }));
+    expect(thrown).toBeUndefined();
+    expect(result).toBeDefined();
+    if (result!.status === 'blocked') {
+      expect(codes(result!)).toContain('BINDING_UNSUPPORTED');
+      expectNoSideEffects(root, expected, backupRoot);
+      return;
+    }
+    expect(result!.status).toBe('applied');
+    const generated = readText(root, GENERATED_VUE_PATH)!;
+    const parsed = vueCompiler.parse(generated);
+    expect(parsed.descriptor.script, 'layout 不能注入普通 script 块').toBeNull();
+    expect(parsed.errors, 'layout 不能截断或损坏 SFC').toEqual([]);
+    expect(parsed.descriptor.scriptSetup).toBeDefined();
+    expect(() => vueCompiler.compileScript(parsed.descriptor, { id: 'review-layout' })).not.toThrow();
+    expect(scanSource(generated, 'vue').boundValues.has(layout), '布局原值必须保留为绑定数据').toBe(true);
+  });
+
+  it.each(['unknown-flag', 'allow-install', 'missing-plan', 'unknown-json-field', 'subcommand'] as const)(
+    'CLI %s 错误不得回显 synthetic 凭据或产生写入', async kind => {
+      const root = vuePnpmLockedProject('review-cli-token');
+      const backupRoot = externalRoot('review-cli-token-backup');
+      const planRoot = externalRoot('review-cli-token-plan');
+      const plan = await buildPlan(root, 'vue');
+      const planFile = path.join(planRoot, 'plan.json');
+      fs.writeFileSync(planFile, JSON.stringify(kind === 'unknown-json-field'
+        ? { ...plan, [SYNTHETIC_REGISTRY_TOKEN]: 'untrusted' } : plan));
+      const args = ['apply', '--project', root, '--plan', planFile,
+        '--api-url', network.apiOrigin, '--registry', network.registryOrigin,
+        '--backup-root', backupRoot, '--allow-install', 'false'];
+      if (kind === 'unknown-flag') args.push('--' + SYNTHETIC_API_TOKEN, 'value');
+      if (kind === 'allow-install') args[args.length - 1] = SYNTHETIC_REGISTRY_TOKEN;
+      if (kind === 'missing-plan') args[args.indexOf('--plan') + 1] = path.join(planRoot, SYNTHETIC_API_TOKEN);
+      if (kind === 'subcommand') args[0] = SYNTHETIC_API_TOKEN;
+      const expected = treeSnapshot(root), backupExpected = treeSnapshot(backupRoot);
+      const oldApiToken = process.env.ZHINEXUS_API_TOKEN, oldRegistryToken = process.env.ZHINEXUS_REGISTRY_TOKEN;
+      process.env.ZHINEXUS_API_TOKEN = SYNTHETIC_API_TOKEN;
+      process.env.ZHINEXUS_REGISTRY_TOKEN = SYNTHETIC_REGISTRY_TOKEN;
+      processes.calls.length = 0;
+      network.requests.length = 0;
+      try {
+        const result = await runIntegrateCommand(args);
+        expect(result.exitCode).toBe(1);
+        expect(() => JSON.parse(result.stdout)).not.toThrow();
+        expect(treeSnapshot(root)).toEqual(expected);
+        expect(treeSnapshot(backupRoot)).toEqual(backupExpected);
+        expect(packageManagerCalls(processes)).toEqual([]);
+        expect(network.requests).toEqual([]);
+        expect(result.stdout + result.stderr).not.toContain(SYNTHETIC_API_TOKEN);
+        expect(result.stdout + result.stderr).not.toContain(SYNTHETIC_REGISTRY_TOKEN);
+      } finally {
+        if (oldApiToken === undefined) delete process.env.ZHINEXUS_API_TOKEN;
+        else process.env.ZHINEXUS_API_TOKEN = oldApiToken;
+        if (oldRegistryToken === undefined) delete process.env.ZHINEXUS_REGISTRY_TOKEN;
+        else process.env.ZHINEXUS_REGISTRY_TOKEN = oldRegistryToken;
+      }
+    },
+  );
 });
 
 // ─── ④⑤⑥ 写入失败、安装生命周期与备份 ───

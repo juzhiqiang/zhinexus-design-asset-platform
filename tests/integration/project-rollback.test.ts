@@ -483,6 +483,69 @@ describe('T16 B / P1 rollbackIntegration 有效备份恢复', () => {
 // ─── ⑩ 用户编辑与恢复 I/O 失败 ───
 
 describe('T16 B / P1 rollbackIntegration 用户编辑与 I/O 失败', () => {
+  it('新建文件分类完成后、删除前用户改写：保留新字节而非删除后声称 restored', async () => {
+    const root = vuePnpmLockedProject('review-rollback-late-delete');
+    const backupRoot = externalRoot('review-rollback-late-delete-backup');
+    const { plan, applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const realFs = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const target = projectFile(root, GENERATED_VUE_PATH);
+    const userBytes = Buffer.from('<!-- edited after classification -->\n');
+    const previous = fsFaults.readIntercept;
+    let classifiedRead = false, edited = false;
+    fsFaults.readIntercept = (op, paths, data) => {
+      if (paths[0] === target) {
+        if (op === 'readFile') classifiedRead = true;
+        if (!edited && op === 'lstat' && classifiedRead) {
+          realFs.writeFileSync(target, userBytes);
+          edited = true;
+        }
+      }
+      return previous?.(op, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptRollback(root, applied.backupRef!, backupRoot);
+      expect(edited, '必须命中分类读取之后的删除路径复核接点').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(readBytes(root, GENERATED_VUE_PATH), '删除前的新编辑必须保留').toEqual(userBytes);
+      expect(result?.status).toBe('recovery-required');
+      expect(result?.preservedPaths).toEqual([GENERATED_VUE_PATH]);
+      expect(result?.restoredPaths).not.toContain(GENERATED_VUE_PATH);
+      expect(result?.issues.some(issue => issue.code === 'USER_EDITED' && issue.path === GENERATED_VUE_PATH)).toBe(true);
+      expectCoverage(result!, plan.allowedPaths);
+    } finally { fsFaults.readIntercept = previous; }
+  });
+
+  it.each(['EACCES', 'EIO'])('恢复 lstat %s 不可读：归入 unresolved，不能当作新文件不存在', async code => {
+    const root = vuePnpmLockedProject('review-rollback-lstat-error');
+    const backupRoot = externalRoot('review-rollback-lstat-error-backup');
+    const { plan, applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const expected = readBytes(root, GENERATED_VUE_PATH);
+    const target = projectFile(root, GENERATED_VUE_PATH);
+    const previous = fsFaults.readIntercept;
+    let injected = false;
+    fsFaults.readIntercept = (op, paths, data) => {
+      if (op === 'lstat' && paths[0] === target) {
+        injected = true;
+        const error = new Error('synthetic unreadable target') as NodeJS.ErrnoException;
+        error.code = code;
+        throw error;
+      }
+      return previous?.(op, paths, data) ?? false;
+    };
+    try {
+      const { result, thrown } = await attemptRollback(root, applied.backupRef!, backupRoot);
+      expect(injected, '必须命中真实目标 stat 读取').toBe(true);
+      expect(thrown).toBeUndefined();
+      expect(result?.status).toBe('recovery-required');
+      expect(result?.unresolvedPaths).toEqual([GENERATED_VUE_PATH]);
+      expect(result?.unchangedPaths).toEqual([]);
+      expect(result?.preservedPaths).toEqual([]);
+      expect(result?.issues.some(issue => issue.code === 'RECOVERY_REQUIRED' && issue.path === GENERATED_VUE_PATH)).toBe(true);
+      expectCoverage(result!, plan.allowedPaths);
+    } finally { fsFaults.readIntercept = previous; }
+    expect(readBytes(root, GENERATED_VUE_PATH)).toEqual(expected);
+  });
+
   it('恢复暂存原字节后用户改写目标：保留新编辑并归入 preserved，而非覆盖后冒称 restored', async () => {
     const root = vuePnpmNewDependencyProject('rollback-during-replace');
     const backupRoot = externalRoot('rollback-during-replace-store');
@@ -576,6 +639,128 @@ describe('T16 B / P1 rollbackIntegration 用户编辑与 I/O 失败', () => {
 // ─── ⑫ 备份可信性、跨 root 与链接 ───
 
 describe('T16 B / P1 rollbackIntegration 备份可信性与链接边界', () => {
+  it('备份根上层父目录为 junction：普通子目录与有效摘要不能授权恢复', async () => {
+    // 捕获只核验 backupRoot 本身而漏查其祖先，沿链接读取备份后恢复目标的错误。
+    const root = vuePnpmLockedProject('review-backup-ancestor');
+    const container = externalRoot('review-backup-ancestor-container');
+    const backupRoot = path.join(container, 'store');
+    const outside = externalRoot('review-backup-ancestor-outside');
+    const { applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const stored = storedBackup(backupRoot, applied.backupRef!);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const moved = path.join(outside, 'moved-container');
+    actual.renameSync(container, moved);
+    linkDirectory(container, moved);
+    expect(actual.lstatSync(container).isSymbolicLink()).toBe(true);
+    expect(actual.lstatSync(backupRoot).isDirectory()).toBe(true);
+    expect(actual.lstatSync(backupRoot).isSymbolicLink()).toBe(false);
+    expect(sha256Hex(actual.readFileSync(stored.path))).toBe(applied.backupRef!.sha256);
+    const projectBefore = treeSnapshot(root);
+    const outsideBefore = treeSnapshot(outside);
+    const outcome = await attemptRollback(root, applied.backupRef!, backupRoot);
+    expect.soft(treeSnapshot(root), '链接祖先下的有效备份不得授权目标写入').toEqual(projectBefore);
+    expect.soft(treeSnapshot(outside), '外部备份字节与目录保持不变').toEqual(outsideBefore);
+    expectBackupInvalid(outcome);
+  });
+
+  it('创建备份前拒绝上层 junction：缺失的普通子目录不得先在外部创建', async () => {
+    // 捕获 recursive mkdir 先于父链身份检查，或只检查新建 backupRoot 的错误。
+    const root = vuePnpmLockedProject('review-backup-ancestor-create');
+    const container = externalRoot('review-backup-ancestor-create-container');
+    const outside = externalRoot('review-backup-ancestor-create-outside');
+    const parent = path.join(container, 'linked-parent');
+    linkDirectory(parent, outside);
+    const backupRoot = path.join(parent, 'missing-store');
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    expect(actual.lstatSync(parent).isSymbolicLink()).toBe(true);
+    expect(actual.existsSync(backupRoot)).toBe(false);
+    const plan = await buildPlan(root, ['node-1']);
+    processes.dependencies = plan.exactDependencies;
+    const projectBefore = treeSnapshot(root);
+    const outsideBefore = treeSnapshot(outside);
+    let result: IntegrationApplyResultV1 | undefined;
+    let thrown: unknown;
+    try {
+      result = await callApply(exports, root, plan, {
+        ...planOptions(), backupRoot, authorization: authorizationFor(root, plan),
+      });
+    } catch (error) { thrown = error; }
+    expect.soft(treeSnapshot(root), '不可信备份父链必须在首份目标写入前拒绝').toEqual(projectBefore);
+    expect.soft(treeSnapshot(outside), '拒绝前不得沿 junction 创建备份目录或文件').toEqual(outsideBefore);
+    expect(materializationCalls(processes)).toHaveLength(0);
+    if (thrown !== undefined) {
+      expect(errorText(thrown)).toMatch(/BACKUP_INVALID|PATH_UNSAFE/);
+      expectSanitized(thrown);
+    } else {
+      expect(result).toBeDefined();
+      expect(result!.status).toBe('blocked');
+      expect(result!.changedFiles).toEqual([]);
+      expect(result!.installState).toBe('not-run');
+      expect(result!.issues.some(issue => ['BACKUP_INVALID', 'PATH_UNSAFE'].includes(issue.code))).toBe(true);
+    }
+  });
+
+  it.each(['latest-hardlink', 'operation-junction', 'root-junction'] as const)('备份路径 %s 保留有效摘要仍须拒绝，目标与外部证据零改动', async kind => {
+    // 捕获缺失的备份路径身份核验；摘要正确不能授权沿链接读取恢复证据。
+    const root = vuePnpmLockedProject('review-backup-path-identity');
+    const backupRoot = externalRoot('review-backup-path-identity-store');
+    const outside = externalRoot('review-backup-path-identity-outside');
+    const { applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const stored = storedBackup(backupRoot, applied.backupRef!);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    const operation = path.dirname(path.dirname(stored.path));
+    const latest = path.join(operation, 'latest.json');
+    if (kind === 'latest-hardlink') {
+      const source = path.join(outside, 'latest.json');
+      actual.writeFileSync(source, actual.readFileSync(latest));
+      actual.unlinkSync(latest);
+      actual.linkSync(source, latest);
+      expect(actual.lstatSync(latest).nlink).toBeGreaterThan(1);
+    } else {
+      const original = kind === 'operation-junction' ? operation : backupRoot;
+      const moved = path.join(outside, 'moved-backup');
+      actual.renameSync(original, moved);
+      linkDirectory(original, moved);
+      expect(actual.lstatSync(original).isSymbolicLink()).toBe(true);
+    }
+    expect(sha256Hex(actual.readFileSync(stored.path))).toBe(applied.backupRef!.sha256);
+    const expected = treeSnapshot(root);
+    const outsideExpected = treeSnapshot(outside);
+    const outcome = await attemptRollback(root, applied.backupRef!, backupRoot);
+    expectRefused(outcome, ['BACKUP_INVALID', 'PATH_UNSAFE']);
+    expect(treeSnapshot(root)).toEqual(expected);
+    expect(treeSnapshot(outside)).toEqual(outsideExpected);
+  });
+
+  it.each(['hardlink', 'junction-parent'] as const)('备份版本路径为 %s 且摘要仍有效：拒绝并保持目标字节', async kind => {
+    const root = vuePnpmLockedProject('review-backup-linked-version');
+    const backupRoot = externalRoot('review-backup-linked-version-store');
+    const outside = externalRoot('review-backup-linked-version-outside');
+    const { applied } = await applyForRollback(root, ['node-1'], backupRoot);
+    const stored = storedBackup(backupRoot, applied.backupRef!);
+    const actual = await vi.importActual<typeof import('node:fs')>('node:fs');
+    let source = path.join(outside, 'backup-version.json');
+    const bytes = actual.readFileSync(stored.path);
+    if (kind === 'hardlink') {
+      actual.writeFileSync(source, bytes);
+      actual.unlinkSync(stored.path);
+      actual.linkSync(source, stored.path);
+    } else {
+      const versions = path.dirname(stored.path);
+      const movedVersions = path.join(outside, 'versions');
+      actual.renameSync(versions, movedVersions);
+      linkDirectory(versions, movedVersions);
+      source = path.join(movedVersions, path.basename(stored.path));
+      expect(actual.lstatSync(versions).isSymbolicLink()).toBe(true);
+    }
+    expect(sha256Hex(actual.readFileSync(stored.path))).toBe(applied.backupRef!.sha256);
+    if (kind === 'hardlink') expect(actual.lstatSync(stored.path).nlink).toBeGreaterThan(1);
+    const before = treeSnapshot(root);
+    const outcome = await attemptRollback(root, applied.backupRef!, backupRoot);
+    expectRefused(outcome, ['BACKUP_INVALID', 'PATH_UNSAFE']);
+    expect(treeSnapshot(root), '有效摘要不能使链接备份成为可信恢复输入').toEqual(before);
+    expect(actual.readFileSync(source)).toEqual(bytes);
+  });
   it('真实布局的合法派生备份可达：空原字节恢复为存在的零字节文件', async () => {
     const root = vuePnpmLockedProject('rollback-empty-original');
     const backupRoot = externalRoot('rollback-empty-original-store');

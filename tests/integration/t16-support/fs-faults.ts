@@ -4,6 +4,8 @@ import { createHash } from 'node:crypto';
 import { validateIntegrationBackup } from '../../../packages/component-cli/src/contracts/integration-apply.js';
 export type FsInterceptorState = {
   intercept: ((operation: string, paths: string[], data: unknown) => boolean) | null;
+  /** 读取故障独立武装，避免既有写入失败夹具提前在分类阶段失败。 */
+  readIntercept?: ((operation: string, paths: string[], data: unknown) => boolean) | null;
   backupComplete?: (backupRoot: string, projectRoot: string) => boolean;
 };
 export type FsFaultController = {
@@ -76,10 +78,11 @@ export function buildFsModuleMock(state: FsInterceptorState, actual: typeof impo
     };
     try { return walk(backupRoot); } catch { return false; }
   };
-  const guard = (operation: string, args: unknown[]): void => {
+  const guard = (operation: string, args: unknown[], reading = false): void => {
     const values = DESTINATION.has(operation) ? args.slice(0, 2) : args.slice(0, 1);
     const paths = values.filter((p): p is string => typeof p === 'string');
-    if (!state.intercept?.(operation, paths, args[1])) return;
+    const intercept = reading ? state.readIntercept : state.intercept;
+    if (!intercept?.(operation, paths, args[1])) return;
     const error = new Error('synthetic fs failure: ' + operation) as NodeJS.ErrnoException;
     error.code = 'EACCES'; throw error;
   };
@@ -87,6 +90,11 @@ export function buildFsModuleMock(state: FsInterceptorState, actual: typeof impo
   const promises = { ...actual.promises } as unknown as Record<string, unknown>;
   const methods = actual as unknown as Record<string, (...args: unknown[]) => unknown>;
   const promiseMethods = actual.promises as unknown as Record<string, (...args: unknown[]) => unknown>;
+  for (const operation of ['lstat', 'readFile']) {
+    mocked[operation+'Sync'] = (...args: unknown[]) => {
+      guard(operation, args, true); return methods[operation+'Sync']!(...args);
+    };
+  }
   for (const operation of MUTATING) {
     if (typeof methods[operation+'Sync'] === 'function') mocked[operation+'Sync'] = (...args: unknown[]) => {
       guard(operation, args); return methods[operation+'Sync']!(...args);
