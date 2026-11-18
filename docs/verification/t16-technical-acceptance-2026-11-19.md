@@ -77,4 +77,6 @@ C 浏览器路由及 D 桥接增量只读审查为 Critical/Important/Minor 均 
 
 D/C 增量终审记录 `c-d-bridge-current-review-2026-11-19.md` 此时 165094 bytes，SHA-256 `15e666bdbebf4cc6cb9fe700a5b3881c2d33dcf9f1242ee9dea249ec7ef63445`；16 模块与实际作者来源摘要一致，11 份保留候选与目标全文一致，新增 Critical/Important/Minor 均 0，既有两项 Minor 保留。此结论覆盖 D/C 增量及真实 GREEN，最终全树文档与 main 复验另行记录。
 
-实际 D 分支提交 `9bca63fd`，16 文件/563 新增行；B/C 原样 cherry-pick 为 `11659bca`。C 桥接提交 `b20921b9`，仅 17 行环境与进程编排，所有安装/恢复断言仍由实际 D 模块拥有。Git 原 `.gitattributes` 的 `.mjs` 为 `text=auto`、未指定 eol，仓库 `core.autocrlf=true` 导致 add 的 LF→CRLF 提示；实查全部 16 文件 index/worktree 均 LF、无纯行尾改动，未修改规则或作者正文。此时 main 尚未合并；main 默认 D 文件路径的真实复验继续推进。
+实际 D 分支提交 `9bca63fd`，16 文件/563 新增行；B/C 原样 cherry-pick 为 `11659bca`。C 桥接提交 `b20921b9`，仅 17 行环境与进程编排，所有安装/恢复断言仍由实际 D 模块拥有。Git 原 `.gitattributes` 的 `.mjs` 为 `text=auto`、未指定 eol，仓库 `core.autocrlf=true` 导致 add 的 LF→CRLF 提示；D 提交前实查全部 16 文件为 index LF / worktree LF；B/C cherry-pick 后为 index LF / worktree CRLF。当前 B/C 原始字节 SHA 不等同于 D 的 LF 来源 SHA，但归一 CRLF 后 16/16 正文逐字一致；没有提交纯行尾差异，未修改规则或作者断言。只读比较证据 `c-final-eol-comparison-2026-11-19.json` SHA-256 `54e71a5e979156e9d955e57082ad482429540871f88162995804c5b2dcc9fa9c`。此时 main 尚未合并；main 默认 D 文件路径的真实复验继续推进。
+
+补充集成树验证：提交 1f1566af 后执行 `scripts/pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`，exit 0；`final-integrated-root-tsc.log` 为空，SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。这项补验独立追加，不改写此前全图检查记录。

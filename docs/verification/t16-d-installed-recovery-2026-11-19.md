@@ -207,4 +207,4 @@ D56 使用 receipt-only runner54，UTC `2026-11-18T22:41:42.334Z`–`2026-11-18T
 
 最终 D/C 增量独立审查新增 Critical/Important/Minor 均 0；16 个模块与作者来源摘要一致，11 份保留候选与目标全文一致，四段实际 await 与原始 GREEN 证据一致。审查记录此时 165094 bytes、SHA-256 `15e666bdbebf4cc6cb9fe700a5b3881c2d33dcf9f1242ee9dea249ec7ef63445`，后续新增审查不改写本时点结论。实际命令事后索引 `cli-0014-d-installed-01.command-index.json` SHA-256 `46700ca644b70890cabb5ce2cb350b2310cbfc4d88b1acc27b7d6756d7b4f13f`，明确标记 `post-run-index-of-actual-command`，不能当作原始执行 receipt。
 
-16 模块在 D 保留分支提交 `9bca63fd`，原样 cherry-pick 到 B/C 为 `11659bca`；C 真实服务桥接单独提交 `b20921b9`。提交前固定 Node `--check` 16 次、暂存 diff check 均 exit 0；实查全部 index/worktree 均 LF，未改作者断言。最终根回归已实际通过 Vitest 1753/1753、T10 168/168；本地 main 合并与默认 D 文件路径复验另行记录。
+16 模块在 D 保留分支提交 `9bca63fd`，原样 cherry-pick 到 B/C 为 `11659bca`；C 真实服务桥接单独提交 `b20921b9`。提交前固定 Node `--check` 16 次、暂存 diff check 均 exit 0；D 提交前实查全部 16 文件为 index LF / worktree LF；B/C cherry-pick 后为 index LF / worktree CRLF，归一 CRLF 后 16/16 正文逐字一致。当前 B/C 原始字节 SHA 与 D 的 LF 来源 SHA 需按各自时点区分，未改作者断言；只读比较证据与摘要见技术验收记录。最终根回归已实际通过 Vitest 1753/1753、T10 168/168；本地 main 合并与默认 D 文件路径复验另行记录。
