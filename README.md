@@ -1,5 +1,7 @@
 # Zhinexus 组件资产平台
 
+2026-11-18 T16 开发审查修复：B08 后产品窄测 117 条中 97 通过、20 失败，失败项阻断合并；B05 的产品 84/84 与仓外双框架安装/类型/构建/迁移矩阵 12/12 保留为历史证据。受控 apply/rollback 用法见 [本地应用与恢复](docs/phase3/local-project-apply.md)，当前发现见 [产品审查记录](docs/verification/t16-product-review-2026-11-18.md)，原始交付和命令见 [客户端交付记录](docs/verification/t16-client-text-delivery-2026-11-18.md)。D 首条参数黑盒通过，完整独立黑盒、最终冻结 CLI 和全量回归待通过；通过全部技术门槛后本地合 main，完整 T16/T17 与真实业务试点保持未完成。
+
 2026-11-18 T16 P0 补充：恢复结果新增必填 unresolvedPaths，独立表达恢复 I/O 失败；首写失败允许已备份但没有已提交文件。Schema、CLI 内联副本和设计已同步。B / Claude 桌面端按 [安装隔离 brief](docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md) 先交产品失败测试，C 在 Windows 确认 RED 后再进入实现。恢复与验证证据见 [本轮补充记录](docs/verification/t16-recovery-sync-2026-11-18.md)；T16 产品安装与真实项目验收仍未完成。
 
 2026-11-17 T15 本地项目识别与只读接入计划已完成技术验收，CLI 为 `0.0.13`。`component integrate inspect/plan` 支持 Vue/React、npm/pnpm 和显式工作区，计划始终为 `executionAuthorized: false`。Claude 桌面端完成 CLI 产品，Antigravity 提供独立矩阵，Claude Code 提供黑盒验收，Codex 完成契约、真实服务与冻结包验证。使用方式见 [接入计划说明](docs/phase3/integration-plan.md)，命令、摘要、验证及本地合并清理结果见 [T15 收口记录](docs/verification/t15-completion-2026-11-17.md)。T16 安装/代码生成、T17 验证修复/MCP、生产 G2 和真实业务试点仍待完成。
