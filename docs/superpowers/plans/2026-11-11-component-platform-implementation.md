@@ -489,7 +489,7 @@ flowchart LR
 
 ### T16：依赖安装、框架代码与数据事件接入（三期，14–20 人日）
 
-2026-11-19 新增技术检查点：B26 产品 141/141，CLI `0.0.14` 已一次 pack；同一冻结 CLI 的真实仓外矩阵/配置拒绝/Next 共 13 项、浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5。根完整复跑 1753 项及 T10 168 项通过；平台首轮 135 项通过、2 项跳过，独立补验 2/2 通过。实际 D 新增安装/备份/字段/恢复四段黑盒 1/1、零失败或跳过。下面前三项依据产品与冻结 synthetic 工程证据完成；最终全树审查和本地 main 复验仍在推进。真实授权 Vue/React 业务项目仍缺，最后一项与完整 T16/T17 保持未完成。详见 [冻结技术验收](../../verification/t16-technical-acceptance-2026-11-19.md)和[独立 D 记录](../../verification/t16-d-installed-recovery-2026-11-19.md)。
+2026-11-19 T16 技术交付已按授权本地合并 main 并完成复验：B26 产品 141/141、CLI `0.0.14` 唯一冻结产物；main 强制全图 20/20（0 cached）、根 Vitest 1753/1753 与 T10 168/168、完整冻结 T16 14/14、契约浏览器 1/1 全部通过。14 项含八组真实仓外安装矩阵、四组配置拒绝、Next 和实际 D 默认入口四段控制；此前浏览器 287/287、T15 25/25、D 既有 5/5 与平台独立补验保留。独立全树审查无未解决 Critical/Important，保留两项非阻断 Minor。下面前三项依据产品与冻结 synthetic 工程证据完成；真实授权 Vue/React 业务项目仍缺，最后一项与完整 T16/T17 保持未完成。详见 [main 收口记录](../../verification/t16-main-completion-2026-11-19.md)。
 
 **Files:** 创建 `packages/component-cli/src/integration/{apply,install,generate-vue,generate-react,patch}.ts`、`templates/{vue,react}/`；`tests/integration/project-apply.test.ts`。
 

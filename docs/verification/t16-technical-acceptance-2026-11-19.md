@@ -80,3 +80,7 @@ D/C 增量终审记录 `c-d-bridge-current-review-2026-11-19.md` 此时 165094 b
 实际 D 分支提交 `9bca63fd`，16 文件/563 新增行；B/C 原样 cherry-pick 为 `11659bca`。C 桥接提交 `b20921b9`，仅 17 行环境与进程编排，所有安装/恢复断言仍由实际 D 模块拥有。Git 原 `.gitattributes` 的 `.mjs` 为 `text=auto`、未指定 eol，仓库 `core.autocrlf=true` 导致 add 的 LF→CRLF 提示；D 提交前实查全部 16 文件为 index LF / worktree LF；B/C cherry-pick 后为 index LF / worktree CRLF。当前 B/C 原始字节 SHA 不等同于 D 的 LF 来源 SHA，但归一 CRLF 后 16/16 正文逐字一致；没有提交纯行尾差异，未修改规则或作者断言。只读比较证据 `c-final-eol-comparison-2026-11-19.json` SHA-256 `54e71a5e979156e9d955e57082ad482429540871f88162995804c5b2dcc9fa9c`。此时 main 尚未合并；main 默认 D 文件路径的真实复验继续推进。
 
 补充集成树验证：提交 1f1566af 后执行 `scripts/pnpm.ps1 -PnpmArgs @('exec','tsc','-p','tsconfig.json','--noEmit')`，exit 0；`final-integrated-root-tsc.log` 为空，SHA-256 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855`。这项补验独立追加，不改写此前全图检查记录。
+
+## main 合并与完整复验补充
+
+2026-11-19 已按用户授权将技术交付本地快进合 main 至 `40910dc46db7bef0db0d17dee0d31b94a8f2ea6d`。main frozen install、workspace、强制全图 20/20（0 cached）、根 tsc、根 Vitest 1753/1753 与 T10 168/168、完整冻结 T16 14/14、契约浏览器 1/1 均 exit 0。T16 未筛选，包含 main 默认 D 文件路径四段真实黑盒，原 13 项消费者与 D 单项筛选历史保持原样。独立全树审查无未解决 Critical/Important，保留两项非阻断 Minor；main 证据、收据摘要、C 证据脚本中断纠正和纯文档提交边界见 [独立 main 收口记录](t16-main-completion-2026-11-19.md)。完整 T16/T17、真实授权业务项目和生产 G2 仍开放。

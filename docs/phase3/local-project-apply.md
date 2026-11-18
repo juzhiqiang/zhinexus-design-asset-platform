@@ -1,6 +1,6 @@
 # T16 本地受控应用与恢复
 
-2026-11-19 当前检查点：CLI `0.0.14` 产品 141/141，冻结 tarball 的八组双框架安装/构建/迁移、四组配置拒绝和 Next Server Page 共 13 项通过；完整浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5。根完整复跑 1753 项及 T10 168 项通过；平台首轮 135 项通过、2 项跳过，独立补验 2/2 通过。实际 D 新增四段安装恢复黑盒 1/1，字段篡改、真实旧版本冷拒绝、原字节恢复及 reinstall-required 均已实际验证，零失败或跳过。最终全树审查与本地 main 收口继续推进。完整 T16/T17 仍缺真实授权业务项目；下方失败状态保留历史。见 [本轮冻结验收](../verification/t16-technical-acceptance-2026-11-19.md)和[独立 D 记录](../verification/t16-d-installed-recovery-2026-11-19.md)。
+2026-11-19 当前技术交付已本地合并 main 并复验：CLI `0.0.14` 产品 141/141；main 强制全图 20/20（0 cached）、根 Vitest 1753/1753 与 T10 168/168、完整冻结 T16 14/14、契约浏览器 1/1 全部通过。T16 包含八组双框架安装/构建/迁移、四组配置拒绝、Next Server Page 及实际 D 默认入口安装恢复四段黑盒；字段篡改、真实旧版本冷拒绝、原字节恢复和 reinstall-required 已验证，依赖树保留。独立全树审查无未解决 Critical/Important，保留两项非阻断 Minor。完整 T16/T17 仍缺真实授权 Vue/React 业务项目；下方失败状态保留历史。见 [main 收口记录](../verification/t16-main-completion-2026-11-19.md)和[独立 D 记录](../verification/t16-d-installed-recovery-2026-11-19.md)。
 
 状态：2026-11-18 开发审查修复中。B08 后产品窄测 117 条，97 通过、20 失败、无 pending；失败项阻断合并。B05 的产品 84/84 与真实隔离安装/构建/迁移矩阵 12/12 保留为历史阶段证据。D 首条参数黑盒已通过真实开发 CLI，完整独立黑盒、全量回归与最终冻结 CLI 验收尚未完成。完整 T16 仍需真实授权 Vue/React 业务项目，T17 独立待验收。见 [产品审查记录](../verification/t16-product-review-2026-11-18.md) 和 [实际客户端交付记录](../verification/t16-client-text-delivery-2026-11-18.md)。
 

@@ -208,3 +208,7 @@ D56 使用 receipt-only runner54，UTC `2026-11-18T22:41:42.334Z`–`2026-11-18T
 最终 D/C 增量独立审查新增 Critical/Important/Minor 均 0；16 个模块与作者来源摘要一致，11 份保留候选与目标全文一致，四段实际 await 与原始 GREEN 证据一致。审查记录此时 165094 bytes、SHA-256 `15e666bdbebf4cc6cb9fe700a5b3881c2d33dcf9f1242ee9dea249ec7ef63445`，后续新增审查不改写本时点结论。实际命令事后索引 `cli-0014-d-installed-01.command-index.json` SHA-256 `46700ca644b70890cabb5ce2cb350b2310cbfc4d88b1acc27b7d6756d7b4f13f`，明确标记 `post-run-index-of-actual-command`，不能当作原始执行 receipt。
 
 16 模块在 D 保留分支提交 `9bca63fd`，原样 cherry-pick 到 B/C 为 `11659bca`；C 真实服务桥接单独提交 `b20921b9`。提交前固定 Node `--check` 16 次、暂存 diff check 均 exit 0；D 提交前实查全部 16 文件为 index LF / worktree LF；B/C cherry-pick 后为 index LF / worktree CRLF，归一 CRLF 后 16/16 正文逐字一致。当前 B/C 原始字节 SHA 与 D 的 LF 来源 SHA 需按各自时点区分，未改作者断言；只读比较证据与摘要见技术验收记录。最终根回归已实际通过 Vitest 1753/1753、T10 168/168；本地 main 合并与默认 D 文件路径复验另行记录。
+
+## main 默认入口独立复验补充
+
+2026-11-19 技术交付本地快进合 main 至 `40910dc46db7bef0db0d17dee0d31b94a8f2ea6d` 后，移除 D 文件路径 override，完整冻结 T16 实际运行 14/14、零 failed/pending/todo、exit 0；其中 D 默认 main 模块四段真实安装恢复控制 1/1、零 failed/cancelled/skipped/todo，process code 0、stderr 为空。随机隔离服务 ID `4caec703-11f5-483c-aeeb-aa1437cd37c0`；仓外消费者 `zhinexus-t16-installed-yKUag3`，D 工程 `t16-d-r8odcu`，ref `apply-7573988ebf1eadf2919575a3`；process 记录 SHA-256 `3ac76983979c2ec46b602bbb169857ca617687ea14b72d2a46bcaea21500a9e7`。同一冻结 CLI 未重新 pack，D 模块和断言未修改。完整命令、收据、审查与未验收范围见 [main 收口记录](t16-main-completion-2026-11-19.md)，此前独立筛选及拒收证据保持原样。

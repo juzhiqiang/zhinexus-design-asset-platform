@@ -4,7 +4,7 @@
 
 **Goal:** 接续 T15，交付受控安装、Vue/React 代码生成、备份及保留用户编辑的恢复；没有真实项目时保持完整 T16 未验收。
 
-2026-11-19 当前收口检查点：B26 产品 141/141、契约与镜像 166/166、冻结消费者 13 项、浏览器 287 项、冻结 T15 25 项均已通过；实际 D 既有冻结黑盒 5/5，新增 16 个模块完成真实安装、备份、字段篡改与恢复四段，1/1、零失败/skipped/todo。CLI 0.0.14 保持同一冻结 tarball。最终树 frozen install、workspace、强制全图 20/20（0 cached）和根回归 Vitest 1753/1753、T10 168/168 均已通过；D 增量终审无新增 Critical/Important/Minor，保留既有两项 Minor。D 模块及 C 桥接已聚焦提交，最终文档审查、本地 main 合并与 main 复验继续推进。完整 T16/T17、真实授权 Vue/React 业务项目与生产 G2 保持开放。详见 [技术验收](../../verification/t16-technical-acceptance-2026-11-19.md) 和 [实际 D 新增记录](../../verification/t16-d-installed-recovery-2026-11-19.md)。下方检查点为保留的历史证据。
+2026-11-19 技术收口：A/B/D 交付已集成并完成独立全树审查，无未解决 Critical/Important，保留两项非阻断 Minor；按授权本地快进合 main 后复验全部通过。CLI `0.0.14` 保持唯一冻结 tarball；main frozen install、workspace、强制全图 20/20（0 cached）、根 Vitest 1753/1753 与 T10 168/168、完整冻结 T16 14/14、契约浏览器 1/1 均 exit 0。完整 T16 包含实际 D 默认入口四段黑盒，此前筛选 13 项结果不改写。B26 产品 141/141、契约与镜像 166/166、完整浏览器 287/287、冻结 T15 25/25 和 D 既有 5/5 证据保留。技术交付已收口；完整 T16/T17、真实授权 Vue/React 业务项目与生产 G2 保持开放。详见 [main 收口记录](../../verification/t16-main-completion-2026-11-19.md)。下方检查点为保留的历史证据。
 
 **Architecture:** C 先冻结四个新增协议与 fixture；B 在现有 CLI 实现 apply/install/generate/rollback；A 提供独立预期，D 做黑盒恢复验收，C 集成真实冻结 CLI/SDK 与服务。已有 inspect/plan 零写入和 schemaVersion 保持兼容。
 
@@ -76,10 +76,10 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 
 ### Task 4: C / P4 集成与本地收口
 
-- [ ] 合并冻结 A/B/D，独立全分支审查；阻断项按 RED→GREEN 修复。
+- [x] 合并冻结 A/B/D，独立全分支审查；阻断项按 RED→GREEN 修复。
 - [x] 精确版本升 CLI、单独 CHANGELOG 提交；pack 一次后冻结，仓外安装同一 CLI 与 SDK 运行真实服务和本地双框架 synthetic 项目验收。版本提交 `2fca59cf`、冻结 SHA 与实际结果见新增记录。
-- [ ] 强制全图、根测试、受影响平台/浏览器验收和 main 复验；记录范围与限制，按后续授权保留分支/工作树与原始证据。
-- [ ] 无真实授权项目 diff 时只标记技术交付；T16 总任务与 T17 不勾选完成。
+- [x] 强制全图、根测试、受影响平台/浏览器验收和 main 复验；记录范围与限制，按后续授权保留分支/工作树与原始证据。
+- [x] 无真实授权项目 diff 时只标记技术交付；T16 总任务与 T17 不勾选完成。
 
 2026-11-18 C 补充验收：产品当前 84 collected / 73 passed / 11 failed；真实 npm 安装 exit 0 仍被交付阶段拒绝，不能标为成功。C 已增加恢复、固定 Node/pnpm 与 npm metadata 断言并交 B 补修，见 [安装交付记录](../../verification/t16-npm-installed-delivery-2026-11-18.md)。验收令牌期限问题已按独立 RED→GREEN 修复，见 [令牌与检查点记录](../../verification/t16-acceptance-token-2026-11-18.md)。B 等待当前目录权限窗口，D 默认模型仍因工具调用解析失败未交付；产品 GREEN、真实矩阵、D 黑盒与本地合并保持未完成。本轮保留 worktree 与原始证据，不清理、不 push。
 
