@@ -71,3 +71,15 @@ D11 实际 Claude Code GLM-5.3 exit 0 / success，明确采用完整候选，但
 根 typecheck 日志为 14/14、14 cached；缓存输出本身不代替前述强制全图 20/20 零缓存。随后根 test 实际结束 exit 1：T10 node:test **161 passed / 7 skipped / 0 failed**；普通 Vitest **89 文件（88 passed / 1 failed），1749 tests（1744 passed / 3 failed / 2 skipped）**。三失败对应新增 C21 的源码及两备份用例。根测试启动后测试文件发生 C21 补测更新，stage 新例未计入该次根结果；不得称根回归通过，B21 接收后需完整复跑。日志 `b20-root-{typecheck,test}.log` 保留。
 
 D12 receipt 确认十分钟超时、无 parseable result，输出仅持续 thinking（未取得完整测试交付）；8,146,668 bytes 原始 NDJSON 与摘要 `171ffb4bc950ca7e9fc6c27ad8de5af98be35ff56df158e5f8408c49e98b1316` 保留。未拼接部分文本或修改 D 正文。改为同模型更小替换片段请求，单进程降低 thinking/output 上限，不改全局配置。D 完整黑盒、最终冻结消费者与本地 main 合并继续待全部门槛通过。架构原文摘要再次与基线一致。
+
+## C21 夹具复审与实际原作者续写
+
+固定 `exec tsc -p tsconfig.json --noEmit` 对新增 C21 fixtures 复跑 exit 0，日志 `c21-fixtures-typecheck-01.log`。既有只读 reviewer 复核四条最终夹具，确认真实提交/临时文件/目录创建窗口均命中实质行为，无夹具失真；本次审查未执行测试。覆盖仍限 stage 抢占，首次提交摘要未在夹具内独立比对；两点不否定当前四条 RED。
+
+用户将 Claude 置前台后，实际截图确认 B21 四次 Read 均报 `required parameter file_path is missing`，无产品 diff。B22 已向同一桌面 GLM-5.3 High 发送自包含文本，包含 B21 brief、当前三个产品完整文件和 C21/夹具片段；不再依赖失败 Read。prompt 189761 bytes 保存在 `b22-self-contained-prompt.txt`。C 未修改产品，等待原作者必要 diff 后机械接收与真实 GREEN。
+
+D13 与 D14 的完整结果均 exit 0 / success，但未接收：D13 引用不存在的 `stderr` 字段；D14 规范编码将 primitive 再次转字符串后 JSON.stringify，摘要不符合公共完整规范 JSON 契约，且末尾 sentinel 截断。D14 原始 NDJSON 62139 bytes，SHA-256 `fc304ef1f59f94759704bc9681a12ddd86563e2fb3f5a9c13089906585f62e76`。D15 已向同一实际 Code GLM-5.3 交原完整候选与拒收依据，要求独立直接递归编码、四个完整小替换片段和明确全候选采用。D 正文未落盘，未把进程 success 当作黑盒通过。
+
+本次公共契约与 Schema 复核命令 `exec vitest run tests/contracts/integration-apply.test.ts tests/contracts/api-schema.test.ts --reporter=json --outputFile=.superpowers/sdd/2026-11-18-phase3-t16-safe-apply/c22-contract-schema-01.json` 为 **113 collected / 113 passed / 0 failed / 0 pending，exit 0**。其中包含生成 Schema 的精确内容和格式校验，不替代后续产品全图验证。B22 prompt SHA-256 为 `04203827cc668e82b4b3bf6f28d0d32d6b51b61684854ddc2d2d50671d9fec2e`。
+
+D15 最终 exit 1 / is_error，明确报超过 4096 output token 上限；2,446,318 bytes 原始输出及 SHA-256 `9169168af75de6b5dc2d2637341cc91a28d2635732e148eb8e767d1dead1763b` 保留，没有测试交付。续写改为精确小片段请求，仍为单次 GLM-5.3，不改全局配置。Docker 引擎只读预检可用；后续验收创建独占随机端口服务栈，不能使用共享现存容器冒充验收。
