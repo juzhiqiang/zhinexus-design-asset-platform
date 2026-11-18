@@ -12,6 +12,10 @@
 
 **Spec:** [T16 设计](../specs/2026-11-18-phase3-t16-design.md)，上位 T16 条目与 T15 交接保持原验收边界。
 
+2026-11-19 新增检查点：B23 产品 138/138、根 T10 168/168（零 skip）、Vitest 89 文件/1750 测试通过。随后新增 C24 两条真实文件系统 RED，111 collected/0 passed/2 failed/109 unselected；原文 B24 因两处 old 注释不符机械拒收，产品未改，实际桌面 B25 已接到返修。D20 当前三文件真实 CLI 黑盒 5/5、零 skip；D21 原进程仍待完整交付。此前 GREEN 对应新增 C24 之前，不作为当前产品通过证据。原文摘要、命令与边界见 [本轮独立记录](../../verification/t16-b23-c24-d20-2026-11-19.md)。全部技术门槛通过后按授权本地合 main，保留 worktrees 与原始证据，不 push，完整 T16/T17 不标完成。
+
+2026-11-19 后续交接：D21 达 20 分钟上限，无 assistant text、无可接收测试；原始记录与超时 receipt 保留。D22 以 28880 bytes 公共上下文缩范围重试，实际作者仍为 Claude Code GLM-5.3。B25 仍在桌面 Starting up；C24 两条 RED 未关闭。契约同步报告已核对 **166/166，零失败/pending**，不替代产品或冻结验收。
+
 ## Global Constraints
 
 - 用户没有真实试点项目；只在仓外 synthetic 工程安装/构建，完整 T16 与真实业务试点保持未完成。
