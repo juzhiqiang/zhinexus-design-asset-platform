@@ -30,6 +30,16 @@ export * from './integration/generate-vue.js';
 export * from './integration/generate-react.js';
 export * from './integration/install.js';
 export * from './integration/apply.js';
+export {
+  assertArtifactRootOutsideProject,
+  buildVerificationReport,
+  canonicalDigest,
+  createRunArtifactSession,
+  sanitizeDiagnosticText,
+  verificationIssue,
+  type RunArtifactSession,
+} from './integration/report.js';
+export { verifyIntegration, type VerifyIntegrationOptions } from './integration/verify.js';
 
 const isDirectRun =
   process.argv[1] &&
