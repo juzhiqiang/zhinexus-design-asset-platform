@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "integration-execution-authorization-v1",
+  "type": "object",
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "projectRoot": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "^[A-Za-z]:/"
+    },
+    "planDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "applyResultDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "specDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    },
+    "operation": {
+      "type": "string",
+      "enum": [
+        "verify",
+        "repair"
+      ]
+    },
+    "allowProjectScripts": {
+      "type": "boolean"
+    },
+    "allowBrowser": {
+      "type": "boolean"
+    },
+    "scriptNames": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 128,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9:._-]{0,127}$"
+      },
+      "minItems": 0
+    },
+    "allowedRepairPaths": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 2048,
+        "pattern": "^(?!/)(?!.*//)(?!.*(?:^|/)(?:\\.{1,2}|[cC][oO][nN]|[pP][rR][nN]|[aA][uU][xX]|[nN][uU][lL]|[cC][oO][mM][1-9¹²³]|[lL][pP][tT][1-9¹²³])(?:\\.[^/]*|/|$))(?!.*(?:[. ]/|[. ]$))[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+(?:/[^/\\\\:%?*#<>|\"\\u0000-\\u001f\\u007f]+)*$"
+      },
+      "minItems": 0
+    },
+    "maxAttempts": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 2
+    },
+    "sourceReportDigest": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{64}$"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "projectRoot",
+    "planDigest",
+    "applyResultDigest",
+    "specDigest",
+    "operation",
+    "allowProjectScripts",
+    "allowBrowser",
+    "scriptNames",
+    "allowedRepairPaths",
+    "maxAttempts"
+  ],
+  "additionalProperties": false,
+  "description": "Trusted invocation scope, not proof of approval. Runtime rehashes inputs, validates local permissions and binds exact generated-file repair scope."
+}

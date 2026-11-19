@@ -1,6 +1,8 @@
 import { projectContextSchema } from './project-context.js';
 import { localProjectInspectionSchema, integrationPlanSchema } from './integration-plan.js';
 import { integrationApplyAuthorizationSchema, integrationBackupSchema, integrationApplyResultSchema, integrationRollbackResultSchema } from './integration-apply.js';
+import { integrationVerificationSpecSchema, integrationExecutionAuthorizationSchema, integrationVerificationReportSchema } from './integration-verification.js';
+import { integrationRepairResultSchema } from './integration-repair.js';
 import { designIdMappingSchema, designIdInputSchema } from './design-id.js';
 import { componentApiSchema } from './component-api.js';
 import { matchPlanRequestSchema, matchPlanSchema } from './match-plan.js';
@@ -50,6 +52,8 @@ export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Objec
   'local-project-inspection-v1': localProjectInspectionSchema, 'integration-plan-v1': integrationPlanSchema,
   'integration-apply-authorization-v1': integrationApplyAuthorizationSchema, 'integration-backup-v1': integrationBackupSchema,
   'integration-apply-result-v1': integrationApplyResultSchema, 'integration-rollback-result-v1': integrationRollbackResultSchema,
+  'integration-verification-spec-v1': integrationVerificationSpecSchema, 'integration-execution-authorization-v1': integrationExecutionAuthorizationSchema,
+  'integration-verification-report-v1': integrationVerificationReportSchema, 'integration-repair-result-v1': integrationRepairResultSchema,
   'candidate-v1': candidateSchema, 'search-candidates-response-v1': searchCandidatesResponseSchema,
   'search-candidates-request-v1': searchCandidatesRequestSchema,
   'design-id-mapping-v1': designIdMappingSchema, 'design-id-input-v1': designIdInputSchema,
