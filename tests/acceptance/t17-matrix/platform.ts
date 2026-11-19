@@ -103,15 +103,23 @@ export async function buildMatchPlan(
   const bindings: MatchPlanRequest['bindings'] = [];
   const elements: MatchPlanRequest['design']['elements'] = [];
   const entries: MatchPlanRequest['design']['mapping']['entries'] = [];
+  const mappingByDesign = new Map<string, MatchPlanRequest['design']['mapping']['entries'][number]>();
   for (const component of scenario.components) {
     const api = await bundle.readApi(scenario.framework, component.componentId);
     apis.set(component.instanceId, api);
-    elements.push({ instanceId: component.instanceId, designId: 'matrix/' + component.componentId });
-    entries.push({
+    const entry = {
       designId: 'matrix/' + component.componentId,
       framework: scenario.framework,
       variantReleaseId: variantReleaseIdFor(bundle, component.componentId, scenario.framework),
-    });
+    };
+    elements.push({ instanceId: component.instanceId, designId: entry.designId });
+    const mappingKey = JSON.stringify([entry.designId, entry.framework]);
+    const existing = mappingByDesign.get(mappingKey);
+    if (existing && existing.variantReleaseId !== entry.variantReleaseId) throw new Error('同一设计映射存在目标冲突: ' + entry.designId);
+    if (!existing) {
+      mappingByDesign.set(mappingKey, entry);
+      entries.push(entry);
+    }
     bindings.push({
       instanceId: component.instanceId,
       props: api.props.map((prop) => ({ name: prop.name, source: 'matrix.' + prop.name })),
