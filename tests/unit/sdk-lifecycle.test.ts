@@ -161,7 +161,7 @@ describe('T02 / T09 双框架生命周期与对等审计', () => {
 
     app.unmount();
     expect(capturedController!.value).toBeNull();
-  });
+  }, 15_000); // 首次动态加载完整 ECharts 图的外层预算，生命周期断言与 nextTick 保持。
 
   it('Vue useChart 同时变更 theme 与业务配置字段时重建控制器，不丢弃业务配置', async () => {
     const { useChart } = await import('../../packages/charts-vue/src/useChart.js');

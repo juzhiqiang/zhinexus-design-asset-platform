@@ -2441,7 +2441,7 @@ describe('T15 P1 Git 子模块零执行边界（真实子模块 fixture）', () 
     // 项目内存在 gitlink，无法安全完整识别其 dirty 状态：明确 unavailable，不得伪称 clean。
     expect(result.git).toEqual({ status: 'unavailable', dirtyPaths: [] });
     expectValid(result);
-  });
+  }, 30_000); // 多次真实 Git 子进程与快照的外层预算；inspect 内部期限不变。
 
   it('Git 根在项目根之上且子模块在项目外：不得执行外部 helper，也不得把项目外路径当脏', async () => {
     const fixture = createSubmoduleProject('outside-project');
@@ -2457,7 +2457,7 @@ describe('T15 P1 Git 子模块零执行边界（真实子模块 fixture）', () 
     // 子模块在项目范围之外：项目自身可完整检查，报 clean；不得把项目外路径算进 dirtyPaths。
     expect(result.git).toEqual({ status: 'clean', dirtyPaths: [] });
     expectValid(result);
-  });
+  }, 30_000);
 
   it('普通无 gitlink 项目保持既有脏识别，不得一律 unavailable（守卫）', async () => {
     const deps = { vue: '^3.5.0', echarts: '6.1.0' };

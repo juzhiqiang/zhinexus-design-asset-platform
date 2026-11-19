@@ -685,5 +685,5 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
       controller.abort();
       await verificationConnection.transport.close();
     }
-  });
+  }, 45_000); // 包含握手、原有两段 10s 条件等待和 2.3s 哨兵观察；内部期限不变。
 });
