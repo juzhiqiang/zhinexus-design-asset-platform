@@ -1,4 +1,4 @@
-import { createHash } from 'node:crypto';
+import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
@@ -15,12 +15,24 @@ export function fixedScriptInvocation(root: string, manager: 'npm' | 'pnpm', scr
   return { executable: shell, args: ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve(tools.pnpmWrapper), '-PnpmArgs', '--dir', resolve(root), 'run', script], cwd: resolve(tools.repositoryRoot), extraEnv: { PNPM_CONFIG_ENABLE_PRE_POST_SCRIPTS: 'false' } };
 }
 function tail(chunks: Buffer[], cap: number) { const all = Buffer.concat(chunks); return all.length > cap ? all.subarray(all.length - cap) : all; }
-async function stopProcess(child: ReturnType<typeof spawn>) {
-  if (child.exitCode !== null || child.signalCode !== null) return;
-  if (process.platform === 'win32' && child.pid) {
-    const killer = spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32/taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { shell: false, windowsHide: true, stdio: 'ignore' });
-    await new Promise<void>(done => { killer.once('close', () => done()); killer.once('error', () => done()); });
-  } else { child.kill('SIGTERM'); await new Promise<void>(done => { if (child.exitCode !== null || child.signalCode !== null) done(); else child.once('close', () => done()); }); }
+function observeClose(child: ReturnType<typeof spawn>) {
+  let closed = false;
+  const promise = new Promise<void>(resolve => child.once('close', () => { closed = true; resolve(); }));
+  return { promise, hasClosed: () => closed };
+}
+async function stopProcess(child: ReturnType<typeof spawn>, childClosed: ReturnType<typeof observeClose>) {
+  if (!childClosed.hasClosed()) {
+    if (process.platform === 'win32' && child.pid) {
+      try {
+        const killer = spawn(join(process.env.SystemRoot ?? 'C:\\Windows', 'System32/taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], { shell: false, windowsHide: true, stdio: 'ignore' });
+        const code = await new Promise<number | null>(resolve => { killer.once('close', resolve); killer.once('error', () => resolve(null)); });
+        if (code !== 0 && !childClosed.hasClosed()) child.kill();
+      } catch {
+        if (!childClosed.hasClosed()) child.kill();
+      }
+    } else child.kill('SIGTERM');
+  }
+  await childClosed.promise;
 }
 export async function runNativeScript(run: OwnedRun, options: { projectRoot: string; manager: 'npm' | 'pnpm'; script: 'typecheck' | 'build'; toolchain: FixedToolchain; extraEnv?: Record<string, string>; timeoutMs?: number; outputLimit?: number }): Promise<NativeResult> {
   const invocation = fixedScriptInvocation(options.projectRoot, options.manager, options.script, options.toolchain), limit = options.outputLimit ?? 1024 * 1024;
@@ -28,13 +40,14 @@ export async function runNativeScript(run: OwnedRun, options: { projectRoot: str
   for (const key of systemKeys) if (process.env[key]) env[key] = process.env[key];
   const stdout: Buffer[] = [], stderr: Buffer[] = []; let stdoutBytes = 0, stderrBytes = 0, timedOut = false;
   const child = spawn(invocation.executable, invocation.args, { cwd: invocation.cwd, env, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const childClosed = observeClose(child);
   child.stdout.on('data', chunk => { const b = Buffer.from(chunk); stdoutBytes += b.length; stdout.push(b); });
   child.stderr.on('data', chunk => { const b = Buffer.from(chunk); stderrBytes += b.length; stderr.push(b); });
-  const close = () => stopProcess(child), unregister = run.trackOwnedProcess(close);
+  const close = () => stopProcess(child, childClosed), unregister = run.trackOwnedProcess(close);
   let code: number | null;
-  try { code = await new Promise<number | null>((ok, fail) => { const timer = setTimeout(() => { timedOut = true; void close().finally(() => ok(child.exitCode)); }, options.timeoutMs ?? 600000); child.once('error', error => { clearTimeout(timer); fail(error); }); child.once('close', value => { clearTimeout(timer); ok(value); }); }); }
+  try { code = await new Promise<number | null>((ok, fail) => { let startError: Error | undefined; const timer = setTimeout(() => { timedOut = true; void close().catch(fail); }, options.timeoutMs ?? 600000); child.once('error', error => { startError = error; clearTimeout(timer); }); child.once('close', value => { clearTimeout(timer); startError ? fail(startError) : ok(value); }); }); }
   finally { unregister(); }
-  const out = tail(stdout, limit), err = tail(stderr, limit), key = options.manager + '-' + options.script + '-' + Date.now();
+  const out = tail(stdout, limit), err = tail(stderr, limit), key = options.manager + '-' + options.script + '-' + randomBytes(12).toString('hex');
   const outRef = await run.writeEvidence(key + '.stdout', out), errRef = await run.writeEvidence(key + '.stderr', err);
   return { executable: invocation.executable, args: invocation.args, cwd: invocation.cwd, exitCode: code, timedOut, stdoutBytes, stderrBytes, stdoutSha256: sha(out), stderrSha256: sha(err), stdoutEvidence: outRef.path, stderrEvidence: errRef.path };
 }
@@ -54,11 +67,12 @@ export async function installDependencies(run: OwnedRun, options: { projectRoot:
   const args = npm ? [resolve(options.toolchain.npmCliPath), 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--registry', options.registry ?? 'https://registry.npmjs.org/', '--userconfig', userconfig, '--globalconfig', globalconfig, '--cache', cache] : ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve(options.toolchain.pnpmWrapper), '-PnpmArgs', '--dir', root, 'install', '--ignore-scripts', '--ignore-pnpmfile', '--registry', options.registry ?? 'https://registry.npmjs.org/'];
   const cwd = npm ? root : resolve(options.toolchain.repositoryRoot), stdout: Buffer[] = [], stderr: Buffer[] = [];
   const child = spawn(executable, args, { cwd, env, shell: false, windowsHide: true, stdio: ['ignore', 'pipe', 'pipe'] });
+  const childClosed = observeClose(child);
   child.stdout.on('data', b => stdout.push(Buffer.from(b))); child.stderr.on('data', b => stderr.push(Buffer.from(b)));
-  const unregister = run.trackOwnedProcess(() => stopProcess(child)); let code: number | null;
-  try { code = await new Promise<number | null>((ok, fail) => { const timer = setTimeout(() => { void stopProcess(child).finally(() => fail(Error('Dependency install timed out.'))); }, 600000); child.once('error', error => { clearTimeout(timer); fail(Error('Dependency install could not start (' + error.name + ').')); }); child.once('close', value => { clearTimeout(timer); ok(value); }); }); }
+  const unregister = run.trackOwnedProcess(() => stopProcess(child, childClosed)); let code: number | null;
+  try { code = await new Promise<number | null>((ok, fail) => { let timedOut = false, startError: Error | undefined; const timer = setTimeout(() => { timedOut = true; void stopProcess(child, childClosed).catch(fail); }, 600000); child.once('error', error => { startError = error; clearTimeout(timer); }); child.once('close', value => { clearTimeout(timer); if (startError) fail(Error('Dependency install could not start (' + startError.name + ').')); else if (timedOut) fail(Error('Dependency install timed out.')); else ok(value); }); }); }
   finally { unregister(); }
-  const out = Buffer.concat(stdout), err = Buffer.concat(stderr), key = 'install-' + options.manager + '-' + Date.now(), outRef = await run.writeEvidence(key + '.stdout', out), errRef = await run.writeEvidence(key + '.stderr', err);
+  const out = Buffer.concat(stdout), err = Buffer.concat(stderr), key = 'install-' + options.manager + '-' + randomBytes(12).toString('hex'), outRef = await run.writeEvidence(key + '.stdout', out), errRef = await run.writeEvidence(key + '.stderr', err);
   if (code !== 0) throw Error('Dependency install failed with exit ' + code + '; see external evidence ' + outRef.path + ' and ' + errRef.path);
   await assertLifecycleHooksSuppressed(root);
   return { manager: options.manager, executable, args, cwd, exitCode: code, stdoutSha256: outRef.sha256, stderrSha256: errRef.sha256, stdoutBytes: out.length, stderrBytes: err.length };
