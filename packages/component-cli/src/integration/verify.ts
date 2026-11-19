@@ -956,7 +956,8 @@ export async function verifyIntegrationInternal(
       ? await runNativeCommand(toolchain.nodeExe, [toolchain.npmCli, '--ignore-scripts', 'run', cmd.script], {
           cwd, env: scriptEnv, timeoutMs: cmd.timeoutMs, signal: options.signal,
         })
-      : await runNativeCommand(toolchain.pnpmExe, ['run', cmd.script], {
+      // verify 只授权脚本执行；pnpm 默认的脚本前依赖检查可能隐式安装并改写安装树。
+      : await runNativeCommand(toolchain.pnpmExe, ['--config.verifyDepsBeforeRun=false', 'run', cmd.script], {
           cwd, env: scriptEnv, timeoutMs: cmd.timeoutMs, signal: options.signal,
         });
 

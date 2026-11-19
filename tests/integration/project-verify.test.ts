@@ -696,6 +696,70 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     }
   });
 
+  it('pnpm 安装状态不匹配时验证只运行授权脚本，不隐式安装或改写依赖', async () => {
+    const registryRequests: string[] = [];
+    const poisonRegistry = http.createServer((request, response) => {
+      registryRequests.push(request.url ?? '');
+      response.writeHead(404, { 'content-type': 'application/json' });
+      response.end(JSON.stringify({ error: 'verification must not install dependencies' }));
+    });
+    await new Promise<void>(resolve => poisonRegistry.listen(0, '127.0.0.1', resolve));
+    const address = poisonRegistry.address();
+    if (!address || typeof address === 'string') throw new Error('poison registry must use a TCP port');
+    const registryOrigin = `http://127.0.0.1:${address.port}`;
+
+    try {
+      const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
+        packageManager: 'pnpm',
+        extraSrcFiles: {
+          'pnpm-lock.yaml': `${buildPnpmLock()}\nsnapshots:\n${VUE_DEPS.map(dependency => `  '${dependency.name}@${dependency.version}': {}`).join('\n')}\n`,
+        },
+      });
+      // 受控运行期配置只把任何意外安装送入本地毒注册表，绝不访问公网。
+      fs.writeFileSync(path.join(root, '.npmrc'), `registry=${registryOrigin}/\nfetch-retries=0\nfetch-timeout=2000\n`, 'utf8');
+      const modulesPath = path.join(root, 'node_modules', '.modules.yaml');
+      writeJson(modulesPath, {
+        hoistedDependencies: {},
+        hoistPattern: ['*'],
+        included: { dependencies: true, devDependencies: true, optionalDependencies: true },
+        layoutVersion: 5,
+        // 安装树来自 hoisted 安装，而 pnpm run 的默认 nodeLinker 为 isolated。
+        nodeLinker: 'hoisted',
+        packageManager: 'pnpm@12.18.0',
+        pendingBuilds: [],
+        publicHoistPattern: [],
+        registries: { default: `${registryOrigin}/` },
+        skipped: [],
+        storeDir: path.join(makeTempDir('zhinexus-t17-verify-pnpm-store-'), 'v11'),
+        virtualStoreDir: path.join(root, 'node_modules', '.pnpm'),
+        virtualStoreDirMaxLength: 60,
+      });
+      const guardedPaths = [
+        'package.json', 'pnpm-lock.yaml', 'node_modules/.modules.yaml',
+        ...plan.exactDependencies.map(dependency => `node_modules/${dependency.name}/package.json`),
+      ];
+      const originalBytes = new Map(guardedPaths.map(relative => [relative, fs.readFileSync(path.join(root, relative))]));
+      const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+
+      const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+
+      expect(registryRequests, '固定 pnpm 验证不得触发脚本前的依赖安装').toEqual([]);
+      expect(report).toBeDefined();
+      expect(validateIntegrationVerificationReport(report!).ok).toBe(true);
+      expect(report!.checks.find(check => check.category === 'type')?.status).toBe('passed');
+      expect(report!.checks.find(check => check.category === 'build')?.status).toBe('passed');
+      expect(report!.checks.find(check => check.id === 'dependency-guard')?.status).toBe('passed');
+      expect(report!.installedVersions).toHaveLength(plan.exactDependencies.length);
+      expect(report!.changedFiles).toEqual([]);
+      expect(fs.existsSync(path.join(root, 'dist', 'bundle.js'))).toBe(true);
+      for (const [relative, bytes] of originalBytes) {
+        expect(fs.readFileSync(path.join(root, relative)), relative).toEqual(bytes);
+      }
+    } finally {
+      await new Promise<void>(resolve => poisonRegistry.close(() => resolve()));
+    }
+  });
+
   it('拒绝 src/通配/工程内 artifactRoot，且源快照捕获新增、修改与删除', async () => {
     const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
       extraSrcFiles: {
