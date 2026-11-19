@@ -36,7 +36,7 @@ maxAttempts 默认 2，只接受 0、1、2。adapters 是受信程序调用边�
 
 - commands[]：{kind:type|build,script,manifestPath,manifestSha256,timeoutMs,outputDirectories:string[]}。路径相对项目根，cwd 从计划 workspace 重新派生，script 必须为对应清单的真实脚本。不接受自由 executable/shell/argv 或错误文本命令。
 - browser?：{url,readySelector,timeoutMs,viewport:{width,height},renderer:canvas|svg,theme,actions,assertions,visual?}。url 只接纳本次边界明确提供的精确 loopback URL，无 userinfo/凭据/非本地重定向。actions 仅 {kind:click|fill,selector,value?}；assertions 仅 {kind:visible|text|count,selector,value?,count?}，各 kind 的必填/禁用字段由 C 固定。不接受 evaluate、JS、测试脚本路径或自动导入模块。
-- visual?：{baseline:{image:ArtifactRef,environment:EnvironmentV1},pixelThreshold,maxDiffPixelRatio}。复核已有基线的实际 bytes/hash/尺寸与环境，默认 pixelThreshold=0.1、maxDiffPixelRatio=0.001；环境不同时不得 PASS。
+- visual?：{baseline:{image:ArtifactRef,environment:EnvironmentV1},pixelThreshold,maxDiffPixelRatio}。复核已有基线的实际 bytes/hash/尺寸与环境，既定验收阈值为 pixelThreshold=0.1、maxDiffPixelRatio=0.001；spec 含 visual 时必须显式提供两个字段，环境不同时不得 PASS。
 - businessGaps：C 冻结的缺失业务信息枚举数组。缺业务源、handler、宿主页/挂载、交互预期或视觉基线时保留明确缺口，不编造连接。
 
 首批 browser 消费可信调用方明确提供的既有本地宿主页，synthetic 宿主由独立验收 harness 启动；产品不自动写 route 或启动远程服务。正确启动并加载本轮生成模块是可信调用边界的前置条件，loopback 地址本身不是服务或模块来源证明。passed 只表示本次显式声明的宿主页、动作、断言及视觉检查通过，不自动证明业务已接入；首批不实现恶意宿主的机器证明。B/D 矩阵与业务验收必须另记宿主 entry 对生成路径的真实 import、构建与资源加载证据，C 审查错宿主页案例，不能以静态假页计入真实接入成功。
@@ -91,7 +91,7 @@ artifactRoot 由 CLI --out 或 MCP server 启动参数绑定，位于目标工�
 
 component mcp serve 使用本地 stdio，只暴露 inspect_project、plan_integration、apply_integration、verify_integration。没有 HTTP server、远程执行集群或第五个 repair 工具，verify 不隐式修复。四工具与 CLI 共用产品函数/Schema/授权/路径判断。
 
-C 的 P0 本机探针已用固定 Node 验证官方 server/client 2.4.0 与 zod 4.6.7 的真实 stdio 握手、工具列举/调用和严格输入；P0 记录官方来源、依赖及锁定，产品验收仍须复验四个真实工具。server 启动时绑定允许根目录/artifactRoot，由宿主可信配置控制 apply/verify；工具 JSON/annotations 不代替批准，verify 不能标只读。stdout 仅 MCP 协议，日志 stderr。用实际 SDK stdio client 验证握手、四工具 schema、错误、取消和退出。
+C 当前已用固定 Node 补验精确 server/client 2.4.0、zod 4.6.7 的导出与类型，真实 stdio 产品测试覆盖握手、工具列举/调用和严格输入；见 [当前本机证据](../../verification/t17-c0-current-evidence-2026-11-20.md) 与 [官方来源更正](../../verification/t17-c0-official-correction-2026-11-20.md)。原 P0 独立日志、最初 RED 顺序与原始 stderr 空字节尚未追溯，不追认历史探针。server 启动时绑定允许根目录/artifactRoot，由宿主可信配置控制 apply/verify；工具 JSON/annotations 不代替批准，verify 不能标只读。stdout 仅 MCP 协议，日志 stderr。用实际 SDK stdio client 验证握手、四工具 schema、错误、取消和退出。
 
 ## 技术与业务验收
 
