@@ -156,3 +156,19 @@
 - `edb985ec0f9ee1b79a5882e935832f8caa9f0daf` 独立升版 CLI 0.0.23。冻结前 verify:workspace 10 members、force build/typecheck 20/20（0 cached，14.435s）及完整根 tsc 均 exit 0；于 05:51:34.8465368+08:00 仅 pack 一次。tarball为454155 bytes、SHA-256 `93c901245b95c06ccc6a2a5bd476decf7ce9512b476316e1b65e789459b594ab`，清单路径见 [0.0.23 工程记录](t17-cli-0023-regressions-2026-11-20.md)。SDK与历史兼容输入保持原始冻结字节，不重包。
 - 控制方另行解开新tarball，逐字节核对全部306个dist文件、包名/版本/运行时私有包边界、相对冻结来源的产品/公共配置零差异及原架构摘要；failures=[]。`root-initial-frozen-byte-reopen.json` SHA-256为 `026fdbca973273343b51346e53ccf14bdcf736dff15232f08323a6153069f173`。
 - 同一新冻结包的完整根测试、真实平台、双框架完整宿主、49项黑盒/T15/T16及完整33格矩阵正在运行；浏览器全量回归等待平台释放端口。未借用0.0.22的通过数，未宣布三期技术验收完成。
+
+## 0.0.23 同包工程、宿主、黑盒与 R08 原件复核
+
+- 新候选完整根测自然exit0：T10 168/168、零跳过；Vitest 124文件、2210/2210、零跳过。平台35文件、137/137；平台精确owner服务和Gallery停止并确认5173–5176无监听后，完整浏览器288/288自然exit0。控制方另读17份原日志/结果/summary与冻结清单，全部一致；工程分项提交`33e5e13c`，见 [本轮工程回归](t17-cli-0023-regressions-2026-11-20.md)。审计helper首次语法检查失败但没有运行产品测试，原输出另存，不覆盖。
+- 四个完整黑盒/既有接入配置为5/5、5/5、25/25、14/14，合计49/49，均未筛选并自然exit0。控制方另读410份正式/补充原件与副本、3332628字节、完整文件集合，独立重算四条canonical业务链与28个artifact refs。installed时序探针另列，不计49分母：同步130ms与两次延迟360/383ms的browser通过，但缺少批准视觉基线使overall仍failed/visual NEW；永久不匹配1620ms后browser失败、visual not-run。控制方复算helper的两次错误预期也保留，均零产品测试。见 [本轮黑盒](t17-blackbox-0023-2026-11-20.md)。
+- 黑盒12个新根及82840条原身份经独立复读后，新鲜检查和一次原生PowerShell精确清理自然exit0，deleted12、remaining0；控制方另以Test-Path确认。旧政策受阻根未触碰。分项提交`cc494f21`。
+- 双框架完整宿主自然exit0、1/1、1235.87s：两条正向与两条初次failed→一次真实repair→passed链，四条最终各6/6、visual PASS。控制方另读34681文件、2586567819字节的完整清理前归档及1754份原evidence，并重验原seal、receipt、四链canonical和四张800×400 PNG。两张唯一实图已直接查看，图表与tooltip可读，顶部标题部分裁切限制保留。三个owned parent均不存在，本轮owner容器/卷为0、秘密目录不存在。原分项提交`7ec3a665`，控制方后续复读追加于 [本轮宿主](t17-host-0023-2026-11-20.md)。
+- 本时点正式矩阵已有Vue10/10、React前8/8通过，其余继续自然执行。控制方直接读取本轮R08原receipt/report和CLI结果，确认strictmode/react/pnpm、toolVersion=0.0.23、六项passed、visual PASS、exit0、真实双toggle交互observed=true。report SHA-256为`364a578394f1cd509fccff67ea7e43d67c0a74c1c3364f1672f51de42b2bf06a`；实际截图与独立基线同SHA `f9c275b7600b2c6088fab7c89700ce387743b36fe50b3c1c07dc681a6fffda7f`。控制方已直接看图，mounts=2、cleanups=1可读。这是本轮正式R08，不是单例补跑；旧0.0.22的R08 failed保持原样。完整33格尚未结束，不提前定最终矩阵结论。
+
+## 0.0.23 完整矩阵、独立评分与技术收口
+
+- 原完整33格入口 session93391 自然exit0，外层1file/1test、3481.91s。正向20/20，Vue/React各10/10；13项强制拒绝均符合各自预期。原top seal含33份receipt及1635份文件，SHA-256为 `3fdf1427a0fe97e9d12966764d7de9bb642747f73355021877e6cd6207e33457`；不补跑替分，不改变旧0.0.22的R08失败。详见 [本轮矩阵](t17-matrix-0023-2026-11-20.md)。
+- 控制方实际从原seal运行正式评分，matrixAccepted=true、failures/errors=[]；外置 `root-original-matrix-score-reopen.json` SHA-256为 `bfd8a0da7d1c99b659033f07367acff3511e6e4ba901f4ce5b324416d0162c94`。另对59根/23162文件/493327325字节的封存evidence原件及副本逐字节复读、核对完整集合、owner/seal和原日志，failures=[]；`root-all-original-copy-byte-reopen.json` SHA-256为 `13e50a60be57e03a34f5b24d4a2a0b4e02175f5291cffd5cee090950118f7d8b`，59个owned parent均已不存在。该归档不冒称包含全部已删除消费者依赖或build/map字节。
+- 只读专项审查另核20个正向的24个生成模块、实际source-map正文、已加载JS与40条type/build命令摘要；N10两次实际写入与两份原字节备份吻合，第三生成文件未变，64391ms内正常返回预算耗尽exit2、未timeout。N13为真实build0后独立验收支架的entry-import-missing拒绝，没有调用产品verify；其map正文已随parent清理，目前只能复读原native inventory hash/size和运行时sealed extraction，不冒称再次读到map正文。专项无Critical/Important/Minor，结果仅在工具会话保留。
+- 本轮清理范围明确为宿主三个parent、黑盒十二新根和矩阵五十九个parent，各自归属与证据范围独立。工程平台仍保留四个普通凭证配置文件，因缺创建时marker/native身份而未删除；精确owner服务、容器和卷已释放。历史被自动审批以blocked by policy拒绝的目录继续保留，未换API或拆分重试；不声称全局临时目录清空。
+- 收尾再次核对唯一CLI tarball及306个dist文件，产品/公共配置相对冻结来源零差异、原架构摘要不变；`root-final-frozen-byte-reopen.json` SHA-256为 `37f334c9e9268a1f6b1231d02ce950c464a21e2737848dda8beaaaf002190e82`。本轮三期T15–T17工具技术验收通过，交付和独立开放项汇总于 [当前完成记录](t17-completion-2026-11-20.md)。真实业务试点、T11/T12、公司OIDC/生产独立预览域/G2，以及未追溯的原始RED/P0过程仍独立开放；没有push、tag、合并或生产发布。

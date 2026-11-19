@@ -502,15 +502,19 @@ flowchart LR
 
 ### T17：本地验证、有限修复与 MCP 暴露（三期，13–18 人日）
 
+2026-11-20 本轮已按用户授权以临时创建并清理的 Vue/React 工程完成 T17 工具技术验收；三期 T15–T17 工具链已交付。唯一冻结 CLI `0.0.23` 的完整矩阵正向20/20（Vue/React各10/10）、13项强制拒绝均符合各自预期，工程、受控修复宿主和独立CLI/MCP黑盒全部通过，原件评分与归档字节经控制方独立复核。结果和限制见 [当前汇总](../../verification/t17-completion-2026-11-20.md) 与 [专项计划](2026-11-19-phase3-t17-completion.md)，过程追加于 [集成记录](../../verification/t17-integration-2026-11-20.md)。原“两个真实业务项目”历史试点、T11/T12、生产OIDC/独立预览域/G2及未追溯的历史过程保持单列开放。
+
 **Files:** 创建 `packages/component-cli/src/integration/{verify,repair,report}.ts`、`mcp/server.ts`；`tests/integration/integration-repair.test.ts`、`tests/browser/generated-page.spec.ts`。
 
-**Interfaces:** `verifyIntegration(root,plan): VerificationReport`；`repairIntegration(report,maxAttempts=2): RepairResult`。MCP 在现有 CLI 包暴露 `inspect_project`、`plan_integration`、`apply_integration`、`verify_integration`，共用权限、路径和协议，不另外建设远程执行集群。
+**Interfaces:** `verifyIntegration(root, plan, {applyResult,spec,authorization,artifactRoot,...adapters})`；`repairIntegration(root, plan, report, {applyResult,spec,authorization,maxAttempts,artifactRoot,...adapters})`，`maxAttempts` 默认 2，实际 V1 返回类型见 [专项计划](2026-11-19-phase3-t17-completion.md)。MCP 在现有 CLI 包暴露 `inspect_project`、`plan_integration`、`apply_integration`、`verify_integration`，共用权限、路径和协议，不另外建设远程执行集群。
 
-- [ ] 写失败测试：类型通过但点击失败仍为失败；视觉无误但引用不兼容版本仍为失败；修复超过 2 次停止并交付问题；新出现的用户文件变更导致修复停止。
-- [ ] 实现项目原生命令、关键交互、本地页面视觉验收与报告；失败分类成类型/构建/行为/视觉/缺失业务信息。修复只在 IntegrationPlan 允许范围内，不自动执行任意错误文本中的命令。
-- [ ] 接入 MCP SDK 并在实施时查官方协议和 SDK 文档，锁定实测版本；以同一组契约测试验证 CLI/MCP 行为一致。调用写入工具仍须有目标项目操作授权，不能从设计截图推导授权。
-- [ ] 建议验收：至少 10 个 Vue + 10 个 React 场景，包含 peer 冲突/脏工作区/无候选/缺业务接口；无越界写入或用户修改丢失；支持范围内成功率≥80%，全部失败有可审查报告；两个真实业务项目完成端到端验收。
-- [ ] 运行集成和浏览器测试，交付更改文件、精确依赖、验证证据、修复次数、待处理项；未满足全部门槛的任务不能标成功。提交。
+- [x] 当前反例回归已覆盖：类型通过但点击失败仍为失败；视觉无误但引用不兼容版本仍为失败；最多两轮修复后仍未通过时停止并交付问题；新出现的用户文件变更导致修复停止。当前测试和原件见 [专项计划](2026-11-19-phase3-t17-completion.md)，不追认最初实现的 RED 顺序。
+- [x] 已实现项目原生命令、关键交互、本地页面视觉验收与报告；失败分类成类型/构建/行为/视觉/缺失业务信息。修复只在 IntegrationPlan 允许范围内，不自动执行任意错误文本中的命令；同包工程、宿主和黑盒证据见 [当前汇总](../../verification/t17-completion-2026-11-20.md)。
+- [x] 当前 MCP 技术交付已使用精确 SDK 版本，以同组契约与真实 stdio 进程验证 CLI/MCP 行为一致；写入仍须目标项目操作授权，不能从截图推导授权。当前官方来源与实测见 [C0 补证](../../verification/t17-c0-current-evidence-2026-11-20.md) 和 [官方访问更正](../../verification/t17-c0-official-correction-2026-11-20.md)。
+- [ ] 历史过程补证：最初实现 RED 的完整顺序、原实施时官方文档读取和原 P0 日志尚未追溯；当前 GREEN 与本日官方后补不倒推该历史过程。
+- [x] 本轮技术验收：固定10个Vue + 10个React正向场景全部通过，13个强制拒绝均符合各自预期；无越界写入或用户修改丢失，固定分母、原件正式评分通过。N13为独立验收支架的错宿主来源检测，未调用产品verify。使用用户授权临时工程，真实失败/修复和历史旧版结果保留，见 [本轮矩阵](../../verification/t17-matrix-0023-2026-11-20.md)。
+- [ ] 历史业务试点：两个真实业务项目完成端到端验收；临时技术工程不替代该项，也不替代 T11/T12 或生产 G2。
+- [x] 完成同包工程、集成、浏览器及外部消费者验收，交付更改文件、精确依赖、原始证据、修复次数和清理保留项；当前工具技术门槛均通过，历史过程与业务/生产开放事项独立保留。中文聚焦提交与证据索引见 [当前汇总](../../verification/t17-completion-2026-11-20.md)。
 
 ## 5. 一期最终验收矩阵
 

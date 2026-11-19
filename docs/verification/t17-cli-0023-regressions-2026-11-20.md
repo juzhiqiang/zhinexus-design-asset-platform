@@ -34,4 +34,6 @@
 
 完整平台本轮 owner 为 `f8074e4f-541a-4e83-939e-ddd69bb03e95`。控制方于 `2026-11-20T06:05:08.4041118+08:00` 实查其容器 0、卷 0、owned Gallery 已停止，`5173–5176` 无监听，随后才运行完整浏览器入口。原结果保留于 `cli-0.0.23-platform-edb985ec/root-owned-resources-after.json`。关闭恢复服务不等于删除 ignored 配置目录；后续清理只按精确归属清单进行，不扩大到共享 `.tools/recovery`。
 
+收尾只读审计确认 `D:/project/zhinexus-design-asset-platform/.tools/recovery/f8074e4f-541a-4e83-939e-ddd69bb03e95` 仍保留四个普通凭证配置文件。原 `platform.log` 的 `PLATFORM_ISOLATED_SERVICES` 事件与原资源记录可精确关联该 owner，当前读取时容器、卷、精确路径匹配进程均为 0；但没有创建时 marker/首见 native 身份，不把事后身份冒充原始所有权证据，因此没有发出删除命令。配置内容未打开、未哈希、未写入证据。浏览器原日志仅含请求/作业 UUID，没有可确认的 recovery owner/路径，未扫描共享目录或按时间戳推断其残留。`root-engineering-cleanup-boundary-audit.json` 为 11785 bytes，SHA-256 `726ac0548317e28b199c8e2772ef303a5a5170273c5025aa31e9bc331b02a6c1`。本轮普通测试清理边界不等于所有本机临时目录已经清空。
+
 本记录仅证明本轮隔离技术环境的工程门槛。真实业务试点、公司 OIDC、生产独立预览域与完整生产 G2 保持开放；本地签名 OIDC fixture 不冒称公司认证服务。新矩阵和黑盒/宿主结果各自验收，不能从上述工程测试推断通过。

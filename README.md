@@ -1,5 +1,7 @@
 # Zhinexus 组件资产平台
 
+2026-11-20 三期 T15–T17 工具技术交付完成：CLI `0.0.23` 单次冻结，交付本地 `integrate verify/repair`、四工具 stdio MCP、完整源快照守卫、SDK 自动错误回复脱敏与异步 DOM 断言等待。同包通过强制全图构建/类型检查 20/20（0 cached）、根 tsc、根测试 2210/2210 与 T10 168/168、平台 137/137、浏览器 288/288、黑盒及 T15/T16 49/49、双框架四条宿主链，以及固定矩阵正向 20/20（各框架 10/10）和 13 项强制拒绝预期。原件评分、字节归档和已知归属临时工程清理已独立复核；历史保留目录与过程缺口见 [当前交付汇总](docs/verification/t17-completion-2026-11-20.md)。用法见 [本地验证、有限修复与 MCP](docs/phase3/local-project-verification.md)，追加过程见 [T17 集成记录](docs/verification/t17-integration-2026-11-20.md)。本轮采用用户授权的临时 Vue/React 工程；历史真实业务试点、T11/T12、公司 OIDC、生产独立预览域与生产 G2 继续单独验收。下方各日期内容保留为历史记录。
+
 2026-11-19 T16 技术交付已按授权本地合并 main 并完成复验：CLI `0.0.14` 保持唯一冻结 tarball，B26 产品 141/141、契约/Schema/CLI 同步 166/166；main 强制全图构建与类型检查 20/20（0 cached）、根 Vitest 1753/1753 与 T10 168/168、完整冻结 T16 14/14、契约浏览器 1/1 全部通过。14 项包含八组双框架安装矩阵、四组 hostile 配置、Next Server Page 和实际 D 默认入口四段黑盒；此前完整浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5 和平台补验结果保留。独立全树审查无未解决 Critical/Important，保留两项非阻断 Minor。完整 T16/T17、真实授权业务项目和生产 G2 仍开放；命令、摘要、审查及证据脚本纠正见 [main 收口记录](docs/verification/t16-main-completion-2026-11-19.md)。以下为各历史时点记录。
 
 2026-11-18 T16 开发审查修复：B08 后产品窄测 117 条中 97 通过、20 失败，失败项阻断合并；B05 的产品 84/84 与仓外双框架安装/类型/构建/迁移矩阵 12/12 保留为历史证据。受控 apply/rollback 用法见 [本地应用与恢复](docs/phase3/local-project-apply.md)，当前发现见 [产品审查记录](docs/verification/t16-product-review-2026-11-18.md)，原始交付和命令见 [客户端交付记录](docs/verification/t16-client-text-delivery-2026-11-18.md)。D 首条参数黑盒通过，完整独立黑盒、最终冻结 CLI 和全量回归待通过；通过全部技术门槛后本地合 main，完整 T16/T17 与真实业务试点保持未完成。
