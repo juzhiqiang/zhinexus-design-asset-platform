@@ -12,7 +12,7 @@ import { createHash } from 'node:crypto';
 import { link, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { canonicalJson } from '@company/contracts';
 import { validateIntegrationApplyResult, validateIntegrationPlan, validateIntegrationRepairResult, validateIntegrationVerificationReport, validateIntegrationVerificationSpec } from '@company/contracts';
 import type { ArtifactRef, IntegrationApplyResultV1, IntegrationPlanV1, IntegrationRepairResultV1, IntegrationVerificationReportV1, IntegrationVerificationSpecV1, MatchPlanV1 } from '@company/contracts';
@@ -25,6 +25,9 @@ import { matchPlanFixture } from '../../fixtures/match-plan.js';
 import { buildMatchPlanForHost, buildVerificationSpecForHost, normalizeVueHostGeneratedImport } from './chain.js';
 import type { T17HostChainReceipt } from './chain.js';
 import type { T17HostInputs } from './e2e-config.js';
+import * as host from './host.js';
+import * as runtime from './runtime.js';
+import * as hostConfig from './e2e-config.js';
 
 const sha = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 const digest = (value: unknown) => sha(canonicalJson(value));
@@ -209,6 +212,60 @@ async function loadChainModule(): Promise<Record<string, unknown>> {
 }
 
 describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', () => {
+  it('keeps script temporary cache outside consumer source and inventories it before failure cleanup', async () => {
+    let owned: host.OwnedRun | undefined;
+    let scriptTemp: string | undefined;
+    let browserCache: string | undefined;
+    const response = componentMatchResponseFixture('vue');
+    const target = response.target!;
+    vi.spyOn(hostConfig, 'loadT17HostInputs').mockResolvedValue({
+      cliTarball: 'fixture.tgz', cliSha256: 'a'.repeat(64), cliVersion: '0.0.20',
+      sdkBundle: 'fixture-sdk', sdkManifestSha256: 'b'.repeat(64),
+      apiUrl: 'http://127.0.0.1:4300', registryUrl: 'http://127.0.0.1:4873',
+      variantsFile: 'fixture-variants.json', variantsSha256: 'c'.repeat(64),
+      apiToken: 'fixture-api-token', registryToken: 'fixture-registry-token',
+      variants: { schemaVersion: 1, variants: [{ componentId: target.componentId, framework: 'vue', variantReleaseId: target.variantReleaseId }] },
+      validatedCompatibility: {},
+      sdkManifest: { schemaVersion: 1, files: [], packages: [{ name: target.packageName, version: target.packageVersion, tarball: { sha256: target.packageSha256 } }],
+        variants: [{ componentId: target.componentId, framework: 'vue', packageName: target.packageName, packageVersion: target.packageVersion, exportName: target.exportName, exportPath: target.exportPath }] },
+    } as T17HostInputs);
+    vi.spyOn(host, 'installFrozenCli').mockImplementation(async options => {
+      owned = options.run;
+      const root = await owned.makeOwnedProject('fixture-cli');
+      return { root, entry: join(root, 'index.js'), entrySha256: 'd'.repeat(64), version: options.expectedVersion, tarballSha256: options.expectedTarballSha256!, tarballBytes: 1, manifestSha256: 'e'.repeat(64), installOutputBytes: 0 };
+    });
+    vi.spyOn(runtime, 'installDependencies').mockResolvedValue({ manager: 'npm', executable: process.execPath, args: [], cwd: '.', exitCode: 0, stdoutSha256: 'f'.repeat(64), stderrSha256: 'f'.repeat(64), stdoutBytes: 0, stderrBytes: 0 });
+    vi.stubGlobal('fetch', vi.fn(async () => new Response(JSON.stringify(response), { status: 200 })));
+    vi.spyOn(runtime, 'runFrozenCli').mockImplementation(async (run, options) => {
+      scriptTemp = options.extraEnv!.TEMP!;
+      browserCache = options.extraEnv!.PLAYWRIGHT_BROWSERS_PATH;
+      expect(options.extraEnv!.TMP).toBe(scriptTemp);
+      const cache = join(scriptTemp, 'node-compile-cache', 'nested');
+      await mkdir(cache, { recursive: true });
+      await writeFile(join(cache, 'entry'), 'actual child temporary output');
+      const out = await run.writeEvidence('plan.stdout', Buffer.from(''));
+      const err = await run.writeEvidence('plan.stderr', Buffer.from('controlled plan failure after cache output'));
+      return { executable: process.execPath, args: options.args!, cwd: options.projectRoot, exitCode: 1, timedOut: false, stdoutBytes: out.bytes, stderrBytes: err.bytes, stdoutSha256: out.sha256, stderrSha256: err.sha256, stdoutEvidence: out.path, stderrEvidence: err.path };
+    });
+    try {
+      const { runT17HostAcceptanceChain } = await import('./chain.js');
+      await expect(runT17HostAcceptanceChain({ env: {}, repositoryRoot: process.cwd() })).rejects.toThrow(/integrate plan failed/);
+      expect(owned).toBeDefined();
+      expect(scriptTemp).toBe(join(owned!.evidenceRoot, 't17-vue-script-temp'));
+      expect(browserCache).toBe(join(process.cwd(), '.tools', 'playwright'));
+      await expect(lstat(owned!.parentRoot)).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(readFile(join(scriptTemp!, 'node-compile-cache', 'nested', 'entry'), 'utf8')).resolves.toBe('actual child temporary output');
+      await expect(readFile(join(owned!.evidenceRoot, 'files', 'plan.stderr'), 'utf8')).resolves.toContain('controlled plan failure');
+    } finally {
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+      if (owned) {
+        await owned.abortForTest({ preserveEvidence: true });
+        await rm(owned.evidenceRoot, { recursive: true, force: true });
+      }
+    }
+  });
+
   it('拒绝从不完整冻结 SDK manifest 推断 package、variant 或摘要身份', () => {
     const makeInputs = (overrides: {
       packageEntry?: Record<string, unknown> | null;

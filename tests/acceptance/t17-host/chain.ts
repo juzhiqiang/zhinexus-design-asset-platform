@@ -869,9 +869,13 @@ export async function runT17HostAcceptanceChain(options: T17HostChainOptions): P
       const workArea = await createChainEvidenceArea(`t17-${framework}-work`);
       const backupArea = await createChainEvidenceArea(`t17-${framework}-backups`);
       const verifyOutArea = await createChainEvidenceArea(`t17-${framework}-verify-out`);
-      const scriptTmp = join(project.root, '.t17-install', 'tmp');
-      await mkdir(scriptTmp, { recursive: true });
-      const baseTempEnv = { TEMP: scriptTmp, TMP: scriptTmp, NODE_DISABLE_COMPILE_CACHE: '1' };
+      // Product verification preserves TEMP/TMP while sanitizing optional build
+      // variables. Native compiler caches must stay outside source snapshots.
+      const scriptTmp = await createChainEvidenceArea(`t17-${framework}-script-temp`);
+      const baseTempEnv = {
+        TEMP: scriptTmp, TMP: scriptTmp, NODE_DISABLE_COMPILE_CACHE: '1',
+        PLAYWRIGHT_BROWSERS_PATH: join(toolchain.repositoryRoot, '.tools', 'playwright'),
+      };
 
       // 1. Plan（从权威匹配 API 获取完整 target，再交叉绑定冻结 SDK 身份，绝不自行合成空 evidence 或硬编码 verified）
       const authoritativeMatch = await fetchAuthoritativeTargetForHost(framework, inputs, options.timeoutMs);
@@ -1086,6 +1090,8 @@ export async function runT17HostAcceptanceChain(options: T17HostChainOptions): P
         if (backupEntries.length > 0) await run.registerEvidenceAreaContents(backupArea, backupEntries);
         const verifyEntries = await readdir(verifyOutArea);
         if (verifyEntries.length > 0) await run.registerEvidenceAreaContents(verifyOutArea, verifyEntries);
+        const scriptTempEntries = await readdir(scriptTmp);
+        if (scriptTempEntries.length > 0) await run.registerEvidenceAreaContents(scriptTmp, scriptTempEntries);
 
         if (verifyReport.status !== 'passed' && repairStatus !== 'repaired') {
           throw new Error(

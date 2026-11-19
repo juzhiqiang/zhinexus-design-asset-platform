@@ -280,6 +280,30 @@ describe('T17 temporary host ownership', () => {
     await expect(run.cleanup()).rejects.toThrow(/snapshot|project|changed/i);
     await writeFile(join(run.projectRoots.vue,'user-file.ts'),'original');
   });
+  it('seals external script temporary output and retains it with logs after owned project cleanup', async () => {
+    const run = await createOwnedRun({ baseDirectory: tmpdir() });
+    runs.push(run);
+    const area = await run.createEvidenceArea('t17-vue-script-temp');
+    const cache = join(area, 'node-compile-cache', 'nested');
+    await mkdir(cache, { recursive: true });
+    await writeFile(join(cache, 'entry'), 'child compile cache');
+    await run.registerEvidenceAreaContents(area, ['node-compile-cache']);
+    const output = await run.writeEvidence('build.stdout', Buffer.from('bounded build output'));
+    await run.stopOwnedProcesses();
+    const sealPath = await run.sealEvidence({ result: 'verified' });
+    const seal = JSON.parse(await readFile(sealPath, 'utf8'));
+    const inventory = seal.inventories.evidenceAreas['t17-vue-script-temp'];
+    expect(inventory.children[0].children[0].children[0]).toMatchObject({ name: 'entry', kind: 'file', sha256: sha(Buffer.from('child compile cache')) });
+    await run.cleanup();
+    runs.splice(runs.indexOf(run), 1);
+    try {
+      await expect(lstat(run.parentRoot)).rejects.toMatchObject({ code: 'ENOENT' });
+      await expect(readFile(join(cache, 'entry'), 'utf8')).resolves.toBe('child compile cache');
+      await expect(readFile(output.path, 'utf8')).resolves.toBe('bounded build output');
+    } finally {
+      await rm(run.evidenceRoot, { recursive: true, force: false });
+    }
+  });
   it('refuses cleanup if the evidence seal itself changes after sealing', async () => {
     const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
     const sealPath=await (async()=>{await run.stopOwnedProcesses();return run.sealEvidence({result:'verified'});})();
