@@ -26,7 +26,7 @@ export type FixtureProject = {
   packageJsonPath: string;
 };
 
-type BundlePackages = { core: PackageRef; framework: PackageRef };
+
 
 const SERIES = (id: string, name: string, points: [string | number, number | null][]) => ({
   id,
@@ -74,9 +74,7 @@ function dataFor(componentId: T17ComponentId, state: 'default' | 'empty' | 'upda
 
 const EXTRA_SERIES = SERIES('quality', '质量', [[1, 30], [2, 45], [3, 60], [4, 75]]);
 
-function propValueExpression(propName: string, propType: string, framework: 'vue' | 'react'): string {
-  void propType;
-  void framework;
+function propValueExpression(propName: string): string {
   const lower = propName.toLowerCase();
   if (lower.includes('data') && !lower.includes('metadata')) return 'data.value';
   if (lower.includes('config') || lower.includes('option')) return 'config.value';
@@ -88,18 +86,7 @@ function registriesForVue(api: ComponentApiV1): string {
   for (const prop of api.props) {
     const registry = prop.name + 'Sources';
     const key = JSON.stringify('matrix.' + prop.name);
-    lines.push(`  ${registry}: { ${key}: ${propValueExpression(prop.name, prop.type, 'vue')} },`);
-  }
-  if (api.events.length > 0) lines.push(`  handlers: { matrixHandler: onPointClick },`);
-  return lines.join('\n');
-}
-
-function registriesForReact(api: ComponentApiV1): string {
-  const lines: string[] = [];
-  for (const prop of api.props) {
-    const registry = prop.name + 'Sources';
-    const key = JSON.stringify('matrix.' + prop.name);
-    lines.push(`  ${registry}: { ${key}: data },`);
+    lines.push(`  ${registry}: { ${key}: ${propValueExpression(prop.name)} },`);
   }
   if (api.events.length > 0) lines.push(`  handlers: { matrixHandler: onPointClick },`);
   return lines.join('\n');
@@ -121,14 +108,11 @@ function reactImports(scenario: T17PositiveScenario, apis: Map<string, Component
   const lines: string[] = [];
   scenario.components.forEach((component, index) => {
     const api = apis.get(component.instanceId)!;
-    lines.push(`import { ${api.exportName} as Chart${index + 1} } from './components/zhinexus/${componentFileName(index + 1, 'react')}';`);
+    lines.push(`import { Zhinexus${api.exportName} as Chart${index + 1} } from './components/zhinexus/${componentFileName(index + 1, 'react')}';`);
   });
   return lines.join('\n');
 }
 
-function dataConst(name: string, value: unknown): string {
-  return `const ${name}: any = ${JSON.stringify(value, null, 2)};`;
-}
 
 function vueApp(scenario: T17PositiveScenario, apis: Map<string, ComponentApiV1>): { app: string; extraFiles: Record<string, string> } {
   const initial = dataFor(scenario.components[0]!.componentId, scenario.components[0]!.dataState);
@@ -391,14 +375,12 @@ createRoot(document.getElementById('app')!).render(<App />);
   }
 
   const hidden = mode === 'hidden-show';
-  const emptyUpdate = mode === 'empty-update';
-  const seriesTheme = mode === 'series-theme';
-  const dataExpr = JSON.stringify(initial);
+
   return `import { useEffect, useState } from 'react';
 import { createRoot } from 'react-dom/client';
 ${imports}
 
-const initialData: any = ${dataExpr};
+const initialData: any = ${JSON.stringify(initial)};
 const updatedData: any = ${JSON.stringify(updated)};
 const extraSeries: any = ${JSON.stringify(EXTRA_SERIES)};
 const config: any = { theme: 'light', renderer: 'canvas', animation: false };

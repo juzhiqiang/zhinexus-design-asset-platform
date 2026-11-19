@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { matrixEnvReport, matrixPlan, matrixTools, REPRODUCE_COMMANDS } from './plan.js';
 import { expectedMcpToolNames } from './pipeline.js';
 import { T17_POSITIVE_SCENARIOS, T17_REFUSAL_SCENARIOS } from '../../fixtures/t17-matrix/scenarios.js';
+import { checkStructural } from './pipeline.js';
 
 describe('T17 矩阵实操计划', () => {
   it('每个正例都按 inspect→plan→freeze→apply→install→mcp→verify→browser→visual 顺序编排', () => {
@@ -39,18 +40,67 @@ describe('T17 矩阵实操计划', () => {
     expect(new Set(tools).size).toBe(4);
   });
 
-  it('正例 command 顺序覆盖 T17 pipeline 且顺序固定', () => {
-    const order = ['C01-inspect-integrate', 'C02-plan-integrate', 'C03-pnpm-pack-freeze', 'C04-apply-integrate', 'C05-install', 'C06-mcp-serve-driver', 'C07-verify-integrate', 'C08-browser-loopback', 'C09-visual-compare'];
-    for (const scenario of T17_POSITIVE_SCENARIOS) {
-      expect(order).toHaveLength(9);
-    }
-    for (const scenario of T17_REFUSAL_SCENARIOS) {
-      expect(scenario.kind === 'refusal' || scenario.kind === 'guard' || scenario.kind === 'detection').toBe(true);
-    }
+  it('实际矩阵计划逐场景包含完整且固定顺序的正例与拒绝阶段', () => {
+    const expectedPositiveOrder = [
+      'C01-inspect-integrate',
+      'C02-plan-integrate',
+      'C03-pnpm-pack-freeze',
+      'C04-apply-integrate',
+      'C05-install',
+      'C06-mcp-serve-driver',
+      'C07-verify-integrate',
+      'C08-browser-loopback',
+      'C09-visual-compare',
+    ];
+    const expectedRefusalOrder = [
+      'R01-inspect-integrate',
+      'R02-apply-scenario',
+      'R03-verify-or-refuse',
+      'R04-evaluate-outcome',
+    ];
+    const plan = matrixPlan();
+    const positives = plan.filter((entry) => entry.kind === 'positive');
+    const refusals = plan.filter((entry) => entry.kind === 'refusal');
+
+    expect(positives).toHaveLength(20);
+    expect(refusals).toHaveLength(13);
+    expect(new Set(positives.map((entry) => entry.caseId)).size).toBe(20);
+    expect(new Set(refusals.map((entry) => entry.caseId)).size).toBe(13);
+    expect(positives).toEqual(T17_POSITIVE_SCENARIOS.map((scenario) => ({
+      caseId: scenario.caseId,
+      kind: 'positive',
+      command: expectedPositiveOrder,
+    })));
+    expect(refusals).toEqual(T17_REFUSAL_SCENARIOS.map((scenario) => ({
+      caseId: scenario.caseId,
+      kind: 'refusal',
+      command: expectedRefusalOrder,
+    })));
   });
 
   it('提供不依赖冻结包的复现命令说明', () => {
     expect(REPRODUCE_COMMANDS.length).toBeGreaterThan(2);
     expect(REPRODUCE_COMMANDS[0]).toContain('tests/acceptance/t17-matrix/vitest.config.ts');
+  });
+
+  it('拒绝只有数组占位而缺少 MatchPlan 契约字段的响应', () => {
+    expect(() => checkStructural({
+      matchPlan: { schemaVersion: 1, elements: [], exactDependencies: [], context: {} },
+    })).toThrow(/match-plan|MatchPlan|context|source|digest/i);
+  });
+
+  it('拒绝只通过顶层数组检查但嵌套 evidence 项畸形的验证报告', () => {
+    expect(() => checkStructural({
+      report: {
+        schemaVersion: 1, operation: 'verify', projectRoot: 'C:/tmp/project', planDigest: 'a'.repeat(64),
+        applyResultDigest: 'b'.repeat(64), specDigest: 'c'.repeat(64), id: 'report-1', toolVersion: '0.0.14',
+        verifiedAt: '2026-11-19T00:00:00.000Z', status: 'passed', checks: [{ id: 'type', category: 'type', status: 'passed', issues: [null], evidence: [] }],
+        changedFiles: [], snapshots: { before: [], after: [] }, installedVersions: [], visualResult: 'PASS',
+        environment: { os: 'Windows', arch: 'x64', browserVersion: 'test', browserRevision: 'test', fontDigest: 'd'.repeat(64),
+          locale: 'zh-CN', timezone: 'Asia/Shanghai', deviceScaleFactor: 1, renderer: 'canvas', width: 640, height: 360,
+          theme: 'light', frameworkVersion: '19.3.1', echartsVersion: '6.1.0' },
+        artifacts: [], pendingItems: [],
+      },
+    })).toThrow(/report|契约/);
   });
 });

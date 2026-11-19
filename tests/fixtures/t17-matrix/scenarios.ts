@@ -12,6 +12,7 @@
  * 由真实 harness 使用。
  */
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 
 export type T17Framework = 'vue' | 'react';
 export type T17PackageManager = 'npm' | 'pnpm';
@@ -91,7 +92,7 @@ export type T17MatrixDeclaration = {
 };
 
 const declaration = JSON.parse(
-  readFileSync(new URL('./scenarios.json', import.meta.url), 'utf8'),
+  readFileSync(fileURLToPath(new URL('./scenarios.json', import.meta.url)), 'utf8'),
 ) as T17MatrixDeclaration;
 
 export const T17_MATRIX_DECLARATION: T17MatrixDeclaration = declaration;
