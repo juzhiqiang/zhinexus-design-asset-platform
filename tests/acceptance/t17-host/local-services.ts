@@ -188,7 +188,8 @@ export async function prepareT17LocalServices(options: { sdkBundle: string; evid
     const h = harness = await platformHarness({}, services), subject = 't17-local-host';
     await grant(h, subject, true);
     for (const pkg of frozen.manifest.packages) await h.db.query('INSERT INTO package_permissions(subject,package_name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [subject, pkg.name]);
-    const apiToken = await h.token(subject, ['reader', 'publisher', 'maintainer'], 'cli', '1h');
+    // This ephemeral fixture must cover the two-hour matrix plus setup/sealing/cleanup margin.
+    const apiToken = await h.token(subject, ['reader', 'publisher', 'maintainer'], 'cli', '3h');
     const accepted = await release(h, await upload(h, { manifest: frozen.manifest, files: frozen.files }, apiToken), apiToken);
     if (accepted.status !== 202) throw new Error('Frozen SDK release was not accepted by the isolated API.');
     const body = await accepted.json() as { jobId?: unknown };
