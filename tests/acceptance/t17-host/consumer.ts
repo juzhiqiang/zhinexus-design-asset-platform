@@ -1,0 +1,39 @@
+import { createHash } from 'node:crypto';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import type { OwnedRun, Framework } from './host.js';
+import { installDependencies, runNativeScript, type FixedToolchain } from './runtime.js';
+
+export type FixedTools = FixedToolchain;
+export type Consumer = { root:string; framework:Framework; manager:'npm'|'pnpm'; generatedPath:string };
+export type ProcessEvidence = { executable:string; args:string[]; cwd:string; code:number|null; stdoutSha256:string; stderrSha256:string; stdoutBytes:number; stderrBytes:number };
+const sha=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
+
+export async function scaffoldConsumerProject(run:OwnedRun,framework:Framework,manager:'npm'|'pnpm'='npm'):Promise<Consumer>{
+ const root=run.projectRoots[framework],generatedPath='src/components/zhinexus/component-0001.'+(framework==='vue'?'vue':'tsx');await mkdir(join(root,'src/components/zhinexus'),{recursive:true});
+ const dev=framework==='vue'?{vite:'8.3.8',typescript:'6.0.3','vue-tsc':'3.3.14','@vitejs/plugin-vue':'6.0.10'}:{vite:'8.3.8',typescript:'6.0.3','@types/react':'19.3.0','@types/react-dom':'19.3.0','@vitejs/plugin-react':'6.3.0'},deps=framework==='vue'?{vue:'3.5.45',echarts:'6.1.0'}:{react:'19.3.1','react-dom':'19.3.1',echarts:'6.1.0'};
+ const scripts={typecheck:framework==='vue'?'vue-tsc --noEmit -p tsconfig.json':'tsc --noEmit -p tsconfig.json',build:'vite build --sourcemap --manifest',preinstall:'node .t17-hook.cjs preinstall',postinstall:'node .t17-hook.cjs postinstall',pretypecheck:'node .t17-hook.cjs pretypecheck',posttypecheck:'node .t17-hook.cjs posttypecheck',prebuild:'node .t17-hook.cjs prebuild',postbuild:'node .t17-hook.cjs postbuild'};
+ await writeFile(join(root,'package.json'),JSON.stringify({name:'t17-'+framework+'-consumer',version:'1.0.0',private:true,type:'module',packageManager:manager+(manager==='npm'?'@11.20.0':'@12.18.0'),scripts,dependencies:deps,devDependencies:dev},null,2)+'\n',{flag:'wx'});
+ await writeFile(join(root,'.t17-hook.cjs'),"require('node:fs').mkdirSync('.t17-hooks',{recursive:true});require('node:fs').writeFileSync('.t17-hooks/'+process.argv[2],'executed');\n",{flag:'wx'});
+ if(manager==='pnpm')await writeFile(join(root,'pnpm-workspace.yaml'),'packages:\n  - "."\n',{flag:'wx'});
+ await writeFile(join(root,'index.html'),'<div id="app"></div><script type="module" src="/src/main.'+(framework==='vue'?'ts':'tsx')+'"></script>\n',{flag:'wx'});
+ await writeFile(join(root,'tsconfig.json'),JSON.stringify({compilerOptions:{target:'ES2022',module:'ESNext',moduleResolution:'Bundler',strict:true,noUncheckedIndexedAccess:true,skipLibCheck:true,jsx:'react-jsx',lib:['ES2022','DOM'],noEmit:true},include:['src/**/*.ts','src/**/*.tsx','src/**/*.vue']},null,2)+'\n',{flag:'wx'});
+ await writeFile(join(root,'src/vite-env.d.ts'),'/// <reference types="vite/client" />\ndeclare module "*.vue" { import type { DefineComponent } from "vue"; const component: DefineComponent<Record<string, unknown>, {}, unknown>; export default component; }\n',{flag:'wx'});
+ return{root,framework,manager,generatedPath};
+}
+
+export async function installConsumerDependencies(run:OwnedRun,project:Consumer,tools:FixedTools,registry='https://registry.npmjs.org/'):Promise<ProcessEvidence>{
+ const result=await installDependencies(run,{projectRoot:project.root,manager:project.manager,toolchain:tools,registry});
+ await assertHooksAbsent(project.root,['preinstall','postinstall']);
+ return {executable:result.executable,args:result.args,cwd:result.cwd,code:result.exitCode,stdoutSha256:result.stdoutSha256,stderrSha256:result.stderrSha256,stdoutBytes:result.stdoutBytes,stderrBytes:result.stderrBytes};
+}
+export async function runConsumerScript(run:OwnedRun,project:Consumer,script:'typecheck'|'build',tools:FixedTools,extraEnv?:Record<string,string>):Promise<ProcessEvidence>{const result=await runNativeScript(run,{projectRoot:project.root,manager:project.manager,script,toolchain:tools,extraEnv});await assertHooksAbsent(project.root,['pre'+script,'post'+script]);return{executable:result.executable,args:result.args,cwd:result.cwd,code:result.exitCode,stdoutSha256:result.stdoutSha256,stderrSha256:result.stderrSha256,stdoutBytes:result.stdoutBytes,stderrBytes:result.stderrBytes};}
+export async function assertHooksAbsent(root:string,hooks:string[]){for(const hook of hooks){try{await readFile(join(root,'.t17-hooks',hook));throw Error('Unexpected package lifecycle hook ran: '+hook);}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}}}
+
+export async function wireAppliedGeneratedComponent(project:Consumer,options:{dataKey:string;eventKey:string}){const generated=await readFile(join(project.root,project.generatedPath),'utf8'),exportName=project.framework==='react'?generated.match(/export function (Zhinexus[A-Za-z0-9_]+)/)?.[1]:undefined;if(project.framework==='react'&&!exportName)throw Error('Applied React file does not export a generated Zhinexus component.');const importPath='./components/zhinexus/'+project.generatedPath.split('/').at(-1)!.replace(/\.(vue|tsx)$/,''),data=JSON.stringify({series:[{id:'revenue',name:'Revenue',points:[{x:'Monday',y:42},{x:'Tuesday',y:75},{x:'Wednesday',y:56}]}]}),sources=JSON.stringify({[options.dataKey]:JSON.parse(data)});
+ if(project.framework==='react'){const code='import React from "react";import{createRoot}from"react-dom/client";import{'+exportName+'}from'+JSON.stringify(importPath)+';const root=document.getElementById("app");if(!root)throw Error("missing root");function App(){const[n,setN]=React.useState(0);return <main><h1 data-testid="ready">T17 React host</h1><div style={{width:720,height:360}}><'+exportName+' dataSources={'+sources+'} handlers={{'+JSON.stringify(options.eventKey)+':()=>setN(x=>x+1)}}/></div><output data-testid="event-count">{n}</output></main>}createRoot(root).render(<React.StrictMode><App/></React.StrictMode>);\n';await writeFile(join(project.root,'src/main.tsx'),code,{flag:'wx'});}
+ else {const app='<script setup lang="ts">\nimport{ref}from"vue";import Chart from '+JSON.stringify(importPath)+';const n=ref(0);const dataSources='+sources+';const handlers={'+JSON.stringify(options.eventKey)+':()=>n.value++};\n</script>\n<template><main><h1 data-testid="ready">T17 Vue host</h1><div style="width:720px;height:360px"><Chart :data-sources="dataSources" :handlers="handlers"/></div><output data-testid="event-count">{{n}}</output></main></template>\n';await writeFile(join(project.root,'src/App.vue'),app,{flag:'wx'});await writeFile(join(project.root,'src/main.ts'),'import{createApp}from"vue";import App from"./App.vue";createApp(App).mount("#app");\n',{flag:'wx'});}
+ const plugin=project.framework==='vue'?"import vue from '@vitejs/plugin-vue';const frameworkPlugin=vue();":"import react from '@vitejs/plugin-react';const frameworkPlugin=react();";
+ const config=["import{defineConfig}from'vite';",plugin,"import{writeFileSync}from'node:fs';",'export default defineConfig({plugins:[frameworkPlugin,{name:"t17-build-graph",generateBundle(_options,bundle){const modules=Object.values(bundle).filter(x=>x.type==="chunk").map(x=>({file:x.fileName,entry:x.isEntry,modules:Object.keys(x.modules)}));writeFileSync(process.env.T17_BUILD_GRAPH_OUT,JSON.stringify(modules));}}],build:{manifest:true,sourcemap:true}});'].join('\n')+'\n';await writeFile(join(project.root,'vite.config.mts'),config,{flag:'wx'});await writeFile(join(project.root,'index.html'),'<div id="app"></div><script type="module" src="/src/main.'+(project.framework==='vue'?'ts':'tsx')+'"></script>\n');return{generatedPath:project.generatedPath,generatedSha256:sha(Buffer.from(generated)),sourceEntry:project.framework==='vue'?'src/main.ts':'src/main.tsx'};
+}
+
