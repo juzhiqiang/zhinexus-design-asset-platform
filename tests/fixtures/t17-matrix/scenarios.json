@@ -1,0 +1,468 @@
+{
+  "schemaVersion": 1,
+  "matrix": "t17-b-independent-vue-react",
+  "frozenAt": "2026-11-19",
+  "denominator": { "positive": 20, "vue": 10, "react": 10, "refusal": 13 },
+  "success": { "rate": 0.8, "positiveRequired": 16, "perFrameworkRequired": 8 },
+  "visual": { "pixelThreshold": 0.1, "maxDiffPixelRatio": 0.001, "viewport": { "width": 1000, "height": 600 } },
+  "toolchain": {
+    "vite": "8.3.8",
+    "pluginVue": "6.0.10",
+    "pluginReact": "6.3.0",
+    "typescriptVue": "6.0.3",
+    "typescriptReact": "7.0.2",
+    "vueTsc": "3.3.14",
+    "vue": "3.5.45",
+    "react": "19.3.1",
+    "reactDom": "19.3.1",
+    "echarts": "6.1.0",
+    "typesReact": "19.3.0",
+    "typesReactDom": "19.3.0"
+  },
+  "positive": [
+    {
+      "caseId": "V01", "framework": "vue", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "line-click", "hostMode": "basic",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "center" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V02", "framework": "vue", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "bar-render", "hostMode": "basic",
+      "components": [{ "componentId": "bar", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=2" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V03", "framework": "vue", "packageManager": "npm", "topology": "workspace", "workspace": "apps/web", "host": "vite",
+      "focus": "pie-workspace", "hostMode": "basic",
+      "components": [{ "componentId": "pie", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=1" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V04", "framework": "vue", "packageManager": "pnpm", "topology": "workspace", "workspace": "apps/web", "host": "vite",
+      "focus": "scatter-workspace-data-update", "hostMode": "basic",
+      "components": [{ "componentId": "scatter", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"add-series\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=3" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"series-count\"]", "pattern": "series=(\\d+)", "from": 2, "to": 3 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V05", "framework": "vue", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "multi-instance", "hostMode": "multi",
+      "components": [
+        { "componentId": "trend-card", "instanceId": "instance-1", "dataState": "default" },
+        { "componentId": "ranking", "instanceId": "instance-2", "dataState": "default" },
+        { "componentId": "proportion", "instanceId": "instance-3", "dataState": "default" }
+      ],
+      "browser": {
+        "readySelector": "[data-testid=\"multi-host\"] .zhinexus-chart-host",
+        "actions": [
+          { "kind": "fill", "selector": "[data-testid=\"filter\"]", "value": "北区" },
+          { "kind": "click", "selector": "[data-testid=\"apply-filter\"]" }
+        ],
+        "assertions": [
+          { "kind": "count", "selector": ".zhinexus-chart-host", "count": 3 },
+          { "kind": "count", "selector": "[data-testid=\"multi-host\"] canvas", "count": 3 },
+          { "kind": "text", "selector": "[data-testid=\"filter-result\"]", "value": "北区" }
+        ],
+        "interaction": { "selector": "[data-testid=\"events\"]", "pattern": "events=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V06", "framework": "vue", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "empty-to-updated", "hostMode": "empty-update",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "empty" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"load-data\"]" }],
+        "assertions": [
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=2" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 },
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" }
+        ],
+        "interaction": { "selector": "[data-testid=\"series-count\"]", "pattern": "series=(\\d+)", "from": 0, "to": 2 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V07", "framework": "vue", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "hidden-zero-to-visible", "hostMode": "hidden-show",
+      "components": [{ "componentId": "bar", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"show\"]",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"show\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": ".zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"shown\"]", "value": "shown=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"shown\"]", "pattern": "shown=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V08", "framework": "vue", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "keepalive-activate", "hostMode": "keepalive",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"tab-chart\"]",
+        "actions": [
+          { "kind": "click", "selector": "[data-testid=\"tab-placeholder\"]" },
+          { "kind": "click", "selector": "[data-testid=\"tab-chart\"]" }
+        ],
+        "assertions": [
+          { "kind": "visible", "selector": ".zhinexus-chart-host" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 },
+          { "kind": "text", "selector": "[data-testid=\"activation\"]", "value": "activation=1" }
+        ],
+        "interaction": { "selector": "[data-testid=\"activation\"]", "pattern": "activation=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V09", "framework": "vue", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "series-removal-renderer", "hostMode": "series-theme",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [
+          { "kind": "click", "selector": "[data-testid=\"remove-series\"]" },
+          { "kind": "click", "selector": "[data-testid=\"toggle-renderer\"]" }
+        ],
+        "assertions": [
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host svg", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"series-count\"]", "pattern": "series=(\\d+)", "from": 2, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "V10", "framework": "vue", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "recipe-repair", "hostMode": "basic", "requiresRepairFault": true,
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "center" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R01", "framework": "react", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "line-click", "hostMode": "basic",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "center" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R02", "framework": "react", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "bar-render", "hostMode": "basic",
+      "components": [{ "componentId": "bar", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=2" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R03", "framework": "react", "packageManager": "npm", "topology": "workspace", "workspace": "apps/web", "host": "vite",
+      "focus": "pie-workspace", "hostMode": "basic",
+      "components": [{ "componentId": "pie", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=1" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R04", "framework": "react", "packageManager": "pnpm", "topology": "workspace", "workspace": "apps/web", "host": "vite",
+      "focus": "scatter-workspace-data-update", "hostMode": "basic",
+      "components": [{ "componentId": "scatter", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"add-series\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=3" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"series-count\"]", "pattern": "series=(\\d+)", "from": 2, "to": 3 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R05", "framework": "react", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "multi-instance", "hostMode": "multi",
+      "components": [
+        { "componentId": "trend-card", "instanceId": "instance-1", "dataState": "default" },
+        { "componentId": "ranking", "instanceId": "instance-2", "dataState": "default" },
+        { "componentId": "proportion", "instanceId": "instance-3", "dataState": "default" }
+      ],
+      "browser": {
+        "readySelector": "[data-testid=\"multi-host\"] .zhinexus-chart-host",
+        "actions": [
+          { "kind": "fill", "selector": "[data-testid=\"filter\"]", "value": "北区" },
+          { "kind": "click", "selector": "[data-testid=\"apply-filter\"]" }
+        ],
+        "assertions": [
+          { "kind": "count", "selector": ".zhinexus-chart-host", "count": 3 },
+          { "kind": "count", "selector": "[data-testid=\"multi-host\"] canvas", "count": 3 },
+          { "kind": "text", "selector": "[data-testid=\"filter-result\"]", "value": "北区" }
+        ],
+        "interaction": { "selector": "[data-testid=\"events\"]", "pattern": "events=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R06", "framework": "react", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "empty-to-updated", "hostMode": "empty-update",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "empty" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"load-data\"]" }],
+        "assertions": [
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=2" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 },
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" }
+        ],
+        "interaction": { "selector": "[data-testid=\"series-count\"]", "pattern": "series=(\\d+)", "from": 0, "to": 2 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R07", "framework": "react", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "hidden-zero-to-visible", "hostMode": "hidden-show",
+      "components": [{ "componentId": "bar", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"show\"]",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"show\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": ".zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"shown\"]", "value": "shown=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"shown\"]", "pattern": "shown=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R08", "framework": "react", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "strictmode-mount-cleanup", "hostMode": "strictmode",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"toggle-chart\"]",
+        "actions": [
+          { "kind": "click", "selector": "[data-testid=\"toggle-chart\"]" },
+          { "kind": "click", "selector": "[data-testid=\"toggle-chart\"]" }
+        ],
+        "assertions": [
+          { "kind": "text", "selector": "[data-testid=\"mounts\"]", "value": "mounts=2" },
+          { "kind": "text", "selector": "[data-testid=\"cleanups\"]", "value": "cleanups=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"cleanups\"]", "pattern": "cleanups=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R09", "framework": "react", "packageManager": "npm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "series-removal-renderer", "hostMode": "series-theme",
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "default" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [
+          { "kind": "click", "selector": "[data-testid=\"remove-series\"]" },
+          { "kind": "click", "selector": "[data-testid=\"toggle-renderer\"]" }
+        ],
+        "assertions": [
+          { "kind": "text", "selector": "[data-testid=\"series-count\"]", "value": "series=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host svg", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"series-count\"]", "pattern": "series=(\\d+)", "from": 2, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    },
+    {
+      "caseId": "R10", "framework": "react", "packageManager": "pnpm", "topology": "standalone", "workspace": ".", "host": "vite",
+      "focus": "recipe-repair", "hostMode": "basic", "requiresRepairFault": true,
+      "components": [{ "componentId": "line", "instanceId": "instance-1", "dataState": "center" }],
+      "browser": {
+        "readySelector": "[data-testid=\"chart-host\"] .zhinexus-chart-host",
+        "actions": [{ "kind": "click", "selector": "[data-testid=\"chart-host\"]" }],
+        "assertions": [
+          { "kind": "visible", "selector": "[data-testid=\"chart-host\"] .zhinexus-chart-host" },
+          { "kind": "text", "selector": "[data-testid=\"clicks\"]", "value": "clicks=1" },
+          { "kind": "count", "selector": ".zhinexus-chart-host canvas", "count": 1 }
+        ],
+        "interaction": { "selector": "[data-testid=\"clicks\"]", "pattern": "clicks=(\\d+)", "from": 0, "to": 1 }
+      },
+      "visual": { "renderer": "canvas", "theme": "light" },
+      "expectedOutcome": "pass"
+    }
+  ],
+  "refusal": [
+    {
+      "caseId": "N01", "kind": "refusal", "focus": "peer-conflict", "reason": "unsupported-target", "expectedOutcome": "refuse",
+      "setup": "echarts-conflict", "framework": "react", "packageManager": "pnpm",
+      "expectedCodes": ["MATCH_CONTEXT_MISMATCH", "VERSION_MISMATCH", "ECHARTS_MISSING", "DEPENDENCY_CONFLICT", "INSTALL_FAILED"],
+      "expectedExit": [1, 2]
+    },
+    {
+      "caseId": "N02", "kind": "guard", "focus": "dirty-intermediate-edit", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "apply-then-edit", "framework": "vue", "packageManager": "npm",
+      "expectedStatus": ["failed", "blocked"],
+      "expectedCodes": ["PROJECT_CHANGED", "USER_EDITED"],
+      "assertNoRepairWrite": true
+    },
+    {
+      "caseId": "N03", "kind": "refusal", "focus": "no-candidate", "reason": "unsupported-target", "expectedOutcome": "refuse",
+      "setup": "bogus-variant", "framework": "vue", "packageManager": "npm",
+      "expectedExit": [1, 2]
+    },
+    {
+      "caseId": "N04", "kind": "guard", "focus": "business-gap", "reason": "missing-required-binding", "expectedOutcome": "refuse",
+      "setup": "business-gap", "framework": "vue", "packageManager": "pnpm",
+      "expectedStatus": ["failed", "blocked"],
+      "expectedCodes": ["MISSING_BUSINESS_INFO"]
+    },
+    {
+      "caseId": "N05", "kind": "guard", "focus": "type-pass-behavior-fail", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "handler-suppressed", "framework": "react", "packageManager": "npm",
+      "expectedStatus": ["failed"],
+      "expectedCodes": ["BEHAVIOR_FAILED"]
+    },
+    {
+      "caseId": "N06", "kind": "guard", "focus": "visual-pass-version-mismatch", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "tamper-version", "framework": "react", "packageManager": "pnpm",
+      "expectedStatus": ["failed"],
+      "expectedCodes": ["DEPENDENCY_MISMATCH"]
+    },
+    {
+      "caseId": "N07", "kind": "guard", "focus": "visual-new", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "no-baseline", "framework": "vue", "packageManager": "npm",
+      "expectedStatus": ["blocked", "failed"], "expectedVisual": "NEW"
+    },
+    {
+      "caseId": "N08", "kind": "guard", "focus": "visual-diff", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "diff-baseline", "framework": "vue", "packageManager": "pnpm",
+      "expectedStatus": ["failed"], "expectedVisual": "DIFF"
+    },
+    {
+      "caseId": "N09", "kind": "guard", "focus": "visual-environment-incompatible", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "env-baseline", "framework": "react", "packageManager": "npm",
+      "expectedStatus": ["failed"], "expectedVisual": "INCOMPATIBLE"
+    },
+    {
+      "caseId": "N10", "kind": "refusal", "focus": "repair-budget", "reason": "repair-budget-exceeded", "expectedOutcome": "refuse",
+      "setup": "budget", "framework": "vue", "packageManager": "pnpm",
+      "expectedExit": [1, 2],
+      "expectedRepair": "stopped-or-rejected"
+    },
+    {
+      "caseId": "N11", "kind": "refusal", "focus": "path-link", "reason": "unsupported-target", "expectedOutcome": "refuse",
+      "setup": "symlink-parent", "framework": "vue", "packageManager": "npm",
+      "expectedExit": [1, 2],
+      "expectedCodes": ["PATH_UNSAFE", "OUTPUT_EXISTS"]
+    },
+    {
+      "caseId": "N12", "kind": "guard", "focus": "sensitive-output", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "sentinel", "framework": "react", "packageManager": "npm",
+      "expectedStatus": ["blocked", "failed"],
+      "assertNoSentinel": true
+    },
+    {
+      "caseId": "N13", "kind": "detection", "focus": "wrong-host-static-standin", "reason": "stale-project", "expectedOutcome": "refuse",
+      "setup": "static-standin", "framework": "vue", "packageManager": "npm",
+      "expectedDetection": "entry-import-missing"
+    }
+  ]
+}
