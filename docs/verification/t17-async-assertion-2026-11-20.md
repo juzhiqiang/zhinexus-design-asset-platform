@@ -67,3 +67,11 @@ $env:T17_ASSERTION_EVIDENCE_ROOT = Join-Path (Get-Location) '.tools/t17-async-as
 自审覆盖共享截止时间、等待成功即返回、first/trim/精确数量/尺寸、超时与取消分类、选择器兼容、证据摘要、源写集和失败关闭；本次范围未发现待处理 Critical/Important。`git diff --check` 通过，原架构 SHA-256 仍为 `e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723`。
 
 本次没有改版本、pack、覆盖冻结 `.22` tarball、修改矩阵预期、push、merge 或尝试受阻清理。完整根测试、平台与浏览器全量回归、新版本冻结安装、双框架矩阵与独立审查由集成负责人另行执行；本记录不单独声明完整 T17、真实业务试点或生产 G2 完成。
+
+## 后续独立审查与新候选（05:53 +08:00 追加）
+
+修复已独立提交为 `10ca2957602d0f225c906acc8b534c6be2ff96e5`。独立 reviewer 对基点 `01aaddb7` 至该提交给出 Spec compliant、Task quality Approved，Critical 0、Important 0。复核覆盖共享断言时限、原定位与文本/数量/尺寸语义、TimeoutError 分类、取消路径和公开源码入口，不重复无疑点测试。既有 NO_COLOR/FORCE_COLOR 警告为非阻断 Minor，未扩大修复范围。
+
+reviewer 从 diff 和日志不能独立证明 RED 发生于产品修改之前；该顺序仍依赖控制方当时收取的有效 RED handoff 与本记录，而不是事后测试追认。控制方已逐字节重开原 `273` 项、`344840` bytes，结果 `root-original-regression-reopen.json` SHA-256 `0cd494c132222789073676311133d9c05ebf92d80dfa0d7bef680df5b52677db`。仓外补充归档为 `D:/project/zhinexus-t17-acceptance-evidence/2026-11-20/async-assertion-fix-10ca2957`，共 `277` files / `416796` bytes；`archive-map.json` SHA-256 `6d3c974a27e121169d7f953675cc255d51003c7893962adb8121500e32b05d46`。该归档只保证索引文件集合，未删除原件。
+
+独立升版提交 `edb985ec0f9ee1b79a5882e935832f8caa9f0daf` 将 CLI 升至 `0.0.23`。强制全图 build/typecheck `20/20`、`0 cached`、根 tsc 与 `verify:workspace` 已实际 exit 0；新 CLI 于 `2026-11-20T05:51:34.8465368+08:00` 仅 pack 一次，`454155` bytes，SHA-256 `93c901245b95c06ccc6a2a5bd476decf7ce9512b476316e1b65e789459b594ab`。同包完整验收正在另行执行，不能用本次局部批准替代。
