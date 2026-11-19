@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, readFile, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { createOwnedRun, installFrozenCli, type OwnedRun, verifyBuiltImportEvidence, startBuiltHost } from './host.js';
@@ -48,6 +48,17 @@ describe('T17 temporary host ownership', () => {
     await writeFile(join(run.projectRoots.vue,'.t17-owner.json'),'{}\n');
     await expect(run.cleanup()).rejects.toThrow(/owner|marker|identity/i);
     expect(await lstat(run.projectRoots.vue)).toBeTruthy();await writeFile(join(run.projectRoots.vue,'.t17-owner.json'),marker);
+  });
+  it('refuses failure cleanup when the evidence root path is replaced', async () => {
+    const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
+    const replaced=run.evidenceRoot,saved=replaced+'-saved',sentinel=join(replaced,'keep.txt');
+    await rename(replaced,saved);await mkdir(replaced);await writeFile(sentinel,'outside evidence sentinel');
+    try {
+      await expect(run.abortForTest()).rejects.toThrow(/owner|marker|identity/i);
+      await expect(readFile(sentinel,'utf8')).resolves.toBe('outside evidence sentinel');
+    } finally {
+      await rm(replaced,{recursive:true,force:true});await rename(saved,replaced);
+    }
   });
   it('refuses cleanup if a project snapshot changes after sealing', async () => {
     const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
