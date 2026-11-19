@@ -38,6 +38,7 @@ import { compareBaseline } from '../local/compare.js';
 import { detectEnvironment } from '../local/environment.js';
 import { canonicalProjectRoot } from './apply.js';
 import { resolveToolchain, type ResolvedToolchain } from './install.js';
+import { readNpmLock, readPnpmLock, resolveNpmDependency, resolvePnpmDependency } from './locks.js';
 import {
   assertArtifactRootOutsideProject,
   buildVerificationReport,
@@ -101,6 +102,14 @@ const MAX_SNAPSHOT_FILES = 10_000;
 const MAX_SNAPSHOT_FILE_BYTES = 4 * 1024 * 1024;
 const MAX_SNAPSHOT_TOTAL_BYTES = 256 * 1024 * 1024;
 const ALLOWED_OUTPUT_LEAVES = new Set(['dist', 'build', '.next', 'out']);
+
+function sanitizeBrowserDiagnostic(value: string): string {
+  return sanitizeDiagnosticText(value)
+    .replace(/(?:https?|wss?):\/\/[^\s"']+/gi, '[URL_REDACTED]')
+    .replace(/\b(?:data|blob):[^\s"']*/gi, '[URL_REDACTED]')
+    .replace(/((?:token|secret|password|authorization)=)[^&\s"']+/gi, '$1[REDACTED]')
+    .replace(/\b(?:token|secret|password|authorization):\s*[^\s"']+/gi, '$&'.replace(/^.*$/, '[REDACTED]'));
+}
 
 function isolatedScriptEnv(toolchain: ResolvedToolchain, isPnpm: boolean): Record<string, string> {
   const env: Record<string, string> = {};
@@ -248,7 +257,17 @@ function readInstalledPackageVersions(
     let foundPath: string | undefined;
     for (const nmRoot of searchRoots) {
       const candidate = path.join(nmRoot, ...dep.name.split('/'), 'package.json');
-      if (fs.existsSync(candidate) && fs.lstatSync(candidate).isFile()) {
+      const packageDir = path.dirname(candidate);
+      const realPackageDir = realpathOrSelf(packageDir);
+      const realNodeModules = realpathOrSelf(nmRoot);
+      if (
+        !isInsideDirectory(realProjectRoot, realNodeModules) ||
+        !isInsideDirectory(realNodeModules, realPackageDir)
+      ) {
+        issues.push(verificationIssue('DEPENDENCY_MISMATCH'));
+        break;
+      }
+      if (fs.existsSync(candidate) && fs.lstatSync(candidate).isFile() && !fs.lstatSync(candidate).isSymbolicLink()) {
         foundPath = candidate;
         break;
       }
@@ -260,7 +279,7 @@ function readInstalledPackageVersions(
     try {
       const bytes = fs.readFileSync(foundPath);
       const parsed = JSON.parse(bytes.toString('utf8')) as { name?: unknown; version?: unknown };
-      if (typeof parsed.version !== 'string' || parsed.version !== dep.version) {
+      if (parsed.name !== dep.name || typeof parsed.version !== 'string' || parsed.version !== dep.version) {
         issues.push(verificationIssue('DEPENDENCY_MISMATCH'));
       }
       if (typeof parsed.version === 'string' && /^\d+\.\d+\.\d+/.test(parsed.version)) {
@@ -316,8 +335,14 @@ function blockedReport(params: {
 function isAllowedLoopbackRequest(reqUrl: string, allowedOrigin: string): boolean {
   try {
     const parsed = new URL(reqUrl);
-    if (parsed.protocol === 'data:' || parsed.protocol === 'blob:') return true;
-    return parsed.origin === allowedOrigin;
+    const requestOrigin = parsed.protocol === 'ws:'
+      ? 'http://' + parsed.host
+      : parsed.protocol === 'wss:'
+        ? 'https://' + parsed.host
+        : parsed.protocol === 'http:' || parsed.protocol === 'https:'
+          ? parsed.origin
+          : undefined;
+    return requestOrigin === allowedOrigin;
   } catch {
     return false;
   }
@@ -391,10 +416,41 @@ async function runBrowserVerification(params: {
       acceptDownloads: false,
     });
     const page = await context.newPage();
+    await page.addInitScript(({ allowedOrigin }) => {
+      const diagnostics: string[] = [];
+      (window as unknown as { __zhinexusDiagnostics: string[] }).__zhinexusDiagnostics = diagnostics;
+      const originalFetch = window.fetch.bind(window);
+      window.fetch = (input, init) => {
+        const rawUrl = typeof input === 'string' || input instanceof URL ? input.toString() : input.url;
+        try {
+          const target = new URL(rawUrl, window.location.href);
+          if ((target.protocol !== 'http:' && target.protocol !== 'https:') || target.origin !== allowedOrigin) {
+            diagnostics.push('outbound_blocked: ' + rawUrl);
+            return Promise.reject(new TypeError('Blocked request'));
+          }
+        } catch {
+          diagnostics.push('outbound_blocked: ' + rawUrl);
+          return Promise.reject(new TypeError('Blocked request'));
+        }
+        return originalFetch(input, init);
+      };
+      const NativeWebSocket = window.WebSocket;
+      window.WebSocket = class extends NativeWebSocket {
+        constructor(url: string | URL, protocols?: string | string[]) {
+          const target = new URL(url.toString(), window.location.href);
+          const mappedOrigin = target.protocol === 'ws:' ? 'http://' + target.host : target.protocol === 'wss:' ? 'https://' + target.host : '';
+          if (mappedOrigin !== allowedOrigin) {
+            diagnostics.push('websocket_blocked: ' + target.toString());
+            throw new DOMException('Blocked WebSocket', 'SecurityError');
+          }
+          super(url, protocols);
+        }
+      };
+    }, { allowedOrigin: targetOrigin });
 
     const runtimeErrors: string[] = [];
     page.on('pageerror', err => {
-      runtimeErrors.push(`pageerror: ${err.message}`);
+      runtimeErrors.push('pageerror: ' + sanitizeBrowserDiagnostic(err.message));
     });
     page.on('popup', popup => {
       runtimeErrors.push('popup_blocked');
@@ -412,11 +468,20 @@ async function runBrowserVerification(params: {
     await page.route('**/*', async route => {
       const reqUrl = route.request().url();
       if (!isAllowedLoopbackRequest(reqUrl, targetOrigin)) {
-        runtimeErrors.push(`outbound_blocked: ${reqUrl}`);
+        runtimeErrors.push('outbound_blocked: ' + sanitizeBrowserDiagnostic(reqUrl));
         await route.abort();
         return;
       }
       await route.continue();
+    });
+    page.routeWebSocket('**/*', async wsRoute => {
+      const reqUrl = wsRoute.url();
+      if (!isAllowedLoopbackRequest(reqUrl, targetOrigin)) {
+        runtimeErrors.push('websocket_blocked: ' + sanitizeBrowserDiagnostic(reqUrl));
+        await wsRoute.close();
+        return;
+      }
+      wsRoute.connectToServer();
     });
 
     if (params.signal?.aborted) {
@@ -468,6 +533,9 @@ async function runBrowserVerification(params: {
         }
       }
     }
+
+    const pageDiagnostics = await page.evaluate(() => (window as unknown as { __zhinexusDiagnostics?: string[] }).__zhinexusDiagnostics ?? []);
+    runtimeErrors.push(...pageDiagnostics.map(sanitizeBrowserDiagnostic));
 
     const screenshotBuf = await page.screenshot({ fullPage: false });
     const shotRef = params.session.writeBytes('screenshot.png', screenshotBuf);
@@ -700,7 +768,9 @@ export async function verifyIntegrationInternal(
   }
   const beforeMap = new Map(beforeSnapRes.snapshots.map(s => [s.path, s]));
   const expectedGuards = privateBaselineSnapshots ?? options.applyResult.afterHashes;
-  for (const guard of expectedGuards) {
+  const guards = new Map(plan.baseFileHashes.map(guard => [guard.path, guard]));
+  for (const guard of expectedGuards) guards.set(guard.path, guard);
+  for (const guard of guards.values()) {
     const actual = beforeMap.get(guard.path);
     const actualExists = actual?.exists ?? false;
     if (guard.exists !== actualExists || guard.sha256 !== actual?.sha256) {
@@ -821,6 +891,22 @@ export async function verifyIntegrationInternal(
     plan.localProject.workspace,
     plan.exactDependencies,
   );
+  const lockPath = plan.localProject.lockfile?.path;
+  if (lockPath) {
+    const lockResult = plan.packageManager === 'pnpm' ? readPnpmLock(realProjectRoot) : readNpmLock(realProjectRoot);
+    const importer = plan.localProject.workspace === '.' ? '' : plan.localProject.workspace;
+    if (!lockResult.ok) depCheck.issues.push(verificationIssue('DEPENDENCY_MISMATCH'));
+    else for (const dep of plan.exactDependencies) {
+      const resolved = lockResult.format === 'npm-v3'
+        ? resolveNpmDependency(lockResult.data.packages, importer, dep.name)
+        : resolvePnpmDependency(lockResult.data.importers, importer || '.', dep.name);
+      if (resolved?.unresolved || resolved?.version !== dep.version || resolved?.specifier !== dep.version) {
+        depCheck.issues.push(verificationIssue('DEPENDENCY_MISMATCH'));
+        break;
+      }
+    }
+    if (depCheck.issues.length) depCheck.ok = false;
+  }
   const depEvidence = session.writeText('dependency-guard.json', JSON.stringify(depCheck.installedVersions, null, 2));
   if (!depCheck.ok) {
     const issue = depCheck.issues[0]!;
@@ -884,16 +970,19 @@ export async function verifyIntegrationInternal(
 
   // 8. 结束复读源文件快照
   const afterSnapRes = collectSourceSnapshots(realProjectRoot, outDirCheck.excludedRelPaths);
-  const afterList = afterSnapRes.ok ? afterSnapRes.snapshots : beforeSnapRes.snapshots;
+  const afterList = afterSnapRes.ok ? afterSnapRes.snapshots : [];
   const { changedFiles, normalizedBefore, normalizedAfter } = diffSnapshots(beforeSnapRes.snapshots, afterList);
-  if (changedFiles.length > 0) {
-    const changeIssue = verificationIssue('PROJECT_CHANGED', changedFiles[0]);
-    pendingItems.push(changeIssue);
+  if (!afterSnapRes.ok || changedFiles.length > 0) {
+    const sourceIssues = [
+      ...(!afterSnapRes.ok ? [afterSnapRes.issue] : []),
+      ...(changedFiles.length > 0 ? [verificationIssue('PROJECT_CHANGED', changedFiles[0])] : []),
+    ];
+    pendingItems.push(...sourceIssues);
     checks.push({
       id: 'source-guard',
       category: 'behavior',
       status: 'failed',
-      issues: [changeIssue],
+      issues: sourceIssues,
       evidence: [],
     });
   }
