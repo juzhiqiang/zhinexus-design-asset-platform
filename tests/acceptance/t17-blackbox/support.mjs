@@ -3,6 +3,7 @@
 // 启动真实本地静态宿主与 MCP stdio 客户端，以子进程方式驱动实际 `node <installed>/dist/bin.js`。
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { gunzipSync } from 'node:zlib';
 import { lstat, mkdir, mkdtemp, readFile, readlink, readdir, realpath, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
@@ -16,6 +17,36 @@ export const canonicalJson = (value) => {
   return `{${keys.map((key) => `${JSON.stringify(key)}:${canonicalJson(value[key])}`).join(',')}}`;
 };
 export const digestOf = (value) => sha256(Buffer.from(canonicalJson(value), 'utf8'));
+
+/** Read one regular file from an npm gzip-tar without extracting untrusted paths. */
+function readNpmTarEntry(tarballBytes, wantedPath) {
+  const tar = gunzipSync(tarballBytes);
+  let offset = 0;
+  let found;
+  while (offset + 512 <= tar.length) {
+    const header = tar.subarray(offset, offset + 512);
+    if (header.every(byte => byte === 0)) break;
+    const name = header.subarray(0, 100).toString('utf8').replace(/\0.*$/s, '');
+    const prefix = header.subarray(345, 500).toString('utf8').replace(/\0.*$/s, '');
+    const path = prefix ? `${prefix}/${name}` : name;
+    const sizeText = header.subarray(124, 136).toString('ascii').replace(/\0.*$/s, '').trim();
+    if (!/^[0-7]+$/.test(sizeText)) throw new Error('冻结 CLI tarball 含无效 tar entry size');
+    const size = Number.parseInt(sizeText, 8);
+    const type = header[156];
+    if (path === wantedPath) {
+      if (found || (type !== 0 && type !== 48)) throw new Error(`冻结 CLI tarball 的 ${wantedPath} 重复或不是普通文件`);
+      found = Buffer.from(tar.subarray(offset + 512, offset + 512 + size));
+      if (found.length !== size) throw new Error(`冻结 CLI tarball 的 ${wantedPath} 被截断`);
+    }
+    offset += 512 + Math.ceil(size / 512) * 512;
+  }
+  if (!found) throw new Error(`冻结 CLI tarball 缺少 ${wantedPath}`);
+  return found;
+}
+function declaredBinPath(manifest) {
+  const declared = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.component;
+  return typeof declared === 'string' ? declared.replaceAll('\\', '/') : undefined;
+}
 
 /** 必需环境变量：缺失即失败关闭，不做任何默认值或跳过。 */
 export function required(name) {
@@ -127,6 +158,12 @@ export async function installFrozenCli({ area, tarball, node, npmCli, expectedVe
   if (process.env.T17_D_CLI_SHA256 && process.env.T17_D_CLI_SHA256.toLowerCase() !== digest) {
     throw new Error(`冻结包 SHA-256 与调用方给出的 T17_D_CLI_SHA256 不一致（实际 ${digest}）`);
   }
+  const archiveManifest = JSON.parse(readNpmTarEntry(bytes, 'package/package.json').toString('utf8'));
+  if (archiveManifest.name !== '@company/component-cli') throw new Error('冻结 CLI tarball 包身份错误：package name 不匹配');
+  if (expectedVersion !== undefined && archiveManifest.version !== expectedVersion) throw new Error('冻结 CLI tarball 包身份错误：package version 不匹配');
+  if (declaredBinPath(archiveManifest) !== './dist/bin.js') throw new Error('冻结 CLI tarball 的 component bin 必须指向 ./dist/bin.js');
+  const archiveBin = readNpmTarEntry(bytes, 'package/dist/bin.js');
+  const archiveBinSha = sha256(archiveBin);
   const root = join(area, 'cli'); await mkdir(root);
   await writeFile(join(root, 'package.json'), JSON.stringify({ private: true, dependencies: { '@company/component-cli': `file:${tarball.replaceAll('\\', '/')}` } }, null, 2));
   const env = await cleanEnvironment(area, 'frozen-cli', { dirs: [dirname(node)] });
@@ -137,12 +174,18 @@ export async function installFrozenCli({ area, tarball, node, npmCli, expectedVe
   const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
   if (manifest.name !== '@company/component-cli') throw new Error('冻结 CLI 安装包身份错误：package name 不匹配');
   if (expectedVersion !== undefined && manifest.version !== expectedVersion) throw new Error('冻结 CLI 安装包身份错误：package version 不匹配');
+  if (declaredBinPath(manifest) !== './dist/bin.js') throw new Error('冻结 CLI 安装包的 component bin 必须指向 ./dist/bin.js');
   if (manifest.dependencies?.['@company/contracts'] !== undefined) throw new Error('冻结 CLI 声明了私有包 @company/contracts 运行时依赖');
   const bin = join(packageRoot, 'dist', 'bin.js');
-  if (!(await lstat(bin).catch(() => null))?.isFile()) throw new Error('冻结 CLI 缺少 dist/bin.js');
+  const binStat = await lstat(bin).catch(() => null);
+  if (!binStat?.isFile() || binStat.isSymbolicLink()) throw new Error('冻结 CLI 缺少常规文件 dist/bin.js');
+  const installedBin = await readFile(bin);
+  if (!installedBin.equals(archiveBin)) throw new Error('冻结 CLI 安装入口与 tarball 内 dist/bin.js 字节不一致');
   const assertUnchanged = async () => {
     const current = sha256(await readFile(tarball));
     if (current !== digest) throw new Error(`冻结包字节在验收期间发生变化：${digest} -> ${current}`);
+    const currentBin = sha256(await readFile(bin));
+    if (currentBin !== archiveBinSha) throw new Error('冻结 CLI 已安装 dist/bin.js 在验收期间发生变化');
   };
   return { root, bin, version: manifest.version, tarball, sha256: digest, assertUnchanged };
 }
