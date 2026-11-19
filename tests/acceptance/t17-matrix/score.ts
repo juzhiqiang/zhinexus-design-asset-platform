@@ -1,6 +1,6 @@
 import { T17_POSITIVE_SCENARIOS, T17_REFUSAL_SCENARIOS, validateT17ScenarioMatrix } from '../../fixtures/t17-matrix/scenarios.js';
 import type { T17Framework, T17PackageManager } from '../../fixtures/t17-matrix/scenarios.js';
-import { validateIntegrationApplyResult, validateIntegrationRepairResult, validateIntegrationVerificationReport, validateIntegrationVerificationSpec } from '@company/contracts';
+import { validateIntegrationApplyResult, validateIntegrationPlan, validateIntegrationRepairResult, validateIntegrationVerificationReport, validateIntegrationVerificationSpec } from '@company/contracts';
 import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir, realpath } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -8,6 +8,12 @@ import { basename, dirname, join, resolve } from 'node:path';
 type Sha256 = string;
 type CommandEvidence = { kind: 'typecheck' | 'build'; exitCode: number; evidencePath: string; sha256: Sha256; stdoutEvidencePath: string; stdoutSha256: Sha256; stderrEvidencePath: string; stderrSha256: Sha256 };
 type BrowserAssetEvidence = { path: string; evidencePath?: string; url: string; sha256: Sha256; bytes: number; status: 'loaded' | 'missing' | 'failed' };
+type BudgetEvidenceRef = { evidencePath: string; sha256: Sha256 };
+export type T17BudgetRepairEvidence = {
+  plan: BudgetEvidenceRef; applyResult: BudgetEvidenceRef; spec: BudgetEvidenceRef; initialReport: BudgetEvidenceRef; result: BudgetEvidenceRef;
+  sourceBefore: BudgetEvidenceRef; sourceAfter: BudgetEvidenceRef; backups: BudgetEvidenceRef[];
+  generatedSources: { path: string; before: BudgetEvidenceRef; after: BudgetEvidenceRef }[];
+};
 export type T17CellReceipt = {
   caseId: string; framework: T17Framework; packageManager: T17PackageManager; host: 'vite' | 'next-app-router';
   projectRoot: string; scenarioIdentity: { topology: 'standalone' | 'workspace'; workspace: string; hostMode: string; components: { componentId: string; instanceId: string; dataState: string }[] };
@@ -180,6 +186,16 @@ export async function loadT17MatrixInput(evidenceRoot: string, expectedCliTarbal
       if (!evidencePath || !safeEvidenceName(evidencePath) || evidenceContents[evidencePath] !== undefined) continue;
       if (declaredNames.includes(evidencePath)) evidenceContents[evidencePath] = (await readFile(join(filesRoot, evidencePath))).toString('utf8');
     }
+    if (reference.kind === 'refusal') {
+      const reportText = evidenceContents[receipt.reportPath];
+      let report: unknown;
+      try { report = reportText === undefined ? undefined : JSON.parse(reportText); } catch { /* Scoring reports invalid JSON. */ }
+      if (isRecord(report) && isBudgetRepairEvidence(report.budgetRepair)) {
+        for (const ref of budgetEvidenceRefs(report.budgetRepair)) {
+          if (declaredNames.includes(ref.evidencePath)) evidenceContents[ref.evidencePath] = (await readFile(join(filesRoot, ref.evidencePath))).toString('utf8');
+        }
+      }
+    }
   }
   return {
     expectedCliTarballSha256,
@@ -204,7 +220,18 @@ function jsonEvidence(contents: Readonly<Record<string, string>> | undefined, fi
   if (typeof content !== 'string' || createHash('sha256').update(content, 'utf8').digest('hex') !== digest) return { error: '报告或关联证据正文缺失或摘要不一致' };
   try { return { value: JSON.parse(content) }; } catch { return { error: '报告或关联证据不是有效 JSON' }; }
 }
-const REFUSAL_REPORT_KEYS = ['schemaVersion','caseId','kind','focus','reason','setup','framework','packageManager','expectedOutcome','actualOutcome','issueCodes','exitCode','status','visualResult','detection','repairStatus','repairWrites','sentinelAbsent'] as const;
+function isBudgetRepairEvidence(value: unknown): value is T17BudgetRepairEvidence {
+  const ref = (item: unknown): item is BudgetEvidenceRef => isRecord(item) && hasOnlyKeys(item, ['evidencePath','sha256']) && safeEvidenceName(item.evidencePath) && validSha(item.sha256);
+  return isRecord(value) && hasOnlyKeys(value, ['plan','applyResult','spec','initialReport','result','sourceBefore','sourceAfter','backups','generatedSources'])
+    && ['plan','applyResult','spec','initialReport','result','sourceBefore','sourceAfter'].every((key) => ref(value[key]))
+    && Array.isArray(value.backups) && value.backups.length === 2 && value.backups.every(ref)
+    && Array.isArray(value.generatedSources) && value.generatedSources.length === 3
+    && value.generatedSources.every((item) => isRecord(item) && hasOnlyKeys(item, ['path','before','after']) && nonempty(item.path) && ref(item.before) && ref(item.after));
+}
+function budgetEvidenceRefs(proof: T17BudgetRepairEvidence): BudgetEvidenceRef[] {
+  return [proof.plan, proof.applyResult, proof.spec, proof.initialReport, proof.result, proof.sourceBefore, proof.sourceAfter, ...proof.backups, ...proof.generatedSources.flatMap((source) => [source.before, source.after])];
+}
+const REFUSAL_REPORT_KEYS = ['schemaVersion','caseId','kind','focus','reason','setup','framework','packageManager','expectedOutcome','actualOutcome','issueCodes','exitCode','status','visualResult','detection','repairStatus','repairWrites','sentinelAbsent','budgetRepair'] as const;
 function isRefusalReport(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value) || !hasOnlyKeys(value, ['schemaVersion','caseId','kind','focus','reason','setup','framework','packageManager','expectedOutcome','actualOutcome','issueCodes'], REFUSAL_REPORT_KEYS.filter((key) => !['schemaVersion','caseId','kind','focus','reason','setup','framework','packageManager','expectedOutcome','actualOutcome','issueCodes'].includes(key)))) return false;
   if (value.schemaVersion !== 1 || !nonempty(value.caseId) || !['refusal','guard','detection'].includes(String(value.kind)) || !nonempty(value.focus) || !nonempty(value.reason) || !nonempty(value.setup) || !['vue','react'].includes(String(value.framework)) || !['npm','pnpm'].includes(String(value.packageManager)) || value.expectedOutcome !== 'refuse' || value.actualOutcome !== 'refused' || !Array.isArray(value.issueCodes) || !value.issueCodes.every(nonempty)) return false;
@@ -215,6 +242,7 @@ function isRefusalReport(value: unknown): value is Record<string, unknown> {
   if (value.repairStatus !== undefined && value.repairStatus !== 'stopped-or-rejected') return false;
   if (value.repairWrites !== undefined && !nonnegativeInteger(value.repairWrites)) return false;
   if (value.sentinelAbsent !== undefined && typeof value.sentinelAbsent !== 'boolean') return false;
+  if (value.budgetRepair !== undefined && !isBudgetRepairEvidence(value.budgetRepair)) return false;
   return true;
 }
 function positiveScenarioIdentity(scenario: (typeof T17_POSITIVE_SCENARIOS)[number]) {
@@ -254,6 +282,7 @@ function positiveErrors(receipt: T17CellReceipt, scenarioId: string, cliSha: str
   const errors: string[] = [];
   const scenario = T17_POSITIVE_SCENARIOS.find((item) => item.caseId === scenarioId);
   if (!scenario) return ['未知正向 caseId: ' + scenarioId];
+  const claimsPass = receipt.actualOutcome === 'pass';
   if (!sealedFileMatches(files, receipt.receiptEvidencePath, canonicalEvidenceSha256(receipt))) errors.push(scenarioId + ': receipt 内容未与 run-seal 摘要绑定');
   if (receipt.framework !== scenario.framework || receipt.packageManager !== scenario.packageManager || receipt.host !== scenario.host) errors.push(scenarioId + ': 场景身份不一致');
   if (canonicalJson(receipt.scenarioIdentity) !== canonicalJson(positiveScenarioIdentity(scenario))) errors.push(scenarioId + ': receipt 场景/组件身份不一致');
@@ -301,14 +330,15 @@ function positiveErrors(receipt: T17CellReceipt, scenarioId: string, cliSha: str
     errors.push(scenarioId + ': verification spec 不符合契约或 apply 身份不匹配');
   }
   const reportEvidence = jsonEvidence(contents, files, receipt.reportPath, receipt.reportSha256);
-  if (scenario.requiresRepairFault || receipt.repair) errors.push(...repairErrors(receipt, plan, reportEvidence.value, files, contents));
+  if ((claimsPass && scenario.requiresRepairFault) || receipt.repair) errors.push(...repairErrors(receipt, plan, reportEvidence.value, files, contents));
   if (reportEvidence.error || !isRecord(reportEvidence.value)) {
     errors.push(scenarioId + ': 正向报告无法解析');
   } else {
     const report = reportEvidence.value;
-    if (report.schemaVersion !== 1 || report.operation !== 'verify' || report.status !== 'passed' || report.projectRoot !== receipt.projectRoot) errors.push(scenarioId + ': 正向报告状态或项目身份不匹配');
-    if (!Array.isArray(report.checks) || report.checks.length === 0 || report.checks.some((check) => !isRecord(check) || check.status !== 'passed')) errors.push(scenarioId + ': 正向报告 checks 未全部通过');
-    if (Array.isArray(exactDependencies) && Array.isArray(report.installedVersions)) {
+    if (report.schemaVersion !== 1 || report.operation !== 'verify' || (claimsPass && report.status !== 'passed') || report.projectRoot !== receipt.projectRoot) errors.push(scenarioId + ': 正向报告状态或项目身份不匹配');
+    if (claimsPass && (!Array.isArray(report.checks) || report.checks.length === 0 || report.checks.some((check) => !isRecord(check) || check.status !== 'passed'))) errors.push(scenarioId + ': 正向报告 checks 未全部通过');
+    const dependencyGuardPassed = Array.isArray(report.checks) && report.checks.some((check) => isRecord(check) && check.id === 'dependency-guard' && check.status === 'passed');
+    if ((claimsPass || dependencyGuardPassed) && Array.isArray(exactDependencies) && Array.isArray(report.installedVersions)) {
       const expected = exactDependencies.map((dependency) => isRecord(dependency) ? { name: dependency.name, version: dependency.version } : null).sort((a, b) => String(a?.name).localeCompare(String(b?.name)));
       const actual = report.installedVersions.map((dependency) => isRecord(dependency) ? { name: dependency.name, version: dependency.version } : null).sort((a, b) => String(a?.name).localeCompare(String(b?.name)));
       if (canonicalJson(actual) !== canonicalJson(expected)) errors.push(scenarioId + ': 已安装依赖与 plan exactDependencies 不一致');
@@ -318,7 +348,7 @@ function positiveErrors(receipt: T17CellReceipt, scenarioId: string, cliSha: str
     if (!specEvidence.error && report.specDigest !== canonicalEvidenceSha256(specEvidence.value)) errors.push(scenarioId + ': 报告 specDigest 与 receipt 证据不匹配');
     const checked = validateIntegrationVerificationReport(report);
     if (!checked.ok) errors.push(scenarioId + ': 正向报告不符合验证报告契约');
-    else {
+    else if (claimsPass) {
       const categories = new Set(checked.value.checks.map((check) => check.category));
       if (!['type','build','behavior','visual','missing-business-info'].every((category) => categories.has(category as never)) || !checked.value.checks.some((check) => check.id === 'dependency-guard' && check.status === 'passed') || checked.value.pendingItems.length || checked.value.visualResult !== 'PASS') errors.push(scenarioId + ': 正向报告缺少完整通过检查');
     }
@@ -336,7 +366,9 @@ function positiveErrors(receipt: T17CellReceipt, scenarioId: string, cliSha: str
     const actionRecords = proof.actions as { action: unknown; status: 'passed' | 'failed'; observed: { count: number; text?: string } }[];
     const actionResultsMatch = actionRecords.length === expectedActions.length && expectedActions.every((action, index) => {
       const record = actionRecords[index];
-      if (!record || (receipt.actualOutcome === 'pass' && record.status !== 'passed') || canonicalJson(record.action) !== canonicalJson(action) || record.observed.count !== 1) return false;
+      if (!record || (claimsPass && record.status !== 'passed') || canonicalJson(record.action) !== canonicalJson(action)) return false;
+      if (record.status === 'failed') return true;
+      if (record.observed.count !== 1) return false;
       if (action.kind === 'fill') return record.observed.text === action.value;
       return record.observed.text === undefined;
     });
@@ -372,6 +404,73 @@ function positiveErrors(receipt: T17CellReceipt, scenarioId: string, cliSha: str
   return errors;
 }
 
+function budgetRepairErrors(receipt: T17RefusalReceipt, report: Record<string, unknown>, files: ReadonlyMap<string, T17SealedFile>, contents?: Readonly<Record<string, string>>): string[] {
+  const fail = (reason: string) => [receipt.caseId + ': budget repair ' + reason];
+  if (!isBudgetRepairEvidence(report.budgetRepair)) return fail('缺少两轮预算修复证据');
+  const proof = report.budgetRepair;
+  const text = (ref: BudgetEvidenceRef): string | undefined => {
+    const value = contents?.[ref.evidencePath];
+    return typeof value === 'string' && sealedFileMatches(files, ref.evidencePath, ref.sha256)
+      && Buffer.byteLength(value) === files.get(ref.evidencePath)?.bytes && createHash('sha256').update(value).digest('hex') === ref.sha256 ? value : undefined;
+  };
+  if (budgetEvidenceRefs(proof).some((ref) => text(ref) === undefined)) return fail('关联正文、字节数或封存摘要不一致');
+  const json = (ref: BudgetEvidenceRef): unknown => { try { return JSON.parse(text(ref)!); } catch { return undefined; } };
+  const canonicalRefs = [proof.plan, proof.applyResult, proof.spec, proof.initialReport, proof.result, proof.sourceBefore, proof.sourceAfter];
+  if (canonicalRefs.some((ref) => canonicalEvidenceSha256(json(ref)) !== ref.sha256)) return fail('输入、报告或源码清单并非同一 canonical 身份');
+  const plan = validateIntegrationPlan(json(proof.plan));
+  const apply = validateIntegrationApplyResult(json(proof.applyResult));
+  const spec = validateIntegrationVerificationSpec(json(proof.spec));
+  if (!plan.ok || plan.value.status !== 'planned' || plan.value.localProject.framework !== receipt.framework || plan.value.localProject.packageManager !== receipt.packageManager || plan.value.localProject.workspace !== '.' || !apply.ok || apply.value.status !== 'applied' || !spec.ok) return fail('plan/apply/spec 不符合真实预算场景契约');
+  const identity = { projectRoot: apply.value.projectRoot, planDigest: proof.plan.sha256, applyResultDigest: proof.applyResult.sha256, specDigest: proof.spec.sha256 };
+  const context = { ...identity, plan: plan.value, applyResult: apply.value, spec: spec.value };
+  if (!validateIntegrationApplyResult(apply.value, { projectRoot: identity.projectRoot, planDigest: identity.planDigest, plan: plan.value }).ok
+      || spec.value.projectRoot !== identity.projectRoot || spec.value.planDigest !== identity.planDigest || spec.value.applyResultDigest !== identity.applyResultDigest) return fail('plan/apply/spec 项目与摘要身份断链');
+  const initial = validateIntegrationVerificationReport(json(proof.initialReport), context);
+  if (!initial.ok || initial.value.status !== 'failed' || initial.value.changedFiles.length) return fail('必须保留真实、无源码变更的初始失败报告');
+  const result = validateIntegrationRepairResult(json(proof.result), { ...context, sourceReport: initial.value, reportDigest: proof.initialReport.sha256 });
+  if (!result.ok || result.value.status !== 'stopped' || result.value.stopReason !== 'max-attempts-reached' || result.value.maxAttempts !== 2 || result.value.attempts.length !== 2
+      || result.value.finalReport.status !== 'failed' || !result.value.finalReport.checks.some((check) => check.category === 'behavior' && check.status === 'failed')
+      || canonicalJson(result.value.pendingItems) !== canonicalJson(result.value.finalReport.pendingItems) || report.repairWrites !== 2) return fail('必须真实耗尽两轮且保留末轮行为失败与未决问题');
+  const repaired = result.value;
+  if (repaired.attempts.at(-1)!.afterReportDigest !== canonicalEvidenceSha256(repaired.finalReport) || repaired.finalReport.changedFiles.length) return fail('最终失败报告摘要断链或验证期间源码变化');
+  const generated = plan.value.changes.filter((change) => change.kind === 'generated-component');
+  const generatedPaths = generated.map((change) => change.path);
+  if (generatedPaths.length !== 3 || canonicalJson(proof.generatedSources.map((source) => source.path)) !== canonicalJson(generatedPaths)
+      || generated.some((change) => change.framework !== 'vue' || plan.value.sourceMatchPlan.elements.find((element) => element.instanceId === change.instanceId)?.layout !== 'synthetic-template-fault:t17-N10')
+      || canonicalJson(repaired.changedFiles) !== canonicalJson(generatedPaths.slice(0, 2))) return fail('必须是三份已声明故障且恰修复前两份生成文件');
+  const snapshot = (value: unknown): Map<string, string> | undefined => {
+    if (!Array.isArray(value) || !value.length || !value.every((entry) => Array.isArray(entry) && entry.length === 2 && nonempty(entry[0]) && !entry[0].includes('\\') && !entry[0].startsWith('/') && !entry[0].includes(':') && !entry[0].split('/').some((part) => !part || part === '.' || part === '..') && validSha(entry[1]))) return undefined;
+    const entries = value as [string, string][];
+    if (new Set(entries.map(([path]) => path.normalize('NFC').toLowerCase())).size !== entries.length) return undefined;
+    return new Map(entries);
+  };
+  const before = snapshot(json(proof.sourceBefore)), after = snapshot(json(proof.sourceAfter));
+  if (!before || !after || receipt.beforeProjectSha256 !== proof.sourceBefore.sha256 || receipt.afterProjectSha256 !== proof.sourceAfter.sha256) return fail('完整源码清单未绑定真实前后摘要');
+  const differences = [...new Set([...before.keys(), ...after.keys()])].filter((path) => before.get(path) !== after.get(path));
+  if (differences.length !== 2 || differences.some((path) => !generatedPaths.slice(0, 2).includes(path)) || before.size !== after.size || [...before.keys()].some((path) => !after.has(path))) return fail('生成范围外存在源码增删改或两份修复没有实际变化');
+  const reportMatches = (observed: typeof initial.value, state: Map<string, string>) => [...observed.snapshots.before, ...observed.snapshots.after].every((guard) => guard.exists ? state.get(guard.path) === guard.sha256 : !state.has(guard.path))
+    && generatedPaths.every((path) => observed.snapshots.before.some((guard) => guard.path === path && guard.exists) && observed.snapshots.after.some((guard) => guard.path === path && guard.exists));
+  if (!reportMatches(initial.value, before) || !reportMatches(repaired.finalReport, after)
+      || apply.value.afterHashes.some((guard) => !guard.exists || before.get(guard.path) !== guard.sha256)) return fail('初始、apply 或最终报告保护字节与全源码清单不一致');
+  const fault = "const layout = 'synthetic-template-fault:t17-N10';";
+  const clean = "const layout = 'grid cell 1';";
+  for (const [index, source] of proof.generatedSources.entries()) {
+    const original = text(source.before)!, final = text(source.after)!;
+    if (source.before.sha256 !== before.get(source.path) || source.after.sha256 !== after.get(source.path) || !original.split('\n').includes(fault)
+        || (index < 2 ? final !== original.replace(fault, clean) || final.includes('synthetic-template-fault:t17-N10') : final !== original)) return fail('三份故障源码与两份精确 recipe 输出或第三份保留字节不一致');
+    if (index === 2) continue;
+    const attempt = repaired.attempts[index]!, backupRef = proof.backups[index]!;
+    if (attempt.recipeId !== 'regenerate-generated-component' || canonicalJson(attempt.changedFiles) !== canonicalJson([source.path])
+        || attempt.beforeHashes.length !== 1 || attempt.afterHashes.length !== 1 || attempt.beforeHashes[0]!.sha256 !== source.before.sha256 || attempt.afterHashes[0]!.sha256 !== source.after.sha256
+        || backupRef.sha256 !== attempt.backupRef.sha256) return fail('每轮必须有同一份生成文件的真实前后字节与备份绑定');
+    const backup = json(backupRef);
+    if (!isRecord(backup) || !hasOnlyKeys(backup, ['id','path','sha256','originalBase64']) || backup.id !== attempt.backupRef.id || backup.path !== source.path || backup.sha256 !== source.before.sha256 || typeof backup.originalBase64 !== 'string') return fail('备份身份、路径或原字节摘要无效');
+    const bytes = Buffer.from(backup.originalBase64, 'base64');
+    if (bytes.toString('base64') !== backup.originalBase64 || createHash('sha256').update(bytes).digest('hex') !== backup.sha256 || !bytes.equals(Buffer.from(original))) return fail('备份原字节未真实保留');
+  }
+  return [];
+}
+
 function refusalErrors(receipt: T17RefusalReceipt, scenarioId: string, files: ReadonlyMap<string, T17SealedFile>, contents?: Readonly<Record<string, string>>): string[] {
   const errors: string[] = [];
   const scenario = T17_REFUSAL_SCENARIOS.find((item) => item.caseId === scenarioId);
@@ -379,12 +478,15 @@ function refusalErrors(receipt: T17RefusalReceipt, scenarioId: string, files: Re
   if (receipt.framework !== scenario.framework || receipt.packageManager !== scenario.packageManager || canonicalJson(receipt.scenarioIdentity) !== canonicalJson({ kind: scenario.kind, focus: scenario.focus, reason: scenario.reason, setup: scenario.setup })) errors.push(scenarioId + ': 拒绝 receipt 场景身份不一致');
   if (!sealedFileMatches(files, receipt.receiptEvidencePath, canonicalEvidenceSha256(receipt))) errors.push(scenarioId + ': 拒绝 receipt 未与 run-seal 摘要绑定');
   if (receipt.expectedOutcome !== 'refuse' || receipt.actualOutcome !== 'refused') errors.push(scenarioId + ': 必须实测拒绝');
-  if (!hasEvidence(receipt.beforeProjectSha256) || receipt.beforeProjectSha256 !== receipt.afterProjectSha256) errors.push(scenarioId + ': 拒绝前后摘要不一致');
+  const isBudget = scenario.caseId === 'N10' && scenario.setup === 'budget' && scenario.focus === 'repair-budget';
+  if (!hasEvidence(receipt.beforeProjectSha256) || !hasEvidence(receipt.afterProjectSha256) || (!isBudget && receipt.beforeProjectSha256 !== receipt.afterProjectSha256)) errors.push(scenarioId + ': 拒绝前后摘要不一致');
   const reportEvidence = jsonEvidence(contents, files, receipt.reportPath, receipt.reportSha256);
   if (reportEvidence.error || !isRecord(reportEvidence.value)) errors.push(scenarioId + ': 拒绝报告无法解析');
   else if (!isRefusalReport(reportEvidence.value)) errors.push(scenarioId + ': 拒绝报告结构无效');
   else {
     const report = reportEvidence.value;
+    if (isBudget) errors.push(...budgetRepairErrors(receipt, report, files, contents));
+    else if (report.budgetRepair !== undefined) errors.push(scenarioId + ': 仅 N10 允许预算修复写入证据');
     if (report.caseId !== scenario.caseId || report.kind !== scenario.kind || report.focus !== scenario.focus || report.reason !== scenario.reason || report.setup !== scenario.setup || report.framework !== scenario.framework || report.packageManager !== scenario.packageManager || report.expectedOutcome !== 'refuse' || report.actualOutcome !== 'refused') errors.push(scenarioId + ': 拒绝报告未绑定当前场景');
     if (scenario.expectedCodes?.length && !(report.issueCodes as string[]).some((code) => scenario.expectedCodes!.includes(code))) errors.push(scenarioId + ': 拒绝报告缺少预期 issue/code');
     if (scenario.expectedExit?.length && !scenario.expectedExit.includes(report.exitCode as number)) errors.push(scenarioId + ': 拒绝报告退出码与场景不符');
@@ -422,7 +524,7 @@ export function evaluateT17Matrix(input: T17MatrixInput): T17MatrixResult {
     if (!isPositiveReceipt(receipt)) { errors.push(scenario.caseId + ': 正向 receipt 结构不完整'); continue; }
     const before = errors.length; errors.push(...positiveErrors(receipt, scenario.caseId, input.expectedCliTarballSha256, input.expectedFrozenBundleSha256, sealedFiles, input.evidenceContents));
     if (errors.length === before && receipt.actualOutcome === 'pass') { positivePassed++; byFramework[scenario.framework].passed++; }
-    else if (errors.length === before) failures.push(scenario.caseId + ': 已运行并留存失败报告');
+    else if (errors.length === before) failures.push(scenario.caseId + ': 未通过（' + receipt.actualOutcome + '），已留存验证证据');
   }
   let refusalPassed = 0;
   for (const scenario of T17_REFUSAL_SCENARIOS) { const receipt = refusals.get(scenario.caseId); if (!receipt) { errors.push('拒绝案例缺失: ' + scenario.caseId); continue; } if (!isRefusalReceipt(receipt)) { errors.push(scenario.caseId + ': 拒绝 receipt 结构不完整'); continue; } const before = errors.length; errors.push(...refusalErrors(receipt, scenario.caseId, sealedFiles, input.evidenceContents)); if (errors.length === before) refusalPassed++; }

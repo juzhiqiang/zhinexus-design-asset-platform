@@ -3,6 +3,8 @@ import { createHash } from 'node:crypto';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { INTEGRATION_VERIFICATION_ISSUE_MESSAGES, validateIntegrationApplyResult, validateIntegrationPlan, validateIntegrationRepairResult, validateIntegrationVerificationReport, type IntegrationRepairResultV1, type IntegrationVerificationReportV1 } from '@company/contracts';
+import { validIntegrationPlanFixture } from '../../fixtures/integration-plan.js';
 import {
   T17_POSITIVE_SCENARIOS,
   T17_REFUSAL_SCENARIOS,
@@ -91,6 +93,11 @@ function passedRefusalReceipts() {
       reportPath: `${scenario.caseId}-report.json`, reportSha256: '6'.repeat(64), outOfScopeWrites: 0,
     };
     receipt.reportSha256 = bytesSha(canonical(refusalReport(scenario)));
+    if (scenario.caseId === 'N10') {
+      const proof = budgetRepairFixture();
+      receipt.beforeProjectSha256 = proof.budgetRepair.sourceBefore.sha256;
+      receipt.afterProjectSha256 = proof.budgetRepair.sourceAfter.sha256;
+    }
     return receipt;
   });
 }
@@ -187,12 +194,14 @@ function refusalReport(scenario: (typeof T17_REFUSAL_SCENARIOS)[number]) {
     ...(scenario.expectedDetection ? { detection: scenario.expectedDetection } : {}),
     ...(scenario.expectedRepair ? { repairStatus: scenario.expectedRepair } : {}),
     ...(scenario.assertNoRepairWrite ? { repairWrites: 0 } : {}),
+    ...(scenario.caseId === 'N10' ? { repairWrites: 2, budgetRepair: budgetRepairFixture().budgetRepair } : {}),
     ...(scenario.assertNoSentinel ? { sentinelAbsent: true } : {}),
   };
 }
 
 function reportContents(positives: readonly T17CellReceipt[], refusals: readonly ReturnType<typeof passedRefusalReceipts>[number][]) {
   return Object.fromEntries([
+    ...refusals.flatMap((receipt) => receipt.caseId === 'N10' ? Object.entries(budgetRepairFixture().contents) : []),
     ...positives.flatMap((receipt) => [
       [receipt.planEvidencePath!, canonical(planForReceipt(receipt))] as const,
       [receipt.applyResultEvidencePath!, canonical(applyForReceipt(receipt))] as const,
@@ -258,10 +267,287 @@ function sealRefusalReceipts(receipts: ReturnType<typeof passedRefusalReceipts>)
   return receipts.flatMap((receipt) => [
     { name: receipt.receiptEvidencePath, sha256: canonicalEvidenceSha256(receipt), bytes: 10 },
     { name: receipt.reportPath, sha256: receipt.reportSha256, bytes: 10 },
+    ...(receipt.caseId === 'N10' ? Object.entries(budgetRepairFixture().contents).map(([name, content]) => ({ name, sha256: bytesSha(content), bytes: Buffer.byteLength(content) })) : []),
   ]);
 }
 
+function budgetRepairFixture() {
+  const paths = [1, 2, 3].map((index) => 'src/components/zhinexus/component-000' + index + '.vue');
+  const sources = paths.map((_, index) => '<script setup>\n// instance ' + (index + 1) + "\nconst layout = 'synthetic-template-fault:t17-N10';\n</script>\n<template><div :data-layout=\"layout\" /></template>\n");
+  const cleanSources = sources.map((source) => source.replace('synthetic-template-fault:t17-N10', 'grid cell 1'));
+  const plan = validIntegrationPlanFixture();
+  const element = plan.sourceMatchPlan.elements[0]!;
+  plan.sourceMatchPlan.elements = paths.map((_, index) => ({ ...structuredClone(element), instanceId: 'budget-' + (index + 1), layout: 'synthetic-template-fault:t17-N10' }));
+  plan.matchPlanDigest = canonicalEvidenceSha256(plan.sourceMatchPlan);
+  plan.changes = [...plan.changes.filter((change) => change.kind !== 'generated-component'), ...paths.map((path, index) => ({ kind: 'generated-component' as const, path, framework: 'vue' as const, instanceId: 'budget-' + (index + 1) }))];
+  plan.baseFileHashes = [...plan.baseFileHashes.filter((snapshot) => !snapshot.path.endsWith('.vue')), ...paths.map((path) => ({ path, exists: false as const }))];
+  plan.allowedPaths = plan.changes.map((change) => change.path);
+  expect(validateIntegrationPlan(plan)).toMatchObject({ ok: true });
+  const before: [string, string][] = [['package.json', bytesSha('manifest')], ['pnpm-lock.yaml', bytesSha('lock')], ['src/user.ts', bytesSha('user bytes')], ...paths.map((path, index): [string, string] => [path, bytesSha(sources[index]!)])];
+  const after: [string, string][] = before.map(([path, digest]) => [path, paths.slice(0, 2).includes(path) ? bytesSha(cleanSources[paths.indexOf(path)]!) : digest]);
+  const projectRoot = 'C:/matrix/N10';
+  const apply = { schemaVersion: 1 as const, operation: 'apply' as const, operationId: 'apply-N10', projectRoot, planDigest: canonicalEvidenceSha256(plan), status: 'applied' as const,
+    changedFiles: plan.allowedPaths, beforeHashes: plan.baseFileHashes, afterHashes: plan.allowedPaths.map((path) => ({ path, exists: true as const, sha256: new Map(before).get(path)! })),
+    installedVersions: plan.exactDependencies, issues: [], backupRef: { id: 'apply-N10', sha256: '7'.repeat(64) }, installState: 'succeeded' as const };
+  expect(validateIntegrationApplyResult(apply, { projectRoot, plan, planDigest: apply.planDigest })).toMatchObject({ ok: true });
+  const spec = { schemaVersion: 1 as const, projectRoot, planDigest: apply.planDigest, applyResultDigest: canonicalEvidenceSha256(apply), commands: [], businessGaps: [] };
+  const specDigest = canonicalEvidenceSha256(spec);
+  const behaviorIssue = { code: 'BEHAVIOR_FAILED' as const, message: INTEGRATION_VERIFICATION_ISSUE_MESSAGES.BEHAVIOR_FAILED };
+  const snapshots = (entries: [string, string][]) => entries.map(([path, sha256]) => ({ path, exists: true as const, sha256 }));
+  const initial: IntegrationVerificationReportV1 = { schemaVersion: 1, operation: 'verify', projectRoot, planDigest: spec.planDigest, applyResultDigest: spec.applyResultDigest, specDigest,
+    id: 'N10-initial', toolVersion: '0.0.20', verifiedAt: '2026-11-20T00:00:00Z', status: 'failed', checks: [
+      { id: 'type', category: 'type', status: 'passed', issues: [], evidence: [] }, { id: 'build', category: 'build', status: 'passed', issues: [], evidence: [] },
+      { id: 'browser', category: 'behavior', status: 'failed', issues: [behaviorIssue], evidence: [] },
+    ], changedFiles: [], snapshots: { before: snapshots(before), after: snapshots(before) }, installedVersions: [], visualResult: 'not-run', artifacts: [], pendingItems: [behaviorIssue] };
+  const finalReport = { ...structuredClone(initial), id: 'N10-final', snapshots: { before: snapshots(after), after: snapshots(after) } };
+  const contents: Record<string, string> = {};
+  const save = (name: string, value: unknown, raw = false) => { const content = raw ? String(value) : canonical(value); contents[name] = content; return { evidencePath: name, sha256: bytesSha(content) }; };
+  const backups = paths.slice(0, 2).map((path, index) => save('N10-backup-' + (index + 1) + '.json', JSON.stringify({ id: 'repair-backup-' + (index + 1), path, sha256: bytesSha(sources[index]!), originalBase64: Buffer.from(sources[index]!).toString('base64') }), true));
+  const intermediateDigest = bytesSha('actual opaque intermediate report digest');
+  const sourceReportDigest = canonicalEvidenceSha256(initial);
+  const result: IntegrationRepairResultV1 = { schemaVersion: 1, operation: 'repair', projectRoot, planDigest: spec.planDigest, applyResultDigest: spec.applyResultDigest, specDigest,
+    id: 'repair-N10', sourceReportDigest, maxAttempts: 2, status: 'stopped', stopReason: 'max-attempts-reached', finalReport, changedFiles: paths.slice(0, 2),
+    pendingItems: structuredClone(finalReport.pendingItems), attempts: paths.slice(0, 2).map((path, index) => ({
+      attempt: index + 1, recipeId: 'regenerate-generated-component', beforeReportDigest: index === 0 ? sourceReportDigest : intermediateDigest,
+      afterReportDigest: index === 0 ? intermediateDigest : canonicalEvidenceSha256(finalReport), changedFiles: [path],
+      beforeHashes: [{ path, exists: true, sha256: bytesSha(sources[index]!) }], afterHashes: [{ path, exists: true, sha256: bytesSha(cleanSources[index]!) }],
+      backupRef: { id: 'repair-backup-' + (index + 1), sha256: backups[index]!.sha256 },
+    })) };
+  const context = { projectRoot, plan, applyResult: apply, spec, planDigest: spec.planDigest, applyResultDigest: spec.applyResultDigest, specDigest };
+  expect(validateIntegrationVerificationReport(initial, context)).toMatchObject({ ok: true });
+  expect(validateIntegrationRepairResult(result, { ...context, sourceReport: initial, reportDigest: sourceReportDigest })).toMatchObject({ ok: true });
+  const budgetRepair = { plan: save('N10-plan.json', plan), applyResult: save('N10-apply.json', apply), spec: save('N10-spec.json', spec),
+    initialReport: save('N10-initial.json', initial), result: save('N10-result.json', result), sourceBefore: save('N10-source-before.json', before), sourceAfter: save('N10-source-after.json', after), backups,
+    generatedSources: paths.map((path, index) => ({ path, before: save('N10-before-' + (index + 1) + '.vue', sources[index]!, true), after: save('N10-after-' + (index + 1) + '.vue', index < 2 ? cleanSources[index]! : sources[index]!, true) })) };
+  return { budgetRepair, contents, plan, apply, spec, initial, result, before, after, paths };
+}
+
+function honestlyNonpassingMatrix(cases: { caseId: string; status: 'failed' | 'blocked'; failure?: 'dependency' | 'interaction' }[]) {
+  const positives = T17_POSITIVE_SCENARIOS.map((scenario) => passedReceipt(scenario.caseId, scenario.framework));
+  const refusals = passedRefusalReceipts();
+  const reports: Record<string, string> = {};
+  const interactions: Record<string, string> = {};
+  for (const item of cases) {
+    const receipt = positives.find((entry) => entry.caseId === item.caseId)!;
+    receipt.actualOutcome = item.status;
+    delete receipt.repair;
+    const report = positiveReport(receipt) as unknown as IntegrationVerificationReportV1;
+    report.status = item.status;
+    if (item.status === 'blocked') {
+      report.checks = report.checks.map((check) => ({ ...check, status: 'not-run', issues: [], evidence: [] }));
+      report.installedVersions = []; report.artifacts = []; report.visualResult = 'not-run'; delete report.environment;
+      report.pendingItems = [{ code: 'AUTHORIZATION_REQUIRED', message: INTEGRATION_VERIFICATION_ISSUE_MESSAGES.AUTHORIZATION_REQUIRED }];
+    } else {
+      const dependency = item.failure === 'dependency';
+      const issue = dependency
+        ? { code: 'DEPENDENCY_MISMATCH' as const, message: INTEGRATION_VERIFICATION_ISSUE_MESSAGES.DEPENDENCY_MISMATCH }
+        : { code: 'BEHAVIOR_FAILED' as const, message: INTEGRATION_VERIFICATION_ISSUE_MESSAGES.BEHAVIOR_FAILED };
+      const failed = report.checks.find((check) => check.id === (dependency ? 'dependency-guard' : 'behavior'))!;
+      failed.status = 'failed'; failed.issues = [issue]; report.pendingItems = [issue];
+      if (dependency) report.installedVersions[0]!.version = '99.0.0';
+      if (item.failure === 'interaction') {
+        const proof = interactionProof(receipt);
+        proof.actions[0]!.status = 'failed'; proof.actions[0]!.observed = { count: 0 };
+        proof.interaction.after = proof.interaction.before; proof.interaction.status = 'failed';
+        const content = canonical(proof);
+        receipt.interaction = { ...receipt.interaction, observed: false, after: receipt.interaction.before, sha256: bytesSha(content) };
+        interactions[receipt.interaction.evidencePath!] = content;
+      }
+    }
+    const checked = validateIntegrationVerificationReport(report);
+    expect(checked.ok, item.caseId + ': fixture must be a contract-valid actual unsuccessful report').toBe(true);
+    const content = canonical(report); receipt.reportSha256 = bytesSha(content); reports[receipt.reportPath] = content;
+  }
+  const evidenceContents = { ...reportContents(positives, refusals), ...reports, ...interactions,
+    ...Object.fromEntries(positives.map((receipt) => [receipt.receiptEvidencePath, canonical(receipt)])),
+    ...Object.fromEntries(refusals.map((receipt) => [receipt.receiptEvidencePath, canonical(receipt)])) };
+  const sealedFiles = [...sealPositiveReceipts(positives), ...sealRefusalReceipts(refusals)].map((file) => {
+    const content = evidenceContents[file.name];
+    return content === undefined ? file : { ...file, sha256: bytesSha(content), bytes: Buffer.byteLength(content) };
+  });
+  return { expectedCliTarballSha256: CLI_SHA, expectedFrozenBundleSha256: SDK_SHA,
+    sealPayload: { cliTarballSha256: CLI_SHA, frozenBundleSha256: SDK_SHA }, positiveReceipts: positives, refusalReceipts: refusals, sealedFiles, evidenceContents };
+}
+
 describe('T17 独立 Vue / React 项目验收矩阵', () => {
+  it('N10 仅接受真实两轮预算耗尽且只改两份 generated、第三份仍失败的完整证据', () => {
+    const input = honestlyNonpassingMatrix([]);
+    const receipt = input.refusalReceipts.find((item) => item.caseId === 'N10')!;
+    expect(receipt.beforeProjectSha256).not.toBe(receipt.afterProjectSha256);
+    const result = evaluateT17Matrix(input);
+    expect(result.errors).toEqual([]);
+    expect(result.refusals).toEqual({ total: 13, passed: 13 });
+    expect(result.matrixAccepted).toBe(true);
+  });
+
+  it('N10 必须从磁盘重新加载全部预算证据与备份原始字节', async () => {
+    const root = await mkdtemp(join(tmpdir(), 't17-budget-seal-'));
+    try {
+      const receipt = passedRefusalReceipts().find((item) => item.caseId === 'N10')!;
+      const contents = { ...reportContents([], [receipt]), [receipt.receiptEvidencePath]: canonical(receipt) };
+      const filesRoot = join(root, 'files'); await mkdir(filesRoot);
+      const files = [];
+      for (const [name, content] of Object.entries(contents)) {
+        await writeFile(join(filesRoot, name), content, { flag: 'wx' });
+        files.push({ name, sha256: bytesSha(content), bytes: Buffer.byteLength(content) });
+      }
+      await writeFile(join(root, 'run-seal.json'), JSON.stringify({ schemaVersion: 1, runId: 'budget-loader-test', evidenceRoot: root, files,
+        payload: { cliTarballSha256: CLI_SHA, frozenBundleSha256: SDK_SHA, receipts: [{ caseId: 'N10', kind: 'refusal', evidencePath: receipt.receiptEvidencePath }] } }), { flag: 'wx' });
+      const loaded = await loadT17MatrixInput(root, CLI_SHA, SDK_SHA);
+      const proof = budgetRepairFixture();
+      for (const [name, content] of Object.entries(proof.contents)) expect(loaded.evidenceContents[name]).toBe(content);
+      expect(evaluateT17Matrix(loaded).errors.filter((error) => error.startsWith('N10:'))).toEqual([]);
+    } finally { await rm(root, { recursive: true, force: true }); }
+  });
+
+  it.each(['missing-proof','wrong-budget','zero-attempts','one-attempt','three-attempts','broken-report-chain','wrong-final-digest','wrong-plan','wrong-apply','wrong-spec','unsealed-backup','wrong-backup-id','wrong-backup-bytes','noncanonical-backup-base64','bad-backup-digest','changed-user','lost-user','new-user','aliased-source','wrong-source-digest','unchanged-source','third-repaired','non-generated-write','missing-source-body','wrong-body-bytes','fake-final-pass','erased-pending','fake-limit'] as const)('N10 拒绝伪造预算、断链、备份损坏和用户源码变化：%s', (fault) => {
+    const input = honestlyNonpassingMatrix([]);
+    const fixture = budgetRepairFixture();
+    const receipt = input.refusalReceipts.find((item) => item.caseId === 'N10')!;
+    const scenario = T17_REFUSAL_SCENARIOS.find((item) => item.caseId === 'N10')!;
+    const proof = fixture.budgetRepair;
+    const result = fixture.result;
+    const rewrite = (ref: { evidencePath: string; sha256: string }, value: unknown) => {
+      fixture.contents[ref.evidencePath] = canonical(value); ref.sha256 = bytesSha(fixture.contents[ref.evidencePath]!);
+    };
+    if (fault === 'wrong-budget') result.maxAttempts = 1;
+    if (fault === 'zero-attempts') result.attempts = [];
+    if (fault === 'one-attempt') result.attempts.pop();
+    if (fault === 'three-attempts') result.attempts.push({ ...structuredClone(result.attempts[1]!), attempt: 3 });
+    if (fault === 'broken-report-chain') result.attempts[1]!.beforeReportDigest = bytesSha('other-report');
+    if (fault === 'wrong-final-digest') result.attempts[1]!.afterReportDigest = bytesSha('other-final');
+    if (fault === 'wrong-plan') result.planDigest = bytesSha('other-plan');
+    if (fault === 'wrong-apply') result.applyResultDigest = bytesSha('other-apply');
+    if (fault === 'wrong-spec') result.specDigest = bytesSha('other-spec');
+    if (fault === 'wrong-backup-id' || fault === 'wrong-backup-bytes' || fault === 'noncanonical-backup-base64') {
+      const backup = JSON.parse(fixture.contents[proof.backups[0]!.evidencePath]!) as { id: string; originalBase64: string };
+      if (fault === 'wrong-backup-id') backup.id = 'unrelated-backup';
+      if (fault === 'wrong-backup-bytes') backup.originalBase64 = Buffer.from('lost original bytes').toString('base64');
+      if (fault === 'noncanonical-backup-base64') backup.originalBase64 += '\n';
+      rewrite(proof.backups[0]!, backup); result.attempts[0]!.backupRef.sha256 = proof.backups[0]!.sha256;
+    }
+    if (fault === 'bad-backup-digest') result.attempts[0]!.backupRef.sha256 = bytesSha('different-backup');
+    if (fault === 'changed-user') fixture.after.find(([path]) => path === 'src/user.ts')![1] = bytesSha('user bytes were overwritten');
+    if (fault === 'lost-user') fixture.after.splice(fixture.after.findIndex(([path]) => path === 'src/user.ts'), 1);
+    if (fault === 'new-user') fixture.after.push(['src/unauthorized.ts', bytesSha('unauthorized extra file')]);
+    if (fault === 'aliased-source') fixture.after.push(['SRC/USER.TS', bytesSha('case alias')]);
+    if (fault === 'unchanged-source') fixture.after[fixture.after.findIndex(([path]) => path === fixture.paths[1])] = [...fixture.before.find(([path]) => path === fixture.paths[1])!];
+    if (fault === 'third-repaired') {
+      const source = proof.generatedSources[2]!;
+      fixture.contents[source.after.evidencePath] = fixture.contents[source.before.evidencePath]!.replace('synthetic-template-fault:t17-N10', 'grid cell 1');
+      source.after.sha256 = bytesSha(fixture.contents[source.after.evidencePath]!);
+      fixture.after.find(([path]) => path === source.path)![1] = source.after.sha256;
+    }
+    if (fault === 'non-generated-write') {
+      const path = 'src/user.ts'; result.changedFiles[1] = path;
+      result.attempts[1]!.changedFiles = [path]; result.attempts[1]!.beforeHashes[0]!.path = path; result.attempts[1]!.afterHashes[0]!.path = path;
+    }
+    if (['changed-user','lost-user','new-user','third-repaired'].includes(fault)) {
+      const snapshots = fixture.after.map(([path, sha256]) => ({ path, exists: true as const, sha256 }));
+      result.finalReport.snapshots = { before: structuredClone(snapshots), after: snapshots };
+      result.attempts[1]!.afterReportDigest = canonicalEvidenceSha256(result.finalReport);
+    }
+    if (fault === 'fake-final-pass') result.finalReport.status = 'passed';
+    if (fault === 'erased-pending') result.pendingItems = [];
+    if (fault === 'fake-limit') result.pendingItems = [{ code: 'REPAIR_LIMIT_REACHED', message: INTEGRATION_VERIFICATION_ISSUE_MESSAGES.REPAIR_LIMIT_REACHED }];
+    rewrite(proof.result, result); rewrite(proof.sourceBefore, fixture.before); rewrite(proof.sourceAfter, fixture.after);
+    receipt.beforeProjectSha256 = proof.sourceBefore.sha256; receipt.afterProjectSha256 = proof.sourceAfter.sha256;
+    if (fault === 'wrong-source-digest') receipt.afterProjectSha256 = bytesSha('unrelated whole project');
+    const report: ReturnType<typeof refusalReport> = { ...refusalReport(scenario), budgetRepair: proof };
+    if (fault === 'missing-proof') delete report.budgetRepair;
+    receipt.reportSha256 = bytesSha(canonical(report));
+    Object.assign(input.evidenceContents, fixture.contents, { [receipt.reportPath]: canonical(report), [receipt.receiptEvidencePath]: canonical(receipt) });
+    for (const file of input.sealedFiles) {
+      const content = input.evidenceContents[file.name];
+      if (content !== undefined) { file.sha256 = bytesSha(content); file.bytes = Buffer.byteLength(content); }
+    }
+    if (fault === 'unsealed-backup') input.sealedFiles = input.sealedFiles.filter((file) => file.name !== proof.backups[0]!.evidencePath);
+    if (fault === 'missing-source-body') delete input.evidenceContents[proof.generatedSources[2]!.after.evidencePath];
+    if (fault === 'wrong-body-bytes') input.sealedFiles.find((file) => file.name === proof.generatedSources[0]!.before.evidencePath)!.bytes++;
+    const score = evaluateT17Matrix(input);
+    expect(score.errors.some((error) => error.startsWith('N10: budget repair'))).toBe(true);
+    expect(score.refusals.passed).toBe(12); expect(score.positive.passed).toBe(20); expect(score.matrixAccepted).toBe(false);
+  });
+
+  it('其他拒绝场景即使套用 N10 完整预算证据也不得修改源码', () => {
+    const input = honestlyNonpassingMatrix([]);
+    const receipt = input.refusalReceipts.find((item) => item.caseId === 'N02')!;
+    const scenario = T17_REFUSAL_SCENARIOS.find((item) => item.caseId === receipt.caseId)!;
+    const report = { ...refusalReport(scenario), budgetRepair: budgetRepairFixture().budgetRepair };
+    receipt.afterProjectSha256 = bytesSha('forbidden source mutation'); receipt.reportSha256 = bytesSha(canonical(report));
+    input.evidenceContents[receipt.reportPath] = canonical(report);
+    input.sealedFiles.find((file) => file.name === receipt.reportPath)!.sha256 = receipt.reportSha256;
+    input.sealedFiles.find((file) => file.name === receipt.receiptEvidencePath)!.sha256 = canonicalEvidenceSha256(receipt);
+    const score = evaluateT17Matrix(input);
+    expect(score.errors).toContain('N02: 拒绝前后摘要不一致');
+    expect(score.errors).toContain('N02: 仅 N10 允许预算修复写入证据');
+    expect(score.refusals.passed).toBe(12); expect(score.matrixAccepted).toBe(false);
+  });
+
+  it('证据完整且契约有效的失败与阻断只进入 failures，16/20 且双框架各 8/10 满足既定门槛', () => {
+    const input = honestlyNonpassingMatrix([
+      { caseId: 'V01', status: 'failed', failure: 'interaction' }, { caseId: 'V02', status: 'blocked' },
+      { caseId: 'R01', status: 'failed', failure: 'dependency' }, { caseId: 'R02', status: 'blocked' },
+    ]);
+    const result = evaluateT17Matrix(input);
+    expect(result.errors).toEqual([]);
+    expect(result.failures).toHaveLength(4);
+    expect(result.positive).toMatchObject({ total: 20, passed: 16, required: 16 });
+    expect(result.frameworks.vue).toMatchObject({ total: 10, passed: 8, required: 8 });
+    expect(result.frameworks.react).toMatchObject({ total: 10, passed: 8, required: 8 });
+    expect(result.refusals).toEqual({ total: 13, passed: 13 });
+    expect(result.matrixAccepted).toBe(true);
+  });
+
+  it.each([['V01', 'V02', 'V03', 'R01'], ['V01', 'V02', 'V03', 'R01', 'R02']])('诚实失败不放宽总计或分框架门槛：%j', (...caseIds) => {
+    const input = honestlyNonpassingMatrix(caseIds.map((caseId) => ({ caseId, status: 'failed' as const })));
+    const result = evaluateT17Matrix(input);
+    expect(result.errors).toEqual([]);
+    expect(result.failures).toHaveLength(caseIds.length);
+    expect(result.positive.passed).toBe(20 - caseIds.length);
+    expect(result.frameworks.vue.passed).toBe(7);
+    expect(result.matrixAccepted).toBe(false);
+  });
+
+  it('要求修复的场景若真实验证失败而尚未完成修复，仍只作为未通过案例', () => {
+    const result = evaluateT17Matrix(honestlyNonpassingMatrix([
+      { caseId: 'V09', status: 'blocked' }, { caseId: 'V10', status: 'failed' },
+      { caseId: 'R09', status: 'blocked' }, { caseId: 'R10', status: 'failed' },
+    ]));
+    expect(result.errors).toEqual([]); expect(result.failures).toHaveLength(4);
+    expect(result.positive.passed).toBe(16); expect(result.matrixAccepted).toBe(true);
+  });
+
+  it.each(['claimed-pass', 'wrong-digest', 'wrong-project', 'wrong-plan-identity', 'wrong-apply-identity', 'wrong-spec-identity', 'fake-dependency-pass', 'missing-report', 'missing-plan', 'missing-apply', 'missing-spec', 'missing-command', 'missing-interaction', 'out-of-scope', 'lost-edit', 'invalid-report'] as const)('诚实失败仍不能掩盖伪造或不完整证据：%s', (fault) => {
+    const input = honestlyNonpassingMatrix([{ caseId: 'V01', status: 'failed' }]);
+    const receipt = input.positiveReceipts[0]!;
+    if (fault === 'claimed-pass') receipt.actualOutcome = 'pass';
+    if (fault === 'wrong-digest') receipt.reportSha256 = 'c'.repeat(64);
+    if (fault === 'out-of-scope') receipt.outOfScopeWrites = 1;
+    if (fault === 'lost-edit') receipt.lostUserEdits = 1;
+    if (['wrong-project', 'wrong-plan-identity', 'wrong-apply-identity', 'wrong-spec-identity', 'fake-dependency-pass', 'invalid-report'].includes(fault)) {
+      const report = JSON.parse(input.evidenceContents[receipt.reportPath]!) as IntegrationVerificationReportV1;
+      if (fault === 'wrong-project') report.projectRoot = 'C:/matrix/unrelated';
+      if (fault === 'wrong-plan-identity') report.planDigest = 'c'.repeat(64);
+      if (fault === 'wrong-apply-identity') report.applyResultDigest = 'c'.repeat(64);
+      if (fault === 'wrong-spec-identity') report.specDigest = 'c'.repeat(64);
+      if (fault === 'fake-dependency-pass') report.installedVersions[0]!.version = '99.0.0';
+      if (fault === 'invalid-report') report.pendingItems = [];
+      const content = canonical(report); receipt.reportSha256 = bytesSha(content); input.evidenceContents[receipt.reportPath] = content;
+      const file = input.sealedFiles.find((entry) => entry.name === receipt.reportPath)!; file.sha256 = receipt.reportSha256; file.bytes = Buffer.byteLength(content);
+    }
+    const missingName = fault === 'missing-report' ? receipt.reportPath : fault === 'missing-plan' ? receipt.planEvidencePath
+      : fault === 'missing-apply' ? receipt.applyResultEvidencePath : fault === 'missing-spec' ? receipt.verificationSpecEvidencePath
+      : fault === 'missing-command' ? receipt.commands[0]!.evidencePath : fault === 'missing-interaction' ? receipt.interaction.evidencePath : undefined;
+    if (missingName) input.sealedFiles = input.sealedFiles.filter((file) => file.name !== missingName);
+    const receiptFile = input.sealedFiles.find((file) => file.name === receipt.receiptEvidencePath)!;
+    receiptFile.sha256 = canonicalEvidenceSha256(receipt); receiptFile.bytes = Buffer.byteLength(canonical(receipt));
+    const result = evaluateT17Matrix(input);
+    expect(result.positive.passed).toBe(19); expect(result.matrixAccepted).toBe(false);
+    expect(result.errors.some((error) => error.startsWith('V01:'))).toBe(true);
+    expect(result.failures).toEqual([]);
+  });
+
   it('从磁盘 seal 加载修复初始报告与结果正文，保留原始封存字节', async () => {
     const root = await mkdtemp(join(tmpdir(), 't17-repair-seal-'));
     try {
