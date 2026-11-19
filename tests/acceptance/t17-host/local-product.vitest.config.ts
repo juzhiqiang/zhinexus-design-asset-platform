@@ -6,7 +6,8 @@ export default defineConfig({
     include: ['tests/acceptance/t17-host/local-product.spec.ts'],
     environment: 'node',
     fileParallelism: false,
-    testTimeout: 900_000,
+    // Full dependency inventories and owned cleanup need room for concurrent Windows I/O.
+    testTimeout: 1_800_000,
     hookTimeout: 240_000,
   },
 });

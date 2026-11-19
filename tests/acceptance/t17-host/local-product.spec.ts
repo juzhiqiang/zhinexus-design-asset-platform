@@ -161,5 +161,6 @@ describe('T17 owned-host 本地产品级端到端实跑（独立参考基线 + �
     } finally {
       await services.close();
     }
-  }, 900_000);
+  // Full dependency inventories and owned cleanup exceeded the old budget under concurrent Windows I/O.
+  }, 1_800_000);
 });
