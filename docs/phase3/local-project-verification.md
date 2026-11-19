@@ -1,6 +1,6 @@
 # 本地接入验证、有限修复与 MCP
 
-适用于 CLI 0.0.22。先按 [只读接入计划](integration-plan.md) 和 [应用与恢复](local-project-apply.md) 完成真实 plan/apply，再准备独立的 `IntegrationVerificationSpecV1`。本轮技术验收采用授权创建的临时 Vue/React 工程；历史真实业务项目试点及生产 G2 另行验收。
+适用于 CLI 0.0.23。先按 [只读接入计划](integration-plan.md) 和 [应用与恢复](local-project-apply.md) 完成真实 plan/apply，再准备独立的 `IntegrationVerificationSpecV1`。本轮技术验收采用授权创建的临时 Vue/React 工程；历史真实业务项目试点及生产 G2 另行验收。
 
 ## 验证
 
@@ -15,6 +15,8 @@ component integrate verify --project C:/projects/app --plan D:/evidence/plan.jso
 spec 的 `commands` 引用项目清单内已有的 type/build 脚本及清单字节摘要，不能提供自由 executable、shell 或 argv。npm 抑制 pre/post 生命周期；固定 pnpm 使用 `--pm-on-fail=ignore` 与 `--config.verifyDepsBeforeRun=false`，显式关闭管理器重新引导及脚本前隐式安装，保留项目合法的精确 `packageManager` 声明。脚本属于授权执行的项目代码；实际源文件变化会进入报告。
 
 浏览器页面由可信调用方预先启动，spec 提供精确 loopback URL、就绪元素、有限 click/fill 动作和 visible/text/count 断言。可信调用方须另行核对宿主入口确实 import 本轮生成文件，并保留构建图与浏览器资源加载证据；仅凭 loopback 或页面通过不能证明业务已接入。
+
+动作之后，断言阶段共用一份 `browser.timeoutMs` 等待预算，允许页面异步更新；条件满足即继续，永久不匹配在预算耗尽后仍失败。文本比较保留首个匹配元素的 `textContent().trim()`，数量必须精确相等，可见性还须具有非零宽高。取消会及时关闭本次浏览器。导航、就绪与动作仍使用各自原有超时规则。
 
 视觉基线须事先独立提供，并以 `ArtifactRef` 和实际 `EnvironmentV1` 绑定。本轮既定验收阈值为 `pixelThreshold=0.1`、`maxDiffPixelRatio=0.001`；spec 包含 visual 时必须显式提供两个字段。NEW、DIFF、INCOMPATIBLE 均不通过，也不会自动接纳或改写基线。`--out` 是工程外的证据根，基线路径相对此根；每次运行使用独占子目录。
 
