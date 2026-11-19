@@ -3,7 +3,8 @@ import { mkdtemp, mkdir, readFile, readdir, rm, symlink, writeFile } from 'node:
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { makeFixture } from '../../fixtures/releases/g1/factory.js';
-import { prepareT17LocalServices } from './local-services.js';
+import { prepareT17LocalServices, registryConfiguration } from './local-services.js';
+import { parse } from 'yaml';
 import { createHash } from 'node:crypto';
 
 const roots: string[] = [];
@@ -23,6 +24,14 @@ async function sdkFixture(root: string) {
 }
 
 describe('T17 isolated local services fail before allocating infrastructure', () => {
+  it('allows bounded cold upstream transfers while preserving private SDK isolation', () => {
+    const config = parse(registryConfiguration);
+    expect(config.uplinks.npmjs.timeout).toBe('5m');
+    expect(config.uplinks.npmjs.url).toBe('https://registry.npmjs.org/');
+    expect(config.packages['@company/*']).toEqual({ access: 'g2reader g2publisher', publish: 'g2publisher', unpublish: [] });
+    expect(config.packages['**'].proxy).toBe('npmjs');
+    expect(config.packages['**'].publish).toEqual([]);
+  });
   it('checks the explicitly frozen historical compatibility probe before service allocation', async () => {
     const mod = await import('./local-services.js') as unknown as Record<string, unknown>;
     expect(typeof mod.readT17CompatibilityEvidence).toBe('function');

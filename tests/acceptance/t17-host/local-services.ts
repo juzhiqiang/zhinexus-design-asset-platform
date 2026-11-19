@@ -113,7 +113,7 @@ class T17RecoveryStack extends RecoveryStack {
     return super.docker(args[0] === 'run' && args.includes(this.names.verdaccio) ? args.map(arg => arg === source ? replacement : arg) : args);
   }
 }
-const registryConfiguration = `storage: /verdaccio/storage
+export const registryConfiguration = `storage: /verdaccio/storage
 auth:
   htpasswd:
     file: /run/secrets/registry_users
@@ -121,6 +121,7 @@ auth:
 uplinks:
   npmjs:
     url: https://registry.npmjs.org/
+    timeout: 5m
 packages:
   '@company/*':
     access: g2reader g2publisher
