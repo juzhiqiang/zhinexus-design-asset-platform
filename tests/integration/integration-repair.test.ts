@@ -198,7 +198,7 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     vi.restoreAllMocks();
   });
 
-  async function setupProjectForRepair(layoutText: string, alwaysFailTypecheck = false) {
+  async function setupProjectForRepair(layoutText: string, alwaysFailTypecheck = false, withBusinessFile = false, generatedCount = 1) {
     const root = makeTempDir('zhinexus-t17-repair-proj-');
     const backupRoot = makeTempDir('zhinexus-t17-repair-backup-');
     const artifactRoot = makeTempDir('zhinexus-t17-repair-artifacts-');
@@ -247,7 +247,16 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
       });
     }
 
-    const plan = await planIntegration(root, buildSyntheticFaultMatchPlan(layoutText), {
+    if (withBusinessFile) {
+      fs.mkdirSync(path.join(root, 'src'), { recursive: true });
+      fs.writeFileSync(path.join(root, 'src/business.ts'), 'export const businessValue = 1;\n');
+    }
+
+    const matchPlan = buildSyntheticFaultMatchPlan(layoutText);
+    if (generatedCount === 2) {
+      matchPlan.elements.push({ ...matchPlan.elements[0]!, instanceId: 'node-2', designId: '设计/Line-2' });
+    }
+    const plan = await planIntegration(root, matchPlan, {
       apiUrl: network.apiOrigin,
       registryUrl: network.registryOrigin,
       apiToken: SYNTHETIC_API_TOKEN,
@@ -324,7 +333,7 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
       allowProjectScripts: true,
       allowBrowser: false,
       scriptNames: ['typecheck', 'build'],
-      allowedRepairPaths: [generatedPath],
+      allowedRepairPaths: plan.changes.filter(change => change.kind === 'generated-component').map(change => change.path),
       maxAttempts: 2,
       sourceReportDigest: reportDigest,
     };
@@ -463,6 +472,120 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     expect(fs.readFileSync(generatedAbs)).toEqual(generatedBefore);
     expect(fs.readFileSync(userPath)).toEqual(userBytes);
   });
+
+  it.each(['PROJECT_CHANGED', 'USER_EDITED'] as const)('源报告已含 %s 时不启动任何修复写入', async code => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const sourceReport = structuredClone(ctx.initialReport);
+    sourceReport.pendingItems.push({ code, message: code === 'PROJECT_CHANGED'
+      ? 'Project source files changed during verification.'
+      : 'A user-edited file was preserved.', path: 'src/user.ts' });
+    const generatedBefore = fs.readFileSync(path.join(ctx.root, ctx.generatedPath));
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, sourceReport, {
+      applyResult: ctx.applyResult, spec: ctx.spec,
+      authorization: { ...ctx.repairAuth, sourceReportDigest: canonicalDigest(sourceReport) },
+      artifactRoot: ctx.artifactRoot,
+    });
+    expect(validateIntegrationRepairResult(result!).ok).toBe(true);
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(result!.attempts).toEqual([]);
+    expect(result!.changedFiles).toEqual([]);
+    expect(result!.finalReport).toEqual(sourceReport);
+    expect(result!.pendingItems).toContainEqual(expect.objectContaining({ code }));
+    expect(fs.readFileSync(path.join(ctx.root, ctx.generatedPath))).toEqual(generatedBefore);
+  });
+
+  it('源报告全量快照不能替换原计划的锁文件守卫', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const lockPath = path.join(ctx.root, 'package-lock.json');
+    const lockBytes = Buffer.concat([fs.readFileSync(lockPath), Buffer.from(' \n')]);
+    fs.writeFileSync(lockPath, lockBytes);
+    const sourceReport = structuredClone(ctx.initialReport);
+    for (const list of [sourceReport.snapshots.before, sourceReport.snapshots.after]) {
+      const snapshot = list.find(entry => entry.path === 'package-lock.json');
+      expect(snapshot).toBeDefined();
+      snapshot!.sha256 = sha256Hex(lockBytes);
+    }
+    const generatedBefore = fs.readFileSync(path.join(ctx.root, ctx.generatedPath));
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, sourceReport, {
+      applyResult: ctx.applyResult, spec: ctx.spec,
+      authorization: { ...ctx.repairAuth, sourceReportDigest: canonicalDigest(sourceReport) },
+      artifactRoot: ctx.artifactRoot,
+    });
+    expect(validateIntegrationRepairResult(result!).ok).toBe(true);
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(result!.attempts).toEqual([]);
+    expect(result!.pendingItems).toContainEqual(expect.objectContaining({ code: 'USER_EDITED', path: 'package-lock.json' }));
+    expect(fs.readFileSync(path.join(ctx.root, ctx.generatedPath))).toEqual(generatedBefore);
+    expect(fs.readFileSync(lockPath)).toEqual(lockBytes);
+  });
+
+  it.each(['added', 'edited', 'deleted'] as const)('修复写入后重验前的用户文件 %s 立即停止且不接纳为新基线', async mutation => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1', false, true);
+    const relativeUserPath = mutation === 'added' ? 'src/user-added-after-write.ts' : 'src/business.ts';
+    const userPath = path.join(ctx.root, relativeUserPath);
+    const userBytes = Buffer.from('export const preserveUserBytes = true;\n');
+    let repairFd: number | undefined;
+    let injected = false;
+    repairFsHooks.beforeDescriptorWrite = args => { repairFd ??= args[0] as number; };
+    repairFsHooks.afterDescriptorRead = (args, bytesRead) => {
+      if (injected || args[0] !== repairFd || bytesRead === 0) return;
+      const text = (args[1] as Buffer).subarray(0, bytesRead).toString('utf8');
+      if (text.includes('synthetic-template-fault')) return;
+      injected = true;
+      if (mutation === 'deleted') actualFs.unlinkSync(userPath);
+      else actualFs.writeFileSync(userPath, userBytes);
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult, spec: ctx.spec, authorization: ctx.repairAuth, artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(injected).toBe(true);
+    expect(validateIntegrationRepairResult(result!).ok).toBe(true);
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(result!.attempts).toHaveLength(1);
+    expect(result!.finalReport.status).toBe('blocked');
+    expect(result!.pendingItems).toContainEqual(expect.objectContaining({ code: 'PROJECT_CHANGED', path: relativeUserPath }));
+    expect(result!.finalReport.checks.some(check => check.id === 'type-typecheck')).toBe(false);
+    if (mutation === 'deleted') expect(fs.existsSync(userPath)).toBe(false);
+    else expect(fs.readFileSync(userPath)).toEqual(userBytes);
+    expect(result!.planDigest).toBe(canonicalDigest(ctx.plan));
+    expect(result!.applyResultDigest).toBe(canonicalDigest(ctx.applyResult));
+    expect(result!.specDigest).toBe(canonicalDigest(ctx.spec));
+  }, 30_000);
+
+  it('重验中发现用户新增文件立即停止且不再修复第二份生成文件', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1', false, false, 2);
+    const secondPath = 'src/components/zhinexus/component-0002.vue';
+    const secondBefore = fs.readFileSync(path.join(ctx.root, secondPath));
+    const userPath = path.join(ctx.root, 'src/user-added-during-reverify.ts');
+    const userBytes = Buffer.from('export const keepDuringReverify = true;\n');
+    let injected = false;
+    repairFsHooks.beforeWrite = filePath => {
+      if (!injected && String(filePath).endsWith('dependency-guard.json')) {
+        injected = true;
+        actualFs.writeFileSync(userPath, userBytes);
+      }
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult, spec: ctx.spec, authorization: ctx.repairAuth, artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(injected).toBe(true);
+    expect(validateIntegrationRepairResult(result!).ok).toBe(true);
+    expect(result!.attempts).toHaveLength(1);
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(result!.finalReport.status).toBe('failed');
+    expect(result!.pendingItems).toContainEqual(expect.objectContaining({ code: 'PROJECT_CHANGED', path: 'src/user-added-during-reverify.ts' }));
+    expect(result!.changedFiles).toEqual([ctx.generatedPath]);
+    expect(fs.readFileSync(path.join(ctx.root, secondPath))).toEqual(secondBefore);
+    expect(fs.readFileSync(userPath)).toEqual(userBytes);
+  }, 30_000);
 
   it('目标路径在打开前被替换为链接或新文件时不覆盖替代目标', async () => {
     const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');

@@ -873,9 +873,25 @@ export async function verifyIntegrationInternal(
     });
   }
   const beforeMap = new Map(beforeSnapRes.snapshots.map(s => [s.path, s]));
-  const expectedGuards = privateBaselineSnapshots ?? options.applyResult.afterHashes;
+  if (privateBaselineSnapshots) {
+    const sourceDiff = diffSnapshots(privateBaselineSnapshots, beforeSnapRes.snapshots);
+    if (sourceDiff.changedFiles.length) {
+      return blockedReport({
+        id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
+        issue: verificationIssue('PROJECT_CHANGED', sourceDiff.changedFiles[0]),
+        snapshots: { before: beforeSnapRes.snapshots, after: beforeSnapRes.snapshots },
+        session,
+      });
+    }
+  }
   const guards = new Map(plan.baseFileHashes.map(guard => [guard.path, guard]));
-  for (const guard of expectedGuards) guards.set(guard.path, guard);
+  for (const guard of options.applyResult.afterHashes) guards.set(guard.path, guard);
+  if (privateBaselineSnapshots) {
+    const generatedPaths = new Set(plan.changes.filter(change => change.kind === 'generated-component').map(change => change.path));
+    for (const guard of privateBaselineSnapshots) {
+      if (generatedPaths.has(guard.path)) guards.set(guard.path, guard);
+    }
+  }
   for (const guard of guards.values()) {
     const actual = beforeMap.get(guard.path);
     const actualExists = actual?.exists ?? false;

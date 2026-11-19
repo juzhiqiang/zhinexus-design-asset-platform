@@ -509,6 +509,17 @@ export async function repairIntegration(
     });
   }
 
+  const reportedSourceChange = report.pendingItems.find(issue =>
+    issue.code === 'PROJECT_CHANGED' || issue.code === 'USER_EDITED'
+  );
+  if (reportedSourceChange || report.changedFiles.length) {
+    return blockedRepairResult({
+      id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+      maxAttempts: requestedMax, stopReason: 'user-edited', finalReport: report,
+      issue: reportedSourceChange ?? verificationIssue('USER_EDITED', report.changedFiles[0]),
+    });
+  }
+
   if (report.pendingItems.some(i => i.code === 'MISSING_BUSINESS_INFO')) {
     return blockedRepairResult({
       id: repairId,
@@ -570,8 +581,10 @@ export async function repairIntegration(
     });
   }
 
-  // 复核初始守卫：applyResult.afterHashes 与 report.snapshots.after 均必须与当前磁盘一致
-  for (const guard of options.applyResult.afterHashes) {
+  // 原计划与实际 apply 的守卫独立于外部源报告；apply 仅替换其真实写入路径。
+  const initialGuards = new Map(plan.baseFileHashes.map(guard => [guard.path, guard]));
+  for (const guard of options.applyResult.afterHashes) initialGuards.set(guard.path, guard);
+  for (const guard of initialGuards.values()) {
     const abs = path.resolve(realProjectRoot, guard.path);
     let stat: fs.Stats | undefined;
     try { stat = fs.lstatSync(abs); } catch (error) {
@@ -619,7 +632,7 @@ export async function repairIntegration(
 
   const session = createRunArtifactSession(options.artifactRoot, 'repair');
   const privateGuards = new Map<string, IntegrationFileSnapshot>(
-    options.applyResult.afterHashes.map(s => [s.path, { ...s }]),
+    report.snapshots.after.map(s => [s.path, { ...s }]),
   );
   const privateIdentities = new Map<string, RepairFileIdentity>();
   for (const guard of options.applyResult.afterHashes) {
@@ -816,6 +829,14 @@ export async function repairIntegration(
 
     currentReport = nextReport;
     currentReportDigest = nextReportDigest;
+
+    if (nextReport.changedFiles.length || nextReport.pendingItems.some(issue =>
+      issue.code === 'PROJECT_CHANGED' || issue.code === 'USER_EDITED'
+    )) {
+      status = 'blocked';
+      stopReason = 'user-edited';
+      break;
+    }
 
     if (nextReport.status === 'passed') {
       status = 'repaired';
