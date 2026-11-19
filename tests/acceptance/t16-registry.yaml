@@ -8,6 +8,9 @@ auth:
 uplinks:
   npmjs:
     url: https://registry.npmjs.org/
+    # Cold Next/SWC tarballs can stream for longer than Verdaccio's 30s default.
+    # This local-only request deadline keeps SDK origin/authentication unchanged.
+    timeout: 5m
 packages:
   '@company/*':
     access: g2reader g2publisher
