@@ -78,10 +78,19 @@ type GuardedWriteResult =
   | { status: 'written'; identity: RepairFileIdentity }
   | { status: 'changed' }
   | { status: 'failed-recovered' }
-  | { status: 'recovery-required' };
+  | { status: 'recovery-required'; currentBytes?: Buffer };
+
+function unresolvedWriteResult(fd: number, identity: RepairFileIdentity): GuardedWriteResult {
+  try {
+    if (!sameRepairFileIdentityValue(identity, fs.fstatSync(fd))) return { status: 'recovery-required' };
+    return { status: 'recovery-required', currentBytes: readDescriptorBytes(fd) };
+  } catch {
+    return { status: 'recovery-required' };
+  }
+}
 
 function sameRepairFileIdentity(left: fs.Stats, right: fs.Stats): boolean {
-  return left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino;
+  return left.isFile() && right.isFile() && left.nlink === 1 && right.nlink === 1 && left.dev === right.dev && left.ino === right.ino;
 }
 
 function repairFileIdentity(stats: fs.Stats): RepairFileIdentity {
@@ -89,12 +98,12 @@ function repairFileIdentity(stats: fs.Stats): RepairFileIdentity {
 }
 
 function sameRepairFileIdentityValue(left: RepairFileIdentity, right: fs.Stats): boolean {
-  return left.dev === right.dev && left.ino === right.ino && right.isFile();
+  return left.dev === right.dev && left.ino === right.ino && right.isFile() && right.nlink === 1;
 }
 
 function readDescriptorBytes(fd: number): Buffer {
   const stat = fs.fstatSync(fd);
-  if (!stat.isFile() || stat.size > 16 * 1024 * 1024) {
+  if (!stat.isFile() || stat.nlink !== 1 || stat.size > 16 * 1024 * 1024) {
     throw new Error('UNSAFE_REPAIR_FILE');
   }
   const bytes = Buffer.alloc(stat.size);
@@ -116,13 +125,14 @@ function readRepairFileSafely(projectRoot: string, absPath: string): GuardedFile
   let fd: number | undefined;
   try {
     const beforePath = fs.lstatSync(absPath);
-    if (beforePath.isSymbolicLink() || !beforePath.isFile()) return undefined;
+    if (beforePath.isSymbolicLink() || !beforePath.isFile() || beforePath.nlink !== 1) return undefined;
     const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
     fd = fs.openSync(absPath, flags);
     const opened = fs.fstatSync(fd);
     const afterOpenPath = fs.lstatSync(absPath);
     if (
       afterOpenPath.isSymbolicLink() ||
+      afterOpenPath.nlink !== 1 ||
       !sameRepairFileIdentity(beforePath, opened) ||
       !sameRepairFileIdentity(opened, afterOpenPath) ||
       !isInsideDirectory(projectRoot, realpathOrSelf(absPath))
@@ -134,6 +144,7 @@ function readRepairFileSafely(projectRoot: string, absPath: string): GuardedFile
     const afterReadHandle = fs.fstatSync(fd);
     if (
       afterReadPath.isSymbolicLink() ||
+      afterReadPath.nlink !== 1 ||
       !sameRepairFileIdentity(opened, afterReadHandle) ||
       !sameRepairFileIdentity(afterReadHandle, afterReadPath)
     ) {
@@ -247,9 +258,9 @@ function writeRepairFileSafely(params: {
     const finalBytes = readDescriptorBytes(fd);
     if (!stillOwnedPath || !finalBytes.equals(params.repairedBytes)) {
       if (!restoreOriginalDescriptor(fd, params.expectedIdentity, params.originalBytes, bytes => bytes.equals(params.repairedBytes))) {
-        return { status: 'recovery-required' };
+        return unresolvedWriteResult(fd, params.expectedIdentity);
       }
-      return stillOwnedPath ? { status: 'recovery-required' } : { status: 'changed' };
+      return stillOwnedPath ? { status: 'failed-recovered' } : { status: 'changed' };
     }
     return { status: 'written', identity: params.expectedIdentity };
   } catch {
@@ -261,11 +272,11 @@ function writeRepairFileSafely(params: {
         return bytes.equals(expectedPartial) || isPrefixOf(params.repairedBytes, bytes);
       };
       if (!restoreOriginalDescriptor(fd, params.expectedIdentity, params.originalBytes, allowedCurrent)) {
-        return { status: 'recovery-required' };
+        return unresolvedWriteResult(fd, params.expectedIdentity);
       }
       return stillOwnedPath ? { status: 'failed-recovered' } : { status: 'changed' };
     } catch {
-      return { status: 'recovery-required' };
+      return unresolvedWriteResult(fd, params.expectedIdentity);
     }
   } finally {
     if (fd !== undefined) {
@@ -626,6 +637,7 @@ export async function repairIntegration(
 
   const attempts: IntegrationRepairAttempt[] = [];
   const changedSet = new Set<string>();
+  const recoveryPendingItems: IntegrationVerificationIssue[] = [];
   let currentReport = report;
   let currentReportDigest = sourceReportDigest;
   let stopReason: IntegrationRepairResultV1['stopReason'] = 'verification-failed';
@@ -724,6 +736,28 @@ export async function repairIntegration(
       } else if (writeResult.status === 'recovery-required') {
         status = 'recovery-required';
         stopReason = 'recovery-required';
+        const observedPath = readRepairFileSafely(realProjectRoot, targetAbs);
+        const recoveryBytes = observedPath?.bytes ?? writeResult.currentBytes;
+        if (recoveryBytes) {
+          const afterRecoverySnapshot: IntegrationFileSnapshot = {
+            path: matchedPath,
+            exists: true,
+            sha256: sha256Hex(recoveryBytes),
+          };
+          const recoveryIssue = verificationIssue('RECOVERY_REQUIRED', matchedPath);
+          recoveryPendingItems.push(recoveryIssue);
+          attempts.push({
+            attempt: attemptNum,
+            recipeId: matchedRecipe.recipeId,
+            beforeReportDigest: currentReportDigest,
+            afterReportDigest: currentReportDigest,
+            changedFiles: [matchedPath],
+            beforeHashes: [beforeSnap],
+            afterHashes: [afterRecoverySnapshot],
+            backupRef: backupRes.backupRef,
+          });
+          changedSet.add(matchedPath);
+        }
       } else {
         status = 'stopped';
         stopReason = 'verification-failed';
@@ -796,11 +830,12 @@ export async function repairIntegration(
   }
 
   const changedFiles = [...changedSet];
+  const unresolvedPending = [...currentReport.pendingItems, ...recoveryPendingItems];
   const pendingItems: IntegrationVerificationIssue[] =
     status === 'repaired'
       ? []
-      : currentReport.pendingItems.length > 0
-        ? currentReport.pendingItems
+      : unresolvedPending.length > 0
+        ? unresolvedPending
         : [verificationIssue(stopReason === 'user-edited' ? 'USER_EDITED' : 'REPAIR_LIMIT_REACHED')];
 
   const result: IntegrationRepairResultV1 = {

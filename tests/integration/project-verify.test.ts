@@ -31,6 +31,7 @@ import type {
 import type { MatchPlanV1 } from '../../packages/component-cli/src/contracts/match-plan.js';
 import { planIntegration } from '../../packages/component-cli/src/integration/plan.js';
 import { applyIntegration, canonicalProjectRoot } from '../../packages/component-cli/src/integration/apply.js';
+import { collectSourceSnapshots } from '../../packages/component-cli/src/integration/verify.js';
 import { startSyntheticNetwork, SYNTHETIC_API_TOKEN, SYNTHETIC_REGISTRY_TOKEN, type SyntheticNetwork } from './t16-support/loopback-services.js';
 import { ECHARTS_VERSION, linkDirectory, PACKAGE_VERSION, tarballSha256, VUE_FRAMEWORK_VERSION, VUE_PACKAGE_NAME } from './t16-support/synthetic-projects.js';
 import { callVerify, loadT17CliExports, type T17CliExports } from './t17-support/verify-namespace.js';
@@ -401,6 +402,55 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     });
     expect(rWrongOp).toBeDefined();
     expect(rWrongOp!.status).toBe('blocked');
+  });
+
+  it('未通过执行授权时不创建 artifactRoot 或 runs 证据目录', async () => {
+    const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+    expect(fs.readdirSync(artifactRoot)).toHaveLength(0);
+
+    const report = await callVerify(cliExports, root, plan, {
+      applyResult,
+      spec,
+      authorization: { ...authorization, specDigest: 'f'.repeat(64) },
+      artifactRoot,
+    });
+
+    expect(report).toBeDefined();
+    expect(report!.status).toBe('blocked');
+    expect(report!.pendingItems.some(issue => issue.code === 'AUTHORIZATION_MISMATCH')).toBe(true);
+    expect(fs.readdirSync(artifactRoot)).toHaveLength(0);
+  });
+
+  it('拒绝被 junction 重定向的 runs 证据目录', async () => {
+    const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+    const redirectedRoot = makeTempDir('zhinexus-t17-redirected-runs-');
+    fs.symlinkSync(redirectedRoot, path.join(artifactRoot, 'runs'), 'junction');
+
+    const report = await callVerify(cliExports, root, plan, {
+      applyResult, spec, authorization, artifactRoot,
+    });
+
+    expect(report).toBeDefined();
+    expect(report!.status).toBe('blocked');
+    expect(report!.pendingItems.some(issue => issue.code === 'PATH_UNSAFE')).toBe(true);
+    expect(fs.readdirSync(redirectedRoot), '不能把验证报告写入 junction 目标目录').toEqual([]);
+  });
+
+  it('源快照对项目内硬链接失败关闭', () => {
+    const root = makeTempDir('zhinexus-t17-hardlink-snapshot-');
+    const outsideRoot = makeTempDir('zhinexus-t17-hardlink-snapshot-outside-');
+    const outsideSentinel = path.join(outsideRoot, 'sentinel.txt');
+    const projectAlias = path.join(root, 'linked-sentinel.txt');
+    fs.writeFileSync(outsideSentinel, 'external sentinel stays unchanged\n');
+    fs.linkSync(outsideSentinel, projectAlias);
+
+    const result = collectSourceSnapshots(root, new Set());
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) expect(result.issue.code).toBe('PATH_UNSAFE');
+    expect(fs.readFileSync(outsideSentinel, 'utf8')).toBe('external sentinel stays unchanged\n');
   });
 
   it('接受无安装 apply(installedVersions=[]) 并在真实 node_modules 缺失或版本不匹配时令 dependency-guard 失败', async () => {

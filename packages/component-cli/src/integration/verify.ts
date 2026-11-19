@@ -277,6 +277,9 @@ export function collectSourceSnapshots(
         const nested = walk(abs, rel);
         if (nested) return nested;
       } else if (lstat.isFile()) {
+        if (lstat.nlink !== 1) {
+          return verificationIssue('PATH_UNSAFE', rel);
+        }
         if (snapshots.length >= MAX_SNAPSHOT_FILES) {
           return verificationIssue('EXECUTION_FAILED', rel);
         }
@@ -794,27 +797,25 @@ export async function verifyIntegrationInternal(
     });
   }
 
-  const session = createRunArtifactSession(options.artifactRoot, 'verify');
-
   // 1. 基础结构与上下文一致性守卫
   const planCheck = validateIntegrationPlan(plan);
   if (!planCheck.ok || plan.status !== 'planned') {
     return blockedReport({
       id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
-      issue: verificationIssue('INVALID_INPUT'), session,
+      issue: verificationIssue('INVALID_INPUT'),
     });
   }
   const applyCheck = validateIntegrationApplyResult(options.applyResult);
   if (!applyCheck.ok || options.applyResult.status !== 'applied') {
     return blockedReport({
       id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
-      issue: verificationIssue('INVALID_INPUT'), session,
+      issue: verificationIssue('INVALID_INPUT'),
     });
   }
   if (options.applyResult.projectRoot !== canonicalRoot || options.applyResult.planDigest !== planDigest) {
     return blockedReport({
       id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
-      issue: verificationIssue('IDENTITY_MISMATCH'), session,
+      issue: verificationIssue('IDENTITY_MISMATCH'),
     });
   }
 
@@ -828,7 +829,7 @@ export async function verifyIntegrationInternal(
   if (!specCheck.ok) {
     return blockedReport({
       id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
-      issue: verificationIssue('IDENTITY_MISMATCH'), session,
+      issue: verificationIssue('IDENTITY_MISMATCH'),
     });
   }
 
@@ -844,7 +845,19 @@ export async function verifyIntegrationInternal(
   if (!authCheck.ok || options.authorization.operation !== 'verify') {
     return blockedReport({
       id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
-      issue: verificationIssue('AUTHORIZATION_MISMATCH'), session,
+      issue: verificationIssue('AUTHORIZATION_MISMATCH'),
+    });
+  }
+
+  // 只有项目身份、摘要、验证规格和显式授权全部有效后才创建证据目录。
+  let session: RunArtifactSession;
+  try {
+    session = createRunArtifactSession(options.artifactRoot, 'verify');
+  } catch (error) {
+    const unsafePath = error instanceof Error && error.message.startsWith('PATH_UNSAFE:');
+    return blockedReport({
+      id: reportId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest,
+      issue: verificationIssue(unsafePath ? 'PATH_UNSAFE' : 'EVIDENCE_INVALID'),
     });
   }
 

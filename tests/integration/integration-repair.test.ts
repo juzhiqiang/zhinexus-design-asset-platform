@@ -34,6 +34,7 @@ const repairFsHooks = vi.hoisted(() => ({
   beforeWrite: null as ((filePath: unknown) => void) | null,
   beforeOpen: null as ((filePath: unknown) => void) | null,
   beforeDescriptorWrite: null as ((args: unknown[]) => void) | null,
+  afterDescriptorRead: null as ((args: unknown[], bytesRead: number) => void) | null,
 }));
 
 vi.mock('node:fs', async importOriginal => {
@@ -51,6 +52,11 @@ vi.mock('node:fs', async importOriginal => {
     writeSync: (...args: Parameters<typeof actual.writeSync>) => {
       repairFsHooks.beforeDescriptorWrite?.(args);
       return actual.writeSync(...args);
+    },
+    readSync: (...args: Parameters<typeof actual.readSync>) => {
+      const bytesRead = actual.readSync(...args);
+      repairFsHooks.afterDescriptorRead?.(args, bytesRead);
+      return bytesRead;
     },
   };
 });
@@ -188,6 +194,7 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     repairFsHooks.beforeWrite = null;
     repairFsHooks.beforeOpen = null;
     repairFsHooks.beforeDescriptorWrite = null;
+    repairFsHooks.afterDescriptorRead = null;
     vi.restoreAllMocks();
   });
 
@@ -515,6 +522,32 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     }
   });
 
+  it('repair 拒绝硬链接修复目标且不改写工程外哨兵文件', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedAbs = path.join(ctx.root, ctx.generatedPath);
+    const outsideRoot = makeTempDir('zhinexus-t17-repair-hardlink-outside-');
+    const outsideSentinel = path.join(outsideRoot, 'sentinel.vue');
+    const originalBytes = fs.readFileSync(generatedAbs);
+    fs.writeFileSync(outsideSentinel, originalBytes);
+    fs.unlinkSync(generatedAbs);
+    fs.linkSync(outsideSentinel, generatedAbs);
+    expect(fs.lstatSync(generatedAbs).nlink).toBeGreaterThan(1);
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(result).toBeDefined();
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('invalid-input');
+    expect(result!.attempts).toEqual([]);
+    expect(result!.pendingItems.some(issue => issue.code === 'PATH_UNSAFE')).toBe(true);
+    expect(fs.readFileSync(outsideSentinel)).toEqual(originalBytes);
+  });
+
   it('写入失败且路径随后变成链接时通过原文件描述符恢复，不触碰链接目标', async () => {
     const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
     const generatedAbs = path.join(ctx.root, ctx.generatedPath);
@@ -571,6 +604,83 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     } else {
       expect(fs.readFileSync(generatedAbs)).toEqual(victimBytes);
     }
+  });
+
+  it('路径仍归 repair 所有且安全回滚成功时不报告 recovery-required', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedAbs = path.join(ctx.root, ctx.generatedPath);
+    const originalBytes = fs.readFileSync(generatedAbs);
+    let repairFd: number | undefined;
+    let injectMismatch = false;
+
+    repairFsHooks.beforeDescriptorWrite = args => {
+      if (repairFd === undefined) {
+        repairFd = args[0] as number;
+        injectMismatch = true;
+      }
+    };
+    repairFsHooks.afterDescriptorRead = (args, bytesRead) => {
+      if (!injectMismatch || args[0] !== repairFd || bytesRead === 0) return;
+      injectMismatch = false;
+      const buffer = args[1] as Buffer;
+      const offset = args[2] as number;
+      buffer[offset] = buffer[offset]! ^ 1;
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(result).toBeDefined();
+    expect(validateIntegrationRepairResult(result!).ok).toBe(true);
+    expect(result!.status).toBe('stopped');
+    expect(result!.stopReason).toBe('verification-failed');
+    expect(result!.attempts).toEqual([]);
+    expect(result!.changedFiles).toEqual([]);
+    expect(result!.pendingItems.some(issue => issue.code === 'RECOVERY_REQUIRED')).toBe(false);
+    expect(fs.readFileSync(generatedAbs)).toEqual(originalBytes);
+  });
+
+  it('无法安全回滚部分写入时返回有效 recovery-required 结果并保留用户字节', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedAbs = path.join(ctx.root, ctx.generatedPath);
+    const originalBytes = fs.readFileSync(generatedAbs);
+    const userBytes = Buffer.from('// concurrent user edit; preserve exactly\n');
+    let injected = false;
+
+    repairFsHooks.beforeDescriptorWrite = args => {
+      if (injected) return;
+      injected = true;
+      const fd = args[0] as number;
+      actualFs.writeSync(fd, userBytes, 0, userBytes.length, 0);
+      throw new Error('injected concurrent user edit during repair write');
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(injected).toBe(true);
+    expect(result).toBeDefined();
+    expect(validateIntegrationRepairResult(result!).ok).toBe(true);
+    expect(result!.status).toBe('recovery-required');
+    expect(result!.stopReason).toBe('recovery-required');
+    expect(result!.attempts).toHaveLength(1);
+    expect(result!.attempts[0]!.beforeHashes).toEqual([{ path: ctx.generatedPath, exists: true, sha256: sha256Hex(originalBytes) }]);
+    expect(result!.attempts[0]!.afterHashes).toEqual([{ path: ctx.generatedPath, exists: true, sha256: sha256Hex(userBytes) }]);
+    expect(result!.changedFiles).toEqual([ctx.generatedPath]);
+    expect(result!.pendingItems).toContainEqual({
+      code: 'RECOVERY_REQUIRED',
+      message: 'Manual recovery is required.',
+      path: ctx.generatedPath,
+    });
+    expect(fs.readFileSync(generatedAbs)).toEqual(userBytes);
   });
 
   it('不可自愈故障在 2 次尝试内停止并交付 pendingItems，不修改包清单/锁/业务文件', async () => {
