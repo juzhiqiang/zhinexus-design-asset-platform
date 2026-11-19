@@ -726,6 +726,72 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     }
   });
 
+  it('取消信号会终止等待中的浏览器验证并跳过视觉检查', async () => {
+    let loaded = false;
+    let sideEffectCount = 0;
+    const controller = new AbortController();
+    const server = http.createServer((request, response) => {
+      if (request.url === '/waiting') {
+        loaded = true;
+        response.writeHead(204);
+        response.end();
+        setTimeout(() => controller.abort(), 150);
+        return;
+      }
+      if (request.url === '/side-effect') {
+        sideEffectCount += 1;
+        response.writeHead(204);
+        response.end();
+        return;
+      }
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end(
+        '<html><body><main id="started">started</main>' +
+        '<script>window.addEventListener("load", () => fetch("/waiting"));' +
+        'setTimeout(() => fetch("/side-effect"), 700)</script>' +
+        '</body></html>',
+      );
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address() as import('node:net').AddressInfo;
+    const url = 'http://127.0.0.1:' + address.port + '/';
+
+    try {
+      const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+      const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult, {
+        browser: {
+          url,
+          readySelector: '#never-ready',
+          timeoutMs: 10_000,
+          viewport: { width: 640, height: 480 },
+          renderer: 'canvas',
+          theme: 'light',
+          actions: [],
+          assertions: [{ kind: 'visible', selector: '#never-ready' }],
+        },
+      });
+      const startedAt = Date.now();
+      const report = await callVerify(cliExports, root, plan, {
+        applyResult,
+        spec,
+        authorization,
+        artifactRoot,
+        signal: controller.signal,
+      });
+      expect(loaded).toBe(true);
+      expect(Date.now() - startedAt).toBeLessThan(3_000);
+      expect(report).toBeDefined();
+      expect(report!.status).toBe('failed');
+      expect(report!.pendingItems.some(issue => issue.code === 'CANCELLED')).toBe(true);
+      expect(report!.checks.find(check => check.id === 'browser')?.issues.some(issue => issue.code === 'CANCELLED')).toBe(true);
+      expect(report!.checks.find(check => check.id === 'visual')?.status).toBe('not-run');
+      await new Promise(resolve => setTimeout(resolve, 850));
+      expect(sideEffectCount).toBe(0);
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  }, 30_000);
+
   it('存在业务缺口时归类 missing-business-info 且不标记 passed', async () => {
     const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
     const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult, {

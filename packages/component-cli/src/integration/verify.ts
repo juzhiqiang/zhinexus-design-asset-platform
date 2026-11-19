@@ -486,8 +486,14 @@ async function runBrowserVerification(params: {
     params.plan.localProject.resolvedDependencies.find(d => d.name === 'echarts')?.version ?? '6.1.0';
 
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
+  let onAbort: (() => void) | undefined;
   try {
     browser = await launchLocalChromium();
+    onAbort = () => {
+      void browser?.close().catch(() => {});
+    };
+    params.signal?.addEventListener('abort', onAbort, { once: true });
+    if (params.signal?.aborted) onAbort();
     const env = detectEnvironment({
       width: b.viewport.width,
       height: b.viewport.height,
@@ -750,13 +756,15 @@ async function runBrowserVerification(params: {
       environment: env,
     };
   } catch {
-    const issue = verificationIssue('BROWSER_FAILED');
+    const cancelled = params.signal?.aborted ?? false;
+    const issue = verificationIssue(cancelled ? 'CANCELLED' : 'BROWSER_FAILED');
     return {
       behaviorCheck: { id: 'browser', category: 'behavior', status: 'failed', issues: [issue], evidence: [] },
       visualCheck: { id: 'visual', category: 'visual', status: 'not-run', issues: [], evidence: [] },
       visualResult: 'not-run',
     };
   } finally {
+    if (onAbort) params.signal?.removeEventListener('abort', onAbort);
     await browser?.close().catch(() => {});
   }
 }
