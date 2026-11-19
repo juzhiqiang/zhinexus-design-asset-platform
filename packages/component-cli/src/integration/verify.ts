@@ -13,7 +13,7 @@ import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import { chromium } from '@playwright/test';
+import { chromium, errors } from '@playwright/test';
 import {
   validateIntegrationApplyResult,
   type IntegrationApplyResultV1,
@@ -595,31 +595,53 @@ async function runBrowserVerification(params: {
     }
 
     const behaviorFailures: string[] = [];
+    // All assertion waits share one budget; navigation/readiness/actions keep their existing timeouts.
+    const assertionDeadline = Date.now() + b.timeoutMs;
     for (const assertion of b.assertions) {
       const loc = page.locator(assertion.selector);
-      if (assertion.kind === 'visible') {
-        const count = await loc.count();
-        if (count === 0) {
-          behaviorFailures.push(`visible_missing:${assertion.selector}`);
-        } else {
-          const isVisible = await loc.first().isVisible();
-          const box = await loc.first().boundingBox();
-          if (!isVisible || !box || box.width <= 0 || box.height <= 0) {
-            behaviorFailures.push(`zero_size_or_hidden:${assertion.selector}`);
+      let failure: string | undefined;
+      while (true) {
+        params.signal?.throwIfAborted();
+        failure = undefined;
+        const remainingMs = Math.max(1, assertionDeadline - Date.now());
+        if (assertion.kind === 'visible') {
+          const count = await loc.count();
+          if (count === 0) {
+            failure = `visible_missing:${assertion.selector}`;
+          } else {
+            failure = `zero_size_or_hidden:${assertion.selector}`;
+            try {
+              const isVisible = await loc.first().isVisible();
+              const box = await loc.first().boundingBox({ timeout: remainingMs });
+              if (isVisible && box && box.width > 0 && box.height > 0) failure = undefined;
+            } catch (error) {
+              // An element may detach between count and first(); only a bounded lookup timeout is a mismatch.
+              if (!(error instanceof errors.TimeoutError)) throw error;
+            }
+          }
+        } else if (assertion.kind === 'text') {
+          failure = `text_mismatch:${assertion.selector}`;
+          const count = await loc.count();
+          if (count > 0) {
+            try {
+              const actual = (await loc.first().textContent({ timeout: remainingMs }))?.trim() ?? '';
+              if (actual === (assertion.value ?? '').trim()) failure = undefined;
+            } catch (error) {
+              if (!(error instanceof errors.TimeoutError)) throw error;
+            }
+          }
+        } else if (assertion.kind === 'count') {
+          const actualCount = await loc.count();
+          if (actualCount !== assertion.count) {
+            failure = `count_mismatch:${assertion.selector}:${actualCount}!=${assertion.count}`;
           }
         }
-      } else if (assertion.kind === 'text') {
-        const count = await loc.count();
-        const actual = count > 0 ? (await loc.first().textContent())?.trim() ?? '' : '';
-        if (count === 0 || actual !== (assertion.value ?? '').trim()) {
-          behaviorFailures.push(`text_mismatch:${assertion.selector}`);
-        }
-      } else if (assertion.kind === 'count') {
-        const actualCount = await loc.count();
-        if (actualCount !== assertion.count) {
-          behaviorFailures.push(`count_mismatch:${assertion.selector}:${actualCount}!=${assertion.count}`);
-        }
+        const remainingWaitMs = assertionDeadline - Date.now();
+        if (!failure || remainingWaitMs <= 0) break;
+        // Poll the declared condition rather than assuming a UI update duration. Abort is checked every sample.
+        await new Promise<void>(resolve => setTimeout(resolve, Math.min(25, remainingWaitMs)));
       }
+      if (failure) behaviorFailures.push(failure);
     }
 
     const pageDiagnostics = await page.evaluate(() => (window as unknown as { __zhinexusDiagnostics?: string[] }).__zhinexusDiagnostics ?? []);
