@@ -32,7 +32,7 @@ import type { MatchPlanV1 } from '../../packages/component-cli/src/contracts/mat
 import { planIntegration } from '../../packages/component-cli/src/integration/plan.js';
 import { applyIntegration, canonicalProjectRoot } from '../../packages/component-cli/src/integration/apply.js';
 import { startSyntheticNetwork, SYNTHETIC_API_TOKEN, SYNTHETIC_REGISTRY_TOKEN, type SyntheticNetwork } from './t16-support/loopback-services.js';
-import { ECHARTS_VERSION, PACKAGE_VERSION, tarballSha256, VUE_FRAMEWORK_VERSION, VUE_PACKAGE_NAME } from './t16-support/synthetic-projects.js';
+import { ECHARTS_VERSION, linkDirectory, PACKAGE_VERSION, tarballSha256, VUE_FRAMEWORK_VERSION, VUE_PACKAGE_NAME } from './t16-support/synthetic-projects.js';
 import { callVerify, loadT17CliExports, type T17CliExports } from './t17-support/verify-namespace.js';
 
 function sha256Hex(content: Buffer | string): string {
@@ -629,6 +629,26 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     expect(rMut!.status).toBe('failed');
     expect(rMut!.changedFiles.sort()).toEqual(['src/added.ts', 'src/keep.ts', 'src/to-delete.ts']);
     expect(rMut!.pendingItems.some(i => i.code === 'PROJECT_CHANGED')).toBe(true);
+  });
+
+  it('拒绝经父级 junction 指向工程内且目标目录尚不存在的 artifactRoot', async () => {
+    const { root, canonicalRoot, plan, applyResult } = await setupAppliedProject();
+    const aliasParent = path.join(makeTempDir('zhinexus-t17-artifact-alias-'), 'project-alias');
+    linkDirectory(aliasParent, root);
+    expect(fs.realpathSync(aliasParent)).toBe(path.resolve(canonicalRoot));
+
+    const artifactRoot = path.join(aliasParent, 'missing-artifacts');
+    const escapedArtifactRoot = path.join(root, 'missing-artifacts');
+    expect(fs.existsSync(artifactRoot)).toBe(false);
+    expect(fs.existsSync(escapedArtifactRoot)).toBe(false);
+
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+    const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+
+    expect(report).toBeDefined();
+    expect(report!.status).toBe('blocked');
+    expect(report!.pendingItems.some(issue => issue.code === 'PATH_UNSAFE')).toBe(true);
+    expect(fs.existsSync(escapedArtifactRoot), '拒绝前不得沿 junction 在项目内创建 artifactRoot').toBe(false);
   });
 
   it('脚本超时结构化失败且报告与证据不泄露敏感环境变量或执行建议', async () => {

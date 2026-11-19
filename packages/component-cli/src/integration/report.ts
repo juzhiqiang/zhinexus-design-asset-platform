@@ -68,6 +68,35 @@ export function sanitizeDiagnosticText(text: string): string {
   return out;
 }
 
+/** 解析已存在的真实祖先，再接回缺失路径段；缺失的符号链接目标失败关闭。 */
+function realpathWithMissingTail(abs: string): string | undefined {
+  let candidate = path.resolve(abs);
+  const missingSegments: string[] = [];
+
+  while (true) {
+    try {
+      return path.resolve(fs.realpathSync(candidate), ...missingSegments.reverse());
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== 'ENOENT') return undefined;
+
+      try {
+        // lstat sees a dangling symlink/junction even when realpath cannot follow it.
+        fs.lstatSync(candidate);
+        return undefined;
+      } catch (statError) {
+        const statCode = (statError as NodeJS.ErrnoException).code;
+        if (statCode !== 'ENOENT') return undefined;
+      }
+
+      const parent = path.dirname(candidate);
+      if (parent === candidate) return undefined;
+      missingSegments.push(path.basename(candidate));
+      candidate = parent;
+    }
+  }
+}
+
 export type RunArtifactSession = {
   artifactRoot: string;
   realArtifactRoot: string;
@@ -89,7 +118,10 @@ export function assertArtifactRootOutsideProject(projectRealRoot: string, artifa
     return { ok: false, issue: verificationIssue('PATH_UNSAFE') };
   }
   const resolvedArtifact = path.resolve(artifactRoot);
-  const realArtifact = realpathOrSelf(resolvedArtifact);
+  const realArtifact = realpathWithMissingTail(resolvedArtifact);
+  if (!realArtifact) {
+    return { ok: false, issue: verificationIssue('PATH_UNSAFE') };
+  }
   if (isInsideDirectory(projectRealRoot, realArtifact) || isInsideDirectory(realArtifact, projectRealRoot)) {
     return { ok: false, issue: verificationIssue('PATH_UNSAFE') };
   }
