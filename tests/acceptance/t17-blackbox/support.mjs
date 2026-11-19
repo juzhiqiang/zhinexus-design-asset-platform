@@ -121,7 +121,7 @@ export async function cleanEnvironment(area, label, { dirs }) {
  * 安装冻结 CLI tarball 到仓外隔离目录，并全程锁定其字节身份。
  * 返回 { root, bin, version, tarball, sha256, assertUnchanged }。
  */
-export async function installFrozenCli({ area, tarball, node, npmCli }) {
+export async function installFrozenCli({ area, tarball, node, npmCli, expectedVersion }) {
   const bytes = await readFile(tarball);
   const digest = sha256(bytes);
   if (process.env.T17_D_CLI_SHA256 && process.env.T17_D_CLI_SHA256.toLowerCase() !== digest) {
@@ -135,6 +135,8 @@ export async function installFrozenCli({ area, tarball, node, npmCli }) {
   if (installed.code !== 0) throw new Error(`冻结 CLI 安装失败（证据 frozen-cli-install.json），退出码 ${installed.code}`);
   const packageRoot = join(root, 'node_modules', '@company', 'component-cli');
   const manifest = JSON.parse(await readFile(join(packageRoot, 'package.json'), 'utf8'));
+  if (manifest.name !== '@company/component-cli') throw new Error('冻结 CLI 安装包身份错误：package name 不匹配');
+  if (expectedVersion !== undefined && manifest.version !== expectedVersion) throw new Error('冻结 CLI 安装包身份错误：package version 不匹配');
   if (manifest.dependencies?.['@company/contracts'] !== undefined) throw new Error('冻结 CLI 声明了私有包 @company/contracts 运行时依赖');
   const bin = join(packageRoot, 'dist', 'bin.js');
   if (!(await lstat(bin).catch(() => null))?.isFile()) throw new Error('冻结 CLI 缺少 dist/bin.js');
@@ -143,6 +145,24 @@ export async function installFrozenCli({ area, tarball, node, npmCli }) {
     if (current !== digest) throw new Error(`冻结包字节在验收期间发生变化：${digest} -> ${current}`);
   };
   return { root, bin, version: manifest.version, tarball, sha256: digest, assertUnchanged };
+}
+
+/** Write one host-consumable receipt only after canonicalizing and checking evidence for supplied secrets. */
+export async function recordCaseEvidence({ area, caseId, kind, value, secrets = [] }) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/.test(caseId)) throw new Error('Unsafe case id for evidence receipt.');
+  if (kind !== 'positive' && kind !== 'refusal') throw new Error('Unsupported evidence receipt kind.');
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) throw new Error('Case evidence must be a JSON object.');
+  const serialized = canonicalJson(value) + '\n';
+  if (secrets.some(secret => typeof secret === 'string' && secret.length > 0 && serialized.includes(secret))) {
+    throw new Error('Sensitive secret found in case evidence; refusing to persist it.');
+  }
+  const directory = await realpath(area);
+  const evidenceDirectory = join(directory, 'files');
+  await mkdir(evidenceDirectory, { recursive: true });
+  const evidencePath = join(evidenceDirectory, caseId + '.json');
+  const bytes = Buffer.from(serialized, 'utf8');
+  await writeFile(evidencePath, bytes, { flag: 'wx' });
+  return { caseId, kind, evidencePath, sha256: sha256(bytes), bytes: bytes.length };
 }
 
 /** 启动真实静态宿主：只提供已构建的 dist，任何路径穿越或缺失回落到 index.html 之前的 404。 */

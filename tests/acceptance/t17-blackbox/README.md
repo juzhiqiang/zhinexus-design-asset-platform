@@ -2,7 +2,10 @@
 
 本目录只从仓库外安装冻结的 `@company/component-cli` tarball，再以独立 Node 子进程驱动 `dist/bin.js`。测试不导入 CLI 源码，不使用 `workspace:` 链接或源码 alias。冻结 tarball 在安装前、用例间与结束时校验同一 SHA-256；npm 安装禁用生命周期脚本，并使用空白用户/全局 npm 配置。
 
-当前提交包含支架回归、必需输入校验和冻结包安装 smoke test。T17 的 verify/repair/MCP 产品命令场景仍需等冻结包实现与临时 Vue/React runner 接口落地后补齐；这组支架测试不代表 T17 完成。
+当前工作树还包含安装包身份校验、receipt 规范化/敏感字段保护、`verify` / `repair` 缺少输入时拒绝、MCP stdio 工具清单及 CLI/MCP `inspect` 对照用例。支架回归和必需输入校验可独立运行；`installed.spec.ts` 必须等真实冻结包和统一 runner 接口后才能执行。
+集成用临时项目和 npm 冻结包消费者仅在仓外创建；测试结束时，只有真实路径与本次 `.t17-owner.json` 标记都匹配才清理。独立证据目录保留用于审查。
+
+`installed.spec.ts` 中 MCP `apply_integration` / `verify_integration` 的当前负向调用传入空对象，拒绝结果可能来自参数结构校验；它们暂不作为“无授权写入被拒绝”的产品证据。MCP `plan_integration` 目前只检查工具清单，尚未调用。最终黑盒需要基于公开契约补齐有效 plan 的拒绝/授权路径、计划工具行为、verify/repair 分类与有限修复、项目快照不变性、超时取消和进程退出，并使用最终版本冻结 tarball。
 
 在 PowerShell 中先构建服务端测试所需的本地产物，然后显式设置冻结输入：
 
