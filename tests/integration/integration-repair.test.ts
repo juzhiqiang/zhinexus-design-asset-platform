@@ -364,6 +364,28 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     expect(fs.readFileSync(path.join(ctx.root, ctx.generatedPath), 'utf8')).toBe(userContent);
   });
 
+  it('repair 前复核源报告的完整 after 快照并阻断报告后新增的用户文件', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedBefore = fs.readFileSync(path.join(ctx.root, ctx.generatedPath));
+    const userPath = path.join(ctx.root, 'src', 'user-added-after-report.ts');
+    const userBytes = 'export const keep = true;\n';
+    fs.writeFileSync(userPath, userBytes, 'utf8');
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(result).toBeDefined();
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(result!.attempts).toEqual([]);
+    expect(fs.readFileSync(path.join(ctx.root, ctx.generatedPath))).toEqual(generatedBefore);
+    expect(fs.readFileSync(userPath, 'utf8')).toBe(userBytes);
+  });
+
   it('不可自愈故障在 2 次尝试内停止并交付 pendingItems，不修改包清单/锁/业务文件', async () => {
     const ctx = await setupProjectForRepair('grid cell 1', true);
     // 注入不可由模板 recipe 修复的脚本失败

@@ -120,9 +120,11 @@ function setupFakeProjectForBrowser(tempRoot: string): {
   return { root, canonicalRoot, artifactRoot, plan, applyResult };
 }
 
-async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'pageerror' | 'outbound' | 'outbound-sensitive' | 'popup' | 'alt-visual'): Promise<{ url: string; close: () => Promise<void> }> {
+async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'pageerror' | 'outbound' | 'outbound-sensitive' | 'popup' | 'alt-visual', popupTarget?: string): Promise<{ url: string; close: () => Promise<void>; popupHits: () => number }> {
+  let popupHits = 0;
   const server = http.createServer((req, res) => {
     const reqPath = new URL(req.url ?? '/', 'http://127.0.0.1').pathname;
+    if (reqPath === '/popup') popupHits += 1;
     if (reqPath === '/generated-module.js') {
       res.writeHead(200, { 'Content-Type': 'application/javascript; charset=utf-8' });
       res.end(`
@@ -165,7 +167,7 @@ async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'page
       new WebSocket('ws://' + location.host + '/same-origin');
     }
     if (mode === 'popup') {
-      window.open('http://127.0.0.1/popup', '_blank');
+      window.open('@@POPUP_TARGET@@', '_blank');
     }
     document.getElementById('refresh').addEventListener('click', () => {
       if (mode !== 'click-broken') {
@@ -180,7 +182,7 @@ async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'page
     document.body.setAttribute('data-ready', 'true');
   </script>
 </body>
-</html>`);
+</html>`.replace('@@POPUP_TARGET@@', JSON.stringify(popupTarget ?? 'http://127.0.0.1/popup')));
   });
 
   await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
@@ -189,6 +191,7 @@ async function startHostServer(mode: 'ok' | 'click-broken' | 'zero-size' | 'page
   return {
     url: `http://127.0.0.1:${port}/`,
     close: () => new Promise<void>(resolve => server.close(() => resolve())),
+    popupHits: () => popupHits,
   };
 }
 
@@ -339,6 +342,18 @@ test('verifyIntegration 真实 Chromium 交互、安全隔离与视觉三态验�
       } finally {
         await badHost.close();
       }
+    }
+
+    const popupDestination = await startHostServer('ok');
+    const popupSource = await startHostServer('popup', popupDestination.url + 'popup');
+    try {
+      const { spec, authorization } = makeBrowserSpecAndAuth(popupSource.url);
+      const popupReport = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+      expect(popupReport?.status).toBe('failed');
+      expect(popupDestination.popupHits()).toBe(0);
+    } finally {
+      await popupSource.close();
+      await popupDestination.close();
     }
 
     const sensitiveHost = await startHostServer('outbound-sensitive');

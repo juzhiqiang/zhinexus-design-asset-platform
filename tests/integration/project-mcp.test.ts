@@ -10,6 +10,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
+import * as http from 'node:http';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { Client } from '@modelcontextprotocol/client';
@@ -62,6 +63,38 @@ const VUE_DEPS = [
   { name: 'echarts', version: ECHARTS_VERSION },
 ];
 
+function buildMcpMatchPlan() {
+  return {
+    schemaVersion: 1 as const,
+    source: 'design-id' as const,
+    inputDigest: 'a'.repeat(64),
+    ruleSetId: 'library',
+    revision: 'draft-1',
+    context: {
+      framework: 'vue' as const,
+      frameworkVersion: VUE_FRAMEWORK_VERSION,
+      echartsVersion: ECHARTS_VERSION,
+      packageManager: 'npm' as const,
+      requirements: [],
+    },
+    elements: [{
+      instanceId: 'node-1',
+      designId: '设计/Line',
+      status: 'mapped' as const,
+      target: vueTarget(),
+      props: [
+        { name: 'data', type: 'ChartData', required: true, source: 'sales' },
+        { name: 'config', type: 'LineChartConfig', required: false },
+      ],
+      events: [{ name: 'point-click', payload: 'ChartEvent', handler: 'showDetail' }],
+      layout: 'grid cell 1',
+      gaps: [],
+    }],
+    exactDependencies: VUE_DEPS.map(d => ({ ...d })),
+    gaps: [],
+  };
+}
+
 describe('T17 A3 四工具本地 stdio MCP', () => {
   let network: SyntheticNetwork;
   const tempRoots: string[] = [];
@@ -111,7 +144,7 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
     }
   });
 
-  function createSampleProject() {
+  function createSampleProject(options?: { typecheckScript?: string }) {
     const root = makeTempDir('zhinexus-t17-mcp-proj-');
     const artifactRoot = makeTempDir('zhinexus-t17-mcp-art-');
     writeJson(path.join(root, 'package.json'), {
@@ -119,7 +152,7 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
       version: '1.0.0',
       private: true,
       scripts: {
-        typecheck: 'node -e "process.exit(0)"',
+        typecheck: options?.typecheckScript ?? 'node -e "process.exit(0)"',
         build: 'node -e "const fs=require(\'fs\');fs.mkdirSync(\'dist\',{recursive:true});fs.writeFileSync(\'dist/ok.js\',\'1\')"',
       },
       dependencies: {
@@ -185,9 +218,37 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
       schemaVersion: 1,
       projectRoot: canonicalRoot,
       artifactRoot: canonicalProjectRoot(artifactRoot),
+      allowedApiOrigins: [network.apiOrigin],
+      allowedRegistryOrigins: [network.registryOrigin],
     });
 
-    const { client, transport, getStderr } = await connectMcp(configPath);
+    const unboundConfigPath = path.join(artifactRoot, 'mcp-host-unbound-config.json');
+    writeJson(unboundConfigPath, {
+      schemaVersion: 1,
+      projectRoot: canonicalRoot,
+      artifactRoot: canonicalProjectRoot(artifactRoot),
+    });
+    const unboundConnection = await connectMcp(unboundConfigPath, {
+      ZHINEXUS_API_TOKEN: 'MCP_UNBOUND_API_TOKEN_SENTINEL',
+      ZHINEXUS_REGISTRY_TOKEN: 'MCP_UNBOUND_REGISTRY_TOKEN_SENTINEL',
+    });
+    try {
+      const requestCount = network.requests.length;
+      const unboundPlan = await unboundConnection.client.callTool({
+        name: 'plan_integration',
+        arguments: { matchPlan: buildMcpMatchPlan(), apiUrl: network.apiOrigin, registryUrl: network.registryOrigin },
+      });
+      expect(unboundPlan.isError).toBe(true);
+      expect((unboundPlan.content[0] as { text: string }).text).toContain('ENDPOINT_NOT_ALLOWED');
+      expect(network.requests).toHaveLength(requestCount);
+    } finally {
+      await unboundConnection.transport.close();
+    }
+
+    const { client, transport, getStderr } = await connectMcp(configPath, {
+      ZHINEXUS_API_TOKEN: 'MCP_UNTRUSTED_API_TOKEN_SENTINEL',
+      ZHINEXUS_REGISTRY_TOKEN: 'MCP_UNTRUSTED_REGISTRY_TOKEN_SENTINEL',
+    });
     try {
       const listed = await client.listTools();
       const names = listed.tools.map(t => t.name).sort();
@@ -216,6 +277,26 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
         arguments: { projectRoot: canonicalProjectRoot(outsideRoot) },
       });
       expect(crossRootRes.isError).toBe(true);
+
+      let untrustedHits = 0;
+      const untrustedServer = http.createServer((_req, res) => {
+        untrustedHits += 1;
+        res.writeHead(404).end();
+      });
+      await new Promise<void>(resolve => untrustedServer.listen(0, '127.0.0.1', resolve));
+      const address = untrustedServer.address();
+      const untrustedOrigin = 'http://127.0.0.1:' + (typeof address === 'object' && address ? address.port : 0);
+      try {
+        const untrustedPlan = await client.callTool({
+          name: 'plan_integration',
+          arguments: { matchPlan: buildMcpMatchPlan(), apiUrl: network.apiOrigin, registryUrl: untrustedOrigin },
+        });
+        expect(untrustedPlan.isError).toBe(true);
+        expect((untrustedPlan.content[0] as { text: string }).text).toContain('ENDPOINT_NOT_ALLOWED');
+        expect(untrustedHits).toBe(0);
+      } finally {
+        await new Promise<void>(resolve => untrustedServer.close(() => resolve()));
+      }
 
       // 无 applyGrant 拒绝 apply_integration
       const noGrantApply = await client.callTool({
@@ -307,6 +388,8 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
       schemaVersion: 1,
       projectRoot: canonicalRoot,
       artifactRoot: canonicalProjectRoot(artifactRoot),
+      allowedApiOrigins: [network.apiOrigin],
+      allowedRegistryOrigins: [network.registryOrigin],
       applyGrant: {
         schemaVersion: 1,
         operation: 'apply',
@@ -322,6 +405,31 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
       ZHINEXUS_REGISTRY_TOKEN: SYNTHETIC_REGISTRY_TOKEN,
     });
     try {
+      let untrustedHits = 0;
+      let receivedAuthorization: string | undefined;
+      const untrustedServer = http.createServer((req, res) => {
+        untrustedHits += 1;
+        receivedAuthorization = req.headers.authorization;
+        res.writeHead(404).end();
+      });
+      await new Promise<void>(resolve => untrustedServer.listen(0, '127.0.0.1', resolve));
+      const address = untrustedServer.address();
+      const untrustedOrigin = 'http://127.0.0.1:' + (typeof address === 'object' && address ? address.port : 0);
+      try {
+        const beforeApply = fs.readFileSync(path.join(root, 'package.json'));
+        const untrustedApply = await client.callTool({
+          name: 'apply_integration',
+          arguments: { plan: cliPlanObj, apiUrl: untrustedOrigin, registryUrl: network.registryOrigin },
+        });
+        expect(untrustedApply.isError).toBe(true);
+        expect((untrustedApply.content[0] as { text: string }).text).toContain('ENDPOINT_NOT_ALLOWED');
+        expect(untrustedHits).toBe(0);
+        expect(receivedAuthorization).toBeUndefined();
+        expect(fs.readFileSync(path.join(root, 'package.json'))).toEqual(beforeApply);
+      } finally {
+        await new Promise<void>(resolve => untrustedServer.close(() => resolve()));
+      }
+
       // 1. inspect_project 与 CLI 一致
       const mcpInspectRes = await client.callTool({ name: 'inspect_project', arguments: {} });
       expect(mcpInspectRes.isError).not.toBe(true);
@@ -438,5 +546,106 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
     }
     expect(getStderr()).not.toContain(SYNTHETIC_API_TOKEN);
     expect(getStderr()).not.toContain(SYNTHETIC_REGISTRY_TOKEN);
+  });
+
+  it('stdio 客户端取消 verify 后会终止脚本进程树', async () => {
+    const slowScript = "node -e \"const fs=require('node:fs');const cp=require('node:child_process');const child=cp.spawn(process.execPath,['-e','setTimeout(()=>{},15000)'],{stdio:'ignore'});fs.writeFileSync('cancel-grandchild.pid',String(child.pid));setTimeout(()=>fs.writeFileSync('cancel-sentinel.txt','late'),2200);\"";
+    const { root, canonicalRoot, artifactRoot } = createSampleProject({ typecheckScript: slowScript });
+    const matchPlan = buildMcpMatchPlan();
+    const matchFile = path.join(artifactRoot, 'cancel-match.json');
+    writeJson(matchFile, matchPlan);
+    const previousApi = process.env.ZHINEXUS_API_TOKEN;
+    const previousRegistry = process.env.ZHINEXUS_REGISTRY_TOKEN;
+    process.env.ZHINEXUS_API_TOKEN = SYNTHETIC_API_TOKEN;
+    process.env.ZHINEXUS_REGISTRY_TOKEN = SYNTHETIC_REGISTRY_TOKEN;
+    let plan: { allowedPaths: string[]; [key: string]: unknown };
+    try {
+      const planned = await runCli([
+        'integrate', 'plan', '--project', root, '--match', matchFile,
+        '--api-url', network.apiOrigin, '--registry', network.registryOrigin,
+      ], '0.0.14');
+      expect(planned.exitCode).toBe(0);
+      plan = JSON.parse(planned.stdout) as typeof plan;
+    } finally {
+      if (previousApi === undefined) delete process.env.ZHINEXUS_API_TOKEN;
+      else process.env.ZHINEXUS_API_TOKEN = previousApi;
+      if (previousRegistry === undefined) delete process.env.ZHINEXUS_REGISTRY_TOKEN;
+      else process.env.ZHINEXUS_REGISTRY_TOKEN = previousRegistry;
+    }
+
+    const applyConfigPath = path.join(artifactRoot, 'cancel-apply-config.json');
+    writeJson(applyConfigPath, {
+      schemaVersion: 1, projectRoot: canonicalRoot, artifactRoot: canonicalProjectRoot(artifactRoot),
+      allowedApiOrigins: [network.apiOrigin], allowedRegistryOrigins: [network.registryOrigin],
+      applyGrant: {
+        schemaVersion: 1, operation: 'apply', projectRoot: canonicalRoot,
+        planDigest: canonicalDigest(plan), allowedPaths: plan.allowedPaths, allowInstall: false,
+      },
+    });
+    const applyConnection = await connectMcp(applyConfigPath, {
+      ZHINEXUS_API_TOKEN: SYNTHETIC_API_TOKEN, ZHINEXUS_REGISTRY_TOKEN: SYNTHETIC_REGISTRY_TOKEN,
+    });
+    let applyResult: Record<string, unknown>;
+    try {
+      const applied = await applyConnection.client.callTool({ name: 'apply_integration', arguments: {
+        plan, apiUrl: network.apiOrigin, registryUrl: network.registryOrigin,
+      } });
+      expect(applied.isError).not.toBe(true);
+      applyResult = JSON.parse((applied.content[0] as { text: string }).text) as Record<string, unknown>;
+      expect(applyResult.status).toBe('applied');
+    } finally {
+      await applyConnection.transport.close();
+    }
+
+    const applyResultDigest = canonicalDigest(applyResult);
+    const packageHash = sha256Hex(fs.readFileSync(path.join(root, 'package.json')));
+    const spec = {
+      schemaVersion: 1 as const, projectRoot: canonicalRoot, planDigest: canonicalDigest(plan), applyResultDigest,
+      commands: [
+        { kind: 'type' as const, script: 'typecheck', manifestPath: 'package.json', manifestSha256: packageHash, timeoutMs: 15_000, outputDirectories: [] },
+        { kind: 'build' as const, script: 'build', manifestPath: 'package.json', manifestSha256: packageHash, timeoutMs: 15_000, outputDirectories: ['dist'] },
+      ],
+      businessGaps: [],
+    };
+    const verifyConfigPath = path.join(artifactRoot, 'cancel-verify-config.json');
+    writeJson(verifyConfigPath, {
+      schemaVersion: 1, projectRoot: canonicalRoot, artifactRoot: canonicalProjectRoot(artifactRoot),
+      verificationGrant: {
+        schemaVersion: 1, operation: 'verify', projectRoot: canonicalRoot,
+        planDigest: canonicalDigest(plan), applyResultDigest, specDigest: canonicalDigest(spec),
+        allowProjectScripts: true, allowBrowser: false, scriptNames: ['typecheck', 'build'],
+        allowedRepairPaths: [], maxAttempts: 0,
+      },
+    });
+    const verificationConnection = await connectMcp(verifyConfigPath);
+    const controller = new AbortController();
+    try {
+      const request = verificationConnection.client.callTool({
+        name: 'verify_integration', arguments: { plan, applyResult, spec },
+      }, { signal: controller.signal });
+      const pidPath = path.join(root, 'cancel-grandchild.pid');
+      const startedAt = Date.now();
+      while (!fs.existsSync(pidPath) && Date.now() - startedAt < 10_000) {
+        await new Promise(resolve => setTimeout(resolve, 25));
+      }
+      expect(fs.existsSync(pidPath)).toBe(true);
+      const childPid = Number(fs.readFileSync(pidPath, 'utf8'));
+      controller.abort();
+      await expect(request).rejects.toThrow();
+      const processAlive = () => {
+        try { process.kill(childPid, 0); return true; }
+        catch (error) { return (error as NodeJS.ErrnoException).code === 'EPERM'; }
+      };
+      const stoppedAt = Date.now();
+      while (processAlive() && Date.now() - stoppedAt < 10_000) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      expect(processAlive()).toBe(false);
+      await new Promise(resolve => setTimeout(resolve, 2300));
+      expect(fs.existsSync(path.join(root, 'cancel-sentinel.txt'))).toBe(false);
+    } finally {
+      controller.abort();
+      await verificationConnection.transport.close();
+    }
   });
 });

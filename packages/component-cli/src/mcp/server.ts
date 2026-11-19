@@ -39,6 +39,8 @@ export type McpHostConfig = {
   schemaVersion: 1;
   projectRoot: string;
   artifactRoot: string;
+  allowedApiOrigins?: string[];
+  allowedRegistryOrigins?: string[];
   applyGrant?: IntegrationApplyAuthorizationV1;
   verificationGrant?: IntegrationExecutionAuthorizationV1;
 };
@@ -48,6 +50,8 @@ const HostConfigSchema = z
     schemaVersion: z.literal(1),
     projectRoot: z.string().min(1),
     artifactRoot: z.string().min(1),
+    allowedApiOrigins: z.array(z.string().min(1)).optional(),
+    allowedRegistryOrigins: z.array(z.string().min(1)).optional(),
     applyGrant: z.unknown().optional(),
     verificationGrant: z.unknown().optional(),
   })
@@ -73,6 +77,27 @@ export function parseMcpHostConfig(configPath: string): McpHostConfig {
   }
   const canonicalArtifact = canonicalProjectRoot(path.resolve(parsed.artifactRoot));
 
+  const normalizeOrigins = (values: string[] | undefined, name: string): string[] | undefined => {
+    if (values === undefined) return undefined;
+    const normalized = values.map(value => {
+      try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
+          throw new Error();
+        }
+        return url.origin;
+      } catch {
+        throw new Error(`INVALID_CONFIG: ${name} 必须只包含 HTTP(S) origin`);
+      }
+    });
+    if (new Set(normalized).size !== normalized.length) {
+      throw new Error(`INVALID_CONFIG: ${name} 不得包含重复 origin`);
+    }
+    return normalized;
+  };
+  const allowedApiOrigins = normalizeOrigins(parsed.allowedApiOrigins, 'allowedApiOrigins');
+  const allowedRegistryOrigins = normalizeOrigins(parsed.allowedRegistryOrigins, 'allowedRegistryOrigins');
+
   let applyGrant: IntegrationApplyAuthorizationV1 | undefined;
   if (parsed.applyGrant !== undefined) {
     const checked = validateIntegrationApplyAuthorization(parsed.applyGrant);
@@ -95,6 +120,8 @@ export function parseMcpHostConfig(configPath: string): McpHostConfig {
     schemaVersion: 1,
     projectRoot: canonicalRoot,
     artifactRoot: canonicalArtifact,
+    ...(allowedApiOrigins ? { allowedApiOrigins } : {}),
+    ...(allowedRegistryOrigins ? { allowedRegistryOrigins } : {}),
     ...(applyGrant ? { applyGrant } : {}),
     ...(verificationGrant ? { verificationGrant } : {}),
   };
@@ -127,6 +154,21 @@ function resolveBoundRoot(requested: string | undefined, boundCanonicalRoot: str
   if (requested === undefined) return boundCanonicalRoot;
   const candidate = canonicalProjectRoot(path.resolve(requested));
   return candidate === boundCanonicalRoot ? candidate : undefined;
+}
+
+function validateMcpEndpoints(config: McpHostConfig, apiUrl: string, registryUrl: string): string | undefined {
+  const isAllowed = (raw: string, allowed: string[] | undefined): boolean => {
+    if (!allowed?.length) return false;
+    try {
+      const url = new URL(raw);
+      return ['http:', 'https:'].includes(url.protocol) && !url.username && !url.password && allowed.includes(url.origin);
+    } catch {
+      return false;
+    }
+  };
+  if (!isAllowed(apiUrl, config.allowedApiOrigins)) return 'API endpoint 未绑定到宿主允许的 origin';
+  if (!isAllowed(registryUrl, config.allowedRegistryOrigins)) return 'Registry endpoint 未绑定到宿主允许的 origin';
+  return undefined;
 }
 
 export function createComponentMcpServer(config: McpHostConfig, version: string): McpServer {
@@ -189,6 +231,8 @@ export function createComponentMcpServer(config: McpHostConfig, version: string)
       if (!checkedMatch.ok) {
         return jsonToolError('INVALID_MATCH_PLAN', 'matchPlan 结构校验失败');
       }
+      const endpointError = validateMcpEndpoints(config, args.apiUrl, args.registryUrl);
+      if (endpointError) return jsonToolError('ENDPOINT_NOT_ALLOWED', endpointError);
       try {
         const plan = await planIntegration(targetRoot, checkedMatch.value, {
           apiUrl: args.apiUrl,
@@ -237,6 +281,8 @@ export function createComponentMcpServer(config: McpHostConfig, version: string)
       if (actualPlanDigest !== config.applyGrant.planDigest) {
         return jsonToolError('AUTHORIZATION_MISMATCH', 'plan 摘要与宿主 applyGrant 不一致');
       }
+      const endpointError = validateMcpEndpoints(config, args.apiUrl, args.registryUrl);
+      if (endpointError) return jsonToolError('ENDPOINT_NOT_ALLOWED', endpointError);
       try {
         const backupRoot = path.join(config.artifactRoot, 'mcp-backups');
         const result = await applyIntegration(targetRoot, checkedPlan.value, {

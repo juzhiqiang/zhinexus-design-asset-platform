@@ -9,7 +9,7 @@
  * - 浏览器仅访问本次显式可信的 loopback URL，拦截外发、下载、弹窗与 `pageerror`；
  * - 报告 `passed` 要求五类检查 + `dependency-guard` 全通过、真实安装树核验、视觉 `PASS` 与匹配环境。
  */
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -130,7 +130,98 @@ function isolatedScriptEnv(toolchain: ResolvedToolchain, isPnpm: boolean): Recor
   return env;
 }
 
-function validateOutputDirectories(
+type NativeCommandResult = {
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  stdout: string;
+  stderr: string;
+  error?: Error;
+  timedOut: boolean;
+  cancelled: boolean;
+};
+
+async function runNativeCommand(
+  executable: string,
+  args: readonly string[],
+  options: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal },
+): Promise<NativeCommandResult> {
+  return new Promise(resolve => {
+    const child = spawn(executable, [...args], {
+      cwd: options.cwd, env: options.env, shell: false, windowsHide: true,
+      detached: process.platform !== 'win32', stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    const outputLimit = 1024 * 1024;
+    let stdout = '';
+    let stderr = '';
+    let error: Error | undefined;
+    let timedOut = false;
+    let cancelled = false;
+    let termination: Promise<void> | undefined;
+    const closed = new Promise<{ code: number | null; signal: NodeJS.Signals | null }>(done => {
+      child.once('close', (code, signal) => done({ code, signal }));
+    });
+    const append = (current: string, chunk: Buffer): string => {
+      if (Buffer.byteLength(current) >= outputLimit) return current;
+      const remaining = outputLimit - Buffer.byteLength(current);
+      return current + chunk.subarray(0, remaining).toString('utf8');
+    };
+    child.stdout.on('data', (chunk: Buffer) => { stdout = append(stdout, chunk); });
+    child.stderr.on('data', (chunk: Buffer) => { stderr = append(stderr, chunk); });
+    child.once('error', value => { error = value; });
+
+    const terminateTree = (): Promise<void> => {
+      if (termination) return termination;
+      termination = (async () => {
+        if (child.pid === undefined) {
+          child.kill();
+          await closed;
+          return;
+        }
+        if (process.platform === 'win32') {
+          const systemRoot = process.env.SystemRoot ?? process.env.SYSTEMROOT ?? 'C:\\Windows';
+          const killer = spawn(path.join(systemRoot, 'System32', 'taskkill.exe'), ['/PID', String(child.pid), '/T', '/F'], {
+            stdio: 'ignore', windowsHide: true, shell: false,
+          });
+          await new Promise<void>(done => {
+            killer.once('error', () => {
+              child.kill();
+              done();
+            });
+            killer.once('close', code => {
+              if (code !== 0 && child.exitCode === null) child.kill();
+              done();
+            });
+          });
+        } else {
+          try { process.kill(-child.pid, 'SIGTERM'); } catch { child.kill('SIGTERM'); }
+          await Promise.race([closed.then(() => undefined), new Promise<void>(done => setTimeout(done, 500))]);
+          try { process.kill(-child.pid, 'SIGKILL'); } catch { /* process group already exited */ }
+        }
+        await closed;
+      })();
+      return termination;
+    };
+    const onAbort = () => {
+      cancelled = true;
+      void terminateTree();
+    };
+    options.signal?.addEventListener('abort', onAbort, { once: true });
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      void terminateTree();
+    }, options.timeoutMs);
+    if (options.signal?.aborted) onAbort();
+
+    void closed.then(async result => {
+      if (termination) await termination;
+      clearTimeout(timeout);
+      options.signal?.removeEventListener('abort', onAbort);
+      resolve({ status: result.code, signal: result.signal, stdout, stderr, ...(error ? { error } : {}), timedOut, cancelled });
+    });
+  });
+}
+
+export function validateOutputDirectories(
   realProjectRoot: string,
   commands: IntegrationVerificationSpecV1['commands'],
 ): { ok: true; excludedRelPaths: Set<string> } | { ok: false; issue: IntegrationVerificationIssue } {
@@ -163,7 +254,7 @@ function validateOutputDirectories(
   return { ok: true, excludedRelPaths };
 }
 
-function collectSourceSnapshots(
+export function collectSourceSnapshots(
   realProjectRoot: string,
   excludedOutputDirs: ReadonlySet<string>,
 ): { ok: true; snapshots: IntegrationFileSnapshot[] } | { ok: false; issue: IntegrationVerificationIssue } {
@@ -415,6 +506,7 @@ async function runBrowserVerification(params: {
       timezoneId: env.timezone,
       acceptDownloads: false,
     });
+    const runtimeErrors: string[] = [];
     const page = await context.newPage();
     await page.addInitScript(({ allowedOrigin }) => {
       const diagnostics: string[] = [];
@@ -448,7 +540,6 @@ async function runBrowserVerification(params: {
       };
     }, { allowedOrigin: targetOrigin });
 
-    const runtimeErrors: string[] = [];
     page.on('pageerror', err => {
       runtimeErrors.push('pageerror: ' + sanitizeBrowserDiagnostic(err.message));
     });
@@ -465,7 +556,7 @@ async function runBrowserVerification(params: {
       void download.cancel().catch(() => {});
     });
 
-    await page.route('**/*', async route => {
+    await context.route('**/*', async route => {
       const reqUrl = route.request().url();
       if (!isAllowedLoopbackRequest(reqUrl, targetOrigin)) {
         runtimeErrors.push('outbound_blocked: ' + sanitizeBrowserDiagnostic(reqUrl));
@@ -474,7 +565,7 @@ async function runBrowserVerification(params: {
       }
       await route.continue();
     });
-    page.routeWebSocket('**/*', async wsRoute => {
+    context.routeWebSocket('**/*', async wsRoute => {
       const reqUrl = wsRoute.url();
       if (!isAllowedLoopbackRequest(reqUrl, targetOrigin)) {
         runtimeErrors.push('websocket_blocked: ' + sanitizeBrowserDiagnostic(reqUrl));
@@ -794,6 +885,13 @@ export async function verifyIntegrationInternal(
 
   for (const cmd of options.spec.commands) {
     if (commandFailed || options.signal?.aborted) {
+      if (options.signal?.aborted && !pendingItems.some(issue => issue.code === 'CANCELLED')) {
+        const issue = verificationIssue('CANCELLED');
+        pendingItems.push(issue);
+        checks.push({ id: `${cmd.kind}-${cmd.script}`, category: cmd.kind, status: 'failed', issues: [issue], evidence: [] });
+        commandFailed = true;
+        continue;
+      }
       checks.push({
         id: `${cmd.kind}-${cmd.script}`,
         category: cmd.kind,
@@ -839,30 +937,25 @@ export async function verifyIntegrationInternal(
     }
 
     const cwd = path.dirname(manifestAbs);
-    const res =
-      pm === 'npm'
-        ? spawnSync(toolchain.nodeExe, [toolchain.npmCli, '--ignore-scripts', 'run', cmd.script], {
-            cwd,
-            env: scriptEnv,
-            shell: false,
-            timeout: cmd.timeoutMs,
-            encoding: 'utf8',
-          })
-        : spawnSync(toolchain.pnpmExe, ['run', cmd.script], {
-            cwd,
-            env: scriptEnv,
-            shell: false,
-            timeout: cmd.timeoutMs,
-            encoding: 'utf8',
-          });
+    const res = pm === 'npm'
+      ? await runNativeCommand(toolchain.nodeExe, [toolchain.npmCli, '--ignore-scripts', 'run', cmd.script], {
+          cwd, env: scriptEnv, timeoutMs: cmd.timeoutMs, signal: options.signal,
+        })
+      : await runNativeCommand(toolchain.pnpmExe, ['run', cmd.script], {
+          cwd, env: scriptEnv, timeoutMs: cmd.timeoutMs, signal: options.signal,
+        });
 
     const logText = sanitizeDiagnosticText(
       `exitCode=${res.status ?? 'null'}\nsignal=${res.signal ?? 'none'}\n--- stdout ---\n${res.stdout ?? ''}\n--- stderr ---\n${res.stderr ?? ''}\n`,
     );
     const logRef = session.writeText(`${cmd.kind}-${cmd.script}.log`, logText);
 
-    const isTimeout = (res.error as NodeJS.ErrnoException | undefined)?.code === 'ETIMEDOUT' || res.signal === 'SIGTERM';
-    if (isTimeout) {
+    if (res.cancelled) {
+      const issue = verificationIssue('CANCELLED');
+      pendingItems.push(issue);
+      checks.push({ id: `${cmd.kind}-${cmd.script}`, category: cmd.kind, status: 'failed', issues: [issue], evidence: [logRef] });
+      commandFailed = true;
+    } else if (res.timedOut) {
       const issue = verificationIssue('TIMEOUT');
       pendingItems.push(issue);
       checks.push({ id: `${cmd.kind}-${cmd.script}`, category: cmd.kind, status: 'failed', issues: [issue], evidence: [logRef] });

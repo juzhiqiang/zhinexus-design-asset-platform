@@ -47,7 +47,7 @@ import {
   verificationIssue,
   type RunArtifactSession,
 } from './report.js';
-import { verifyIntegrationInternal } from './verify.js';
+import { collectSourceSnapshots, validateOutputDirectories, verifyIntegrationInternal } from './verify.js';
 import { isInsideDirectory, realpathOrSelf } from './workspace.js';
 
 export type RepairIntegrationOptions = {
@@ -287,6 +287,35 @@ export async function repairIntegration(
       stopReason: 'missing-business-info',
       finalReport: report,
       issue: verificationIssue('MISSING_BUSINESS_INFO'),
+    });
+  }
+
+  const outputDirCheck = validateOutputDirectories(realProjectRoot, options.spec.commands);
+  if (!outputDirCheck.ok) {
+    return blockedRepairResult({
+      id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+      maxAttempts: requestedMax, stopReason: 'invalid-input', finalReport: report, issue: outputDirCheck.issue,
+    });
+  }
+  const currentSource = collectSourceSnapshots(realProjectRoot, outputDirCheck.excludedRelPaths);
+  if (!currentSource.ok) {
+    return blockedRepairResult({
+      id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+      maxAttempts: requestedMax, stopReason: 'invalid-input', finalReport: report, issue: currentSource.issue,
+    });
+  }
+  const reportedAfter = new Map(report.snapshots.after.map(snapshot => [snapshot.path, snapshot]));
+  const currentAfter = new Map(currentSource.snapshots.map(snapshot => [snapshot.path, snapshot]));
+  const changedSinceReport = [...new Set([...reportedAfter.keys(), ...currentAfter.keys()])].sort().find(filePath => {
+    const expected = reportedAfter.get(filePath);
+    const actual = currentAfter.get(filePath);
+    return expected?.exists !== actual?.exists || expected?.sha256 !== actual?.sha256;
+  });
+  if (changedSinceReport) {
+    return blockedRepairResult({
+      id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+      maxAttempts: requestedMax, stopReason: 'user-edited', finalReport: report,
+      issue: verificationIssue('USER_EDITED', changedSinceReport),
     });
   }
 
