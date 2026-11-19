@@ -18,6 +18,8 @@ import { validIntegrationPlanFixture } from '../../fixtures/integration-plan.js'
 import { applyResultFixture } from '../../fixtures/integration-apply.js';
 import { verificationReportFixture, verificationSpecFixture } from '../../fixtures/integration-verification.js';
 import { repairResultFixture, repairSourceReportFixture } from '../../fixtures/integration-repair.js';
+import { buildMatchPlanForHost } from './chain.js';
+import type { T17HostInputs } from './e2e-config.js';
 
 const sha = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 const digest = (value: unknown) => sha(canonicalJson(value));
@@ -31,6 +33,48 @@ async function loadChainModule(): Promise<Record<string, unknown>> {
 }
 
 describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', () => {
+  it('拒绝从不完整冻结 SDK manifest 推断 package、variant 或摘要身份', () => {
+    const makeInputs = (overrides: {
+      packageEntry?: Record<string, unknown> | null;
+      variantEntry?: Record<string, unknown> | null;
+    } = {}): T17HostInputs => ({
+      cliTarball: 'C:/frozen/cli.tgz', cliSha256: 'a'.repeat(64), cliVersion: '0.0.17',
+      sdkBundle: 'C:/frozen/sdk', sdkManifestSha256: 'b'.repeat(64),
+      apiUrl: 'http://127.0.0.1:4300', registryUrl: 'http://127.0.0.1:4873',
+      variantsFile: 'C:/frozen/variants.json', variantsSha256: 'c'.repeat(64),
+      apiToken: 'api-token', registryToken: 'registry-token',
+      variants: { schemaVersion: 1, variants: [{ componentId: 'line', framework: 'vue', variantReleaseId: 'variant-line-vue-1' }] },
+      sdkManifest: {
+        schemaVersion: 1, files: [],
+        packages: overrides.packageEntry === null ? [] : [overrides.packageEntry ?? {
+          name: '@company/charts-vue', version: '0.0.12', tarball: { sha256: 'd'.repeat(64) },
+        }],
+        variants: overrides.variantEntry === null ? [] : [overrides.variantEntry ?? {
+          componentId: 'line', framework: 'vue', exportName: 'LineChart', exportPath: './line',
+        }],
+      },
+    } as T17HostInputs);
+
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: null }))).toThrow(/package.*manifest|manifest.*package/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: { name: '@company/charts-vue', tarball: { sha256: 'd'.repeat(64) } } }))).toThrow(/version/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: { name: '@company/charts-vue', version: '^0.0.12', tarball: { sha256: 'd'.repeat(64) } } }))).toThrow(/version/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: { name: '@company/charts-vue', version: '0.0.12', tarball: {} } }))).toThrow(/sha|digest/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: { name: '@company/charts-vue', version: '0.0.12', tarball: { sha256: 'not-a-sha' } } }))).toThrow(/sha|digest/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: null }))).toThrow(/variant.*manifest|manifest.*variant/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue' } }))).toThrow(/export/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', exportName: 'LineChart' } }))).toThrow(/export/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', exportPath: './line' } }))).toThrow(/export/i);
+
+    const complete = buildMatchPlanForHost('vue', makeInputs());
+    expect(complete.elements[0]?.target).toMatchObject({
+      packageName: '@company/charts-vue',
+      packageVersion: '0.0.12',
+      packageSha256: 'd'.repeat(64),
+      exportName: 'LineChart',
+      exportPath: './line',
+    });
+  });
+
   it('缺失冻结 tarball、服务凭据、SDK bundle 或变体映射时 fail-closed', async () => {
     const mod = await loadChainModule();
     expect(typeof mod.runT17HostAcceptanceChain).toBe('function');

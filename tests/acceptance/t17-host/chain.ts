@@ -202,20 +202,54 @@ export function buildMatchPlanForHost(
   if (!variant) {
     throw new Error(`Missing variant mapping for framework=${framework} in T17 host inputs.`);
   }
-  const manifestVariants = inputs.sdkManifest.variants as Array<Record<string, unknown>>;
-  const sdkVariant = manifestVariants.find(
-    v => v.componentId === variant.componentId && v.framework === framework,
-  );
-  const manifestPackages = inputs.sdkManifest.packages as Array<Record<string, unknown>>;
+  const manifestVariants = inputs.sdkManifest.variants;
+  const manifestPackages = inputs.sdkManifest.packages;
+  if (!Array.isArray(manifestVariants) || !Array.isArray(manifestPackages)) {
+    throw new Error('Frozen SDK manifest must contain packages and variants arrays.');
+  }
+
   const pkgName = `@company/charts-${framework}`;
-  const sdkPkg = manifestPackages.find(p => p.name === pkgName);
-  const pkgVersion = typeof sdkPkg?.version === 'string' ? sdkPkg.version : '0.0.12';
-  const pkgSha =
-    isRecord(sdkPkg?.tarball) && typeof sdkPkg.tarball.sha256 === 'string'
-      ? sdkPkg.tarball.sha256
-      : 'b'.repeat(64);
-  const exportName = typeof sdkVariant?.exportName === 'string' ? sdkVariant.exportName : 'LineChart';
-  const exportPath = typeof sdkVariant?.exportPath === 'string' ? sdkVariant.exportPath : './line';
+  const sdkPkg = manifestPackages.find(p => isRecord(p) && p.name === pkgName);
+  if (!isRecord(sdkPkg)) {
+    throw new Error(`Missing package ${pkgName} in frozen SDK manifest.`);
+  }
+  if (
+    typeof sdkPkg.version !== 'string' ||
+    !/^(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/.test(sdkPkg.version)
+  ) {
+    throw new Error(`Missing or invalid exact package version for ${pkgName} in frozen SDK manifest.`);
+  }
+  const pkgVersion = sdkPkg.version;
+
+  if (
+    !isRecord(sdkPkg.tarball) ||
+    typeof sdkPkg.tarball.sha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(sdkPkg.tarball.sha256)
+  ) {
+    throw new Error(`Missing or invalid tarball SHA-256 digest for ${pkgName} in frozen SDK manifest.`);
+  }
+  const pkgSha = sdkPkg.tarball.sha256;
+
+  const sdkVariant = manifestVariants.find(
+    v => isRecord(v) && v.componentId === variant.componentId && v.framework === framework,
+  );
+  if (!isRecord(sdkVariant)) {
+    throw new Error(`Missing variant ${variant.componentId}:${framework} in frozen SDK manifest.`);
+  }
+  if (
+    typeof sdkVariant.exportName !== 'string' ||
+    !/^[A-Za-z_$][A-Za-z0-9_$]*$/.test(sdkVariant.exportName)
+  ) {
+    throw new Error(`Missing or invalid variant exportName for ${variant.componentId}:${framework} in frozen SDK manifest.`);
+  }
+  if (
+    typeof sdkVariant.exportPath !== 'string' ||
+    !/^\.(?:\/[A-Za-z0-9._-]+)+$/.test(sdkVariant.exportPath)
+  ) {
+    throw new Error(`Missing or invalid variant exportPath for ${variant.componentId}:${framework} in frozen SDK manifest.`);
+  }
+  const exportName = sdkVariant.exportName;
+  const exportPath = sdkVariant.exportPath;
 
   const frameworkVersion = framework === 'vue' ? '3.5.45' : '19.3.1';
   const exactDependencies = [
