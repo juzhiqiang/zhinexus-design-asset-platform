@@ -919,10 +919,8 @@ function normalizeRegistryOrigin(raw: string): string {
 /**
  * 结果自校验：先过契约结构校验，再补上与计划上下文的交叉核验。
  *
- * 与 `validateIntegrationApplyResult(input, context)` 的差异只有一条：无安装意图时
- * `installedVersions` 必须为空（不得把计划或锁内版本冒称“已安装”），因此这里自行核验
- * “有安装意图时 installedVersions 必须逐一等于计划确切依赖”，而不是套用契约里那条
- * 对无安装意图场景未定义的等量要求。
+ * 与共享契约保持一致：无安装意图时 `installedVersions` 必须为空，不能把计划或锁内
+ * 版本冒称本次安装证据；有安装意图时逐一核验计划确切依赖。T17 另行读取真实安装树。
  */
 function finishApply(
   outcome: ApplyOutcome,

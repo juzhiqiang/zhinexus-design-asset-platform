@@ -24,6 +24,49 @@ describe('T16 apply authorization and recovery contracts', () => {
     expect(context.plan.executionAuthorized).toBe(false);
     reject(auth(context.plan));
   });
+  const noInstallCase = () => {
+    const context = authorizationContextFixture();
+    const generated = context.plan.changes.filter(change => change.kind === 'generated-component');
+    context.plan.changes = generated;
+    context.plan.allowedPaths = generated.map(change => change.path);
+    context.plan.commands = context.plan.commands.filter(command => command.purpose !== 'install');
+    for (const dependency of context.plan.exactDependencies) {
+      if (!context.plan.localProject.resolvedDependencies.some(value => value.name === dependency.name)) {
+        context.plan.localProject.resolvedDependencies.push({ ...dependency, specifier: dependency.version });
+      }
+    }
+    const applied = applyResultFixture();
+    applied.changedFiles = [...context.plan.allowedPaths];
+    applied.beforeHashes = applied.beforeHashes.filter(value => applied.changedFiles.includes(value.path));
+    applied.afterHashes = applied.afterHashes.filter(value => applied.changedFiles.includes(value.path));
+    applied.installState = 'not-run';
+    applied.installedVersions = [];
+    return { context, applied };
+  };
+  it('accepts an applied no-install result with empty installation evidence in its valid plan context', () => {
+    const { context, applied } = noInstallCase();
+    expect(contracts.validateIntegrationPlan(context.plan)).toMatchObject({ ok: true });
+    expect(result(applied)).toMatchObject({ ok: true });
+    expect(result(applied, context)).toMatchObject({ ok: true });
+  });
+  it('rejects invented installed versions when this operation did not install dependencies', () => {
+    const { context, applied } = noInstallCase();
+    applied.installedVersions = context.plan.exactDependencies.map(value => ({ ...value }));
+    reject(result(applied));
+    reject(result(applied, context));
+  });
+  it('still rejects missing actual installation evidence for a plan that requires installation', () => {
+    const applied = applyResultFixture();
+    applied.installedVersions = [];
+    reject(result(applied, authorizationContextFixture()));
+    applied.installState = 'not-run';
+    reject(result(applied, authorizationContextFixture()));
+  });
+  it('rejects a no-install result claiming that installation succeeded', () => {
+    const { context, applied } = noInstallCase();
+    applied.installState = 'succeeded';
+    reject(result(applied, context));
+  });
   it.each([
     ['missing authorization operation', (p: any) => { delete p.operation; }],
     ['other operation', (p: any) => { p.operation = 'plan'; }],

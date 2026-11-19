@@ -294,7 +294,7 @@ function positiveErrors(receipt: T17CellReceipt, scenarioId: string, cliSha: str
   } else if (Array.isArray(exactDependencies)) {
     const expected = exactDependencies.map((dependency) => isRecord(dependency) ? { name: dependency.name, version: dependency.version } : null).sort((a, b) => String(a?.name).localeCompare(String(b?.name)));
     const actual = applyValidation.value.installedVersions.map((dependency) => ({ name: dependency.name, version: dependency.version })).sort((a, b) => a.name.localeCompare(b.name));
-    if (canonicalJson(actual) !== canonicalJson(expected)) errors.push(scenarioId + ': apply 已安装依赖与 plan exactDependencies 不一致');
+    if (applyValidation.value.installState === 'succeeded' && canonicalJson(actual) !== canonicalJson(expected)) errors.push(scenarioId + ': apply 已安装依赖与 plan exactDependencies 不一致');
   }
   const specValidation = specEvidence.error ? undefined : validateIntegrationVerificationSpec(specEvidence.value);
   if (!specValidation?.ok || specValidation.value.projectRoot !== receipt.projectRoot || specValidation.value.planDigest !== receipt.planSha256 || specValidation.value.applyResultDigest !== receipt.applyResultSha256) {

@@ -141,7 +141,7 @@ function applyForReceipt(receipt: T17CellReceipt) {
   return {
     schemaVersion: 1, operation: 'apply', operationId, projectRoot: receipt.projectRoot, planDigest: receipt.planSha256,
     status: 'applied', changedFiles: [path], beforeHashes: [{ path, exists: false }],
-    afterHashes: [{ path, exists: true, sha256: '8'.repeat(64) }], installedVersions: exactDependencies(receipt.framework),
+    afterHashes: [{ path, exists: true, sha256: '8'.repeat(64) }], installedVersions: [],
     issues: [], backupRef: { id: operationId, sha256: '7'.repeat(64) }, installState: 'not-run',
   };
 }
