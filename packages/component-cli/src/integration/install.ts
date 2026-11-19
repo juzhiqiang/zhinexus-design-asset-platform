@@ -67,11 +67,12 @@ function isDirectory(absolute: string): boolean {
 }
 
 /**
- * 定位工作区 `.tools`：从本模块目录向上找，再从 cwd 向上找。
+ * 定位工作区 `.tools`：依次从本模块目录、cwd、实际启动进程的 Node 路径向上找。
+ * 最后一项支持模块与 cwd 均在仓外的已安装 CLI；仍只接受固定目录与精确版本。
  * 找不到即失败关闭——绝不从 PATH 或其他位置猜测工具链。
  */
 function findToolRoot(): string | undefined {
-  const candidates = [moduleDirectory(), path.resolve(process.cwd())];
+  const candidates = [moduleDirectory(), path.resolve(process.cwd()), path.dirname(process.execPath)];
   for (const start of candidates) {
     let current = path.resolve(start);
     for (;;) {
