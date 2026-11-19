@@ -2,7 +2,8 @@ import { createHash, randomBytes } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { lstat, mkdir, mkdtemp, readFile, readdir, readlink, realpath, rmdir, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
 export type Framework='vue'|'react';
 type OwnedChild={name:string;path:string;markerHash:string;identity:{dev:string;ino:string}};
@@ -11,9 +12,11 @@ type EvidenceEntry={name:string;sha256:string;bytes:number};
 type Identity={dev:string;ino:string};
 type InventoryNode={name:string;kind:'file'|'directory'|'symlink';identity:Identity;bytes:number;sha256?:string;target?:string;children?:InventoryNode[]};
 type Inventory={identity:Identity;children:InventoryNode[];recursive:boolean};
-type Seal={schemaVersion:1;runId:string;parentRoot:string;evidenceRoot:string;payload:Record<string,unknown>;projects:Record<string,ProjectEntry[]>;files:EvidenceEntry[];inventories:{parentRoot:Inventory;projects:Record<string,Inventory>;files:Inventory;evidenceAreas:Record<string,Inventory>;evidenceRoot:Inventory}};
+type Seal={schemaVersion:1;runId:string;parentRoot:string;evidenceRoot:string;payload:Record<string,unknown>;projects:Record<string,ProjectEntry[]>;files:EvidenceEntry[];inventories:{parentRoot:Inventory;projects:Record<string,Inventory>;files:Inventory;evidenceAreas:Record<string,Inventory>;installQuarantines:Record<string,Inventory>;evidenceRoot:Inventory}};
 export type BuiltHost={url:string;servedAssets:ReadonlyMap<string,{path:string;sha256:string;bytes:number}>;close():Promise<void>};
-export type OwnedRun={runId:string;parentRoot:string;evidenceRoot:string;projectRoots:Record<Framework,string>;makeOwnedProject(name:string):Promise<string>;registerOwnedPath(path:string,relativePaths:string[]):Promise<void>;createEvidenceArea(name:string):Promise<string>;registerEvidenceAreaContents(path:string,relativePaths:string[]):Promise<void>;trackOwnedProcess(close:()=>Promise<void>):()=>void;writeEvidence(name:string,bytes:Uint8Array):Promise<{path:string;sha256:string;bytes:number}>;stopOwnedProcesses():Promise<void>;sealEvidence(payload:Record<string,unknown>):Promise<string>;cleanup():Promise<void>;abortForTest():Promise<void>};
+export type InstallDeliveryGuard={register(operationId:string):Promise<void>};
+export type InstallDeliveryInput={projectRoot:string;backupRoot:string;planDigest:string;targets?:string[]};
+export type OwnedRun={runId:string;parentRoot:string;evidenceRoot:string;projectRoots:Record<Framework,string>;makeOwnedProject(name:string):Promise<string>;assertOwnedProject(path:string):Promise<void>;prepareInstallDelivery(options:InstallDeliveryInput):Promise<InstallDeliveryGuard>;registerOwnedPath(path:string,relativePaths:string[]):Promise<void>;createEvidenceArea(name:string):Promise<string>;registerEvidenceAreaContents(path:string,relativePaths:string[]):Promise<void>;trackOwnedProcess(close:()=>Promise<void>):()=>void;writeEvidence(name:string,bytes:Uint8Array):Promise<{path:string;sha256:string;bytes:number}>;stopOwnedProcesses():Promise<void>;sealEvidence(payload:Record<string,unknown>):Promise<string>;cleanup():Promise<void>;abortForTest(options?:{preserveEvidence?:boolean}):Promise<void>};
 const sha=(bytes:Uint8Array)=>createHash('sha256').update(bytes).digest('hex');
 const MARKER='.t17-owner.json';
 const inside=(root:string,value:string)=>{const rel=relative(root,value);return rel===''||(!isAbsolute(rel)&&rel!=='..'&&!rel.startsWith('..'+sep));};
@@ -68,15 +71,16 @@ export async function createOwnedRun(options:{baseDirectory?:string}={}):Promise
   const runId=randomBytes(16).toString('hex'),parentRoot=await mkdtemp(join(base,'zhinexus-t17-'+runId+'-')),evidenceRoot=await mkdtemp(join(base,'zhinexus-t17-evidence-'+runId+'-'));
   if(inside(parentRoot,evidenceRoot)||inside(evidenceRoot,parentRoot))throw Error('Evidence must be external to projects.');
   const filesRoot=join(evidenceRoot,'files');await mkdir(filesRoot);
-  const children=new Map<string,OwnedChild>(),registered=new Map<string,Inventory>(),projectPaths=new Map<string,Set<string>>(),evidenceAreas=new Map<string,{path:string;identity:Identity;paths:Set<string>}>(),evidenceFiles=new Map<string,EvidenceEntry>(),closers=new Set<()=>Promise<void>>();
+  const children=new Map<string,OwnedChild>(),registered=new Map<string,Inventory>(),projectPaths=new Map<string,Set<string>>(),evidenceAreas=new Map<string,{path:string;identity:Identity;paths:Set<string>}>(),evidenceFiles=new Map<string,EvidenceEntry>(),installQuarantines=new Map<string,Inventory>(),pendingDeliveries=new Set<string>(),closers=new Set<()=>Promise<void>>();
   const runChild={name:'run',path:parentRoot,markerHash:await ownerMarker(parentRoot,runId,'run'),identity:await objectIdentity(parentRoot)},evidenceChild={name:'evidence',path:evidenceRoot,markerHash:await ownerMarker(evidenceRoot,runId,'evidence'),identity:await objectIdentity(evidenceRoot)};
   let stopped=false,sealed=false,cleaned=false,sealSha256:string|undefined;
-  const registerParent=async()=>{const expected=[MARKER,...children.keys()].sort(),actual=(await readdir(parentRoot)).sort();if(canonicalJson(actual)!==canonicalJson(expected))throw Error('Owner root contains an unregistered entry.');registered.set(parentRoot,await captureInventory(parentRoot,[],false));};
+  const registerParent=async()=>{const expected=[MARKER,...children.keys(),...installQuarantines.keys()].sort(),actual=(await readdir(parentRoot)).sort();if(canonicalJson(actual)!==canonicalJson(expected))throw Error('Owner root contains an unregistered entry.');registered.set(parentRoot,await captureInventory(parentRoot,[],false));};
   const registerEvidenceRoot=async(includeSeal=false)=>{const expected=[MARKER,'files',...evidenceAreas.keys(),...(includeSeal?['run-seal.json']:[])].sort(),actual=(await readdir(evidenceRoot)).sort();if(canonicalJson(actual)!==canonicalJson(expected))throw Error('Evidence root contains an unregistered entry.');registered.set(evidenceRoot,await captureInventory(evidenceRoot,[],false));};
   const makeOwnedProject=async(name:string)=>{
     if(!safeName(name)||children.has(name))throw Error('Invalid or duplicate owned project.');
     const path=join(parentRoot,name);await mkdir(path);const child={name,path,markerHash:await ownerMarker(path,runId,name),identity:await objectIdentity(path)};children.set(name,child);projectPaths.set(path,new Set());registered.set(path,await captureDeclaredInventory(path,new Set(),{fixedNames:[MARKER]}));await registerParent();return path;
   };
+  const assertOwnedProject=async(path:string)=>{const target=resolve(path),child=[...children.values()].find(value=>resolve(value.path)===target);if(!child)throw Error('Only an owned project can be used as an execution root.');await assertOwner(child,runId);};
   const registerOwnedPath=async(path:string,relativePaths:string[])=>{
     if(cleaned||sealed)throw Error('Cannot register project output after the run is closed.');
     const target=resolve(path),child=[...children.values()].find(value=>resolve(value.path)===target);
@@ -95,10 +99,103 @@ export async function createOwnedRun(options:{baseDirectory?:string}={}):Promise
     const identity=await objectIdentity(area.path);if(identity.dev!==area.identity.dev||identity.ino!==area.identity.ino)throw Error('Evidence area identity changed.');
     const previous=registered.get(area.path);if(!previous)throw Error('Evidence area registration is missing.');const existing=await captureDeclaredInventory(area.path,area.paths,{strict:false});if(canonicalJson(existing)!==canonicalJson(previous))throw Error('Previously registered evidence content changed.');const next=new Set(area.paths);for(const relativePath of normalizedOwnedPaths(relativePaths))next.add(relativePath);const inventory=await captureDeclaredInventory(area.path,next);area.paths=next;registered.set(area.path,inventory);await registerEvidenceRoot();
   };
+  // A private pre-execution snapshot is the authority; a filename prefix or journal alone is not.
+  const prepareInstallDelivery=async(options:InstallDeliveryInput):Promise<InstallDeliveryGuard>=>{
+    if(cleaned||sealed)throw Error('Cannot capture delivery ownership after the run is closed.');
+    const projectRoot=resolve(options.projectRoot),backupRoot=resolve(options.backupRoot);
+    await assertOwner(runChild,runId);await assertOwner(evidenceChild,runId);await assertOwnedProject(projectRoot);
+    const area=[...evidenceAreas.values()].find(candidate=>candidate.path===backupRoot);
+    if(!area)throw Error('Delivery backup root must be an exact owned evidence area.');
+    if(!/^[0-9a-f]{64}$/.test(options.planDigest)||pendingDeliveries.has(projectRoot))throw Error('Invalid or duplicate delivery ownership capture.');
+    const assertBackupArea=async()=>{
+      const st=await lstat(backupRoot,{bigint:true});
+      if(!st.isDirectory()||st.isSymbolicLink()||await realpath(backupRoot)!==backupRoot
+        ||String(st.dev)!==area.identity.dev||String(st.ino)!==area.identity.ino)throw Error('Delivery backup area identity changed.');
+    };
+    await assertBackupArea();
+    const backupInventory=registered.get(backupRoot),parentInventory=registered.get(parentRoot);
+    if(!backupInventory||!parentInventory)throw Error('Delivery ownership registration is missing.');
+    await assertInventory(backupRoot,backupInventory);await assertInventory(parentRoot,parentInventory);
+    if((await readdir(backupRoot)).length)throw Error('Delivery backup area must be empty before the operation.');
+    const rawTargets=options.targets??['node_modules'],targets=normalizedOwnedPaths(rawTargets);
+    if(targets.size!==rawTargets.length)throw Error('Delivery targets must be unique.');
+    const originals=new Map<string,Inventory|undefined>(),ancestorIdentities=new Map<string,Identity>();
+    const linkFree=(nodes:InventoryNode[]):boolean=>nodes.every(node=>node.kind!=='symlink'&&(!node.children||linkFree(node.children)));
+    for(const target of targets){
+      if(target!=='node_modules'&&!target.endsWith('/node_modules'))throw Error('Delivery target must be an exact node_modules directory.');
+      const parts=target.split('/');let ancestor=projectRoot;
+      for(const part of parts.slice(0,-1)){
+        ancestor=join(ancestor,part);const st=await lstat(ancestor);
+        if(!st.isDirectory()||st.isSymbolicLink()||await realpath(ancestor)!==ancestor)throw Error('Delivery importer ancestor is unsafe.');
+        ancestorIdentities.set(ancestor,await objectIdentity(ancestor));
+      }
+      const path=join(projectRoot,target);let inventory:Inventory|undefined;
+      try{inventory=await captureInventory(path);}
+      catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
+      if(inventory&&!linkFree(inventory.children))throw Error('Delivery original dependency tree contains a link.');
+      originals.set(target,inventory);
+    }
+    const before=await captureInventory(parentRoot,[],false),planDigest=options.planDigest;
+    pendingDeliveries.add(projectRoot);let used=false;
+    return Object.freeze({async register(operationId:string){
+      if(used||cleaned||sealed)throw Error('Delivery guard may only be used once before the run is closed.');
+      used=true;
+      if(!safeName(operationId))throw Error('Delivery operation id is unsafe.');
+      await assertOwner(runChild,runId);await assertOwner(evidenceChild,runId);await assertOwnedProject(projectRoot);await assertBackupArea();
+      for(const [path,identity] of ancestorIdentities){
+        const st=await lstat(path);
+        if(!st.isDirectory()||st.isSymbolicLink()||await realpath(path)!==path||canonicalJson(await objectIdentity(path))!==canonicalJson(identity))throw Error('Delivery importer ancestor identity changed.');
+      }
+      if(canonicalJson((await readdir(backupRoot)).sort())!==canonicalJson([operationId]))throw Error('Delivery backup area contains an unknown or duplicate operation.');
+      const operationRoot=join(backupRoot,operationId),operationStat=await lstat(operationRoot);
+      if(!operationStat.isDirectory()||operationStat.isSymbolicLink()||await realpath(operationRoot)!==operationRoot)throw Error('Delivery operation directory is linked or unsafe.');
+      const operationNames=await readdir(operationRoot);
+      if(!operationNames.includes('install-delivery.json')||operationNames.some(name=>!['install-delivery.json','latest.json','versions'].includes(name)))throw Error('Delivery operation contains an unknown journal or entry.');
+      const journalPath=join(operationRoot,'install-delivery.json'),journalStat=await lstat(journalPath,{bigint:true});
+      if(!journalStat.isFile()||journalStat.isSymbolicLink()||journalStat.nlink!==1n||await realpath(journalPath)!==journalPath)throw Error('Delivery journal must be an ordinary retained file.');
+      const journalBytes=await readFile(journalPath),journalAfter=await lstat(journalPath,{bigint:true});
+      if(!journalAfter.isFile()||journalAfter.isSymbolicLink()||journalAfter.nlink!==1n||journalAfter.dev!==journalStat.dev||journalAfter.ino!==journalStat.ino||journalAfter.size!==BigInt(journalBytes.length))throw Error('Delivery journal identity changed during read-back.');
+      const record=(value:unknown):value is Record<string,unknown>=>typeof value==='object'&&value!==null&&!Array.isArray(value);
+      const journal:unknown=JSON.parse(journalBytes.toString('utf8'));
+      if(!record(journal)||journal.schemaVersion!==1||journal.kind!=='t16-install-delivery'||journal.operationId!==operationId
+        ||journal.projectRoot!==projectRoot.replaceAll('\\','/')||journal.planDigest!==planDigest||!Array.isArray(journal.entries)||journal.entries.length!==targets.size)throw Error('Delivery journal identity, plan, or importer inventory is invalid.');
+      const seenTargets=new Set<string>(),roots=new Map<string,Set<string>>();
+      for(const entry of journal.entries){
+        if(!record(entry)||typeof entry.target!=='string'||!targets.has(entry.target)||seenTargets.has(entry.target)
+          ||Object.keys(entry).some(key=>!['importer','target','hadOriginal','state','quarantine'].includes(key)))throw Error('Delivery journal contains an unknown or duplicate importer.');
+        seenTargets.add(entry.target);const original=originals.get(entry.target),importer=entry.target==='node_modules'?'.':entry.target.slice(0,-'/node_modules'.length);
+        if(entry.importer!==importer||entry.hadOriginal!==Boolean(original)||!['planned','quarantined','delivered'].includes(String(entry.state)))throw Error('Delivery journal does not match the captured original tree.');
+        if(!original||entry.state==='planned'){
+          if(entry.quarantine!==undefined||(!original&&entry.state==='quarantined'))throw Error('Delivery journal claims an unowned quarantine.');
+          if(original)await assertInventory(join(projectRoot,entry.target),original);
+          continue;
+        }
+        if(typeof entry.quarantine!=='string'||!isAbsolute(entry.quarantine))throw Error('Delivery journal quarantine path is invalid.');
+        const path=resolve(entry.quarantine),root=dirname(path),name=basename(root),child=importer==='.'?'root':importer.replace(/[^A-Za-z0-9._-]+/g,'_');
+        if(dirname(root)!==parentRoot||basename(path)!==child||!/^\.t16-quarantine-[A-Za-z0-9._-]{1,96}$/.test(name)
+          ||before.children.some(node=>node.name===name)||children.has(name)||installQuarantines.has(name))throw Error('Delivery journal quarantine is not a new owned sibling.');
+        await assertInventory(path,original);
+        const names=roots.get(name)??new Set<string>();if(names.has(child))throw Error('Delivery quarantine child is duplicated.');names.add(child);roots.set(name,names);
+      }
+      const inventories=new Map<string,Inventory>();
+      for(const [name,expectedChildren] of roots){
+        const inventory=await captureInventory(join(parentRoot,name));
+        if(!linkFree(inventory.children)||canonicalJson(inventory.children.map(node=>node.name).sort())!==canonicalJson([...expectedChildren].sort()))throw Error('Delivery quarantine contains an unknown or linked entry.');
+        inventories.set(name,inventory);
+      }
+      const after=await captureInventory(parentRoot,[],false);
+      if(canonicalJson(after.identity)!==canonicalJson(before.identity)
+        ||canonicalJson(after.children.filter(node=>!roots.has(node.name)))!==canonicalJson(before.children)
+        ||after.children.length!==before.children.length+roots.size)throw Error('Delivery owner root gained an unregistered sibling or changed identity.');
+      // Mutate registration only after every journal entry, byte guard and sibling was proven.
+      for(const [name,inventory] of inventories){installQuarantines.set(name,inventory);registered.set(join(parentRoot,name),inventory);}
+      await registerParent();pendingDeliveries.delete(projectRoot);
+    }});
+  };
   const projectRoots={vue:await makeOwnedProject('vue'),react:await makeOwnedProject('react')};
   registered.set(filesRoot,await captureDeclaredInventory(filesRoot,new Set()));await registerEvidenceRoot();
   const run:OwnedRun={
-    runId,parentRoot,evidenceRoot,projectRoots,makeOwnedProject,registerOwnedPath,createEvidenceArea,registerEvidenceAreaContents,
+    runId,parentRoot,evidenceRoot,projectRoots,makeOwnedProject,assertOwnedProject,prepareInstallDelivery,registerOwnedPath,createEvidenceArea,registerEvidenceAreaContents,
     trackOwnedProcess(close){if(stopped)throw Error('Run stopped.');closers.add(close);return()=>closers.delete(close);},
     async writeEvidence(name,bytes){
       if(cleaned||sealed||!safeName(name)||evidenceFiles.has(name))throw Error('Invalid, duplicate, or late evidence name.');
@@ -115,8 +212,9 @@ export async function createOwnedRun(options:{baseDirectory?:string}={}):Promise
       const files=[...evidenceFiles.values()].sort((a,b)=>a.name.localeCompare(b.name));
       const filesInventory=registered.get(filesRoot);if(!filesInventory)throw Error('Evidence files cleanup registration is missing.');await assertInventory(filesRoot,filesInventory);
       for(const [name,area] of evidenceAreas){const expected=registered.get(area.path);if(!expected)throw Error('Evidence area cleanup registration is missing: '+name);await assertInventory(area.path,expected);}
+      for(const [name,inventory] of installQuarantines)await assertInventory(join(parentRoot,name),inventory);
       const parentInventory=registered.get(parentRoot),evidenceInventory=registered.get(evidenceRoot);if(!parentInventory||!evidenceInventory)throw Error('Owned root cleanup registration is missing.');await assertInventory(parentRoot,parentInventory);await assertInventory(evidenceRoot,evidenceInventory);
-      const inventories={parentRoot:parentInventory,projects:projectInventories,files:filesInventory,evidenceAreas:Object.fromEntries([...evidenceAreas].map(([name,area])=>[name,registered.get(area.path)!])),evidenceRoot:evidenceInventory};
+      const inventories={parentRoot:parentInventory,projects:projectInventories,files:filesInventory,installQuarantines:Object.fromEntries(installQuarantines),evidenceAreas:Object.fromEntries([...evidenceAreas].map(([name,area])=>[name,registered.get(area.path)!])),evidenceRoot:evidenceInventory};
       const seal:Seal={schemaVersion:1,runId,parentRoot,evidenceRoot,payload,projects,files,inventories};
       const path=join(evidenceRoot,'run-seal.json'),bytes=json(seal);await writeFile(path,bytes,{flag:'wx'});sealSha256=sha(bytes);await registerEvidenceRoot(true);sealed=true;return path;
     },
@@ -132,23 +230,30 @@ export async function createOwnedRun(options:{baseDirectory?:string}={}):Promise
       if(!seal.projects||!seal.files||canonicalJson(seal.projects)!==canonicalJson(await snapshotsFromChildren(children))||canonicalJson(seal.projects)!==canonicalJson(await snapshotNamedProjects(parentRoot,seal.projects)))throw Error('Owned project snapshot changed after sealing.');
       await assertInventory(parentRoot,seal.inventories.parentRoot);
       for(const child of children.values()){await assertOwner(child,runId);const expected=seal.inventories.projects[child.name];if(!expected)throw Error('Evidence seal is missing a project inventory.');await assertInventory(child.path,expected);}
+      if(canonicalJson(seal.inventories.installQuarantines)!==canonicalJson(Object.fromEntries(installQuarantines)))throw Error('Delivery quarantine seal registration changed.');
+      for(const [name,inventory] of installQuarantines)await assertInventory(join(parentRoot,name),inventory);
       await assertInventory(filesRoot,seal.inventories.files);
       for(const [name,area] of evidenceAreas){const expected=seal.inventories.evidenceAreas[name];if(!expected)throw Error('Evidence seal is missing an evidence area inventory.');await assertInventory(area.path,expected);}
       await assertInventory(evidenceRoot,seal.inventories.evidenceRoot,['run-seal.json']);await verifyEvidenceFiles(evidenceRoot,seal.files);
       const nested=new Map<string,Inventory>();for(const child of children.values())nested.set(child.name,seal.inventories.projects[child.name]!);
+      for(const [name,inventory] of installQuarantines)nested.set(name,inventory);
       await removeRegisteredRoot(parentRoot,seal.inventories.parentRoot,nested);cleaned=true;
     },
-    async abortForTest(){
+    async abortForTest(options={}){
       if(cleaned)return;await run.stopOwnedProcesses();await assertOwner(runChild,runId);await assertOwner(evidenceChild,runId);
       for(const child of children.values())await assertOwner(child,runId);
       const parentInventory=registered.get(parentRoot),evidenceInventory=registered.get(evidenceRoot),filesInventory=registered.get(filesRoot);
       if(!parentInventory||!evidenceInventory||!filesInventory)throw Error('Owned cleanup registration is missing.');
       for(const [path,inventory] of registered)await assertInventory(path,inventory);
       const projectInventories=new Map<string,Inventory>();for(const child of children.values()){const inventory=registered.get(child.path);if(!inventory)throw Error('Owned project cleanup registration is missing.');projectInventories.set(child.name,inventory);}
+      for(const [name,inventory] of installQuarantines)projectInventories.set(name,inventory);
       await removeRegisteredRoot(parentRoot,parentInventory,projectInventories);
-      const evidenceNested=new Map<string,Inventory>([['files',filesInventory]]);
-      for(const [name,area] of evidenceAreas){const inventory=registered.get(area.path);if(!inventory)throw Error('Evidence area cleanup registration is missing.');evidenceNested.set(name,inventory);}
-      await removeRegisteredRoot(evidenceRoot,evidenceInventory,evidenceNested);cleaned=true;
+      if(!options.preserveEvidence){
+        const evidenceNested=new Map<string,Inventory>([['files',filesInventory]]);
+        for(const [name,area] of evidenceAreas){const inventory=registered.get(area.path);if(!inventory)throw Error('Evidence area cleanup registration is missing.');evidenceNested.set(name,inventory);}
+        await removeRegisteredRoot(evidenceRoot,evidenceInventory,evidenceNested);
+      }
+      cleaned=true;
     }
   };
   return run;
@@ -163,14 +268,14 @@ export async function installFrozenCli(options:{run:OwnedRun;tarballPath:string;
   const tarball=await readFile(tarballPath),tarballSha256=sha(tarball);
   if(tarballSha256!==options.expectedTarballSha256)throw Error('Frozen CLI tarball bytes do not match expected digest.');
   const root=await options.run.makeOwnedProject('cli-consumer');
-  await writeFile(join(root,'package.json'),json({name:'t17-frozen-cli-consumer',version:'1.0.0',private:true}),{flag:'wx'});
+  await writeFile(join(root,'package.json'),json({name:'t17-frozen-cli-consumer',version:'1.0.0',private:true,dependencies:{'@company/component-cli':pathToFileURL(tarballPath).href}}),{flag:'wx'});
   await options.run.registerOwnedPath(root,['package.json']);
   const area=await options.run.createEvidenceArea('cli-install'),userconfig=join(area,'npm-userconfig'),globalconfig=join(area,'npm-globalconfig'),cache=join(area,'npm-cache');
   await writeFile(userconfig,'',{flag:'wx'});await writeFile(globalconfig,'',{flag:'wx'});await mkdir(cache);const cacheIdentity=await objectIdentity(cache);
   const cp=await import('node:child_process'),env:NodeJS.ProcessEnv={PATH:dirname(resolve(options.nodeExecutable)),TEMP:cache,TMP:cache,CI:'true',npm_config_userconfig:userconfig,npm_config_globalconfig:globalconfig,npm_config_cache:cache};
   let out='';
   try {out=await new Promise<string>((ok,fail)=>{
-    const child=cp.spawn(resolve(options.nodeExecutable),[resolve(options.npmCliPath),'install','--ignore-scripts','--no-audit','--no-fund','--registry',options.registry??'https://registry.npmjs.org/','--prefix',root,tarballPath],{cwd:root,env,shell:false,windowsHide:true,stdio:['ignore','pipe','pipe']});
+    const child=cp.spawn(resolve(options.nodeExecutable),[resolve(options.npmCliPath),'install','--ignore-scripts','--no-audit','--no-fund','--registry',options.registry??'https://registry.npmjs.org/','--prefix',root],{cwd:root,env,shell:false,windowsHide:true,stdio:['ignore','pipe','pipe']});
     let text='';let spawnError:Error|undefined,timedOut=false,unregister=()=>{};child.stdout.on('data',b=>text+=String(b));child.stderr.on('data',b=>text+=String(b));
     const closed=new Promise<void>(resolveClose=>child.once('close',()=>resolveClose())),timer=setTimeout(()=>{timedOut=true;child.kill();},600000);
     unregister=options.run.trackOwnedProcess(async()=>{if(child.exitCode===null)child.kill();await closed;clearTimeout(timer);});
@@ -178,7 +283,7 @@ export async function installFrozenCli(options:{run:OwnedRun;tarballPath:string;
     child.once('close',(code,signal)=>{clearTimeout(timer);unregister();if(timedOut)fail(Error('Frozen CLI install timed out after the process exited.'));else if(spawnError)fail(Error('Frozen CLI install could not start ('+spawnError.name+').'));else if(code===0)ok(text);else fail(Error('Frozen CLI install exited '+code+' ('+String(signal)+'): '+text.slice(-1000)));});
   });} finally {
     try {
-      const projectPaths=['package.json'];for(const name of ['package-lock.json','node_modules'])try{await lstat(join(root,name));projectPaths.push(name);}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
+      const projectPaths=['package.json'];for(const name of ['package-lock.json','node_modules','tarball-reference.txt'])try{await lstat(join(root,name));projectPaths.push(name);}catch(error){if((error as NodeJS.ErrnoException).code!=='ENOENT')throw error;}
       await options.run.registerOwnedPath(root,projectPaths);
     } finally {
       await removeDisposableCache(cache,area,cacheIdentity);
@@ -190,7 +295,7 @@ export async function installFrozenCli(options:{run:OwnedRun;tarballPath:string;
   if(pkg.name!=='@company/component-cli'||pkg.version!==options.expectedVersion)throw Error('Installed CLI package identity or frozen version mismatch.');
   const bin=typeof pkg.bin==='string'?pkg.bin:pkg.bin?.component;if(!bin)throw Error('Installed CLI manifest lacks component bin.');
   const entry=resolve(root,'node_modules/@company/component-cli',bin);if(!inside(await realpath(root),await realpath(entry)))throw Error('Installed CLI entry escapes external consumer.');
-  return{root,entry,version:pkg.version,tarballSha256,tarballBytes:tarball.length,manifestSha256:sha(await readFile(manifestPath)),installOutputBytes:Buffer.byteLength(out)};
+  return{root,entry,entrySha256:sha(await readFile(entry)),version:pkg.version,tarballSha256,tarballBytes:tarball.length,manifestSha256:sha(await readFile(manifestPath)),installOutputBytes:Buffer.byteLength(out)};
 }
 
 export type BuiltImportEvidenceInput={projectRoot:string;generatedPath:string;emittedEntry:string;sourceMapPath:string;viteModules:string[];host:BuiltHost;loadedAssets:{url:string;path:string;sha256:string;bytes:number;status:number}[];emittedAssetSha256:string};

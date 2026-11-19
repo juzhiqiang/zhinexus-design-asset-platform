@@ -9,20 +9,196 @@
  * - 子进程清理验证（stopOwnedProcesses 确保退出后无残留子进程，且凭据不进入 argv）。
  */
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdir, mkdtemp, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { canonicalJson } from '@company/contracts';
-import { validIntegrationPlanFixture } from '../../fixtures/integration-plan.js';
+import { validateIntegrationApplyResult, validateIntegrationPlan, validateIntegrationRepairResult, validateIntegrationVerificationReport, validateIntegrationVerificationSpec } from '@company/contracts';
+import type { ArtifactRef, IntegrationApplyResultV1, IntegrationPlanV1, IntegrationRepairResultV1, IntegrationVerificationReportV1, IntegrationVerificationSpecV1, MatchPlanV1 } from '@company/contracts';
+import { validIntegrationPlanFixture, validInspectionFixture } from '../../fixtures/integration-plan.js';
 import { applyResultFixture } from '../../fixtures/integration-apply.js';
 import { verificationReportFixture, verificationSpecFixture } from '../../fixtures/integration-verification.js';
 import { repairResultFixture, repairSourceReportFixture } from '../../fixtures/integration-repair.js';
-import { buildMatchPlanForHost } from './chain.js';
+import { componentMatchResponseFixture } from '../../fixtures/component-match.js';
+import { matchPlanFixture } from '../../fixtures/match-plan.js';
+import { buildMatchPlanForHost, buildVerificationSpecForHost, normalizeVueHostGeneratedImport } from './chain.js';
+import type { T17HostChainReceipt } from './chain.js';
 import type { T17HostInputs } from './e2e-config.js';
 
 const sha = (bytes: Uint8Array | string) => createHash('sha256').update(bytes).digest('hex');
 const digest = (value: unknown) => sha(canonicalJson(value));
+
+function makeValidStageEvidence(framework: 'vue' | 'react', projectRoot: string, options: { baseline?: ArtifactRef; generatedSha256?: string } = {}) {
+  const response = componentMatchResponseFixture(framework);
+  response.gaps = [];
+  response.target!.compatibility = { status: 'verified', recordIds: [`compat-${framework}-line`] };
+  const frameworkVersion = framework === 'vue' ? '3.5.45' : '19.3.1';
+  const inspection = validInspectionFixture();
+  const generatedPath = `src/components/zhinexus/component-0001.${framework === 'vue' ? 'vue' : 'tsx'}`;
+  const localProject = { ...inspection, packageManager: 'npm' as const, lockfile: { path: 'package-lock.json', format: 'npm-v3' as const }, framework,
+    resolvedDependencies: [
+      { name: framework, version: frameworkVersion, specifier: frameworkVersion },
+      ...(framework === 'react' ? [{ name: 'react-dom', version: '19.3.1', specifier: '19.3.1' }] : []),
+      { name: 'echarts', version: '6.1.0', specifier: '6.1.0' },
+    ],
+    fileSnapshots: inspection.fileSnapshots.map(file => file.path === 'pnpm-lock.yaml' ? { ...file, path: 'package-lock.json' } : file),
+  };
+  const sourceFixture = matchPlanFixture() as MatchPlanV1;
+  const source: MatchPlanV1 = {
+    ...sourceFixture,
+    context: { framework, frameworkVersion, echartsVersion: '6.1.0', packageManager: 'npm', requirements: [] },
+    elements: [{ ...sourceFixture.elements[0]!, target: response.target!,
+      props: response.api!.props.map(prop => ({ ...prop, ...(prop.required ? { source: 'revenue' } : {}) })),
+      events: response.api!.events.map(event => ({ ...event, handler: 'onChartClick' })), gaps: [] }],
+    exactDependencies: response.exactDependencies,
+    gaps: [],
+  };
+  const plan: IntegrationPlanV1 = {
+    ...validIntegrationPlanFixture(),
+    localProject,
+    sourceMatchPlan: source,
+    matchPlanDigest: digest(source),
+    exactDependencies: response.exactDependencies,
+    baseFileHashes: [...localProject.fileSnapshots.map(file => ({ ...file })), { path: generatedPath, exists: false }],
+    allowedPaths: ['package.json', 'package-lock.json', generatedPath],
+    changes: [
+    { kind: 'package-json', path: 'package.json', dependencies: [{ name: response.target!.packageName, version: response.target!.packageVersion }] },
+    { kind: 'lockfile-regeneration', path: 'package-lock.json' },
+    { kind: 'generated-component', path: generatedPath, instanceId: 'node-1', framework },
+    ],
+    publicationEvidence: [{ response, checkedAt: '2026-11-18T12:00:00Z' }],
+    registryEvidence: [{ name: response.target!.packageName, version: response.target!.packageVersion, sha256: response.target!.packageSha256,
+      integrity: 'sha512-' + 'A'.repeat(86) + '==', verification: 'platform-sha256' }],
+    commands: [{ executable: 'npm', args: ['install', '--ignore-scripts'], cwd: '.', purpose: 'install' }],
+    packageManager: 'npm',
+  };
+  const planResult = validateIntegrationPlan(plan);
+  if (!planResult.ok) throw new Error('Test plan fixture is invalid: ' + JSON.stringify(planResult.issues));
+  const planDigest = digest(planResult.value);
+  const applyFixture = applyResultFixture() as unknown as IntegrationApplyResultV1;
+  const afterHashes = plan.allowedPaths.map(path => ({ path, exists: true as const, sha256: path === generatedPath ? options.generatedSha256 ?? 'e'.repeat(64) : 'e'.repeat(64) }));
+  const applyRaw: IntegrationApplyResultV1 = { ...applyFixture, projectRoot, planDigest,
+    changedFiles: [...plan.allowedPaths], beforeHashes: plan.baseFileHashes, afterHashes,
+    installedVersions: plan.exactDependencies.map(dep => ({ ...dep })) } as unknown as IntegrationApplyResultV1;
+  const applyResult = validateIntegrationApplyResult(applyRaw, { plan: planResult.value, planDigest, projectRoot });
+  if (!applyResult.ok) throw new Error('Test apply fixture is invalid: ' + JSON.stringify(applyResult.issues));
+  const applyDigest = digest(applyResult.value);
+  const specFixture = verificationSpecFixture() as unknown as IntegrationVerificationSpecV1;
+  const spec = { ...specFixture, projectRoot, planDigest, applyResultDigest: applyDigest,
+    commands: specFixture.commands.map(command => ({ ...command, manifestSha256: 'e'.repeat(64) })),
+    browser: { ...specFixture.browser!, visual: { ...specFixture.browser!.visual!, baseline: { ...specFixture.browser!.visual!.baseline,
+      image: options.baseline ?? specFixture.browser!.visual!.baseline.image,
+      environment: { ...specFixture.browser!.visual!.baseline.environment, frameworkVersion } } } } } as unknown as IntegrationVerificationSpecV1;
+  const specResult = validateIntegrationVerificationSpec(spec, { plan: planResult.value, applyResult: applyResult.value, projectRoot, planDigest, applyResultDigest: applyDigest });
+  if (!specResult.ok) throw new Error('Test spec fixture is invalid: ' + JSON.stringify(specResult.issues));
+  const specDigest = digest(specResult.value);
+  const reportFixture = verificationReportFixture() as unknown as IntegrationVerificationReportV1;
+  const reportRaw: IntegrationVerificationReportV1 = { ...reportFixture, projectRoot, planDigest, applyResultDigest: applyDigest, specDigest,
+    snapshots: { before: afterHashes, after: afterHashes },
+    installedVersions: plan.exactDependencies.map(dep => ({ ...dep, manifestSha256: 'a'.repeat(64) })),
+    environment: { ...reportFixture.environment!, frameworkVersion } } as unknown as IntegrationVerificationReportV1;
+  const reportResult = validateIntegrationVerificationReport(reportRaw, { plan: planResult.value, applyResult: applyResult.value, spec: specResult.value,
+    projectRoot, planDigest, applyResultDigest: applyDigest, specDigest });
+  if (!reportResult.ok) throw new Error('Test verify fixture is invalid: ' + JSON.stringify(reportResult.issues));
+  return { plan: planResult.value, apply: applyResult.value, spec: specResult.value, report: reportResult.value, planDigest, applyDigest, specDigest };
+}
+
+async function captureFixtureInventory(root: string): Promise<Record<string, unknown>> {
+  const capture = async (path: string, name?: string): Promise<Record<string, unknown>> => {
+    const stat = await lstat(path, { bigint: true });
+    const identity = { dev: String(stat.dev), ino: String(stat.ino) };
+    if (stat.isFile()) {
+      const bytes = await readFile(path);
+      return { name, identity, kind: 'file', bytes: bytes.length, sha256: sha(bytes) };
+    }
+    const children = await Promise.all((await readdir(path)).sort().map(child => capture(join(path, child), child)));
+    return name === undefined ? { identity, children, recursive: true } : { name, identity, kind: 'directory', bytes: 0, children };
+  };
+  return capture(root);
+}
+
+async function makeRetainedChainFixture(root: string, options: { repair?: boolean; backupMismatch?: 'reference' | 'original' | 'path'; baselineMismatch?: boolean } = {}) {
+  const filesDir = join(root, 'files');
+  await mkdir(filesDir);
+  const chains: T17HostChainReceipt['chains'] = [];
+  const sealedFiles: { name: string; sha256: string; bytes: number }[] = [];
+  const inventories: Record<string, unknown> = {};
+  const retained = {} as Record<'vue' | 'react', { artifactRoot: string; baselinePath: string; backupPath?: string }>;
+  const writeStage = async (name: string, value: unknown) => {
+    const bytes = Buffer.from(JSON.stringify(value) + '\n');
+    const path = join(filesDir, name);
+    await writeFile(path, bytes);
+    sealedFiles.push({ name, bytes: bytes.length, sha256: sha(bytes) });
+    return path;
+  };
+  for (const framework of ['vue', 'react'] as const) {
+    const projectRoot = 'C:/owned/' + framework;
+    const areaName = 't17-' + framework + '-verify-out';
+    const artifactRoot = join(root, areaName);
+    const baseline = Buffer.from('synthetic retained baseline for ' + framework);
+    const baselineRef = { path: 'baselines/' + framework + '.png', sha256: sha(baseline), bytes: baseline.length };
+    await mkdir(join(artifactRoot, 'baselines'), { recursive: true });
+    await mkdir(join(artifactRoot, 'run'));
+    const baselinePath = join(artifactRoot, baselineRef.path);
+    await writeFile(baselinePath, baseline);
+    const original = Buffer.from('synthetic generated original for ' + framework);
+    const stages = makeValidStageEvidence(framework, projectRoot, { baseline: options.baselineMismatch && framework === 'vue' ? { ...baselineRef, sha256: sha('wrong baseline reference') } : baselineRef, generatedSha256: sha(original) });
+    for (const artifact of stages.report.artifacts) {
+      const bytes = Buffer.from('synthetic retained artifact: ' + artifact.path);
+      artifact.bytes = bytes.length;
+      artifact.sha256 = sha(bytes);
+      await writeFile(join(artifactRoot, artifact.path), bytes);
+    }
+    for (const check of stages.report.checks) check.evidence = check.evidence.map(ref => stages.report.artifacts.find(artifact => artifact.path === ref.path) ?? ref);
+    let repair: IntegrationRepairResultV1 | undefined;
+    let backupPath: string | undefined;
+    if (options.repair && framework === 'vue') {
+      const finalReport = structuredClone(stages.report);
+      const issue = { code: 'TYPE_FAILED', message: 'Project type verification failed.' } as const;
+      stages.report.status = 'failed';
+      stages.report.checks[0]!.status = 'failed';
+      stages.report.checks[0]!.issues = [issue];
+      stages.report.pendingItems = [issue];
+      const generatedPath = stages.plan.changes.find(change => change.kind === 'generated-component')!.path;
+      const repairedHash = sha(Buffer.from('synthetic repaired generated bytes'));
+      for (const values of [finalReport.snapshots.before, finalReport.snapshots.after]) values.find(snapshot => snapshot.path === generatedPath)!.sha256 = repairedHash;
+      const backupOriginal = options.backupMismatch === 'original' ? Buffer.from('unrelated original bytes') : original;
+      const backupId = 'repair-backup-1';
+      const backupBytes = Buffer.from(JSON.stringify({ id: backupId, path: options.backupMismatch === 'path' ? 'src/unrelated.vue' : generatedPath, sha256: sha(backupOriginal), originalBase64: backupOriginal.toString('base64') }));
+      await mkdir(join(artifactRoot, 'repair'));
+      backupPath = join(artifactRoot, 'repair', backupId + '.json');
+      await writeFile(backupPath, backupBytes);
+      repair = { schemaVersion: 1, projectRoot, planDigest: stages.planDigest, applyResultDigest: stages.applyDigest, specDigest: stages.specDigest, operation: 'repair', id: 'repair-retained-fixture',
+        sourceReportDigest: digest(stages.report), maxAttempts: 2, status: 'repaired', stopReason: 'passed', finalReport, changedFiles: [generatedPath], pendingItems: [],
+        attempts: [{ attempt: 1, recipeId: 'regenerate-generated-component', beforeReportDigest: digest(stages.report), afterReportDigest: digest(finalReport), changedFiles: [generatedPath],
+          beforeHashes: [{ path: generatedPath, exists: true, sha256: sha(original) }], afterHashes: [{ path: generatedPath, exists: true, sha256: repairedHash }],
+          backupRef: { id: backupId, sha256: options.backupMismatch === 'reference' ? sha('wrong backup reference') : sha(backupBytes) } }] };
+      const checked = validateIntegrationRepairResult(repair, { projectRoot, planDigest: stages.planDigest, applyResultDigest: stages.applyDigest, specDigest: stages.specDigest, plan: stages.plan, applyResult: stages.apply, spec: stages.spec, reportDigest: digest(stages.report), sourceReport: stages.report });
+      if (!checked.ok) throw Error('Retained repair test fixture is invalid: ' + JSON.stringify(checked.issues));
+    }
+    const planEvidence = await writeStage(framework + '-plan.json', stages.plan);
+    const applyEvidence = await writeStage(framework + '-apply.json', stages.apply);
+    const specEvidence = await writeStage(framework + '-spec.json', stages.spec);
+    const verifyEvidence = await writeStage(framework + '-verify.json', stages.report);
+    const repairEvidence = repair ? await writeStage(framework + '-repair.json', repair) : undefined;
+    chains.push({ framework, packageManager: 'npm', planStatus: 'planned', applyStatus: 'applied', verifyStatus: stages.report.status, repairStatus: repair ? 'repaired' : 'not-needed', repairMaxAttempts: 2, repairAttempts: repair ? 1 : 0, projectRoot,
+      planDigest: stages.planDigest, applyResultDigest: stages.applyDigest, specDigest: stages.specDigest, verifyReportDigest: digest(stages.report), planEvidence, applyEvidence, specEvidence, verifyEvidence,
+      ...(repair ? { repairEvidence: repairEvidence!, repairResultDigest: digest(repair) } : {}), childProcessesCleaned: true });
+    inventories[areaName] = await captureFixtureInventory(artifactRoot);
+    retained[framework] = { artifactRoot, baselinePath, ...(backupPath ? { backupPath } : {}) };
+  }
+  const receipt: T17HostChainReceipt = { schemaVersion: 1, acceptanceKind: 't17-owned-host-chain', productionAcceptance: false, runId: 'retained-chain-fixture', evidenceRoot: root, result: 'passed',
+    receiptEvidencePath: join(filesDir, 't17-host-acceptance.json'), sealPath: '', sealSha256: '', projectRoots: { vue: 'C:/owned/vue', react: 'C:/owned/react' }, chains, childProcessesCleaned: true,
+    cli: { root: 'cli-root', entry: 'cli-entry', entrySha256: 'c'.repeat(64), version: '0.0.19', tarballSha256: 'a'.repeat(64), tarballBytes: 128, manifestSha256: 'b'.repeat(64) } };
+  await writeStage('t17-host-acceptance.json', receipt);
+  const sealBytes = Buffer.from(JSON.stringify({ schemaVersion: 1, runId: receipt.runId, evidenceRoot: root, files: sealedFiles, inventories: { evidenceAreas: inventories },
+    payload: { acceptanceKind: receipt.acceptanceKind, productionAcceptance: false, result: receipt.result, cli: receipt.cli, chains: receipt.chains, projectRoots: receipt.projectRoots, childProcessesCleaned: true, receiptEvidencePath: 'files/t17-host-acceptance.json' } }));
+  receipt.sealPath = join(root, 'run-seal.json');
+  receipt.sealSha256 = sha(sealBytes);
+  await writeFile(receipt.sealPath, sealBytes);
+  return { receipt, retained };
+}
 
 async function loadChainModule(): Promise<Record<string, unknown>> {
   try {
@@ -37,6 +213,7 @@ describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', (
     const makeInputs = (overrides: {
       packageEntry?: Record<string, unknown> | null;
       variantEntry?: Record<string, unknown> | null;
+      compatibilityEntry?: Record<string, unknown> | null;
     } = {}): T17HostInputs => ({
       cliTarball: 'C:/frozen/cli.tgz', cliSha256: 'a'.repeat(64), cliVersion: '0.0.17',
       sdkBundle: 'C:/frozen/sdk', sdkManifestSha256: 'b'.repeat(64),
@@ -44,13 +221,18 @@ describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', (
       variantsFile: 'C:/frozen/variants.json', variantsSha256: 'c'.repeat(64),
       apiToken: 'api-token', registryToken: 'registry-token',
       variants: { schemaVersion: 1, variants: [{ componentId: 'line', framework: 'vue', variantReleaseId: 'variant-line-vue-1' }] },
+      validatedCompatibility: { 'line:vue': ['report-vue-line-1'] },
       sdkManifest: {
         schemaVersion: 1, files: [],
         packages: overrides.packageEntry === null ? [] : [overrides.packageEntry ?? {
           name: '@company/charts-vue', version: '0.0.12', tarball: { sha256: 'd'.repeat(64) },
         }],
         variants: overrides.variantEntry === null ? [] : [overrides.variantEntry ?? {
-          componentId: 'line', framework: 'vue', exportName: 'LineChart', exportPath: './line',
+          componentId: 'line', framework: 'vue', packageName: '@company/charts-vue', packageVersion: '0.0.12', exportName: 'LineChart', exportPath: './line',
+          compatibility: overrides.compatibilityEntry === null ? [] : [overrides.compatibilityEntry ?? {
+            framework: 'vue', frameworkVersion: '3.5.45', echartsVersion: '6.1.0', status: 'passed',
+            reportId: 'report-vue-line-1', verifiedAt: '2026-11-18T12:00:00Z',
+          }],
         }],
       },
     } as T17HostInputs);
@@ -61,9 +243,27 @@ describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', (
     expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: { name: '@company/charts-vue', version: '0.0.12', tarball: {} } }))).toThrow(/sha|digest/i);
     expect(() => buildMatchPlanForHost('vue', makeInputs({ packageEntry: { name: '@company/charts-vue', version: '0.0.12', tarball: { sha256: 'not-a-sha' } } }))).toThrow(/sha|digest/i);
     expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: null }))).toThrow(/variant.*manifest|manifest.*variant/i);
-    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue' } }))).toThrow(/export/i);
-    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', exportName: 'LineChart' } }))).toThrow(/export/i);
-    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', exportPath: './line' } }))).toThrow(/export/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', packageName: '@company/charts-vue', packageVersion: '0.0.12' } }))).toThrow(/export/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', packageName: '@company/charts-vue', packageVersion: '0.0.12', exportName: 'LineChart' } }))).toThrow(/export/i);
+    expect(() => buildMatchPlanForHost('vue', makeInputs({ variantEntry: { componentId: 'line', framework: 'vue', packageName: '@company/charts-vue', packageVersion: '0.0.12', exportPath: './line' } }))).toThrow(/export/i);
+    expect(buildMatchPlanForHost('vue', makeInputs()).elements[0]?.target?.compatibility).toEqual({
+      status: 'verified', recordIds: ['report-vue-line-1'],
+    });
+    expect(buildMatchPlanForHost('vue', makeInputs({ compatibilityEntry: null })).elements[0]?.target?.compatibility).toEqual({
+      status: 'unverified', recordIds: [],
+    });
+    expect(buildMatchPlanForHost('vue', makeInputs({ compatibilityEntry: {
+      compatibilityId: 'compat-wrong-framework-version', packageName: '@company/charts-vue', packageVersion: '0.0.12',
+      packageSha256: 'd'.repeat(64), framework: 'vue', frameworkVersion: '3.5.44', echartsVersion: '6.1.0', status: 'passed',
+    } })).elements[0]?.target?.compatibility).toEqual({ status: 'unverified', recordIds: [] });
+    expect(buildMatchPlanForHost('vue', makeInputs({ compatibilityEntry: {
+      framework: 'vue', frameworkVersion: '3.5.44', echartsVersion: '6.1.0', status: 'passed',
+      reportId: 'report-wrong-framework-version', verifiedAt: '2026-11-18T12:00:00Z',
+    } })).elements[0]?.target?.compatibility).toEqual({ status: 'unverified', recordIds: [] });
+    expect(buildMatchPlanForHost('vue', makeInputs({ compatibilityEntry: {
+      framework: 'vue', frameworkVersion: '3.5.45', echartsVersion: '6.1.0', status: 'candidate',
+      reportId: 'report-candidate',
+    } })).elements[0]?.target?.compatibility).toEqual({ status: 'unverified', recordIds: [] });
 
     const complete = buildMatchPlanForHost('vue', makeInputs());
     expect(complete.elements[0]?.target).toMatchObject({
@@ -225,136 +425,211 @@ describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', (
 
   it('验证真实保留回执与子进程已清空标记，篡改任一阶段证据均拒绝', async () => {
     const mod = await loadChainModule();
-    expect(typeof mod.verifyHostChainReceipt).toBe('function');
     const verifyReceipt = mod.verifyHostChainReceipt as (receipt: unknown) => Promise<void>;
-
     const root = await mkdtemp(join(tmpdir(), 'zhinexus-t17-chain-valid-'));
     try {
-      const filesDir = join(root, 'files');
-      await mkdir(filesDir);
-
-      const makeFrameworkEntry = async (framework: 'vue' | 'react') => {
-        const planBytes = Buffer.from(JSON.stringify({ framework, step: 'plan' }) + '\n');
-        const applyBytes = Buffer.from(JSON.stringify({ framework, step: 'apply' }) + '\n');
-        const verifyBytes = Buffer.from(JSON.stringify({ framework, step: 'verify' }) + '\n');
-        const repairBytes = Buffer.from(JSON.stringify({ framework, step: 'repair' }) + '\n');
-        const names = {
-          plan: `${framework}-plan.json`,
-          apply: `${framework}-apply.json`,
-          verify: `${framework}-verify.json`,
-          repair: `${framework}-repair.json`,
-        };
-        await writeFile(join(filesDir, names.plan), planBytes);
-        await writeFile(join(filesDir, names.apply), applyBytes);
-        await writeFile(join(filesDir, names.verify), verifyBytes);
-        await writeFile(join(filesDir, names.repair), repairBytes);
-        return {
-          entry: {
-            framework,
-            packageManager: 'npm' as const,
-            planStatus: 'planned' as const,
-            applyStatus: 'applied' as const,
-            verifyStatus: 'passed' as const,
-            repairStatus: 'not-needed' as const,
-            repairMaxAttempts: 2 as const,
-            repairAttempts: 0,
-            planDigest: sha(planBytes),
-            applyResultDigest: sha(applyBytes),
-            specDigest: '1'.repeat(64),
-            verifyReportDigest: sha(verifyBytes),
-            planEvidence: join(filesDir, names.plan),
-            applyEvidence: join(filesDir, names.apply),
-            verifyEvidence: join(filesDir, names.verify),
-            repairEvidence: join(filesDir, names.repair),
-            childProcessesCleaned: true,
-          },
-          sealedFiles: [
-            { name: names.plan, bytes: planBytes.length, sha256: sha(planBytes) },
-            { name: names.apply, bytes: applyBytes.length, sha256: sha(applyBytes) },
-            { name: names.verify, bytes: verifyBytes.length, sha256: sha(verifyBytes) },
-            { name: names.repair, bytes: repairBytes.length, sha256: sha(repairBytes) },
-          ],
-        };
-      };
-
-      const vue = await makeFrameworkEntry('vue');
-      const react = await makeFrameworkEntry('react');
-      const cli = {
-        root: 'cli-root',
-        entry: 'cli-entry',
-        entrySha256: 'c'.repeat(64),
-        version: '0.0.17',
-        tarballSha256: 'a'.repeat(64),
-        tarballBytes: 128,
-        manifestSha256: 'b'.repeat(64),
-      };
-      const chains = [vue.entry, react.entry];
-      const receiptEvidencePath = join(filesDir, 't17-host-acceptance.json');
-      const persisted = Buffer.from(
-        JSON.stringify({
-          schemaVersion: 1,
-          acceptanceKind: 't17-owned-host-chain',
-          productionAcceptance: false,
-          runId: 'run-chain-1',
-          evidenceRoot: root,
-          result: 'passed',
-          receiptEvidencePath,
-          sealPath: '',
-          sealSha256: '',
-          cli,
-          chains,
-          childProcessesCleaned: true,
-        }) + '\n',
-      );
-      await writeFile(receiptEvidencePath, persisted);
-
-      const sealedFiles = [
-        ...vue.sealedFiles,
-        ...react.sealedFiles,
-        { name: 't17-host-acceptance.json', bytes: persisted.length, sha256: sha(persisted) },
-      ];
-      const sealBytes = Buffer.from(
-        JSON.stringify({
-          schemaVersion: 1,
-          runId: 'run-chain-1',
-          evidenceRoot: root,
-          payload: {
-            acceptanceKind: 't17-owned-host-chain',
-            productionAcceptance: false,
-            result: 'passed',
-            cli,
-            chains,
-            childProcessesCleaned: true,
-            receiptEvidencePath: 'files/t17-host-acceptance.json',
-          },
-          files: sealedFiles,
-        }),
-      );
-      const sealPath = join(root, 'run-seal.json');
-      await writeFile(sealPath, sealBytes);
-
-      const receipt = {
-        schemaVersion: 1 as const,
-        acceptanceKind: 't17-owned-host-chain' as const,
-        productionAcceptance: false as const,
-        runId: 'run-chain-1',
-        evidenceRoot: root,
-        result: 'passed' as const,
-        receiptEvidencePath,
-        sealPath,
-        sealSha256: sha(sealBytes),
-        cli,
-        chains,
-        childProcessesCleaned: true,
-      };
-
+      const { receipt, retained } = await makeRetainedChainFixture(root);
       await expect(verifyReceipt(receipt)).resolves.toBeUndefined();
-      // 子进程未确认清理 -> 拒绝
+      const screenshot = join(retained.vue.artifactRoot, 'run/screenshot.png');
+      const screenshotBytes = await readFile(screenshot);
+      await writeFile(screenshot, 'tampered retained screenshot');
+      await expect(verifyReceipt(receipt)).rejects.toThrow(/artifact|retained|seal|digest/i);
+      await writeFile(screenshot, screenshotBytes);
+      await rm(screenshot);
+      await expect(verifyReceipt(receipt)).rejects.toThrow();
+      await writeFile(screenshot, screenshotBytes);
+      const persistedBeforeTamper = await readFile(receipt.receiptEvidencePath);
+      await writeFile(receipt.receiptEvidencePath, Buffer.from('{"tampered":true}\n'));
+      await expect(verifyReceipt(receipt)).rejects.toThrow(/receipt|seal|inventory|digest/i);
+      await writeFile(receipt.receiptEvidencePath, persistedBeforeTamper);
       await expect(verifyReceipt({ ...receipt, childProcessesCleaned: false })).rejects.toThrow(/process|clean|seal/i);
-      // 仅含 Vue 缺 React -> 拒绝
-      await expect(verifyReceipt({ ...receipt, chains: [vue.entry] })).rejects.toThrow(/vue|react|framework|seal/i);
+      await expect(verifyReceipt({ ...receipt, chains: [receipt.chains[0]] })).rejects.toThrow(/vue|react|framework|seal/i);
     } finally {
       await rm(root, { recursive: true, force: true });
     }
+  });
+
+  it.each([
+    'baseline-missing', 'baseline-tampered', 'baseline-junction',
+    'backup-missing', 'backup-tampered', 'backup-hardlink', 'backup-directory', 'unlisted-file',
+  ] as const)('完整回读封存 verify-out 并拒绝真实文件系统变更：%s', async defect => {
+    const mod = await loadChainModule();
+    const verifyReceipt = mod.verifyHostChainReceipt as (receipt: unknown) => Promise<void>;
+    const root = await mkdtemp(join(tmpdir(), 'zhinexus-t17-chain-retained-'));
+    try {
+      const { receipt, retained } = await makeRetainedChainFixture(root, { repair: true });
+      await expect(verifyReceipt(receipt)).resolves.toBeUndefined();
+      const { artifactRoot, baselinePath, backupPath } = retained.vue;
+      if (defect === 'baseline-missing') await rm(baselinePath);
+      if (defect === 'baseline-tampered') await writeFile(baselinePath, 'tampered baseline');
+      if (defect === 'baseline-junction') {
+        const original = join(artifactRoot, 'baselines');
+        const saved = join(root, 'baselines-saved');
+        await rename(original, saved);
+        await symlink(saved, original, 'junction');
+      }
+      if (defect === 'backup-missing') await rm(backupPath!);
+      if (defect === 'backup-tampered') await writeFile(backupPath!, 'tampered repair backup');
+      if (defect === 'backup-hardlink') {
+        const saved = join(root, 'backup-original.saved');
+        await rename(backupPath!, saved);
+        await link(saved, backupPath!);
+      }
+      if (defect === 'backup-directory') {
+        await rm(backupPath!);
+        await mkdir(backupPath!);
+      }
+      if (defect === 'unlisted-file') await writeFile(join(artifactRoot, 'unlisted.txt'), 'unsealed evidence');
+      await expect(verifyReceipt(receipt)).rejects.toThrow();
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it.each(['reference', 'original', 'path'] as const)('封存完整且契约有效仍须绑定 repair backupRef 与 beforeHashes：%s', async backupMismatch => {
+    const mod = await loadChainModule();
+    const verifyReceipt = mod.verifyHostChainReceipt as (receipt: unknown) => Promise<void>;
+    const root = await mkdtemp(join(tmpdir(), 'zhinexus-t17-chain-backup-'));
+    try {
+      const { receipt } = await makeRetainedChainFixture(root, { repair: true, backupMismatch });
+      await expect(verifyReceipt(receipt)).rejects.toThrow(/backup|before|retained|digest/i);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('封存完整且契约有效仍须将 spec baseline 引用绑定到保留字节', async () => {
+    const mod = await loadChainModule();
+    const verifyReceipt = mod.verifyHostChainReceipt as (receipt: unknown) => Promise<void>;
+    const root = await mkdtemp(join(tmpdir(), 'zhinexus-t17-chain-baseline-'));
+    try {
+      const { receipt } = await makeRetainedChainFixture(root, { baselineMismatch: true });
+      await expect(verifyReceipt(receipt)).rejects.toThrow(/baseline|retained|digest/i);
+    } finally {
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+
+  it('buildVerificationSpecForHost 支持透传 browser 与独立视觉基线并通过契约校验', () => {
+    const spec = buildVerificationSpecForHost({
+      canonicalProjectRoot: 'C:/owned/vue',
+      planDigest: '1'.repeat(64),
+      applyResultDigest: '2'.repeat(64),
+      manifestSha256: '3'.repeat(64),
+      browser: {
+        url: 'http://127.0.0.1:4173/',
+        readySelector: '[data-testid="ready"]',
+        timeoutMs: 30_000,
+        viewport: { width: 800, height: 400 },
+        renderer: 'canvas',
+        theme: 'light',
+        actions: [{ kind: 'click', selector: 'canvas' }],
+        assertions: [
+          { kind: 'visible', selector: '[data-testid="ready"]' },
+          { kind: 'visible', selector: 'canvas' },
+        ],
+        visual: {
+          baseline: {
+            image: { path: 'baselines/vue-baseline.png', sha256: '4'.repeat(64), bytes: 128 },
+            environment: {
+              os: 'windows',
+              arch: 'x64',
+              browserVersion: '158.0.0.0',
+              browserRevision: '1254',
+              fontDigest: '5'.repeat(64),
+              locale: 'zh-CN',
+              timezone: 'Asia/Shanghai',
+              deviceScaleFactor: 1,
+              renderer: 'canvas',
+              width: 800,
+              height: 400,
+              theme: 'light',
+              frameworkVersion: '3.5.45',
+              echartsVersion: '6.1.0',
+            },
+          },
+          pixelThreshold: 0.1,
+          maxDiffPixelRatio: 0.001,
+        },
+      },
+    } as Parameters<typeof buildVerificationSpecForHost>[0] & { browser: unknown });
+
+    expect(spec.browser?.url).toBe('http://127.0.0.1:4173/');
+    expect(spec.browser?.visual?.baseline.image.path).toBe('baselines/vue-baseline.png');
+  });
+
+  it('buildMatchPlanForHost 绑定权威 API target 原样保留 evidence/compatibility/notes 并拒绝与冻结 SDK 身份漂移', () => {
+    const response = componentMatchResponseFixture('vue');
+    response.gaps = [];
+    response.target!.compatibility = { status: 'verified', recordIds: ['api-compat-vue-1'] };
+    response.target!.notes = ['authoritative-api-note'];
+
+    const inputs: T17HostInputs = {
+      cliTarball: 'C:/frozen/cli.tgz', cliSha256: 'a'.repeat(64), cliVersion: '0.0.18',
+      sdkBundle: 'C:/frozen/sdk', sdkManifestSha256: 'b'.repeat(64),
+      apiUrl: 'http://127.0.0.1:4300', registryUrl: 'http://127.0.0.1:4873',
+      variantsFile: 'C:/frozen/variants.json', variantsSha256: 'c'.repeat(64),
+      apiToken: 'api-token', registryToken: 'registry-token',
+      variants: {
+        schemaVersion: 1,
+        variants: [{
+          componentId: response.target!.componentId,
+          framework: 'vue',
+          variantReleaseId: response.target!.variantReleaseId,
+        }],
+      },
+      validatedCompatibility: {},
+      sdkManifest: {
+        schemaVersion: 1,
+        files: [],
+        packages: [{
+          name: response.target!.packageName,
+          version: response.target!.packageVersion,
+          tarball: { sha256: response.target!.packageSha256 },
+        }],
+        variants: [{
+          componentId: response.target!.componentId,
+          framework: 'vue',
+          packageName: response.target!.packageName,
+          packageVersion: response.target!.packageVersion,
+          exportName: response.target!.exportName,
+          exportPath: response.target!.exportPath,
+          compatibility: [],
+        }],
+      },
+    } as T17HostInputs;
+
+    const plan = buildMatchPlanForHost('vue', inputs, { authoritativeMatch: response });
+    expect(plan.elements[0]?.target).toEqual(response.target);
+    expect(plan.exactDependencies).toEqual(response.exactDependencies);
+
+    // 权威 API 返回 unverified 时不得硬编码为 verified，且必须保留 COMPATIBILITY_UNVERIFIED gap
+    const unverifiedResponse = componentMatchResponseFixture('vue');
+    const unverifiedPlan = buildMatchPlanForHost('vue', inputs, { authoritativeMatch: unverifiedResponse });
+    expect(unverifiedPlan.elements[0]?.target?.compatibility).toEqual({ status: 'unverified', recordIds: [] });
+    expect(unverifiedPlan.elements[0]?.gaps.some(g => g.code === 'COMPATIBILITY_UNVERIFIED')).toBe(true);
+
+    // 冻结 SDK 与权威 API target 的 sha256 或 variantReleaseId 不一致时必须拒绝
+    const driftedSha = structuredClone(response);
+    driftedSha.target!.packageSha256 = '9'.repeat(64);
+    expect(() => buildMatchPlanForHost('vue', inputs, { authoritativeMatch: driftedSha })).toThrow(/sha|digest|match|identity/i);
+
+    const driftedVariant = structuredClone(response);
+    driftedVariant.target!.variantReleaseId = 'variant-other';
+    expect(() => buildMatchPlanForHost('vue', inputs, { authoritativeMatch: driftedVariant })).toThrow(/variant|match|identity/i);
+  });
+
+  it('normalizeVueHostGeneratedImport 仅为宿主对生成 SFC 的无扩展名导入补 .vue，且拒绝缺失或多处导入', () => {
+    const src = '<script setup lang="ts">\nimport{ref}from"vue";import Chart from "./components/zhinexus/component-0001";const n=ref(0);\n</script>\n';
+    const fixed = normalizeVueHostGeneratedImport(src, 'src/components/zhinexus/component-0001.vue');
+    expect(fixed).toContain('import Chart from "./components/zhinexus/component-0001.vue"');
+    expect(fixed.replace('./components/zhinexus/component-0001.vue', '')).not.toContain('component-0001');
+    // 已带扩展名时幂等
+    expect(normalizeVueHostGeneratedImport(fixed, 'src/components/zhinexus/component-0001.vue')).toBe(fixed);
+    // 宿主未导入生成模块时必须拒绝，而不是静默通过
+    expect(() => normalizeVueHostGeneratedImport('<script setup lang="ts"></script>', 'src/components/zhinexus/component-0001.vue')).toThrow(/generated/i);
+    expect(() => normalizeVueHostGeneratedImport(src + src, 'src/components/zhinexus/component-0001.vue')).toThrow(/generated/i);
+    // 非 .vue 生成路径拒绝
+    expect(() => normalizeVueHostGeneratedImport(src, 'src/components/zhinexus/component-0001.tsx')).toThrow(/\.vue/i);
   });
 });

@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { spawn } from 'node:child_process';
-import { lstat, mkdir, readFile, realpath, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, realpath, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import type { OwnedRun } from './host.js';
 
@@ -140,14 +140,49 @@ export async function assertLifecycleHooksSuppressed(projectRoot: string) {
     catch (error) { if ((error as NodeJS.ErrnoException).code !== 'ENOENT') throw error; }
   }
 }
+type InstallPathIdentity = { dev: string; ino: string };
+type OwnedInstallConfiguration = { config: string; userconfig: string; globalconfig: string; identities: Map<string, InstallPathIdentity> };
+const ownedInstallConfigurations = new WeakMap<OwnedRun, Map<string, OwnedInstallConfiguration>>();
+async function inspectInstallConfiguration(configuration: OwnedInstallConfiguration) {
+  for (const [path, directory] of [[configuration.config, true], [configuration.userconfig, false], [configuration.globalconfig, false]] as const) {
+    const stat = await lstat(path, { bigint: true });
+    if (stat.isSymbolicLink() || (directory ? !stat.isDirectory() : !stat.isFile() || stat.nlink !== 1n) || await realpath(path) !== path) {
+      throw new Error('Dependency install configuration contains a linked or non-ordinary path.');
+    }
+    const identity = { dev: String(stat.dev), ino: String(stat.ino) }, prior = configuration.identities.get(path);
+    if (prior && (prior.dev !== identity.dev || prior.ino !== identity.ino)) throw new Error('Dependency install configuration identity changed.');
+    if (!directory && (await readFile(path)).length !== 0) throw new Error('Dependency install configuration must remain empty.');
+    configuration.identities.set(path, identity);
+  }
+}
+async function installConfiguration(run: OwnedRun, root: string) {
+  let configurations = ownedInstallConfigurations.get(run);
+  if (!configurations) { configurations = new Map(); ownedInstallConfigurations.set(run, configurations); }
+  const prior = configurations.get(root);
+  if (prior) { await inspectInstallConfiguration(prior); return prior; }
+  const config = join(root, '.t17-install');
+  // Never adopt an existing path: it may be an ancestor junction into another project.
+  try { await mkdir(config); } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'EEXIST') throw new Error('Dependency install configuration already exists without this run ownership.');
+    throw error;
+  }
+  const stat = await lstat(config, { bigint: true });
+  if (!stat.isDirectory() || stat.isSymbolicLink() || await realpath(config) !== config) throw new Error('Dependency install configuration root is linked or unsafe.');
+  const userconfig = join(config, 'userconfig'), globalconfig = join(config, 'globalconfig');
+  const configuration = { config, userconfig, globalconfig, identities: new Map([[config, { dev: String(stat.dev), ino: String(stat.ino) }]]) };
+  await writeFile(userconfig, '', { flag: 'wx' });
+  await writeFile(globalconfig, '', { flag: 'wx' });
+  await inspectInstallConfiguration(configuration);
+  configurations.set(root, configuration);
+  return configuration;
+}
 export async function installDependencies(run: OwnedRun, options: { projectRoot: string; manager: 'npm' | 'pnpm'; toolchain: FixedToolchain; registry?: string; outputLimit?: number }) {
   const limit = outputCap(options.outputLimit);
   const root = resolve(options.projectRoot);
   await run.assertOwnedProject(root);
-  const config = join(root, '.t17-install'); await mkdir(config, { recursive: true });
-  const userconfig = join(config, 'userconfig'), globalconfig = join(config, 'globalconfig'), cache = join(config, 'cache');
-  await writeFile(userconfig, '').catch(() => undefined); await writeFile(globalconfig, '').catch(() => undefined); await mkdir(cache, { recursive: true });
-  const env: NodeJS.ProcessEnv = { PATH: [dirname(resolve(options.toolchain.nodeExecutable)), dirname(resolve(options.toolchain.pnpmWrapper))].join(';'), TEMP: config, TMP: config, CI: 'true', npm_config_userconfig: userconfig, npm_config_globalconfig: globalconfig, npm_config_cache: cache, PNPM_CONFIG_ENABLE_PRE_POST_SCRIPTS: 'false', PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS: 'false' };
+  const { userconfig, globalconfig } = await installConfiguration(run, root);
+  const cache = await run.createEvidenceArea('t17-dependency-cache-' + randomBytes(12).toString('hex'));
+  const env: NodeJS.ProcessEnv = { PATH: [dirname(resolve(options.toolchain.nodeExecutable)), dirname(resolve(options.toolchain.pnpmWrapper))].join(';'), TEMP: cache, TMP: cache, CI: 'true', npm_config_userconfig: userconfig, npm_config_globalconfig: globalconfig, npm_config_cache: cache, PNPM_CONFIG_ENABLE_PRE_POST_SCRIPTS: 'false', PNPM_CONFIG_MANAGE_PACKAGE_MANAGER_VERSIONS: 'false' };
   for (const key of systemKeys) if (process.env[key]) env[key] = process.env[key];
   const npm = options.manager === 'npm', executable = npm ? resolve(options.toolchain.nodeExecutable) : join(process.env.SystemRoot ?? process.env.WINDIR ?? 'C:\\Windows', 'System32/WindowsPowerShell/v1.0/powershell.exe');
   const args = npm ? [resolve(options.toolchain.npmCliPath), 'install', '--ignore-scripts', '--no-audit', '--no-fund', '--registry', options.registry ?? 'https://registry.npmjs.org/', '--userconfig', userconfig, '--globalconfig', globalconfig, '--cache', cache] : ['-NoLogo', '-NoProfile', '-NonInteractive', '-File', resolve(options.toolchain.pnpmWrapper), '-PnpmArgs', '--dir', root, 'install', '--ignore-scripts', '--ignore-pnpmfile', '--registry', options.registry ?? 'https://registry.npmjs.org/'];
@@ -160,10 +195,18 @@ export async function installDependencies(run: OwnedRun, options: { projectRoot:
   const stderr = captureOutput(limit, () => { void close().catch(() => undefined); });
   child.stdout.on('data', chunk => stdout.append(chunk)); child.stderr.on('data', chunk => stderr.append(chunk));
   const unregister = run.trackOwnedProcess(close); let code: number | null;
+  const key = 'install-' + options.manager + '-' + randomBytes(12).toString('hex');
+  let outRef!: Awaited<ReturnType<OwnedRun['writeEvidence']>>, errRef!: Awaited<ReturnType<OwnedRun['writeEvidence']>>;
   let timedOut = false;
   try { code = await new Promise<number | null>((ok, fail) => { let startError: Error | undefined; const timer = setTimeout(() => { timedOut = true; void close().catch(fail); }, 600000); child.once('error', error => { startError = error; clearTimeout(timer); }); child.once('close', value => { clearTimeout(timer); startError ? fail(Error('Dependency install could not start (' + startError.name + ').')) : ok(value); }); }); }
-  finally { unregister(); }
-  const out = stdout.value(), err = stderr.value(), key = 'install-' + options.manager + '-' + randomBytes(12).toString('hex'), outRef = await run.writeEvidence(key + '.stdout', out), errRef = await run.writeEvidence(key + '.stderr', err);
+  finally {
+    unregister();
+    outRef = await run.writeEvidence(key + '.stdout', stdout.value());
+    errRef = await run.writeEvidence(key + '.stderr', stderr.value());
+    const entries = await readdir(cache);
+    if (entries.length > 0) await run.registerEvidenceAreaContents(cache, entries);
+  }
+  const out = stdout.value(), err = stderr.value();
   if (stdout.exceeded() || stderr.exceeded()) throw Error('Dependency install exceeded the configured output limit; bounded output evidence retained at ' + outRef.path + ' and ' + errRef.path);
   if (timedOut) throw Error('Dependency install timed out; output evidence retained at ' + outRef.path + ' and ' + errRef.path);
   if (code !== 0) throw Error('Dependency install failed with exit ' + code + '; see external evidence ' + outRef.path + ' and ' + errRef.path);

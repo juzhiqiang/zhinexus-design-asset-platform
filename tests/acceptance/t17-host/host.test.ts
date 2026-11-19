@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createHash } from 'node:crypto';
-import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { link, lstat, mkdir, readFile, readdir, rename, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { createOwnedRun, installFrozenCli, type OwnedRun, verifyBuiltImportEvidence, startBuiltHost } from './host.js';
@@ -23,13 +23,137 @@ async function buildFixture(run:OwnedRun, framework:'vue'|'react'='react') {
   return {root,generatedPath,entry,mapPath,bundleBytes};
 }
 
+type DeliveryGuard = { register(operationId: string): Promise<void> };
+type DeliveryRun = OwnedRun & { prepareInstallDelivery(options: { projectRoot: string; backupRoot: string; planDigest: string; targets?: string[] }): Promise<DeliveryGuard> };
+
+async function deliveryFixture(framework: 'vue' | 'react' = 'vue', targets = ['node_modules']) {
+  const run = await createOwnedRun() as DeliveryRun;
+  const projectRoot = run.projectRoots[framework];
+  const backupRoot = await run.createEvidenceArea('delivery-backups');
+  const planDigest = 'a'.repeat(64), operationId = 'apply-owned-delivery';
+  for (const target of targets) {
+    await mkdir(join(projectRoot, target), { recursive: true });
+    await writeFile(join(projectRoot, target, 'original.txt'), 'owned original ' + target);
+  }
+  const guard = await run.prepareInstallDelivery({ projectRoot, backupRoot, planDigest, targets });
+  const quarantineRoot = join(run.parentRoot, '.t16-quarantine-owned-delivery');
+  await mkdir(quarantineRoot);
+  const entries = [];
+  for (const target of targets) {
+    const importer = target === 'node_modules' ? '.' : target.slice(0, -'/node_modules'.length);
+    const quarantine = join(quarantineRoot, importer === '.' ? 'root' : importer.replace(/[^A-Za-z0-9._-]+/g, '_'));
+    await rename(join(projectRoot, target), quarantine);
+    await mkdir(join(projectRoot, target));
+    await writeFile(join(projectRoot, target, 'replacement.txt'), 'new installed dependency bytes');
+    entries.push({ importer, target, hadOriginal: true, state: 'delivered', quarantine });
+  }
+  const journalDir = join(backupRoot, operationId);
+  await mkdir(journalDir);
+  const journalPath = join(journalDir, 'install-delivery.json');
+  const journal = { schemaVersion: 1, kind: 't16-install-delivery', operationId, projectRoot: projectRoot.replaceAll('\\', '/'), planDigest, entries };
+  await writeFile(journalPath, JSON.stringify(journal));
+  return { run, projectRoot, backupRoot, operationId, guard, quarantineRoot, journalPath, journal };
+}
+
 describe('T17 temporary host ownership', () => {
+  it.each(['vue', 'react'] as const)('registers only journal-bound original dependency trees and cleans synthetic quarantine: %s', async framework => {
+    const fixture = await deliveryFixture(framework);
+    const { run, guard, operationId, projectRoot, backupRoot, quarantineRoot } = fixture;
+    try {
+      await guard.register(operationId);
+      await expect(guard.register(operationId)).rejects.toThrow(/used|once|closed/i);
+      await run.registerOwnedPath(projectRoot, ['node_modules']);
+      await run.registerEvidenceAreaContents(backupRoot, [operationId]);
+      await run.stopOwnedProcesses();
+      const seal = JSON.parse(await readFile(await run.sealEvidence({ result: 'verified' }), 'utf8'));
+      expect(seal.inventories.installQuarantines).toHaveProperty('.t16-quarantine-owned-delivery');
+      await run.cleanup();
+      expect(await exists(quarantineRoot)).toBe(false);
+      expect(await exists(run.parentRoot)).toBe(false);
+    } finally {
+      await rm(run.parentRoot, { recursive: true, force: true });
+      await rm(run.evidenceRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('binds every explicitly captured workspace importer in the same delivery journal', async () => {
+    const fixture = await deliveryFixture('vue', ['node_modules', 'packages/feature/node_modules']);
+    const { run, guard, operationId, projectRoot, backupRoot } = fixture;
+    try {
+      await guard.register(operationId);
+      await run.registerOwnedPath(projectRoot, ['node_modules', 'packages']);
+      await run.registerEvidenceAreaContents(backupRoot, [operationId]);
+      await run.stopOwnedProcesses();await run.sealEvidence({ result: 'verified' });await run.cleanup();
+      expect(await exists(run.parentRoot)).toBe(false);
+    } finally {
+      await rm(run.parentRoot, { recursive: true, force: true });
+      await rm(run.evidenceRoot, { recursive: true, force: true });
+    }
+  });
+
+  it.each([
+    'journal-operation', 'journal-plan', 'journal-project', 'journal-importer', 'journal-target', 'duplicate-entry',
+    'unknown-operation', 'unknown-quarantine', 'extra-sibling', 'changed-bytes', 'changed-inode', 'quarantine-junction', 'journal-hardlink',
+  ] as const)('refuses unknown or changed delivery output and retains the original tree: %s', async defect => {
+    const fixture = await deliveryFixture();
+    const { run, guard, operationId, backupRoot, quarantineRoot, journalPath, journal } = fixture;
+    try {
+      const entry = journal.entries[0]!;
+      if (defect === 'journal-operation') journal.operationId = 'apply-other';
+      if (defect === 'journal-plan') journal.planDigest = 'b'.repeat(64);
+      if (defect === 'journal-project') journal.projectRoot = run.projectRoots.react.replaceAll('\\', '/');
+      if (defect === 'journal-importer') entry.importer = 'unplanned';
+      if (defect === 'journal-target') entry.target = 'packages/unplanned/node_modules';
+      if (defect === 'duplicate-entry') journal.entries.push({ ...entry });
+      if (defect === 'unknown-operation') await mkdir(join(backupRoot, 'apply-other'));
+      if (defect === 'unknown-quarantine') await writeFile(join(quarantineRoot, 'unregistered.txt'), 'keep unknown');
+      if (defect === 'extra-sibling') await writeFile(join(run.parentRoot, 'unregistered.txt'), 'keep unknown');
+      if (defect === 'changed-bytes') await writeFile(join(entry.quarantine, 'original.txt'), 'concurrent user bytes');
+      if (defect === 'changed-inode') {
+        await rename(entry.quarantine, entry.quarantine + '-saved');
+        await mkdir(entry.quarantine);await writeFile(join(entry.quarantine, 'original.txt'), 'owned original node_modules');
+      }
+      if (defect === 'quarantine-junction') {
+        await rename(quarantineRoot, quarantineRoot + '-saved');
+        await symlink(quarantineRoot + '-saved', quarantineRoot, 'junction');
+      }
+      await writeFile(journalPath, JSON.stringify(journal));
+      if (defect === 'journal-hardlink') await link(journalPath, join(run.projectRoots.vue, 'journal-linked.json'));
+      await expect(guard.register(operationId)).rejects.toThrow();
+      expect(await exists(quarantineRoot)).toBe(true);
+      await expect(run.abortForTest()).rejects.toThrow(/inventory|unregistered|changed/i);
+      expect(await exists(quarantineRoot)).toBe(true);
+    } finally {
+      await rm(run.parentRoot, { recursive: true, force: true });
+      await rm(run.evidenceRoot, { recursive: true, force: true });
+    }
+  });
+
+  it('requires an exact run project and backup area before capturing delivery ownership', async () => {
+    const run = await createOwnedRun() as DeliveryRun;
+    try {
+      const backupRoot = await run.createEvidenceArea('delivery-backups');
+      await expect(run.prepareInstallDelivery({ projectRoot: tmpdir(), backupRoot, planDigest: 'a'.repeat(64) })).rejects.toThrow(/owned|project/i);
+      await expect(run.prepareInstallDelivery({ projectRoot: run.projectRoots.vue, backupRoot: tmpdir(), planDigest: 'a'.repeat(64) })).rejects.toThrow(/owned|area|backup/i);
+      await mkdir(join(run.parentRoot, '.t16-quarantine-preexisting'));
+      await expect(run.prepareInstallDelivery({ projectRoot: run.projectRoots.vue, backupRoot, planDigest: 'a'.repeat(64) })).rejects.toThrow(/inventory|unregistered/i);
+    } finally {
+      await rm(run.parentRoot, { recursive: true, force: true });
+      await rm(run.evidenceRoot, { recursive: true, force: true });
+    }
+  });
+
   it('creates separate project roots and external evidence under one random run id', async () => {
     const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
     expect(run.projectRoots.vue).not.toBe(run.projectRoots.react);
     expect(resolve(run.evidenceRoot).startsWith(resolve(run.parentRoot))).toBe(false);
     expect(await readFile(join(run.projectRoots.vue,'.t17-owner.json'),'utf8')).toContain(run.runId);
     expect(await readFile(join(run.projectRoots.react,'.t17-owner.json'),'utf8')).toContain(run.runId);
+  });
+  it('validates a registered temporary project before a frozen CLI may execute in it', async () => {
+    const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);const cliRoot=await run.makeOwnedProject('cli-consumer');
+    await expect(run.assertOwnedProject(cliRoot)).resolves.toBeUndefined();
+    await expect(run.assertOwnedProject(tmpdir())).rejects.toThrow(/owned project/i);
   });
   it('requires an external evidence seal and stopped owned processes before cleanup', async () => {
     const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
@@ -61,6 +185,30 @@ describe('T17 temporary host ownership', () => {
     } finally {
       await rm(replaced,{recursive:true,force:true});await rename(saved,replaced);
     }
+  });
+  it('refuses failure evidence preservation when the retained evidence root identity changes', async () => {
+    const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
+    const replaced=run.evidenceRoot,saved=replaced+'-saved',sentinel=join(replaced,'keep.txt');
+    await rename(replaced,saved);await mkdir(replaced);await writeFile(sentinel,'outside evidence sentinel');
+    try {
+      await expect(run.abortForTest({preserveEvidence:true})).rejects.toThrow(/owner|marker|identity/i);
+      await expect(readFile(sentinel,'utf8')).resolves.toBe('outside evidence sentinel');
+      await expect(lstat(run.parentRoot)).resolves.toBeTruthy();
+    } finally {
+      await rm(replaced,{recursive:true,force:true});await rename(saved,replaced);
+    }
+  });
+  it('can remove only owned projects while retaining registered failure evidence', async () => {
+    const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
+    const evidence=await run.writeEvidence('failure.stdout',Buffer.from('captured before failure'));
+    const retainedRoot=run.evidenceRoot;
+    await run.abortForTest({preserveEvidence:true});
+    runs.splice(runs.indexOf(run),1);
+    try {
+      await expect(lstat(run.parentRoot)).rejects.toMatchObject({code:'ENOENT'});
+      await expect(readFile(evidence.path,'utf8')).resolves.toBe('captured before failure');
+      const retainedStat=await lstat(retainedRoot);expect(retainedStat.isDirectory()).toBe(true);
+    } finally { await rm(retainedRoot,{recursive:true,force:true}); }
   });
   it('refuses failure cleanup when a project child directory is replaced', async () => {
     const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);
@@ -219,5 +367,16 @@ describe('T17 temporary host ownership', () => {
     await writeFile(tarball,'frozen bytes');await writeFile(fakeNpm,"require('node:fs').writeFileSync("+JSON.stringify(started)+",'spawned');");await run.registerEvidenceAreaContents(area,['dummy.tgz','record-npm.cjs']);
     await expect(installFrozenCli({run,tarballPath:tarball,nodeExecutable:process.execPath,npmCliPath:fakeNpm,expectedVersion:'0.0.14',expectedTarballSha256:'0'.repeat(64)})).rejects.toThrow(/digest|sha/i);
     await expect(readFile(started)).rejects.toMatchObject({code:'ENOENT'});
+  });
+  it('pins the frozen tarball in the owned consumer manifest instead of allowing npm to rewrite it', async () => {
+    const run=await createOwnedRun({baseDirectory:tmpdir()});runs.push(run);const area=await run.createEvidenceArea('cli-contract'),tarball=join(area,'dummy.tgz'),fakeNpm=join(area,'inspect-npm.cjs');
+    await writeFile(tarball,'frozen bytes');
+    const fakeSource=['const fs=require("node:fs")','const path=require("node:path")','const root=process.argv[process.argv.indexOf("--prefix")+1]','const pkg=JSON.parse(fs.readFileSync(path.join(root,"package.json"),"utf8"))','fs.writeFileSync(path.join(root,"tarball-reference.txt"),pkg.dependencies?.["@company/component-cli"]||"missing")','const install=path.join(root,"node_modules/@company/component-cli")','fs.mkdirSync(path.join(install,"dist"),{recursive:true})','fs.writeFileSync(path.join(install,"package.json"),JSON.stringify({name:"@company/component-cli",version:"0.0.14",bin:{component:"dist/bin.js"}}))','fs.writeFileSync(path.join(install,"dist/bin.js"),"frozen CLI entry")'].join(';');
+    await writeFile(fakeNpm,fakeSource);await run.registerEvidenceAreaContents(area,['dummy.tgz','inspect-npm.cjs']);
+
+    const installed=await installFrozenCli({run,tarballPath:tarball,nodeExecutable:process.execPath,npmCliPath:fakeNpm,expectedVersion:'0.0.14',expectedTarballSha256:sha(Buffer.from('frozen bytes'))});
+    const reference=await readFile(join(installed.root,'tarball-reference.txt'),'utf8');
+    expect(reference).toContain('file:');expect(reference).toContain(tarball.replaceAll('\\','/'));
+    expect(installed.entrySha256).toBe(sha(Buffer.from('frozen CLI entry')));
   });
 });
