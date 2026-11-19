@@ -184,6 +184,7 @@ export function validateIntegrationApplyResult(input: unknown, context?: Integra
   if (p.status === 'applied') {
     if (!p.changedFiles.length || p.issues.length) add('/status', 'Applied requires writes and no issues');
     if (!['not-run', 'succeeded'].includes(p.installState)) add('/installState', 'Applied cannot claim failed or unresolved installation');
+    if (p.installState === 'not-run' && p.installedVersions.length) add('/installedVersions', 'An operation without installation cannot claim installed versions');
   } else {
     if (!p.issues.length) add('/issues', 'Non-success requires explicit issues');
     if (p.installedVersions.length) add('/installedVersions', 'Failed operations cannot claim accepted installed versions');
@@ -207,8 +208,8 @@ export function validateIntegrationApplyResult(input: unknown, context?: Integra
     for (const f of p.beforeHashes) { const base = context.plan.baseFileHashes.find(b => b.path === f.path); if (!base || !equalSnapshot(base, f)) add('/beforeHashes', 'Original guard must match the plan'); }
     if (p.status === 'applied') {
       if (!sameSet(p.changedFiles, context.plan.allowedPaths)) add('/changedFiles', 'Applied must cover the complete plan');
-      if (p.installedVersions.length !== context.plan.exactDependencies.length || context.plan.exactDependencies.some(d => !p.installedVersions.some(e => e.name === d.name && e.version === d.version))) add('/installedVersions', 'Actual exact installed dependencies must match the plan');
       const installation = context.plan.changes.some(c => c.kind === 'lockfile-regeneration');
+      if (installation && (p.installedVersions.length !== context.plan.exactDependencies.length || context.plan.exactDependencies.some(d => !p.installedVersions.some(e => e.name === d.name && e.version === d.version)))) add('/installedVersions', 'Actual exact installed dependencies must match the plan');
       if (p.installState !== (installation ? 'succeeded' : 'not-run')) add('/installState', 'Installation evidence must agree with the plan');
     }
   }
