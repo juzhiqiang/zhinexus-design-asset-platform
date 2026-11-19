@@ -34,6 +34,7 @@ import {
 } from '../integration/report.js';
 import { verifyIntegration } from '../integration/verify.js';
 import { realpathOrSelf } from '../integration/workspace.js';
+import { RedactedStdioServerTransport } from './transport.js';
 
 export type McpHostConfig = {
   schemaVersion: 1;
@@ -395,9 +396,11 @@ export async function runMcpServeCommand(
     return { exitCode: 1, stdout: '', stderr: `✖ MCP 启动配置无效: ${msg}\n` };
   }
 
+  const transport = new RedactedStdioServerTransport();
   const handle = serveStdio(() => createComponentMcpServer(config, version), {
+    transport,
     onerror: error => {
-      process.stderr.write(`${sanitizeDiagnosticText(error.message)}\n`);
+      process.stderr.write(`${transport.sanitizeText(error.message)}\n`);
     },
   });
 
