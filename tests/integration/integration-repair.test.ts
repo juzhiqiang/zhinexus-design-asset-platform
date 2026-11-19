@@ -476,9 +476,9 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
   it.each(['PROJECT_CHANGED', 'USER_EDITED'] as const)('源报告已含 %s 时不启动任何修复写入', async code => {
     const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
     const sourceReport = structuredClone(ctx.initialReport);
-    sourceReport.pendingItems.push({ code, message: code === 'PROJECT_CHANGED'
-      ? 'Project source files changed during verification.'
-      : 'A user-edited file was preserved.', path: 'src/user.ts' });
+    sourceReport.pendingItems.push(code === 'PROJECT_CHANGED'
+      ? { code, message: 'Project source files changed during verification.', path: 'src/user.ts' }
+      : { code, message: 'A user-edited file was preserved.', path: 'src/user.ts' });
     const generatedBefore = fs.readFileSync(path.join(ctx.root, ctx.generatedPath));
     const result = await callRepair(cliExports, ctx.root, ctx.plan, sourceReport, {
       applyResult: ctx.applyResult, spec: ctx.spec,

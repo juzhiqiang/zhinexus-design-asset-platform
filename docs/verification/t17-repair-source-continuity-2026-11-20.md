@@ -37,3 +37,5 @@ repair 以源报告完整 snapshots.after 为基底，仅更新本轮已安全�
 04:25:08 实际运行完整 repair、project-verify、project-verify-cli 和两份 verification/repair 契约套件：5 文件、118/118、无 skip、37.54 秒、exit 0。新增断言包括原始锁文件字节及未修复生成文件保持不变、源报告问题保留、源报告已变时 attempts=[]。独立复审继续核验，不用本次定向通过替代新冻结包最终回归。
 
 独立复审随后对最新源码运行 `.tools/review-repair-snapshot-20261120-7727/vitest.config.ts`：04:26:42，6/6、exit 0。覆盖诚实源变更报告、无源变更 issue 的伪造锁快照、缺失/未知/false 快照、合法两轮摘要链及带 context 的完整契约验证；公共 verify 的额外 options/第四实参不能替换基线。复审结论无剩余 Critical / Important / 新增 Minor。该 probe 为独占、忽略的 synthetic 源码验证，不替代新冻结消费者验收。
+
+0.0.22 强制全图 build/typecheck 为 20/20、0 cached、15.336 秒、exit 0；随后根 tsc 首次因新增测试把 issue.code 和固定 message 分别联合推断而报 TS2345。将测试 fixture 改成完整判别对象的两个分支，产品未改；根 tsc 随后 exit 0。04:37:47 复跑 `-t 源报告` 为 4 passed / 13 skipped、5.71 秒、exit 0，仅证明该受影响组，完整根回归另行执行。首次失败及追加的 root-tsc-correction-result.json 均保留于外置 workspace-0.0.22-mwo0gepv-tj4gx2ze，不覆盖原失败记录。
