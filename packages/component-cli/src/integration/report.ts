@@ -22,7 +22,7 @@ import type { IntegrationFileSnapshot } from '../contracts/integration-plan.js';
 import type { ArtifactRef } from '../contracts/release-manifest.js';
 import type { EnvironmentV1 } from '../contracts/reports.js';
 import { canonicalJson } from '../contracts/schema.js';
-import { isInsideDirectory, realpathOrSelf, toPosix } from './workspace.js';
+import { isInsideDirectory, toPosix } from './workspace.js';
 
 export function sha256Hex(content: Buffer | string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -132,11 +132,35 @@ export function createRunArtifactSession(
   artifactRoot: string,
   prefix: 'verify' | 'repair' = 'verify',
 ): RunArtifactSession {
-  fs.mkdirSync(artifactRoot, { recursive: true });
-  const realArtifactRoot = realpathOrSelf(path.resolve(artifactRoot));
-  const runDirName = `runs/${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
-  const runDirAbs = path.join(realArtifactRoot, runDirName);
-  fs.mkdirSync(runDirAbs, { recursive: true });
+  const resolvedArtifactRoot = realpathWithMissingTail(path.resolve(artifactRoot));
+  if (!resolvedArtifactRoot) throw new Error('PATH_UNSAFE: artifact evidence root cannot be resolved safely');
+  fs.mkdirSync(resolvedArtifactRoot, { recursive: true });
+  const realArtifactRoot = fs.realpathSync(resolvedArtifactRoot);
+  if (!sameDirectoryPath(realArtifactRoot, resolvedArtifactRoot)) {
+    throw new Error('PATH_UNSAFE: artifact evidence root changed during creation');
+  }
+
+  const runsAbs = path.join(realArtifactRoot, 'runs');
+  try {
+    fs.mkdirSync(runsAbs);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== 'EEXIST') throw error;
+  }
+  assertOrdinaryDirectory(runsAbs, runsAbs);
+
+  let runDirName = '';
+  let runDirAbs = '';
+  for (let attempt = 0; attempt < 5; attempt++) {
+    runDirName = `runs/${prefix}-${Date.now()}-${randomUUID().slice(0, 8)}`;
+    runDirAbs = path.join(realArtifactRoot, runDirName);
+    try {
+      fs.mkdirSync(runDirAbs);
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST' || attempt === 4) throw error;
+    }
+  }
+  assertOrdinaryDirectory(runDirAbs, runDirAbs);
 
   const artifacts: ArtifactRef[] = [];
 
@@ -144,8 +168,9 @@ export function createRunArtifactSession(
     const safeName = fileName.replace(/[^a-zA-Z0-9._-]/g, '_');
     const relPath = toPosix(`${runDirName}/${safeName}`);
     const absPath = path.join(realArtifactRoot, relPath);
-    fs.mkdirSync(path.dirname(absPath), { recursive: true });
-    fs.writeFileSync(absPath, content);
+    assertOrdinaryDirectory(runsAbs, runsAbs);
+    assertOrdinaryDirectory(runDirAbs, runDirAbs);
+    fs.writeFileSync(absPath, content, { flag: 'wx' });
     const ref: ArtifactRef = {
       path: relPath,
       sha256: sha256Hex(content),
@@ -169,6 +194,21 @@ export function createRunArtifactSession(
     writeText,
     writeBytes,
   };
+}
+
+function sameDirectoryPath(actual: string, expected: string): boolean {
+  return isInsideDirectory(actual, expected) && isInsideDirectory(expected, actual);
+}
+
+function assertOrdinaryDirectory(absPath: string, expectedRealPath: string): void {
+  try {
+    const stat = fs.lstatSync(absPath);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) throw new Error();
+    const realPath = fs.realpathSync(absPath);
+    if (!sameDirectoryPath(realPath, expectedRealPath)) throw new Error();
+  } catch {
+    throw new Error('PATH_UNSAFE: artifact evidence path must be an ordinary directory');
+  }
 }
 
 export function buildVerificationReport(params: {

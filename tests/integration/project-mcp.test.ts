@@ -17,6 +17,8 @@ import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import { canonicalJson } from '../../packages/component-cli/src/contracts/schema.js';
 import { canonicalProjectRoot } from '../../packages/component-cli/src/integration/apply.js';
+import { createRunArtifactSession } from '../../packages/component-cli/src/integration/report.js';
+import { parseMcpHostConfig } from '../../packages/component-cli/src/mcp/server.js';
 import { runCli } from '../../packages/component-cli/src/cli.js';
 import { startSyntheticNetwork, SYNTHETIC_API_TOKEN, SYNTHETIC_REGISTRY_TOKEN, type SyntheticNetwork } from './t16-support/loopback-services.js';
 import { ECHARTS_VERSION, PACKAGE_VERSION, tarballSha256, VUE_FRAMEWORK_VERSION, VUE_PACKAGE_NAME } from './t16-support/synthetic-projects.js';
@@ -189,6 +191,42 @@ describe('T17 A3 四工具本地 stdio MCP', () => {
     }
     return { root, canonicalRoot: canonicalProjectRoot(root), artifactRoot };
   }
+
+  it('拒绝 artifactRoot/runs junction，避免验证证据写入外部目标', () => {
+    const artifactRoot = makeTempDir('zhinexus-t17-mcp-runs-root-');
+    const outside = makeTempDir('zhinexus-t17-mcp-runs-outside-');
+    const outsideBefore = fs.readdirSync(outside);
+    fs.symlinkSync(outside, path.join(artifactRoot, 'runs'), process.platform === 'win32' ? 'junction' : 'dir');
+
+    expect(() => createRunArtifactSession(artifactRoot)).toThrow(/PATH_UNSAFE/);
+    expect(fs.readdirSync(outside)).toEqual(outsideBefore);
+  });
+
+  it('MCP 宿主将缺失 artifactRoot 固定到已解析的物理父目录', () => {
+    const root = makeTempDir('zhinexus-t17-mcp-bound-project-');
+    const outsideA = makeTempDir('zhinexus-t17-mcp-bound-a-');
+    const outsideB = makeTempDir('zhinexus-t17-mcp-bound-b-');
+    const aliasParent = path.join(makeTempDir('zhinexus-t17-mcp-bound-alias-'), 'artifacts');
+    fs.symlinkSync(outsideA, aliasParent, process.platform === 'win32' ? 'junction' : 'dir');
+    const configPath = path.join(makeTempDir('zhinexus-t17-mcp-bound-config-'), 'host.json');
+    const configuredArtifactRoot = path.join(aliasParent, 'new-artifacts');
+    writeJson(configPath, { schemaVersion: 1, projectRoot: canonicalProjectRoot(root), artifactRoot: configuredArtifactRoot });
+
+    const parsed = parseMcpHostConfig(configPath);
+    expect(parsed.artifactRoot).toBe(path.join(outsideA, 'new-artifacts').replaceAll('\\', '/'));
+    fs.unlinkSync(aliasParent);
+    fs.symlinkSync(outsideB, aliasParent, process.platform === 'win32' ? 'junction' : 'dir');
+    const session = createRunArtifactSession(parsed.artifactRoot);
+    expect(path.dirname(session.runDirAbs)).toBe(path.join(outsideA, 'new-artifacts', 'runs'));
+    expect(fs.existsSync(path.join(outsideB, 'new-artifacts'))).toBe(false);
+  });
+
+  it('MCP 宿主拒绝相对 projectRoot', () => {
+    const artifactRoot = makeTempDir('zhinexus-t17-mcp-relative-artifact-');
+    const relativeConfigPath = path.join(makeTempDir('zhinexus-t17-mcp-relative-config-'), 'host.json');
+    writeJson(relativeConfigPath, { schemaVersion: 1, projectRoot: '.', artifactRoot });
+    expect(() => parseMcpHostConfig(relativeConfigPath)).toThrow(/projectRoot.*绝对路径/);
+  });
 
   async function connectMcp(configPath: string, extraEnv?: Record<string, string>) {
     const transport = new StdioClientTransport({

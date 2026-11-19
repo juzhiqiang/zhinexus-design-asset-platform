@@ -64,6 +64,9 @@ export function parseMcpHostConfig(configPath: string): McpHostConfig {
   const raw = JSON.parse(fs.readFileSync(configPath, 'utf8')) as unknown;
   const parsed = HostConfigSchema.parse(raw);
 
+  if (!path.isAbsolute(parsed.projectRoot)) {
+    throw new Error('INVALID_CONFIG: projectRoot 必须是绝对路径');
+  }
   const absProject = path.resolve(parsed.projectRoot);
   if (!fs.existsSync(absProject) || !fs.statSync(absProject).isDirectory()) {
     throw new Error('INVALID_CONFIG: projectRoot 必须是已存在的目录');
@@ -75,7 +78,9 @@ export function parseMcpHostConfig(configPath: string): McpHostConfig {
   if (!artCheck.ok) {
     throw new Error('INVALID_CONFIG: artifactRoot 必须位于项目根之外');
   }
-  const canonicalArtifact = canonicalProjectRoot(path.resolve(parsed.artifactRoot));
+  // Store the resolved physical destination (including any missing tail), not the
+  // original alias, so a parent junction retarget after startup cannot redirect writes.
+  const canonicalArtifact = canonicalProjectRoot(artCheck.realArtifactRoot);
 
   const normalizeOrigins = (values: string[] | undefined, name: string): string[] | undefined => {
     if (values === undefined) return undefined;
