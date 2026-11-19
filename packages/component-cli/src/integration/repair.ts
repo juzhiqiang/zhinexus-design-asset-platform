@@ -64,6 +64,216 @@ type RecipeMatch = {
   repairedContent: string;
 };
 
+type RepairFileIdentity = {
+  dev: number;
+  ino: number;
+};
+
+type GuardedFileRead = {
+  bytes: Buffer;
+  identity: RepairFileIdentity;
+};
+
+type GuardedWriteResult =
+  | { status: 'written'; identity: RepairFileIdentity }
+  | { status: 'changed' }
+  | { status: 'failed-recovered' }
+  | { status: 'recovery-required' };
+
+function sameRepairFileIdentity(left: fs.Stats, right: fs.Stats): boolean {
+  return left.isFile() && right.isFile() && left.dev === right.dev && left.ino === right.ino;
+}
+
+function repairFileIdentity(stats: fs.Stats): RepairFileIdentity {
+  return { dev: stats.dev, ino: stats.ino };
+}
+
+function sameRepairFileIdentityValue(left: RepairFileIdentity, right: fs.Stats): boolean {
+  return left.dev === right.dev && left.ino === right.ino && right.isFile();
+}
+
+function readDescriptorBytes(fd: number): Buffer {
+  const stat = fs.fstatSync(fd);
+  if (!stat.isFile() || stat.size > 16 * 1024 * 1024) {
+    throw new Error('UNSAFE_REPAIR_FILE');
+  }
+  const bytes = Buffer.alloc(stat.size);
+  let offset = 0;
+  while (offset < bytes.length) {
+    const read = fs.readSync(fd, bytes, offset, bytes.length - offset, offset);
+    if (read === 0) break;
+    offset += read;
+  }
+  if (offset !== bytes.length) throw new Error('UNSTABLE_REPAIR_FILE');
+  const afterRead = fs.fstatSync(fd);
+  if (!sameRepairFileIdentity(stat, afterRead) || stat.size !== afterRead.size) {
+    throw new Error('UNSTABLE_REPAIR_FILE');
+  }
+  return bytes;
+}
+
+function readRepairFileSafely(projectRoot: string, absPath: string): GuardedFileRead | undefined {
+  let fd: number | undefined;
+  try {
+    const beforePath = fs.lstatSync(absPath);
+    if (beforePath.isSymbolicLink() || !beforePath.isFile()) return undefined;
+    const flags = fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0);
+    fd = fs.openSync(absPath, flags);
+    const opened = fs.fstatSync(fd);
+    const afterOpenPath = fs.lstatSync(absPath);
+    if (
+      afterOpenPath.isSymbolicLink() ||
+      !sameRepairFileIdentity(beforePath, opened) ||
+      !sameRepairFileIdentity(opened, afterOpenPath) ||
+      !isInsideDirectory(projectRoot, realpathOrSelf(absPath))
+    ) {
+      return undefined;
+    }
+    const bytes = readDescriptorBytes(fd);
+    const afterReadPath = fs.lstatSync(absPath);
+    const afterReadHandle = fs.fstatSync(fd);
+    if (
+      afterReadPath.isSymbolicLink() ||
+      !sameRepairFileIdentity(opened, afterReadHandle) ||
+      !sameRepairFileIdentity(afterReadHandle, afterReadPath)
+    ) {
+      return undefined;
+    }
+    return { bytes, identity: repairFileIdentity(afterReadHandle) };
+  } catch {
+    return undefined;
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch { /* already closed */ }
+    }
+  }
+}
+
+function writeDescriptorFully(fd: number, bytes: Buffer): number {
+  let offset = 0;
+  while (offset < bytes.length) {
+    const written = fs.writeSync(fd, bytes, offset, bytes.length - offset, offset);
+    if (written <= 0) throw new Error('REPAIR_WRITE_FAILED');
+    offset += written;
+  }
+  return offset;
+}
+
+function isPrefixOf(expected: Buffer, actual: Buffer): boolean {
+  return actual.length <= expected.length && expected.subarray(0, actual.length).equals(actual);
+}
+
+function restoreOriginalDescriptor(
+  fd: number,
+  identity: RepairFileIdentity,
+  originalBytes: Buffer,
+  allowedCurrent: (bytes: Buffer) => boolean,
+): boolean {
+  try {
+    if (!sameRepairFileIdentityValue(identity, fs.fstatSync(fd))) return false;
+    if (!allowedCurrent(readDescriptorBytes(fd))) return false;
+    fs.ftruncateSync(fd, 0);
+    writeDescriptorFully(fd, originalBytes);
+    fs.fsyncSync(fd);
+    return (
+      sameRepairFileIdentityValue(identity, fs.fstatSync(fd)) &&
+      readDescriptorBytes(fd).equals(originalBytes)
+    );
+  } catch {
+    return false;
+  }
+}
+
+function pathStillMatchesDescriptor(
+  projectRoot: string,
+  absPath: string,
+  fd: number,
+  expectedIdentity: RepairFileIdentity,
+): boolean {
+  try {
+    const pathStat = fs.lstatSync(absPath);
+    const handleStat = fs.fstatSync(fd);
+    return (
+      !pathStat.isSymbolicLink() &&
+      sameRepairFileIdentityValue(expectedIdentity, handleStat) &&
+      sameRepairFileIdentity(handleStat, pathStat) &&
+      isInsideDirectory(projectRoot, realpathOrSelf(absPath))
+    );
+  } catch {
+    return false;
+  }
+}
+
+function writeRepairFileSafely(params: {
+  projectRoot: string;
+  absPath: string;
+  expectedBefore: IntegrationFileSnapshot;
+  expectedIdentity: RepairFileIdentity;
+  originalBytes: Buffer;
+  repairedBytes: Buffer;
+}): GuardedWriteResult {
+  let fd: number | undefined;
+  let mutationStarted = false;
+  let writtenBytes = 0;
+  try {
+    const beforePath = fs.lstatSync(params.absPath);
+    if (beforePath.isSymbolicLink() || !sameRepairFileIdentityValue(params.expectedIdentity, beforePath)) {
+      return { status: 'changed' };
+    }
+    const flags = fs.constants.O_RDWR | (fs.constants.O_NOFOLLOW ?? 0);
+    fd = fs.openSync(params.absPath, flags);
+    if (!pathStillMatchesDescriptor(params.projectRoot, params.absPath, fd, params.expectedIdentity)) {
+      return { status: 'changed' };
+    }
+    const currentBytes = readDescriptorBytes(fd);
+    if (
+      sha256Hex(currentBytes) !== params.expectedBefore.sha256 ||
+      !currentBytes.equals(params.originalBytes)
+    ) {
+      return { status: 'changed' };
+    }
+    // 再核对路径身份与内容；后续只通过已打开的文件描述符写，不会跟随被替换的符号链接。
+    if (!pathStillMatchesDescriptor(params.projectRoot, params.absPath, fd, params.expectedIdentity)) {
+      return { status: 'changed' };
+    }
+    const lastRead = readDescriptorBytes(fd);
+    if (!lastRead.equals(params.originalBytes)) return { status: 'changed' };
+
+    mutationStarted = true;
+    fs.ftruncateSync(fd, 0);
+    writtenBytes = writeDescriptorFully(fd, params.repairedBytes);
+    fs.fsyncSync(fd);
+    const stillOwnedPath = pathStillMatchesDescriptor(params.projectRoot, params.absPath, fd, params.expectedIdentity);
+    const finalBytes = readDescriptorBytes(fd);
+    if (!stillOwnedPath || !finalBytes.equals(params.repairedBytes)) {
+      if (!restoreOriginalDescriptor(fd, params.expectedIdentity, params.originalBytes, bytes => bytes.equals(params.repairedBytes))) {
+        return { status: 'recovery-required' };
+      }
+      return stillOwnedPath ? { status: 'recovery-required' } : { status: 'changed' };
+    }
+    return { status: 'written', identity: params.expectedIdentity };
+  } catch {
+    if (!mutationStarted || fd === undefined) return { status: 'failed-recovered' };
+    try {
+      const stillOwnedPath = pathStillMatchesDescriptor(params.projectRoot, params.absPath, fd, params.expectedIdentity);
+      const allowedCurrent = (bytes: Buffer) => {
+        const expectedPartial = params.repairedBytes.subarray(0, writtenBytes);
+        return bytes.equals(expectedPartial) || isPrefixOf(params.repairedBytes, bytes);
+      };
+      if (!restoreOriginalDescriptor(fd, params.expectedIdentity, params.originalBytes, allowedCurrent)) {
+        return { status: 'recovery-required' };
+      }
+      return stillOwnedPath ? { status: 'failed-recovered' } : { status: 'changed' };
+    } catch {
+      return { status: 'recovery-required' };
+    }
+  } finally {
+    if (fd !== undefined) {
+      try { fs.closeSync(fd); } catch { /* already closed */ }
+    }
+  }
+}
+
 function blockedRepairResult(params: {
   id: string;
   projectRoot: string;
@@ -166,6 +376,19 @@ function writeRepairBackup(
   } catch {
     return { ok: false };
   }
+}
+
+function firstSnapshotMismatch(
+  expectedSnapshots: readonly IntegrationFileSnapshot[],
+  actualSnapshots: readonly IntegrationFileSnapshot[],
+): string | undefined {
+  const expected = new Map(expectedSnapshots.map(snapshot => [snapshot.path, snapshot]));
+  const actual = new Map(actualSnapshots.map(snapshot => [snapshot.path, snapshot]));
+  return [...new Set([...expected.keys(), ...actual.keys()])].sort().find(filePath => {
+    const before = expected.get(filePath);
+    const current = actual.get(filePath);
+    return before?.exists !== current?.exists || before?.sha256 !== current?.sha256;
+  });
 }
 
 export async function repairIntegration(
@@ -339,8 +562,18 @@ export async function repairIntegration(
   // 复核初始守卫：applyResult.afterHashes 与 report.snapshots.after 均必须与当前磁盘一致
   for (const guard of options.applyResult.afterHashes) {
     const abs = path.resolve(realProjectRoot, guard.path);
-    const exists = fs.existsSync(abs);
-    if (exists && fs.lstatSync(abs).isSymbolicLink()) {
+    let stat: fs.Stats | undefined;
+    try { stat = fs.lstatSync(abs); } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        return blockedRepairResult({
+          id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+          maxAttempts: effectiveMax, stopReason: 'invalid-input', finalReport: report,
+          issue: verificationIssue('PATH_UNSAFE', guard.path),
+        });
+      }
+    }
+    const exists = stat !== undefined;
+    if (stat && (stat.isSymbolicLink() || !stat.isFile())) {
       return blockedRepairResult({
         id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
         maxAttempts: effectiveMax, stopReason: 'invalid-input', finalReport: report,
@@ -355,7 +588,15 @@ export async function repairIntegration(
         issue: verificationIssue('PATH_UNSAFE', guard.path),
       });
     }
-    const actualSha = exists ? sha256Hex(fs.readFileSync(abs)) : undefined;
+    const guardedRead = exists ? readRepairFileSafely(realProjectRoot, abs) : undefined;
+    if (exists && !guardedRead) {
+      return blockedRepairResult({
+        id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+        maxAttempts: effectiveMax, stopReason: 'invalid-input', finalReport: report,
+        issue: verificationIssue('PATH_UNSAFE', guard.path),
+      });
+    }
+    const actualSha = guardedRead ? sha256Hex(guardedRead.bytes) : undefined;
     if (guard.exists !== exists || guard.sha256 !== actualSha) {
       return blockedRepairResult({
         id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
@@ -369,6 +610,19 @@ export async function repairIntegration(
   const privateGuards = new Map<string, IntegrationFileSnapshot>(
     options.applyResult.afterHashes.map(s => [s.path, { ...s }]),
   );
+  const privateIdentities = new Map<string, RepairFileIdentity>();
+  for (const guard of options.applyResult.afterHashes) {
+    if (!guard.exists) continue;
+    const guardedRead = readRepairFileSafely(realProjectRoot, path.resolve(realProjectRoot, guard.path));
+    if (!guardedRead || sha256Hex(guardedRead.bytes) !== guard.sha256) {
+      return blockedRepairResult({
+        id: repairId, projectRoot: canonicalRoot, planDigest, applyResultDigest, specDigest, sourceReportDigest,
+        maxAttempts: effectiveMax, stopReason: 'user-edited', finalReport: report,
+        issue: verificationIssue('USER_EDITED', guard.path),
+      });
+    }
+    privateIdentities.set(guard.path, guardedRead.identity);
+  }
 
   const attempts: IntegrationRepairAttempt[] = [];
   const changedSet = new Set<string>();
@@ -388,16 +642,27 @@ export async function repairIntegration(
     let matchedRecipe: RecipeMatch | undefined;
     let originalBytes: Buffer | undefined;
     let beforeSnap: IntegrationFileSnapshot | undefined;
+    let beforeIdentity: RepairFileIdentity | undefined;
 
     for (const relPath of options.authorization.allowedRepairPaths) {
       const abs = path.resolve(realProjectRoot, relPath);
-      if (!fs.existsSync(abs) || fs.lstatSync(abs).isSymbolicLink() || !isInsideDirectory(realProjectRoot, realpathOrSelf(abs))) {
+      if (!fs.existsSync(abs)) {
         continue;
       }
-      const bytes = fs.readFileSync(abs);
+      const guardedRead = readRepairFileSafely(realProjectRoot, abs);
+      if (!guardedRead) {
+        status = 'blocked';
+        stopReason = 'user-edited';
+        break;
+      }
+      const { bytes } = guardedRead;
       const currentSha = sha256Hex(bytes);
       const expectedBefore = privateGuards.get(relPath);
-      if (!expectedBefore || !expectedBefore.exists || expectedBefore.sha256 !== currentSha) {
+      const expectedIdentity = privateIdentities.get(relPath);
+      if (
+        !expectedBefore || !expectedBefore.exists || expectedBefore.sha256 !== currentSha ||
+        !expectedIdentity || expectedIdentity.dev !== guardedRead.identity.dev || expectedIdentity.ino !== guardedRead.identity.ino
+      ) {
         status = 'blocked';
         stopReason = 'user-edited';
         break;
@@ -408,6 +673,7 @@ export async function repairIntegration(
         matchedRecipe = recipe;
         originalBytes = bytes;
         beforeSnap = { path: relPath, exists: true, sha256: currentSha };
+        beforeIdentity = guardedRead.identity;
         break;
       }
     }
@@ -415,7 +681,7 @@ export async function repairIntegration(
     if (status === 'blocked') {
       break;
     }
-    if (!matchedPath || !matchedRecipe || !originalBytes || !beforeSnap) {
+    if (!matchedPath || !matchedRecipe || !originalBytes || !beforeSnap || !beforeIdentity) {
       stopReason = attempts.length === effectiveMax ? 'max-attempts-reached' : 'verification-failed';
       status = 'stopped';
       break;
@@ -428,37 +694,50 @@ export async function repairIntegration(
       break;
     }
 
-    const targetAbs = path.resolve(realProjectRoot, matchedPath);
-    // 晚 hash 守卫：写前再次核对字节
-    const lateSha = sha256Hex(fs.readFileSync(targetAbs));
-    if (lateSha !== beforeSnap.sha256) {
+    // 复核当前轮报告的完整 after 快照，捕获自上轮 verify 后新增、删除或修改的任意源文件。
+    const immediatelyBeforeWrite = collectSourceSnapshots(realProjectRoot, outputDirCheck.excludedRelPaths);
+    if (!immediatelyBeforeWrite.ok) {
+      status = 'blocked';
+      stopReason = 'user-edited';
+      break;
+    }
+    const snapshotMismatch = firstSnapshotMismatch(currentReport.snapshots.after, immediatelyBeforeWrite.snapshots);
+    if (snapshotMismatch) {
       status = 'blocked';
       stopReason = 'user-edited';
       break;
     }
 
-    try {
-      fs.writeFileSync(targetAbs, matchedRecipe.repairedContent, 'utf8');
-    } catch {
-      // 尝试恢复原字节
-      try {
-        fs.writeFileSync(targetAbs, originalBytes);
-        status = 'stopped';
-        stopReason = 'verification-failed';
-      } catch {
+    const targetAbs = path.resolve(realProjectRoot, matchedPath);
+    const writeResult = writeRepairFileSafely({
+      projectRoot: realProjectRoot,
+      absPath: targetAbs,
+      expectedBefore: beforeSnap,
+      expectedIdentity: beforeIdentity,
+      originalBytes,
+      repairedBytes: Buffer.from(matchedRecipe.repairedContent, 'utf8'),
+    });
+    if (writeResult.status !== 'written') {
+      if (writeResult.status === 'changed') {
+        status = 'blocked';
+        stopReason = 'user-edited';
+      } else if (writeResult.status === 'recovery-required') {
         status = 'recovery-required';
         stopReason = 'recovery-required';
+      } else {
+        status = 'stopped';
+        stopReason = 'verification-failed';
       }
       break;
     }
 
-    const writtenBytes = fs.readFileSync(targetAbs);
     const afterSnap: IntegrationFileSnapshot = {
       path: matchedPath,
       exists: true,
-      sha256: sha256Hex(writtenBytes),
+      sha256: sha256Hex(Buffer.from(matchedRecipe.repairedContent, 'utf8')),
     };
     privateGuards.set(matchedPath, afterSnap);
+    privateIdentities.set(matchedPath, writeResult.identity);
     changedSet.add(matchedPath);
 
     // 构造本次内部 verify 授权并执行全量重验

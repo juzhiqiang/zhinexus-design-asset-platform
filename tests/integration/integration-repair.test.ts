@@ -6,7 +6,7 @@
  * - 守卫阻断：错误源报告摘要、用户新建/编辑/删除、符号链接替换、备份失败、预算 0/1/2/3；
  * - 续接链：两轮修复私有基线续接、attempt 摘要链、原 plan/apply/spec 摘要不变、普通 verify 仍用原 apply 基线。
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -29,6 +29,33 @@ import { applyIntegration, canonicalProjectRoot } from '../../packages/component
 import { startSyntheticNetwork, SYNTHETIC_API_TOKEN, SYNTHETIC_REGISTRY_TOKEN, type SyntheticNetwork } from './t16-support/loopback-services.js';
 import { ECHARTS_VERSION, PACKAGE_VERSION, tarballSha256, VUE_FRAMEWORK_VERSION, VUE_PACKAGE_NAME } from './t16-support/synthetic-projects.js';
 import { callRepair, callVerify, loadT17CliExports, type T17CliExports } from './t17-support/verify-namespace.js';
+
+const repairFsHooks = vi.hoisted(() => ({
+  beforeWrite: null as ((filePath: unknown) => void) | null,
+  beforeOpen: null as ((filePath: unknown) => void) | null,
+  beforeDescriptorWrite: null as ((args: unknown[]) => void) | null,
+}));
+
+vi.mock('node:fs', async importOriginal => {
+  const actual = await importOriginal<typeof import('node:fs')>();
+  return {
+    ...actual,
+    writeFileSync: (...args: Parameters<typeof actual.writeFileSync>) => {
+      repairFsHooks.beforeWrite?.(args[0]);
+      return actual.writeFileSync(...args);
+    },
+    openSync: (...args: Parameters<typeof actual.openSync>) => {
+      repairFsHooks.beforeOpen?.(args[0]);
+      return actual.openSync(...args);
+    },
+    writeSync: (...args: Parameters<typeof actual.writeSync>) => {
+      repairFsHooks.beforeDescriptorWrite?.(args);
+      return actual.writeSync(...args);
+    },
+  };
+});
+
+const actualFs = await vi.importActual<typeof import('node:fs')>('node:fs');
 
 function sha256Hex(content: Buffer | string): string {
   return createHash('sha256').update(content).digest('hex');
@@ -155,6 +182,13 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
         // ignore Windows temp lock
       }
     }
+  });
+
+  afterEach(() => {
+    repairFsHooks.beforeWrite = null;
+    repairFsHooks.beforeOpen = null;
+    repairFsHooks.beforeDescriptorWrite = null;
+    vi.restoreAllMocks();
   });
 
   async function setupProjectForRepair(layoutText: string, alwaysFailTypecheck = false) {
@@ -384,6 +418,159 @@ describe('T17 A2 repairIntegration（有限修复与续接守卫）', () => {
     expect(result!.attempts).toEqual([]);
     expect(fs.readFileSync(path.join(ctx.root, ctx.generatedPath))).toEqual(generatedBefore);
     expect(fs.readFileSync(userPath, 'utf8')).toBe(userBytes);
+  });
+
+  it('每次修复写入前重新核对完整 after 快照并阻断检查后的并发新增文件', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedAbs = path.join(ctx.root, ctx.generatedPath);
+    const generatedBefore = fs.readFileSync(generatedAbs);
+    const userPath = path.join(ctx.root, 'src', 'concurrent-user-file.ts');
+    const userBytes = Buffer.from('export const concurrentEdit = true;\n');
+    let injected = false;
+
+    repairFsHooks.beforeWrite = filePath => {
+      if (
+        !injected &&
+        typeof filePath !== 'number' &&
+        String(filePath).includes(ctx.artifactRoot) &&
+        String(filePath).includes('repair-backup-')
+      ) {
+        injected = true;
+        actualFs.writeFileSync(userPath, userBytes);
+      }
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(injected).toBe(true);
+    expect(result).toBeDefined();
+    expect(result!.attempts).toEqual([]);
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(result!.changedFiles).toEqual([]);
+    expect(fs.readFileSync(generatedAbs)).toEqual(generatedBefore);
+    expect(fs.readFileSync(userPath)).toEqual(userBytes);
+  });
+
+  it('目标路径在打开前被替换为链接或新文件时不覆盖替代目标', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedAbs = path.join(ctx.root, ctx.generatedPath);
+    const victimRoot = makeTempDir('zhinexus-t17-repair-symlink-victim-');
+    const victimPath = path.join(victimRoot, 'outside-project.vue');
+    const victimBytes = Buffer.from('<template><div>outside stays unchanged</div></template>\n');
+    const heldPath = `${generatedAbs}.held`;
+    fs.writeFileSync(victimPath, victimBytes);
+    let injected = false;
+    let replacedWithSymlink = false;
+
+    const replaceWithSymlink = () => {
+      if (injected) return;
+      injected = true;
+      actualFs.renameSync(generatedAbs, heldPath);
+      try {
+        actualFs.symlinkSync(victimPath, generatedAbs, 'file');
+        replacedWithSymlink = true;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === 'EPERM' || code === 'EACCES' || code === 'ENOTSUP') {
+          actualFs.copyFileSync(victimPath, generatedAbs);
+        } else {
+          actualFs.renameSync(heldPath, generatedAbs);
+          throw error;
+        }
+      }
+    };
+
+    repairFsHooks.beforeOpen = filePath => {
+      if (typeof filePath !== 'number' && path.resolve(String(filePath)) === generatedAbs) {
+        replaceWithSymlink();
+      }
+    };
+    repairFsHooks.beforeWrite = filePath => {
+      if (typeof filePath !== 'number' && path.resolve(String(filePath)) === generatedAbs) {
+        replaceWithSymlink();
+      }
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(injected).toBe(true);
+    expect(result).toBeDefined();
+    expect(result!.status).not.toBe('repaired');
+    expect(fs.readFileSync(victimPath)).toEqual(victimBytes);
+    if (replacedWithSymlink) {
+      expect(fs.lstatSync(generatedAbs).isSymbolicLink()).toBe(true);
+    } else {
+      expect(fs.readFileSync(generatedAbs)).toEqual(victimBytes);
+    }
+  });
+
+  it('写入失败且路径随后变成链接时通过原文件描述符恢复，不触碰链接目标', async () => {
+    const ctx = await setupProjectForRepair('synthetic-template-fault:stage-1');
+    const generatedAbs = path.join(ctx.root, ctx.generatedPath);
+    const originalBytes = fs.readFileSync(generatedAbs);
+    const victimRoot = makeTempDir('zhinexus-t17-repair-recovery-victim-');
+    const victimPath = path.join(victimRoot, 'outside-project.vue');
+    const victimBytes = Buffer.from('<template><div>external recovery sentinel</div></template>\n');
+    const heldPath = `${generatedAbs}.held`;
+    fs.writeFileSync(victimPath, victimBytes);
+    let injected = false;
+    let replacedWithSymlink = false;
+
+    const replacePath = () => {
+      if (injected) return;
+      injected = true;
+      actualFs.renameSync(generatedAbs, heldPath);
+      try {
+        actualFs.symlinkSync(victimPath, generatedAbs, 'file');
+        replacedWithSymlink = true;
+      } catch (error) {
+        const code = (error as NodeJS.ErrnoException).code;
+        if (code === 'EPERM' || code === 'EACCES' || code === 'ENOTSUP') {
+          actualFs.copyFileSync(victimPath, generatedAbs);
+        } else {
+          actualFs.renameSync(heldPath, generatedAbs);
+          throw error;
+        }
+      }
+    };
+
+    repairFsHooks.beforeDescriptorWrite = args => {
+      if (injected) return;
+      const [fd, data] = args as [number, Buffer];
+      actualFs.writeSync(fd, data, 0, Math.min(8, data.length), 0);
+      replacePath();
+      throw new Error('injected descriptor write failure');
+    };
+
+    const result = await callRepair(cliExports, ctx.root, ctx.plan, ctx.initialReport, {
+      applyResult: ctx.applyResult,
+      spec: ctx.spec,
+      authorization: ctx.repairAuth,
+      artifactRoot: ctx.artifactRoot,
+    });
+
+    expect(injected).toBe(true);
+    expect(result).toBeDefined();
+    expect(result!.status).toBe('blocked');
+    expect(result!.stopReason).toBe('user-edited');
+    expect(fs.readFileSync(victimPath)).toEqual(victimBytes);
+    expect(fs.readFileSync(heldPath)).toEqual(originalBytes);
+    if (replacedWithSymlink) {
+      expect(fs.lstatSync(generatedAbs).isSymbolicLink()).toBe(true);
+    } else {
+      expect(fs.readFileSync(generatedAbs)).toEqual(victimBytes);
+    }
   });
 
   it('不可自愈故障在 2 次尝试内停止并交付 pendingItems，不修改包清单/锁/业务文件', async () => {
