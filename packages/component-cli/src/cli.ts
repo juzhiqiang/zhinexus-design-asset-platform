@@ -21,6 +21,9 @@ export async function runCli(
   component integrate plan --project <path> [--workspace <relative-path>] --match <file> --api-url <origin> --registry <origin> [--output-dir <relative-path>]
   component integrate apply --project <path> --plan <file> --api-url <origin> --registry <origin> --backup-root <outside-root> --allow-install <true|false> [--workspace <relative-path>] [--output-dir <relative-path>]
   component integrate rollback --project <path> --backup-id <id> --backup-sha256 <sha256> --backup-root <dir>
+  component integrate verify --project <path> --plan <file> --apply-result <file> --spec <file> --out <external-dir> --allow-project-scripts <true|false> --allow-browser <true|false>
+  component integrate repair --project <path> --plan <file> --apply-result <file> --spec <file> --out <external-dir> --allow-project-scripts <true|false> --allow-browser <true|false> --report <file> [--max-attempts <0|1|2>]
+  component mcp serve --config <absolute-file>
   component --version
   component --help
 
@@ -555,6 +558,11 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   if (command === 'integrate') {
     const { runIntegrateCommand } = await import('./commands/integrate.js');
     return await runIntegrateCommand(rest);
+  }
+
+  if (command === 'mcp') {
+    const { runMcpServeCommand } = await import('./mcp/server.js');
+    return await runMcpServeCommand(rest, version);
   }
 
   return {
