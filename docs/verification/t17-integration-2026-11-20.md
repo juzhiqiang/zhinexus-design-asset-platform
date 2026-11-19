@@ -128,3 +128,31 @@
 - `bf65180a` 修正独立 N10 请求夹具，仅去重相同设计目标，保留三个实例、绑定与 API 映射；不同目标提前拒绝。2 RED→2 GREEN，矩阵支架 13 文件、187/187，根 tsc 与 diff check exit 0。随后同包 N10 诊断 1/1、278.67 秒、exit 0，实际写入两轮后停止且第三文件不变；其 3 根、429 文件、17487244 字节归档由控制方独立逐字节复读通过，3 个 parent 不存在。诊断不计入正式评分。
 - 当前正式完整 33 格于 04:45:27+08:00 启动，固定 20 正向、13 强制拒绝，未过滤场景；宿主与独立黑盒、T15/T16、根测和浏览器均以同一冻结 SHA 复验。平台已 35 文件、137/137、exit 0，570.34 秒；其自有 Next、容器及卷退出后才启动完整浏览器。最终结果追加于 [0.0.22 回归](t17-cli-0022-regressions-2026-11-20.md) 及其关联记录。
 - 先前官方来源访问范围的不实记录已独立更正并逐页补验，见 [更正](t17-c0-official-correction-2026-11-20.md)。当前证据不追认原 P0 独立日志、最初 RED 顺序与原始 stderr 空字节。用户本轮补充确认的 no-install 语义与已实施修正一致，见 [无安装契约](t17-no-install-2026-11-20.md)。
+
+## 05:15 续接：完整回归与独立原件复核
+
+- 0.0.22 完整根测自然退出 0：T10 168/168、零跳过；Vitest 123 文件、2198/2198。真实平台为 35 文件、137/137；完整浏览器为 288/288，均 exit 0。控制方已重新读取 16 份原日志/结果，核对完整计数、冻结包及原架构摘要，见 [工程回归](t17-cli-0022-regressions-2026-11-20.md)。
+- 同一冻结包的四个独立配置合计 49/49，均无筛选、无跳过、自然 exit 0：live 黑盒 5/5、installed 黑盒 5/5、T15 25/25、含 Next 的 T16 14/14。控制方分别重新读取原件与副本，共 336 份文件、3188592 字节、17 份 receipt；追加的实际安装 SDK 错误脱敏探针另列，不增加测试分母。记录已提交为 `2da99161`，见 [0.0.22 黑盒](t17-blackbox-0022-2026-11-20.md)。
+- 完整宿主自然 exit 0、1/1，含 Vue/React 各一条正向和一条失败→单次修复→完整通过链。控制方独立复读清理前封存的 34681 份文件、2586571483 字节，以及 1754 份保留原 evidence；重算四链 canonical 摘要和四张 PNG 均一致。800×400 实图与独立参考 RGBA 差异为 0，标题顶部少量裁切如实列为构图限制。记录提交 `e7c9a6b6`，见 [宿主与封存](t17-host-0022-2026-11-20.md)。
+- 宿主三个临时 parent 已清理，其 owner 容器/卷为 0，秘密目录不存在。黑盒本轮八个已确认归属目录的单次原生 PowerShell 清理请求，被自动审批在进程启动前以 `blocked by policy` 拒绝；八根仍保留，精确路径、身份与 inventory 已持久化。没有换 API、拆分重试或再次清理历史受阻目录，不能报告全部临时目录已清除。
+- 正式矩阵此时仅确认 Vue 10/10，React 与 13 个强制拒绝仍在执行；最终审查亦在收取。未把 N10 单独诊断、宿主或黑盒的成功计入矩阵分子，不提前宣布三期验收完成。CLI/公共契约及根依赖配置相对冻结来源 `f96af5ee` 的只读差异检查为空。
+
+## 05:28 续接：正式 R08 行为失败
+
+- 固定正向 20 格已实际执行，当前为 19/20：Vue 10/10、React 9/10。唯一 R08（React StrictMode/pnpm）产品 verify exit 2，type/build/dependency/business-gaps 通过，browser 为 BEHAVIOR_FAILED，visual 未运行。原 behavior 只有 text_mismatch:[data-testid="mounts"]，没有保存失败瞬间实际文本，因此不据后续截图补推该值。
+- 控制方重新读取原 receipt/report，直接查看实际 PNG；稍后的产品截图与独立矩阵截图、基线同 SHA-256，图中 mounts=2、cleanups=1。正在用真实产品路径最小复现是否存在异步断言过早的缺陷，未凭截图直接认定根因。原消费者已经按原生清理移除，其真实 App 字节仍在加载 sourcemap 与 source inventory 中可追溯。
+- 正式 33 格继续自然执行，当前已进入 13 个强制拒绝；不干预该轮、不补跑替换 R08、不缩减分母。若确认产品缺陷，将独立 RED/GREEN、升版、新冻结并重新验收，而不是以整体超过 80% 掩盖已知问题。
+
+## 05:36 续接：真实产品确认异步断言缺陷
+
+- 独立 synthetic 最小宿主通过真实公开 verifyIntegration 和固定 Chromium 复现两次：点击后 250ms 更新文本、browser.timeoutMs=1500，均提前返回 BEHAVIOR_FAILED/text_mismatch；同步 control 通过，永久不更新 control 仍失败。type/build/dependency/business 四类均通过。独立 Chromium 对相同宿主立即读到 pending，在条件等待后读到 done，实际更新约 252ms。未提供视觉基线的 control 仍为 NEW，不能称整体通过。
+- 原冻结 tarball 的 306 个 dist 条目均与探针实际导入字节一致。诊断位于仓外 r08-async-assertion-probe-20261120-0635-valid，目录标签不是执行时间；result.createdAt 为 2026-11-20 05:30:01+08:00。控制方再次逐一复读 manifest 的 56 文件 / 187652 bytes 和冻结包，failures=[]，root-original-byte-reopen.json SHA-256 为 19da3a13fa01cc3b115e97b6966824d7f3a14c4b0e11a92407d3053ca4409f2b。该诊断不是完整安装验收，不替代原 R08 或正式评分。
+- 缺陷归为 Important/P1。新独占产品任务先补真实 Chromium RED，覆盖 delayed text/count/visible、永久负例的有界失败及等待中取消，再做最小修复；保留 first/textContent.trim/精确数量/非零尺寸语义，不放宽断言或增大超时。完成后由另一代理独立审查，控制方另升 0.0.23、只 pack 一次并全量复验。此时修复尚未完成，0.0.22 全矩阵继续自然执行并保留真实 R08 失败。
+
+## 06:02 续接：异步断言修复、独立批准与 0.0.23 冻结
+
+- 0.0.22 正式完整矩阵已自然 exit 0，3340.98 秒；正向 19/20（Vue 10/10、React 9/10）、强制拒绝 13/13。R08 failed 原样保留；聚合门槛通过不能掩盖 Important/P1。59 roots / 23162 files / 493332540 bytes 经控制方原件与副本独立复读通过；59 owned parents 已删除。独立记录提交 `9fb5f215`，见 [0.0.22 矩阵](t17-matrix-0022-2026-11-20.md)。
+- `10ca2957` 最小修复动作后的异步断言等待，共享原有 browser.timeoutMs；没有扩大导航/就绪/动作时限，保留精确断言、取消及失败分类。有效真实 Chromium RED 为 8 failed / 4 passed，最终聚焦52/52、既有完整 browser case 1/1。控制方独立重开273项原证据；另一 reviewer 给出 Spec compliant / Approved，Critical 0、Important 0。RED 的先后顺序依赖当时收取的 pre-edit handoff，不用事后日志冒称独立证明；原R08失败瞬间actual依旧未知。详见 [异步断言记录](t17-async-assertion-2026-11-20.md)。
+- `edb985ec0f9ee1b79a5882e935832f8caa9f0daf` 独立升版 CLI 0.0.23。冻结前 verify:workspace 10 members、force build/typecheck 20/20（0 cached，14.435s）及完整根 tsc 均 exit 0；于 05:51:34.8465368+08:00 仅 pack 一次。tarball为454155 bytes、SHA-256 `93c901245b95c06ccc6a2a5bd476decf7ce9512b476316e1b65e789459b594ab`，清单路径见 [0.0.23 工程记录](t17-cli-0023-regressions-2026-11-20.md)。SDK与历史兼容输入保持原始冻结字节，不重包。
+- 控制方另行解开新tarball，逐字节核对全部306个dist文件、包名/版本/运行时私有包边界、相对冻结来源的产品/公共配置零差异及原架构摘要；failures=[]。`root-initial-frozen-byte-reopen.json` SHA-256为 `026fdbca973273343b51346e53ccf14bdcf736dff15232f08323a6153069f173`。
+- 同一新冻结包的完整根测试、真实平台、双框架完整宿主、49项黑盒/T15/T16及完整33格矩阵正在运行；浏览器全量回归等待平台释放端口。未借用0.0.22的通过数，未宣布三期技术验收完成。
