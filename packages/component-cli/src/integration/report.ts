@@ -42,7 +42,7 @@ export function readCliToolVersion(): string {
   } catch {
     // fallback
   }
-  return '0.0.14';
+  return '0.0.16';
 }
 
 export function verificationIssue(
