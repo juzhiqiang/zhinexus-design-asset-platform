@@ -1,0 +1,16 @@
+export function sha256(bytes: Uint8Array | string): string;
+export function canonicalJson(value: unknown): string;
+export function digestOf(value: unknown): string;
+export function required(name: string): string;
+export function requiredFile(name: string): Promise<string>;
+export function requiredDirectory(name: string): Promise<string>;
+export function run(command: string, args: string[], options?: { cwd?: string; env?: NodeJS.ProcessEnv; timeoutMs?: number; signal?: AbortSignal }): Promise<{ code: number; signal?: NodeJS.Signals | null; stdout: string; stderr: string; timedOut: boolean }>;
+export function singleJson(result: { stdout: string }): Record<string, unknown>;
+export function snapshotTree(root: string, excluded?: string[]): Promise<Record<string, string>>;
+export function treeDiff(before: Record<string, string>, after: Record<string, string>): { added: string[]; removed: string[]; modified: string[] };
+export function evidenceArea(prefix?: string): Promise<string>;
+export function within(parent: string, child: string): boolean;
+export function cleanEnvironment(area: string, label: string, options: { dirs: string[] }): Promise<NodeJS.ProcessEnv>;
+export function installFrozenCli(input: { area: string; tarball: string; node: string; npmCli: string }): Promise<{ root: string; bin: string; version: string; tarball: string; sha256: string; assertUnchanged(): Promise<void> }>;
+export function serveStatic(root: string, files?: Record<string, string>): Promise<{ origin: string; close(): Promise<void> }>;
+export function mcpClient(input: { command: string; args: string[]; cwd: string; env?: NodeJS.ProcessEnv; timeoutMs?: number }): { request(method: string, params?: unknown): Promise<Record<string, unknown>>; notify(method: string, params?: unknown): void; close(): Promise<{ exited: boolean; exitInfo?: { code: number | null; signal: NodeJS.Signals | null }; stderr: string; stderrBytes: number; frames: number; protocolViolations: unknown[]; trailing: string }>; kill(): void; state(): { exited: boolean; exitInfo?: { code: number | null; signal: NodeJS.Signals | null }; frames: number; protocolViolations: unknown[]; stderr: string; stderrBytes: number } };
