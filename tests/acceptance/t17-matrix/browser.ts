@@ -496,7 +496,8 @@ export async function runBrowserScenario(input: BrowserRunInput): Promise<Browse
       try {
         const deadline = Date.now() + timeoutMs;
         while (true) {
-          observed = {};
+          // Retain the last completed sample if a later locator read times out.
+          // The latest error still fails the assertion and is retained in detail.
           try {
             const count = await locator.count();
             if (assertion.kind === 'count') {

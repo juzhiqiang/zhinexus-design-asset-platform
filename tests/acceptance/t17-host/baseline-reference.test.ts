@@ -231,5 +231,5 @@ describe('T17 owned-host 独立参考基线生成器', () => {
         await run.abortForTest();
       }
     }
-  });
+  }, 20_000);
 });

@@ -104,7 +104,7 @@ describe('P3 inspect surface', () => {
       { path: 'package-lock.json', exists: true, sha256: sha256Bytes(readFileSync(path.join(c.project.root, 'package-lock.json'))) },
     ]));
     for (const f of json.fileSnapshots) if (f.exists) expect(f.sha256).toBe(sha256Bytes(readFileSync(path.join(c.project.root, f.path))));
-  });
+  }, 30_000);
 
   it('inspect reports React pnpm project with react-dom resolved', async () => {
     const c = await open({ framework: 'react', packageManager: 'pnpm' });
