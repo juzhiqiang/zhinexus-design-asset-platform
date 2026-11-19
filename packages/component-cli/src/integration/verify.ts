@@ -35,7 +35,7 @@ import {
 import type { ArtifactRef } from '../contracts/release-manifest.js';
 import type { EnvironmentV1 } from '../contracts/reports.js';
 import { compareBaseline } from '../local/compare.js';
-import { detectEnvironment } from '../local/environment.js';
+import { captureBrowserEnvironment, VERIFICATION_BROWSER_CONTEXT } from './browser-environment.js';
 import { canonicalProjectRoot } from './apply.js';
 import { resolveToolchain, type ResolvedToolchain } from './install.js';
 import { readNpmLock, readPnpmLock, resolveNpmDependency, resolvePnpmDependency } from './locks.js';
@@ -471,6 +471,7 @@ async function launchLocalChromium() {
 async function runBrowserVerification(params: {
   browserSpec: NonNullable<IntegrationVerificationSpecV1['browser']>;
   plan: IntegrationPlanV1;
+  installedVersions: IntegrationVerificationReportV1['installedVersions'];
   session: RunArtifactSession;
   signal?: AbortSignal;
 }): Promise<{
@@ -481,38 +482,26 @@ async function runBrowserVerification(params: {
 }> {
   const b = params.browserSpec;
   const targetOrigin = new URL(b.url).origin;
-  const framework = params.plan.localProject.framework ?? 'vue';
+  const framework = params.plan.localProject.framework;
   const frameworkVersion =
-    params.plan.localProject.resolvedDependencies.find(d => d.name === framework)?.version ??
-    (framework === 'vue' ? '3.5.45' : '19.3.1');
+    params.installedVersions.find(d => d.name === framework)?.version;
   const echartsVersion =
-    params.plan.localProject.resolvedDependencies.find(d => d.name === 'echarts')?.version ?? '6.1.0';
+    params.installedVersions.find(d => d.name === 'echarts')?.version;
 
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   let onAbort: (() => void) | undefined;
   try {
+    if (!frameworkVersion || !echartsVersion) throw new Error('BROWSER_ENVIRONMENT: verified installed versions are unavailable');
     browser = await launchLocalChromium();
     onAbort = () => {
       void browser?.close().catch(() => {});
     };
     params.signal?.addEventListener('abort', onAbort, { once: true });
     if (params.signal?.aborted) onAbort();
-    const env = detectEnvironment({
-      width: b.viewport.width,
-      height: b.viewport.height,
-      renderer: b.renderer,
-      theme: b.theme,
-      framework,
-      frameworkVersion,
-      echartsVersion,
-      browserVersion: browser.version(),
-    });
-
     const context = await browser.newContext({
       viewport: b.viewport,
-      deviceScaleFactor: env.deviceScaleFactor,
-      locale: env.locale,
-      timezoneId: env.timezone,
+      ...VERIFICATION_BROWSER_CONTEXT,
+      colorScheme: b.theme === 'dark' ? 'dark' : 'light',
       acceptDownloads: false,
     });
     const runtimeErrors: string[] = [];
@@ -590,7 +579,6 @@ async function runBrowserVerification(params: {
         behaviorCheck: { id: 'browser', category: 'behavior', status: 'failed', issues: [issue], evidence: [] },
         visualCheck: { id: 'visual', category: 'visual', status: 'not-run', issues: [], evidence: [] },
         visualResult: 'not-run',
-        environment: env,
       };
     }
 
@@ -637,6 +625,12 @@ async function runBrowserVerification(params: {
     const pageDiagnostics = await page.evaluate(() => (window as unknown as { __zhinexusDiagnostics?: string[] }).__zhinexusDiagnostics ?? []);
     runtimeErrors.push(...pageDiagnostics.map(sanitizeBrowserDiagnostic));
 
+    const environmentAudit = await captureBrowserEnvironment({
+      browser, page, readySelector: b.readySelector, timeoutMs: b.timeoutMs, viewport: b.viewport,
+      renderer: b.renderer, theme: b.theme, frameworkVersion, echartsVersion,
+    });
+    const env = environmentAudit.environment;
+    params.session.writeText('browser-environment.json', JSON.stringify(environmentAudit, null, 2));
     const screenshotBuf = await page.screenshot({ fullPage: false });
     const shotRef = params.session.writeBytes('screenshot.png', screenshotBuf);
     const behaviorLogRef = params.session.writeText(
@@ -1070,6 +1064,7 @@ export async function verifyIntegrationInternal(
     const browserRes = await runBrowserVerification({
       browserSpec: options.spec.browser,
       plan,
+      installedVersions: depCheck.installedVersions,
       session,
       signal: options.signal,
     });

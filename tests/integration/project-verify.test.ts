@@ -559,6 +559,73 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     expect(escaped?.checks.find(c => c.id === 'dependency-guard')?.status).toBe('failed');
   });
 
+  it('浏览器环境签名来自当前页面字体、真实 Chromium 修订和实际 context', async () => {
+    const server = http.createServer((request, response) => {
+      const family = request.url === '/monospace' ? 'monospace' : 'serif';
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end(`<html><body><main style="font-family:${family}">中文图表 ready</main><script>
+        const face = new FontFace('T17 audit face', 'local("Arial")');
+        document.fonts.add(face);
+        face.load().then(() => document.querySelector('main').setAttribute('data-font-ready', 'true'));
+      </script></body></html>`);
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address() as import('node:net').AddressInfo;
+    try {
+      const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+      const digests: string[] = [];
+      for (const family of ['serif', 'monospace']) {
+        const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult, {
+          browser: {
+            url: `http://127.0.0.1:${address.port}/${family}`, readySelector: 'main[data-font-ready] >> nth=0', timeoutMs: 10_000,
+            viewport: { width: 640, height: 480 }, renderer: 'canvas', theme: 'light',
+            actions: [], assertions: [{ kind: 'visible', selector: 'main' }],
+          },
+        });
+        const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+        expect(report?.checks.find(check => check.id === 'browser')?.status).toBe('passed');
+        expect(report?.environment?.browserRevision).not.toBe('1000');
+        expect(report?.environment?.fontDigest).not.toBe(sha256Hex('system-ui,sans-serif;regular,bold;zh-CN'));
+        expect(report?.environment).toMatchObject({ locale: 'zh-CN', timezone: 'Asia/Shanghai', deviceScaleFactor: 1, width: 640, height: 480 });
+        const auditRef = report!.artifacts.find(artifact => artifact.path.endsWith('browser-environment.json'));
+        expect(auditRef).toBeDefined();
+        const audit = JSON.parse(fs.readFileSync(path.join(artifactRoot, auditRef!.path), 'utf8')) as {
+          environment: { browserRevision: string; fontDigest: string };
+          fontFingerprint: { canonical: string; measurements: { stack: string; loadedFonts: string[] } };
+        };
+        expect(audit.environment).toEqual(report!.environment);
+        expect(audit.fontFingerprint.measurements.stack).toBe(family);
+        expect(audit.fontFingerprint.measurements.loadedFonts.some(font => font.includes('T17 audit face') && font.endsWith(' loaded'))).toBe(true);
+        expect(sha256Hex(audit.fontFingerprint.canonical)).toBe(report!.environment!.fontDigest);
+        digests.push(report!.environment!.fontDigest);
+      }
+      expect(digests[0]).not.toBe(digests[1]);
+    } finally {
+      await new Promise<void>(resolve => server.close(() => resolve()));
+    }
+  }, 30_000);
+
+  it('字体就绪无法探测时浏览器验证失败关闭，不产出伪环境或截图', async () => {
+    const server = http.createServer((_request, response) => {
+      response.writeHead(200, { 'content-type': 'text/html' });
+      response.end('<html><body><main>ready</main><script>Object.defineProperty(document, "fonts", {value: {ready: new Promise(() => {}), status: "loading"}})</script></body></html>');
+    });
+    await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const address = server.address() as import('node:net').AddressInfo;
+    try {
+      const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject();
+      const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult, { browser: {
+        url: `http://127.0.0.1:${address.port}/`, readySelector: 'main', timeoutMs: 500,
+        viewport: { width: 640, height: 480 }, renderer: 'canvas', theme: 'light', actions: [], assertions: [],
+      } });
+      const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
+      expect(report?.checks.find(check => check.id === 'browser')).toMatchObject({ status: 'failed', issues: [{ code: 'BROWSER_FAILED' }] });
+      expect(report?.environment).toBeUndefined();
+      expect(report?.artifacts.some(artifact => artifact.path.endsWith('screenshot.png'))).toBe(false);
+      expect(report?.artifacts.some(artifact => artifact.path.endsWith('browser-environment.json'))).toBe(false);
+    } finally { await new Promise<void>(resolve => server.close(() => resolve())); }
+  }, 30_000);
+
   it('浏览器拒绝 data/blob 与外源 WebSocket，保留同源 WebSocket 且诊断移除 URL 查询令牌', async () => {
     const server = http.createServer((_request, response) => {
       const port = (server.address() as import('node:net').AddressInfo).port;
