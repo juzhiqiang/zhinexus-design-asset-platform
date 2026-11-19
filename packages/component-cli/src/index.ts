@@ -40,6 +40,7 @@ export {
   type RunArtifactSession,
 } from './integration/report.js';
 export { verifyIntegration, type VerifyIntegrationOptions } from './integration/verify.js';
+export { repairIntegration, type RepairIntegrationOptions } from './integration/repair.js';
 
 const isDirectRun =
   process.argv[1] &&
