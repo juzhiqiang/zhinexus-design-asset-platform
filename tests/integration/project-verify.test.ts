@@ -223,6 +223,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
 
   async function setupAppliedProject(options?: {
     packageManager?: 'npm' | 'pnpm';
+    packageManagerPin?: string;
     scripts?: Record<string, string>;
     installNodeModules?: boolean;
     extraSrcFiles?: Record<string, string>;
@@ -256,6 +257,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
         echarts: ECHARTS_VERSION,
       },
     };
+    if (options?.packageManagerPin) pkgJson.packageManager = options.packageManagerPin;
     writeJson(path.join(root, 'package.json'), pkgJson);
     if (pm === 'npm') {
       writeJson(path.join(root, 'package-lock.json'), buildVuePackageLock());
@@ -696,7 +698,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     }
   });
 
-  it('pnpm 安装状态不匹配时验证只运行授权脚本，不隐式安装或改写依赖', async () => {
+  it.each([undefined, 'pnpm@12.18.0'])('pnpm 安装状态不匹配且包管理器声明为 %s 时验证只运行授权脚本，不安装或改写依赖', async packageManagerPin => {
     const registryRequests: string[] = [];
     const poisonRegistry = http.createServer((request, response) => {
       registryRequests.push(request.url ?? '');
@@ -711,6 +713,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     try {
       const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
         packageManager: 'pnpm',
+        packageManagerPin,
         extraSrcFiles: {
           'pnpm-lock.yaml': `${buildPnpmLock()}\nsnapshots:\n${VUE_DEPS.map(dependency => `  '${dependency.name}@${dependency.version}': {}`).join('\n')}\n`,
         },
@@ -740,6 +743,8 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
       ];
       const originalBytes = new Map(guardedPaths.map(relative => [relative, fs.readFileSync(path.join(root, relative))]));
       const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult);
+      for (const command of spec.commands) command.timeoutMs = 3_000;
+      authorization.specDigest = canonicalDigest(spec);
 
       const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot });
 
@@ -758,7 +763,7 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     } finally {
       await new Promise<void>(resolve => poisonRegistry.close(() => resolve()));
     }
-  });
+  }, 20_000);
 
   it('拒绝 src/通配/工程内 artifactRoot，且源快照捕获新增、修改与删除', async () => {
     const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
