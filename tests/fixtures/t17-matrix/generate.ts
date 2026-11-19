@@ -11,10 +11,10 @@
 import { writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import type { ComponentApiV1, PackageRef } from '@company/contracts';
-import type { MatrixEnv } from '../acceptance/t17-matrix/env.js';
-import type { T17ComponentId, T17PositiveScenario } from '../scenarios.js';
-import { T17_TOOLCHAIN } from '../scenarios.js';
-import { ensureDir } from '../acceptance/t17-matrix/support.js';
+import type { MatrixEnv } from '../../acceptance/t17-matrix/env.js';
+import type { T17ComponentId, T17PositiveScenario } from './scenarios.js';
+import { T17_TOOLCHAIN } from './scenarios.js';
+import { ensureDir } from '../../acceptance/t17-matrix/support.js';
 
 export type FixtureProject = {
   root: string;
