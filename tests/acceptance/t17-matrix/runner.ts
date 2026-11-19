@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, realpath } from 'node:fs/promises';
 import { basename, dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { T17_POSITIVE_SCENARIOS, T17_REFUSAL_SCENARIOS, type T17PositiveScenario, type T17RefusalScenario } from '../../fixtures/t17-matrix/scenarios.js';
+import { assertFrozenCliEntry } from './executor.js';
 import { evaluateT17Matrix, loadT17MatrixInput, type T17CellReceipt, type T17RefusalReceipt, type T17MatrixResult } from './score.js';
 
 type EvidenceRef = { path: string; name: string; sha256: string; bytes: number };
@@ -71,6 +72,7 @@ async function assertFrozenCli(options: { frozenCli: FrozenCliIdentity; expected
   const declaredBin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.component;
   if (declaredBin !== './dist/bin.js') throw new Error('Installed CLI package does not declare the expected component entry.');
   if (!within(packageRoot, resolve(packageRoot, 'dist', 'bin.js')) || resolve(packageRoot, 'dist', 'bin.js') !== binPath) throw new Error('Installed CLI bin does not match the package entry.');
+  await assertFrozenCliEntry(options.frozenCli, options.expectedVersion, options.expectedSha256);
 }
 
 export async function sealT17MatrixRun(options: {

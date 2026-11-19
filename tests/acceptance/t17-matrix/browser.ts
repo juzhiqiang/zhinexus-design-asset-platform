@@ -494,22 +494,33 @@ export async function runBrowserScenario(input: BrowserRunInput): Promise<Browse
       const locator = page.locator(assertion.selector);
       let observed: AssertionRecord['observed'] = {};
       try {
-        const count = await locator.count();
-        if (assertion.kind === 'count') {
-          observed = { count };
-          if (count !== assertion.count) throw new Error('count=' + count + ', expected=' + assertion.count);
-        } else {
-          if (count !== 1) throw new Error('assertion selector matched ' + count + ' elements');
-          if (assertion.kind === 'visible') {
-            const visible = await locator.isVisible();
-            observed = { visible };
-            if (!visible) throw new Error('element is not visible');
-            const box = await locator.boundingBox();
-            if (!box || box.width <= 0 || box.height <= 0) throw new Error('visible element has zero dimensions');
-          } else {
-            const text = (await locator.innerText({ timeout: timeoutMs })).trim().slice(0, 2048);
-            observed = { text };
-            if (text !== assertion.value) throw new Error('text did not match the declared value');
+        const deadline = Date.now() + timeoutMs;
+        while (true) {
+          observed = {};
+          try {
+            const count = await locator.count();
+            if (assertion.kind === 'count') {
+              observed = { count };
+              if (count !== assertion.count) throw new Error('count=' + count + ', expected=' + assertion.count);
+            } else {
+              if (count !== 1) throw new Error('assertion selector matched ' + count + ' elements');
+              if (assertion.kind === 'visible') {
+                const visible = await locator.isVisible();
+                observed = { visible };
+                if (!visible) throw new Error('element is not visible');
+                const box = await locator.boundingBox({ timeout: Math.max(1, deadline - Date.now()) });
+                if (!box || box.width <= 0 || box.height <= 0) throw new Error('visible element has zero dimensions');
+              } else {
+                const text = (await locator.innerText({ timeout: Math.max(1, deadline - Date.now()) })).trim().slice(0, 2048);
+                observed = { text };
+                if (text !== assertion.value) throw new Error('text did not match the declared value');
+              }
+            }
+            break;
+          } catch (error) {
+            const remaining = deadline - Date.now();
+            if (remaining <= 0) throw error;
+            await new Promise((resolve) => setTimeout(resolve, Math.min(25, remaining)));
           }
         }
         assertions.push({ assertion, status: 'passed', observed });

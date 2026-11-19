@@ -3,6 +3,10 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { createGzip } from 'node:zlib';
+import { pipeline } from 'node:stream/promises';
+import tar from 'tar-stream';
 import { T17_POSITIVE_SCENARIOS, T17_REFUSAL_SCENARIOS } from '../../fixtures/t17-matrix/scenarios.js';
 
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -26,13 +30,19 @@ async function makeFrozenCli(workspace = '.') {
   const dist = join(packageRoot, 'dist');
   await mkdir(dist, { recursive: true });
   const tarballPath = join(root, 'cli.tgz');
-  const tarball = Buffer.from('frozen bytes');
-  await writeFile(tarballPath, tarball);
-  await writeFile(join(packageRoot, 'package.json'), JSON.stringify({
+  const manifest = JSON.stringify({
     name: '@company/component-cli', version: '1.2.3', bin: { component: './dist/bin.js' },
-  }));
+  });
+  await writeFile(join(packageRoot, 'package.json'), manifest);
   const binPath = join(dist, 'bin.js');
   await writeFile(binPath, `const args=process.argv.slice(2); const project=args[args.indexOf('--project')+1]; if(require('node:path').resolve(project)!==process.cwd()) process.exit(41); process.stdout.write(JSON.stringify(${JSON.stringify(validReport)})+String.fromCharCode(10));`);
+  const binBytes = await (await import('node:fs/promises')).readFile(binPath);
+  const archive = tar.pack();
+  archive.entry({ name: 'package/package.json', size: Buffer.byteLength(manifest) }, manifest);
+  archive.entry({ name: 'package/dist/bin.js', size: binBytes.length }, binBytes);
+  archive.finalize();
+  await pipeline(archive, createGzip(), createWriteStream(tarballPath));
+  const tarball = await (await import('node:fs/promises')).readFile(tarballPath);
   const projectRoot = join(root, 'project');
   await mkdir(projectRoot);
   const artifactRoot = join(root, 'artifacts');
@@ -40,6 +50,17 @@ async function makeFrozenCli(workspace = '.') {
   const planPath = join(root, 'plan.json');
   await writeFile(planPath, JSON.stringify({ localProject: { workspace } }));
   return { cli: { version: '1.2.3', tarballSha256: sha(tarball), tarballPath, installRoot, packageRoot, binPath }, projectRoot, artifactRoot, planPath };
+}
+
+async function updateFrozenBinEntry(cli: Awaited<ReturnType<typeof makeFrozenCli>>['cli'], bytes: Buffer): Promise<void> {
+  await writeFile(cli.binPath, bytes);
+  const manifest = await (await import('node:fs/promises')).readFile(join(cli.packageRoot, 'package.json'));
+  const archive = tar.pack();
+  archive.entry({ name: 'package/package.json', size: manifest.length }, manifest);
+  archive.entry({ name: 'package/dist/bin.js', size: bytes.length }, bytes);
+  archive.finalize();
+  await pipeline(archive, createGzip(), createWriteStream(cli.tarballPath));
+  cli.tarballSha256 = sha(await (await import('node:fs/promises')).readFile(cli.tarballPath));
 }
 
 describe('T17 real CLI scenario executor', () => {
@@ -162,6 +183,13 @@ describe('T17 real CLI scenario executor', () => {
     })).rejects.toThrow(/package name/i);
   });
 
+  it('rejects an installed CLI entry whose bytes differ from package/dist/bin.js in the frozen tarball', async () => {
+    const loaded = await import('./executor.js');
+    const { cli } = await makeFrozenCli();
+    await writeFile(cli.binPath, Buffer.from('tampered entry'));
+    await expect(loaded.assertFrozenCliEntry(cli, cli.version, cli.tarballSha256)).rejects.toThrow(/tarball|入口|摘要/);
+  });
+
   it('invokes the frozen CLI as a controlled subprocess and persists its report bytes', async () => {
     const loaded = await import('./executor.js').catch(() => null);
     expect(loaded && typeof loaded.runFrozenVerify).toBe('function');
@@ -199,7 +227,7 @@ describe('T17 real CLI scenario executor', () => {
     const loaded = await import('./executor.js').catch(() => null);
     expect(loaded && typeof loaded.runFrozenVerify).toBe('function');
     const { cli, projectRoot, artifactRoot, planPath } = await makeFrozenCli();
-    await writeFile(cli.binPath, "process.stdout.write('SECRET diagnostic output');");
+    await updateFrozenBinEntry(cli, Buffer.from("process.stdout.write('SECRET diagnostic output');"));
     const evidence: string[] = [];
     let failure = '';
     try {
@@ -221,7 +249,7 @@ describe('T17 real CLI scenario executor', () => {
     const loaded = await import('./executor.js').catch(() => null);
     expect(loaded && typeof loaded.runFrozenVerify).toBe('function');
     const { cli, projectRoot, artifactRoot, planPath } = await makeFrozenCli();
-    await writeFile(cli.binPath, `process.stderr.write('diagnostic secret-api secret-registry'); process.stdout.write(JSON.stringify(${JSON.stringify(validReport)})+String.fromCharCode(10));`);
+    await updateFrozenBinEntry(cli, Buffer.from(`process.stderr.write('diagnostic secret-api secret-registry'); process.stdout.write(JSON.stringify(${JSON.stringify(validReport)})+String.fromCharCode(10));`));
     const result = await loaded!.runFrozenVerify({
       scenario: T17_POSITIVE_SCENARIOS[0]!, actualHost: 'vite', cli, expectedVersion: cli.version, expectedTarballSha256: cli.tarballSha256,
       projectRoot, workspace: '.', planPath, applyResultPath: 'C:/evidence/apply.json',
@@ -238,7 +266,7 @@ describe('T17 real CLI scenario executor', () => {
     expect(loaded && typeof loaded.runFrozenVerify).toBe('function');
     const { cli, projectRoot, artifactRoot, planPath } = await makeFrozenCli();
     const reportOutput = JSON.stringify(validReport) + String.fromCharCode(10);
-    await writeFile(cli.binPath, "process.stderr.write(process.env.T17_EXECUTOR_TEST_SECRET ?? 'absent'); process.stdout.write(" + JSON.stringify(reportOutput) + ");");
+    await updateFrozenBinEntry(cli, Buffer.from("process.stderr.write(process.env.T17_EXECUTOR_TEST_SECRET ?? 'absent'); process.stdout.write(" + JSON.stringify(reportOutput) + ");"));
     const previous = process.env.T17_EXECUTOR_TEST_SECRET;
     process.env.T17_EXECUTOR_TEST_SECRET = 'parent-env-secret';
     try {

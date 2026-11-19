@@ -10,6 +10,9 @@
  * 约束：所有路径必须是既定的绝对路径；workspace 只接受 '. ' 或项目内相对路径，越界即抛错。
  */
 import path from 'node:path';
+import { createReadStream } from 'node:fs';
+import { createGunzip } from 'node:zlib';
+import tar from 'tar-stream';
 
 export type VerifyArgsInput = {
   projectRoot: string;
@@ -240,6 +243,30 @@ function isInside(root: string, target: string): boolean {
   return relative === '' || (!path.isAbsolute(relative) && relative !== '..' && !relative.startsWith('..' + path.sep));
 }
 
+async function frozenTarEntrySha256(tarballPath: string, entryName: string): Promise<string> {
+  const { pipeline } = await import('node:stream/promises');
+  const extract = tar.extract();
+  const extraction = pipeline(createReadStream(tarballPath), createGunzip(), extract);
+  let entrySha256: string | undefined;
+  for await (const entry of extract) {
+    const chunks: Buffer[] = [];
+    let entryBytes = 0;
+    for await (const chunk of entry as AsyncIterable<Uint8Array>) {
+      const chunkBytes = Buffer.from(chunk);
+      entryBytes += chunkBytes.length;
+      if (entry.header.name === entryName) chunks.push(chunkBytes);
+    }
+    if (entry.header.name !== entryName) continue;
+    if (entry.header.type !== 'file' || entrySha256 !== undefined || entry.header.size !== entryBytes) {
+      throw new Error('冻结 CLI tarball 中 bin.js entry 结构无效');
+    }
+    entrySha256 = sha256Bytes(Buffer.concat(chunks, entryBytes));
+  }
+  await extraction;
+  if (!entrySha256) throw new Error('冻结 CLI tarball 缺少 package/dist/bin.js');
+  return entrySha256;
+}
+
 function isVerificationReport(value: unknown): value is Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
   const report = value as Record<string, unknown>;
@@ -293,6 +320,8 @@ export async function assertFrozenCliEntry(cli: FrozenCliIdentity, expectedVersi
   if (manifest.version !== expectedVersion || cli.version !== expectedVersion) throw new Error('冻结 CLI 版本与预期不一致');
   const declaredBin = typeof manifest.bin === 'string' ? manifest.bin : manifest.bin?.component;
   if (declaredBin !== './dist/bin.js') throw new Error('冻结 CLI 未声明 ./dist/bin.js 入口');
+  const tarEntrySha256 = await frozenTarEntrySha256(tarballPath, 'package/dist/bin.js');
+  if (await sha256File(binPath) !== tarEntrySha256) throw new Error('冻结 CLI 安装入口与 tarball 中 package/dist/bin.js 摘要不一致');
 }
 
 /** 稳定的场景身份摘要（与运行顺序无关，供 run-seal payload 与 evidence 绑定）。 */

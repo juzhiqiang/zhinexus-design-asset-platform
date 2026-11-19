@@ -6,7 +6,7 @@
  */
 import { createHash } from 'node:crypto';
 import { spawn, type ChildProcess } from 'node:child_process';
-import { lstat, realpath } from 'node:fs/promises';
+import { lstat, readFile, realpath } from 'node:fs/promises';
 import path from 'node:path';
 import type { FrozenCliIdentity } from './executor.js';
 import { assertFrozenCliEntry } from './executor.js';
@@ -24,6 +24,7 @@ export type McpStdioLaunchInput = {
   expectedTarballSha256: string;
   workRoot: string;
   projectRoot: string;
+  configPath: string;
   protocolVersion?: string;
   apiToken?: string;
   registryToken?: string;
@@ -57,6 +58,17 @@ async function requireRealDirectory(target: string, label: string): Promise<stri
     throw new Error(label + ' 必须是无链接的普通目录');
   }
   return resolved;
+}
+
+async function requireOwnedArtifactRoot(workRoot: string, target: string): Promise<void> {
+  if (!isWithin(workRoot, target)) throw new Error('MCP artifactRoot 必须位于本轮 workRoot 内');
+  const stat = await lstat(target);
+  if (!stat.isDirectory() || stat.isSymbolicLink() || !samePath(await realpath(target), target)) {
+    throw new Error('MCP artifactRoot 必须是 workRoot 内无链接的普通目录');
+  }
+  const realWorkRoot = await realpath(workRoot);
+  const realArtifactRoot = await realpath(target);
+  if (!isWithin(realWorkRoot, realArtifactRoot)) throw new Error('MCP artifactRoot 真实路径必须位于本轮 workRoot 内');
 }
 
 function minimalEnvironment(tokens: Pick<McpStdioLaunchInput, 'apiToken' | 'registryToken'>): NodeJS.ProcessEnv {
@@ -96,7 +108,7 @@ export class McpStdioSession {
     this.protocolVersions = input.protocolVersion ?? '2025-06-18';
     this.secrets = [input.apiToken, input.registryToken].filter((value): value is string => Boolean(value));
     this.maxOutputBytes = maxOutputBytes;
-    this.child = spawn(process.execPath, [path.resolve(input.cli.binPath), 'mcp', 'serve'], {
+    this.child = spawn(process.execPath, [path.resolve(input.cli.binPath), 'mcp', 'serve', '--config', path.resolve(input.configPath)], {
       cwd: path.resolve(input.projectRoot),
       env: minimalEnvironment(input),
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -119,8 +131,26 @@ export class McpStdioSession {
     const workRoot = await requireRealDirectory(input.workRoot, 'workRoot');
     const projectRoot = await requireRealDirectory(input.projectRoot, 'projectRoot');
     const installRoot = await requireRealDirectory(input.cli.installRoot, '冻结 CLI installRoot');
+    if (!path.isAbsolute(input.configPath)) throw new Error('MCP config 路径必须是绝对路径');
+    const configPath = path.resolve(input.configPath);
     if (!isWithin(workRoot, projectRoot)) throw new Error('MCP cwd 必须是本轮 workRoot 内的项目');
     if (!isWithin(workRoot, installRoot)) throw new Error('冻结 CLI installRoot 必须位于本轮 workRoot 内');
+    if (!isWithin(workRoot, configPath)) throw new Error('MCP config 必须位于本轮 workRoot 内');
+    const configStat = await lstat(configPath);
+    if (!configStat.isFile() || configStat.isSymbolicLink() || configStat.nlink > 1 || !samePath(await realpath(configPath), configPath)) {
+      throw new Error('MCP config 必须是本轮 workRoot 内未链接的普通文件');
+    }
+    let config: unknown;
+    try { config = JSON.parse(await readFile(configPath, 'utf8')); } catch { throw new Error('MCP config 必须是有效 JSON'); }
+    if (!config || typeof config !== 'object' || Array.isArray(config)) throw new Error('MCP config 必须是 JSON 对象');
+    const configRecord = config as Record<string, unknown>;
+    if (configRecord.schemaVersion !== 1 || typeof configRecord.projectRoot !== 'string' || !path.isAbsolute(configRecord.projectRoot)
+      || typeof configRecord.artifactRoot !== 'string' || !path.isAbsolute(configRecord.artifactRoot)
+      || !samePath(configRecord.projectRoot, projectRoot) || !isWithin(workRoot, path.resolve(configRecord.artifactRoot))
+      || samePath(configRecord.artifactRoot, projectRoot)) {
+      throw new Error('MCP config 必须绑定本轮项目根和工作区内的外置 artifactRoot');
+    }
+    await requireOwnedArtifactRoot(workRoot, path.resolve(configRecord.artifactRoot));
     return new McpStdioSession(input);
   }
 

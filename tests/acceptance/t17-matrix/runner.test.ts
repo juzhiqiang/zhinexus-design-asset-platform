@@ -3,8 +3,13 @@ import { mkdtemp, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
+import { createWriteStream } from 'node:fs';
+import { createGzip } from 'node:zlib';
+import { pipeline } from 'node:stream/promises';
+import tar from 'tar-stream';
 import { frozenCliIdentityFromInstall, sealT17MatrixRun, type FrozenCliIdentity, type T17ReceiptHost, type T17ScenarioExecutor } from './runner.js';
 import type { T17CellReceipt, T17RefusalReceipt } from './score.js';
+import { T17_REFUSAL_SCENARIOS, type T17PositiveScenario } from '../../fixtures/t17-matrix/scenarios.js';
 
 const roots: string[] = [];
 const sha = (bytes: Uint8Array) => createHash('sha256').update(bytes).digest('hex');
@@ -16,6 +21,29 @@ const canonical = (value: unknown): string => {
   }
   return JSON.stringify(value) ?? 'null';
 };
+
+function blockedPositiveReceipt(scenario: T17PositiveScenario): T17CellReceipt {
+  return {
+    caseId: scenario.caseId, framework: scenario.framework, packageManager: scenario.packageManager, host: scenario.host,
+    projectRoot: `C:/matrix/${scenario.caseId}`,
+    scenarioIdentity: { topology: scenario.topology, workspace: scenario.workspace, hostMode: scenario.hostMode, components: scenario.components },
+    expectedOutcome: 'pass', actualOutcome: 'blocked', sourceKind: 'temporary-host',
+    receiptEvidencePath: `${scenario.caseId}-receipt.json`,
+    cliTarballSha256: 'a'.repeat(64), frozenBundleSha256: 'b'.repeat(64), planSha256: 'c'.repeat(64),
+    applyResultSha256: 'd'.repeat(64), verificationSpecSha256: 'e'.repeat(64), reportSha256: '1'.repeat(64),
+    reportPath: `${scenario.caseId}-report.json`, planEvidencePath: `${scenario.caseId}-plan.json`,
+    applyResultEvidencePath: `${scenario.caseId}-apply.json`, verificationSpecEvidencePath: `${scenario.caseId}-spec.json`,
+    commands: [
+      { kind: 'typecheck', exitCode: 1, evidencePath: `${scenario.caseId}-typecheck.log`, sha256: '2'.repeat(64), stdoutEvidencePath: `${scenario.caseId}-typecheck.out`, stdoutSha256: '3'.repeat(64), stderrEvidencePath: `${scenario.caseId}-typecheck.err`, stderrSha256: '4'.repeat(64) },
+      { kind: 'build', exitCode: 1, evidencePath: `${scenario.caseId}-build.log`, sha256: '5'.repeat(64), stdoutEvidencePath: `${scenario.caseId}-build.out`, stdoutSha256: '6'.repeat(64), stderrEvidencePath: `${scenario.caseId}-build.err`, stderrSha256: '7'.repeat(64) },
+    ],
+    generatedPath: `src/generated/${scenario.caseId}.${scenario.framework === 'vue' ? 'vue' : 'tsx'}`, generatedSha256: '8'.repeat(64),
+    generatedEvidencePath: `${scenario.caseId}-generated.txt`, browserAssets: [],
+    interaction: { action: '', observed: false, before: 0, after: 0 },
+    visualCheck: { status: 'failed', screenshotPath: `${scenario.caseId}-screen.png`, screenshotSha256: '9'.repeat(64), baselineSha256: 'a'.repeat(64) },
+    outOfScopeWrites: 0, lostUserEdits: 0, cleanup: { projectRootRemoved: true, evidenceRetained: true, userProjectPreserved: true },
+  };
+}
 
 async function makeHost(): Promise<{ host: T17ReceiptHost; root: string; payloads: Record<string, unknown>[]; stopped: () => boolean }> {
   const evidenceRoot = await mkdtemp(join(tmpdir(), 't17-runner-'));
@@ -55,8 +83,6 @@ async function makeHost(): Promise<{ host: T17ReceiptHost; root: string; payload
 
 async function makeFrozenCli(root: string, version = '0.0.15'): Promise<FrozenCliIdentity> {
   const tarballPath = join(root, 'component-cli.tgz');
-  const tarballBytes = Buffer.from('frozen CLI tarball bytes');
-  await writeFile(tarballPath, tarballBytes, { flag: 'wx' });
   const installRoot = join(root, 'consumer');
   const packageRoot = join(installRoot, 'node_modules', '@company', 'component-cli');
   const dist = join(packageRoot, 'dist');
@@ -64,7 +90,15 @@ async function makeFrozenCli(root: string, version = '0.0.15'): Promise<FrozenCl
   await writeFile(join(packageRoot, 'package.json'), JSON.stringify({ name: '@company/component-cli', version, bin: { component: './dist/bin.js' } }), { flag: 'wx' });
   const binPath = join(dist, 'bin.js');
   await writeFile(binPath, 'process.exit(0);', { flag: 'wx' });
-  return { version, tarballSha256: sha(tarballBytes), tarballPath, installRoot, packageRoot, binPath };
+  const manifest = await readFile(join(packageRoot, 'package.json'));
+  const bin = await readFile(binPath);
+  const archive = tar.pack();
+  archive.entry({ name: 'package/package.json', size: manifest.length }, manifest);
+  archive.entry({ name: 'package/dist/bin.js', size: bin.length }, bin);
+  archive.finalize();
+  await pipeline(archive, createGzip(), createWriteStream(tarballPath));
+  const packedTarball = await readFile(tarballPath);
+  return { version, tarballSha256: sha(packedTarball), tarballPath, installRoot, packageRoot, binPath };
 }
 
 afterEach(async () => {
@@ -89,16 +123,21 @@ describe('T17 receipt seal runner', () => {
     const frozenCli = await makeFrozenCli(run.root);
     const calls: string[] = [];
     const executorIdentities: { cliTarballSha256: string; frozenBundleSha256: string }[] = [];
-    const refusal = (caseId: string): T17RefusalReceipt => ({
-      caseId, receiptEvidencePath: caseId + '-receipt.json', expectedOutcome: 'refuse', actualOutcome: 'refused',
+    const refusal = (caseId: string): T17RefusalReceipt => {
+      const scenario = T17_REFUSAL_SCENARIOS.find((item) => item.caseId === caseId)!;
+      return {
+      caseId, framework: scenario.framework, packageManager: scenario.packageManager,
+      scenarioIdentity: { kind: scenario.kind, focus: scenario.focus, reason: scenario.reason, setup: scenario.setup },
+      receiptEvidencePath: caseId + '-receipt.json', expectedOutcome: 'refuse', actualOutcome: 'refused',
       beforeProjectSha256: '5'.repeat(64), afterProjectSha256: '5'.repeat(64),
       reportPath: caseId + '-report.json', reportSha256: '6'.repeat(64), outOfScopeWrites: 0,
-    });
+      };
+    };
     const executor: T17ScenarioExecutor = {
       async positive(scenario, identity) {
         calls.push(scenario.caseId);
         executorIdentities.push({ cliTarballSha256: identity.cliTarballSha256, frozenBundleSha256: identity.frozenBundleSha256 });
-        return { caseId: scenario.caseId, expectedOutcome: 'pass', actualOutcome: 'blocked', sourceKind: 'temporary-host' } as T17CellReceipt;
+        return blockedPositiveReceipt(scenario);
       },
       async refusal(scenario, identity) {
         calls.push(scenario.caseId);
@@ -181,6 +220,28 @@ describe('T17 receipt seal runner', () => {
       frozenBundleSha256: 'b'.repeat(64),
       executor,
     })).rejects.toThrow(/identity/i);
+    expect(called).toBe(false);
+    expect(run.payloads).toEqual([]);
+  });
+
+  it('rejects an installed CLI entry whose bytes differ from the frozen tarball before execution', async () => {
+    const run = await makeHost();
+    const frozenCli = await makeFrozenCli(run.root);
+    await writeFile(frozenCli.binPath, 'substituted installed CLI entry');
+    let called = false;
+    const executor: T17ScenarioExecutor = {
+      async positive() { called = true; throw new Error('must not run'); },
+      async refusal() { called = true; throw new Error('must not run'); },
+    };
+
+    await expect(sealT17MatrixRun({
+      host: run.host,
+      frozenCli,
+      expectedCliVersion: '0.0.15',
+      expectedCliTarballSha256: frozenCli.tarballSha256,
+      frozenBundleSha256: 'b'.repeat(64),
+      executor,
+    })).rejects.toThrow(/tarball|入口|entry/i);
     expect(called).toBe(false);
     expect(run.payloads).toEqual([]);
   });

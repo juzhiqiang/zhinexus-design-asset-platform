@@ -10,6 +10,8 @@
  */
 import type {
   ComponentApiV1,
+  IntegrationApplyResultV1,
+  IntegrationPlanV1,
   MatchPlanV1,
   PackageRef,
   ReleaseManifestV1,
@@ -37,8 +39,6 @@ type IntegrationCommandV1 = { kind: 'type' | 'build'; script: string; manifestPa
 type IntegrationSpecV1 = IntegrationIdentityV1 & { commands: IntegrationCommandV1[]; browser?: Record<string, unknown>; businessGaps: string[] };
 type IntegrationReportV1 = IntegrationIdentityV1 & { operation: string; status: string; checks: { id: string; category: string; status: string; issues: unknown[]; evidence: unknown[] }[]; changedFiles: string[]; installedVersions: { name: string; version: string; manifestSha256: string }[]; visualResult: string; environment?: Record<string, unknown>; artifacts: unknown[]; pendingItems: unknown[] };
 type IntegrationRepairResultV1 = IntegrationIdentityV1 & { operation: string; status: string; attempts: unknown[]; stopReason: string; finalReport: IntegrationReportV1; changedFiles: string[]; pendingItems: unknown[] };
-type IntegrationPlanV1 = Record<string, unknown> & { schemaVersion: 1; stage: 'plan'; status: 'planned' | 'conflicted' };
-type IntegrationApplyResultV1 = Record<string, unknown> & { schemaVersion: 1; operation: 'apply'; status: string };
 
 export type FrozenPackages = { core: PackageRef; framework: PackageRef; cli: PackageRef };
 
@@ -112,11 +112,6 @@ export function checkStructural(result: {
     if (!Array.isArray(value.changedFiles)) throw new Error(label + ': changedFiles 缺失');
     return value.changedFiles as string[];
   };
-  const requireSnapshot = (value: Record<string, unknown>, label: string): void => {
-    const beforeHashes = value.beforeHashes;
-    const afterHashes = value.afterHashes;
-    if (!Array.isArray(beforeHashes) || !Array.isArray(afterHashes)) throw new Error(label + ': beforeHashes/afterHashes 缺失');
-  };
   const requireInstalled = (value: Record<string, unknown>, label: string): { name: string; version: string; manifestSha256: string }[] => {
     const installed = value.installedVersions;
     if (!Array.isArray(installed)) throw new Error(label + ': installedVersions 缺失');
@@ -125,20 +120,12 @@ export function checkStructural(result: {
   if (result.plan !== undefined && result.plan !== null) {
     const checked = validateIntegrationPlan(result.plan);
     if (!checked.ok) throw new Error('plan: 契约校验失败');
-    const plan = checked.value as unknown as Record<string, unknown>;
-    requireIdentity(plan, 'plan');
-    requireSnapshot(plan, 'plan');
-    output.plan = plan as unknown as IntegrationPlanV1;
+    output.plan = checked.value;
   }
   if (result.applyResult !== undefined && result.applyResult !== null) {
     const checked = validateIntegrationApplyResult(result.applyResult);
     if (!checked.ok) throw new Error('apply-result: 契约校验失败');
-    const apply = checked.value as unknown as Record<string, unknown>;
-    requireIdentity(apply, 'apply-result');
-    requireSnapshot(apply, 'apply-result');
-    requireDigests(apply, 'apply-result');
-    requireInstalled(apply, 'apply-result');
-    output.applyResult = apply as unknown as IntegrationApplyResultV1;
+    output.applyResult = checked.value;
   }
   if (result.spec !== undefined && result.spec !== null) {
     const checked = validateIntegrationVerificationSpec(result.spec);

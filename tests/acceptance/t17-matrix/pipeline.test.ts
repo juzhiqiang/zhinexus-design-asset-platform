@@ -9,6 +9,8 @@ import { matrixEnvReport, matrixPlan, matrixTools, REPRODUCE_COMMANDS } from './
 import { expectedMcpToolNames } from './pipeline.js';
 import { T17_POSITIVE_SCENARIOS, T17_REFUSAL_SCENARIOS } from '../../fixtures/t17-matrix/scenarios.js';
 import { checkStructural } from './pipeline.js';
+import { validIntegrationPlanFixture } from '../../fixtures/integration-plan.js';
+import { applyResultFixture } from '../../fixtures/integration-apply.js';
 
 describe('T17 矩阵实操计划', () => {
   it('每个正例都按 inspect→plan→freeze→apply→install→mcp→verify→browser→visual 顺序编排', () => {
@@ -87,6 +89,38 @@ describe('T17 矩阵实操计划', () => {
     expect(() => checkStructural({
       matchPlan: { schemaVersion: 1, elements: [], exactDependencies: [], context: {} },
     })).toThrow(/match-plan|MatchPlan|context|source|digest/i);
+  });
+
+  it('接受仅包含计划阶段字段的真实 IntegrationPlan 契约产物', () => {
+    const result = checkStructural({ plan: validIntegrationPlanFixture() });
+
+    expect(result.plan?.status).toBe('planned');
+    expect(result.plan?.localProject.framework).toBe('vue');
+    expect(result.plan?.baseFileHashes).toContainEqual({
+      path: 'src/components/zhinexus/component-0001.vue', exists: false,
+    });
+  });
+
+  it('接受没有验证报告 applyResultDigest 字段的真实 apply 契约产物', () => {
+    const result = checkStructural({ applyResult: applyResultFixture() });
+
+    expect(result.applyResult?.status).toBe('applied');
+    expect(result.applyResult?.installState).toBe('succeeded');
+    expect(result.applyResult?.changedFiles).toContain('src/components/zhinexus/component-0001.vue');
+  });
+
+  it('继续拒绝缺少已允许路径快照的计划产物', () => {
+    const plan = validIntegrationPlanFixture();
+    plan.baseFileHashes.pop();
+
+    expect(() => checkStructural({ plan })).toThrow(/plan: 契约校验失败/);
+  });
+
+  it('继续拒绝缺少写入后快照的 apply 产物', () => {
+    const applyResult = applyResultFixture();
+    applyResult.afterHashes.pop();
+
+    expect(() => checkStructural({ applyResult })).toThrow(/apply-result: 契约校验失败/);
   });
 
   it('拒绝只通过顶层数组检查但嵌套 evidence 项畸形的验证报告', () => {

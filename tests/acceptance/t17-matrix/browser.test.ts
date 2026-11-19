@@ -144,6 +144,46 @@ describe('T17 浏览器与视觉边界', () => {
       sha256: createHash('sha256').update(scriptBytes).digest('hex') }]);
   }, 60_000);
 
+  it.each(['count', 'text', 'visible'] as const)('真实 Chromium 有界等待动作后的原始精确异步断言：%s', async (kind) => {
+    const root = await tempRoot();
+    const dist = path.join(root, 'dist');
+    await mkdir(dist);
+    await writeFile(path.join(dist, 'index.html'), '<!doctype html><html><body><main data-testid="ready"><button data-testid="show">Show</button><div data-testid="chart-host" style="display:none;width:100px;height:40px"></div><p data-testid="mounts">mounts=1</p></main><script>document.querySelector("button").addEventListener("click",()=>setTimeout(()=>{const host=document.querySelector("[data-testid=chart-host]");host.style.display="block";host.append(document.createElement("canvas"));document.querySelector("[data-testid=mounts]").textContent="mounts=2"},250))</script></body></html>');
+    const assertion = kind === 'count'
+      ? { kind, selector: '[data-testid="chart-host"] canvas', count: 1 }
+      : kind === 'text'
+        ? { kind, selector: '[data-testid="mounts"]', value: 'mounts=2' }
+        : { kind, selector: '[data-testid="chart-host"]' };
+    const scenario = { ...T17_POSITIVE_SCENARIOS[0]!, browser: {
+      readySelector: '[data-testid="ready"]', actions: [{ kind: 'click' as const, selector: '[data-testid="show"]' }],
+      assertions: [assertion], interaction: undefined,
+    } };
+    const first = await runBrowserScenario({ distDir: dist, scenario, viewport: { width: 320, height: 200 }, timeoutMs: 1_000 });
+    expect(first.assertions).toEqual([expect.objectContaining({ assertion, status: 'passed' })]);
+    const result = await runBrowserScenario({ distDir: dist, scenario, viewport: { width: 320, height: 200 }, timeoutMs: 1_000,
+      baseline: { bytes: first.screenshot.bytes, environmentKey: first.browser.environmentKey } });
+    expect(result.status).toBe('passed');
+    expect(result.assertions[0]?.observed).toEqual(kind === 'count' ? { count: 1 } : kind === 'text' ? { text: 'mounts=2' } : { visible: true });
+    expect(result.actions).toEqual([expect.objectContaining({ action: scenario.browser.actions[0], status: 'passed' })]);
+  }, 60_000);
+
+  it.each(['count', 'text', 'visible'] as const)('真实 Chromium 在有界等待后仍拒绝未满足的原断言：%s', async (kind) => {
+    const root = await tempRoot();
+    const dist = path.join(root, 'dist');
+    await mkdir(dist);
+    await writeFile(path.join(dist, 'index.html'), '<!doctype html><html><body><main data-testid="ready">ready</main><div data-testid="chart-host" style="display:none;width:100px;height:40px"></div><p data-testid="mounts">mounts=1</p></body></html>');
+    const assertion = kind === 'count'
+      ? { kind, selector: '[data-testid="chart-host"] canvas', count: 1 }
+      : kind === 'text'
+        ? { kind, selector: '[data-testid="mounts"]', value: 'mounts=2' }
+        : { kind, selector: '[data-testid="chart-host"]' };
+    const result = await runBrowserScenario({ distDir: dist, viewport: { width: 320, height: 200 }, timeoutMs: 200,
+      scenario: { ...T17_POSITIVE_SCENARIOS[0]!, browser: { readySelector: '[data-testid="ready"]', actions: [], assertions: [assertion], interaction: undefined } } });
+    expect(result.status).toBe('failed');
+    expect(result.assertions).toEqual([expect.objectContaining({ assertion, status: 'failed' })]);
+    expect(result.assertions[0]?.observed).toEqual(kind === 'count' ? { count: 0 } : kind === 'text' ? { text: 'mounts=1' } : { visible: false });
+  }, 60_000);
+
   it('多组件 readySelector 要求全部匹配元素可见且非零，保留场景数量断言', async () => {
     const root = await tempRoot();
     const dist = path.join(root, 'dist');
