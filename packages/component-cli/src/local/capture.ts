@@ -6,6 +6,7 @@ import { detectEnvironment, computeEnvironmentKey } from './environment.js';
 import type { EnvironmentV1 } from '../contracts/reports.js';
 import type { CheckResult, ComponentExample, Renderer, ScreenshotRef } from '../contracts/examples.js';
 import type { Framework } from '../contracts/release-manifest.js';
+import { text } from '../contracts/schema.js';
 
 export type CaptureOptions = {
   url: string;
@@ -32,6 +33,31 @@ export type CaptureResult = {
   screenshots: ScreenshotRef[];
   checks: CheckResult[];
 };
+
+const maxCheckNameLength = text.maxLength ?? Number.MAX_SAFE_INTEGER;
+
+function scopeCheckNames(stateChecks: { state: string; check: CheckResult }[]): CheckResult[] {
+  // Reserve raw names from every state before generating names for repeated checks.
+  const used = new Set(stateChecks.map(({ check }) => check.name));
+  const defaultNames = new Set(stateChecks.filter(({ state }) => state === 'default').map(({ check }) => check.name));
+  const kept = new Set<string>();
+  return stateChecks.map(({ state, check }) => {
+    if (state === 'default' || (!defaultNames.has(check.name) && !kept.has(check.name))) {
+      kept.add(check.name);
+      return check;
+    }
+
+    const stateLabel = state.slice(0, Math.floor(maxCheckNameLength / 2));
+    let suffix = ` [${stateLabel}]`;
+    let name = check.name.slice(0, maxCheckNameLength - suffix.length) + suffix;
+    for (let index = 2; used.has(name); index++) {
+      suffix = ` [${stateLabel}] #${index}`;
+      name = check.name.slice(0, maxCheckNameLength - suffix.length) + suffix;
+    }
+    used.add(name);
+    return { ...check, name };
+  });
+}
 
 /**
  * 驱动示例就绪协议 (ready -> runState -> getChecks)，执行确定性截图并返回环境与报告材料。
@@ -152,11 +178,11 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
     const environmentKey = computeEnvironmentKey(environment);
 
     const screenshots: ScreenshotRef[] = [];
-    const checks: CheckResult[] = [];
+    const stateChecksForReport: { state: string; check: CheckResult }[] = [];
 
     // 4. 驱动 runState 并截取确定性图像
     for (const stateName of statesToRun) {
-      const stateChecks = await page.evaluate(async ({ state, timeout }) => {
+      const stateChecks = await page.evaluate(async ({ state, timeout, maxNameLength }) => {
         const example = (window as unknown as { __COMPONENT_EXAMPLE__?: ComponentExample }).__COMPONENT_EXAMPLE__;
         if (!example || typeof example.runState !== 'function' || typeof example.getChecks !== 'function') {
           throw new Error('INVALID_EXAMPLE_PROTOCOL: runState and getChecks are required');
@@ -174,18 +200,25 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
         const input: unknown = example.getChecks();
         if (!Array.isArray(input) || input.length === 0 || input.some(check =>
           !check || typeof check !== 'object' || Array.isArray(check) ||
-          typeof check.name !== 'string' || !check.name.trim() ||
+          typeof check.name !== 'string' || !check.name.trim() || check.name.length > maxNameLength ||
           !['passed', 'failed'].includes(check.status) ||
           (check.message !== undefined && typeof check.message !== 'string') ||
           Object.keys(check).some(key => !['name', 'status', 'message'].includes(key)))) {
           throw new Error('INVALID_EXAMPLE_PROTOCOL: getChecks must return nonempty CheckResult[] for ' + state);
         }
         return input as CheckResult[];
-      }, { state: stateName, timeout: timeoutMs });
+      }, { state: stateName, timeout: timeoutMs, maxNameLength: maxCheckNameLength });
+      const namesInState = new Set<string>();
+      for (const check of stateChecks) {
+        if (namesInState.has(check.name)) {
+          throw new Error(`INVALID_EXAMPLE_PROTOCOL: Duplicate check name ${check.name} in state ${stateName}`);
+        }
+        namesInState.add(check.name);
+      }
       const failedChecks = stateChecks.filter(check => check.status === 'failed');
       if (failedChecks.length) throw new Error('CHECKS_FAILED: ' + stateName + ': ' + failedChecks.map(check => check.name + ': ' + (check.message ?? 'failed')).join('; '));
       if (pageErrors.length) throw new Error('PAGE_ERROR: ' + pageErrors.join('; '));
-      checks.push(...stateChecks);
+      for (const check of stateChecks) stateChecksForReport.push({ state: stateName, check });
 
       // 短暂确认绘制循环完成
       await page.evaluate(async () => {
@@ -229,7 +262,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       environment,
       environmentKey,
       screenshots,
-      checks,
+      checks: scopeCheckNames(stateChecksForReport),
     };
   } finally {
     await browser.close();

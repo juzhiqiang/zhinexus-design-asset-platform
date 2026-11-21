@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import { captureExample } from '../../packages/component-cli/src/local/capture.js';
+import { buildCheckReport } from '../../packages/component-cli/src/local/report.js';
+import { validateCheckReport } from '../../packages/component-cli/src/contracts/validation.js';
 
 test.describe('T04: Deterministic capture driven by ready -> runState -> getChecks', () => {
   let server: http.Server;
@@ -98,6 +100,12 @@ test.describe('T04: Deterministic capture driven by ready -> runState -> getChec
             getChecks() {
               if (kind === 'empty-checks') return [];
               if (kind === 'bad-checks') return [{ name: 'render', status: 'unknown' }];
+              if (kind === 'shared-checks') {
+                const checks = [{ name: 'render', status: 'passed' }, { name: 'x'.repeat(2048), status: 'passed' }];
+                if (state === 'final') checks.push({ name: 'render [updated]', status: 'passed' });
+                return checks;
+              }
+              if (kind === 'duplicate-checks') return Array.from({ length: 2 }, () => ({ name: 'render', status: 'passed' }));
               return [{ name: state + '-render', status: (kind === 'masked-failure' && state === 'default') || !settled ? 'failed' : 'passed' }];
             }
           };
@@ -105,6 +113,7 @@ test.describe('T04: Deterministic capture driven by ready -> runState -> getChec
           if (kind === 'missing-getChecks') delete example.getChecks;
           if (kind === 'bad-ready') example.ready = true;
           if (kind === 'unsupported-state') example.states = ['default'];
+          if (kind === 'shared-checks') example.states.push('final');
           if (kind === 'no-discovery') delete example.states;
           window.__COMPONENT_EXAMPLE__ = example;
           ` + '</script>');
@@ -152,6 +161,7 @@ test.describe('T04: Deterministic capture driven by ready -> runState -> getChec
     expect(result.screenshots[0]!.state).toBe('default');
     expect(result.screenshots[0]!.source).toBe('local-automatic');
     expect(fs.existsSync(path.join(outputDir, result.screenshots[0]!.image.path))).toBe(true);
+    expect(result.checks.map(check => check.name)).toEqual(['single-instance', 'no-page-error', 'valid-dimensions', 'fonts-ready']);
     expect(result.checks.every((c) => c.status === 'passed')).toBe(true);
   });
 
@@ -227,5 +237,33 @@ test.describe('T04: Deterministic capture driven by ready -> runState -> getChec
   test('allows discovery to be omitted while still executing required states', async () => {
     const result = await captureProtocol('no-discovery', ['default', 'updated']);
     expect(result.checks.map(check => check.name)).toEqual(['default-render', 'updated-render']);
+  });
+
+  test('builds a valid report when multiple states return the same check names', async () => {
+    const result = await captureProtocol('shared-checks', ['updated', 'default', 'final']);
+    const report = buildCheckReport({
+      ...result, variantId: 'line-react', exampleId: 'line-default', packageSha256: 'a'.repeat(64),
+    });
+
+    const validation = validateCheckReport(report);
+    expect(validation.ok, validation.ok ? undefined : JSON.stringify(validation.issues)).toBe(true);
+    expect(report.screenshots.map(shot => shot.state)).toEqual(['updated', 'default', 'final']);
+    const names = report.checks.map(check => check.name);
+    expect(names).toHaveLength(7);
+    expect(names[0]).toContain('[updated]');
+    expect(names[2]).toBe('render');
+    expect(names[3]).toBe('x'.repeat(2048));
+    expect(names[4]).toContain('[final]');
+    expect(names[6]).toBe('render [updated]');
+  });
+
+  test('preserves the first check name when no default state is captured', async () => {
+    const result = await captureProtocol('shared-checks', ['updated', 'final']);
+    expect(result.checks[0]!.name).toBe('render');
+    expect(result.checks[2]!.name).toContain('[final]');
+  });
+
+  test('rejects duplicate check names within a single state', async () => {
+    await expect(captureProtocol('duplicate-checks')).rejects.toThrow(/INVALID_EXAMPLE_PROTOCOL.*Duplicate check name.*render.*default/);
   });
 });
