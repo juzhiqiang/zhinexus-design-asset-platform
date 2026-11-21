@@ -19,12 +19,15 @@ async function main(): Promise<void> {
     results.oidc = 'metadata-verified; real web/CLI login and client registration still required';
   }
   if (config.preview) {
-    for (const origin of Object.values(config.preview)) {
+    const { platformOrigin, apiOrigin, previewOrigin, mode } = config.preview;
+    for (const origin of new Set([platformOrigin, apiOrigin, previewOrigin])) {
       // Native fetch verifies DNS and TLS. Redirects cannot hide a different origin.
       const response = await fetch(origin, { method: 'HEAD', redirect: 'manual', signal: AbortSignal.timeout(10_000) });
       if (response.status >= 500) throw new Error('Preview/platform origin returned a server failure');
     }
-    results.preview = 'gallery-api-preview-dns-tls-verified; wildcard certificate, grants and sandbox isolation still required';
+    results.preview = mode === 'ip-port'
+      ? 'gallery-api-preview-ip-tls-verified; grants, sandbox isolation and formal DNS/TLS acceptance still required'
+      : 'gallery-api-preview-dns-tls-verified; wildcard certificate, grants and sandbox isolation still required';
   }
   mkdirSync(localDir, { recursive: true });
   writeFileSync(join(localDir, 'access-result.json'), `${JSON.stringify({ checkedAt: new Date().toISOString(), ...results }, null, 2)}\n`);

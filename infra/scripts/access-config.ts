@@ -1,8 +1,8 @@
-import { getDomain } from 'tldts';
+import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 
 export type AccessConfig = {
   oidc: { issuer: string; webClientId: string; cliClientId: string } | null;
-  preview: { platformOrigin: string; apiOrigin: string; previewOrigin: string } | null;
+  preview: PreviewConfig | null;
 };
 function object(value: unknown): Record<string, unknown> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) throw new Error('Expected configuration object');
@@ -12,12 +12,11 @@ function text(value: unknown, field: string): string {
   if (typeof value !== 'string' || !value.trim()) throw new Error(`Missing ${field}`);
   return value;
 }
-function https(value: unknown, field: string, originOnly = false): string {
+function https(value: unknown, field: string): string {
   const input = text(value, field);
   let url: URL;
   try { url = new URL(input); } catch { throw new Error(`Invalid ${field}`); }
-  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash ||
-      (originOnly && url.pathname !== '/')) throw new Error(`Unsafe ${field}`);
+  if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error(`Unsafe ${field}`);
   return input;
 }
 export function validateAccessConfig(input: unknown): AccessConfig {
@@ -29,15 +28,14 @@ export function validateAccessConfig(input: unknown): AccessConfig {
   }
   if (config.preview != null) {
     const preview = object(config.preview);
-    const platformOrigin = https(preview.platformOrigin, 'platformOrigin', true);
-    const apiOrigin = https(preview.apiOrigin, 'apiOrigin', true);
-    const previewOrigin = https(preview.previewOrigin, 'previewOrigin', true);
-    // Use the ICANN registered domain, not the public-suffix/private-hosting boundary.
-    const platformDomain = getDomain(new URL(platformOrigin).hostname, { allowPrivateDomains: false });
-    const apiDomain = getDomain(new URL(apiOrigin).hostname, { allowPrivateDomains: false });
-    const previewDomain = getDomain(new URL(previewOrigin).hostname, { allowPrivateDomains: false });
-    if (!platformDomain || !apiDomain || !previewDomain || platformDomain === previewDomain || apiDomain === previewDomain) throw new Error('Preview requires a different registered domain from gallery and API');
-    result.preview = { platformOrigin, apiOrigin, previewOrigin };
+    const mode = preview.mode;
+    if (mode !== undefined && mode !== 'domain' && mode !== 'ip-port') throw new Error('Invalid preview mode');
+    const origins = {
+      platformOrigin: text(preview.platformOrigin, 'platformOrigin'),
+      apiOrigin: text(preview.apiOrigin, 'apiOrigin'),
+      previewOrigin: text(preview.previewOrigin, 'previewOrigin'),
+    };
+    result.preview = validatePreviewConfig(mode === undefined ? origins : { ...origins, mode });
   }
   return result;
 }

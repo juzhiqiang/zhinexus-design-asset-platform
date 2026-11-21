@@ -2,12 +2,13 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse } from 'yaml';
-import { validatePreviewConfig } from '@company/contracts/preview';
+import { previewConfigFromEnv } from '@company/contracts/preview';
 import { retentionPolicy } from '../apps/api/dist/operations/retention.js';
 import { OidcVerifier } from '../apps/api/dist/auth/oidc.js';
 
 const pinned = (value: unknown) => typeof value==='string' && /^(?:[a-zA-Z0-9./:_-]+@)?sha256:[a-f0-9]{64}$/.test(value);
 const parameter = (value: unknown) => typeof value==='string' && /^\$\{[A-Z][A-Z0-9_]*:\?[^}]+\}$/.test(value);
+const previewModeParameter = '${PLATFORM_PREVIEW_MODE:-domain}';
 const commands: Record<string,string[]> = {api:['node','dist/server.js'],worker:['node','dist/releases/runner.js'],'preview-gateway':['node','dist/server.js']};
 const networks: Record<string,string[]> = {api:['backend','edge','egress'],worker:['backend','edge','egress'],
   'preview-gateway':['backend','edge','egress'],postgres:['backend'],verdaccio:['backend','edge'],minio:['backend','edge']};
@@ -22,6 +23,9 @@ export function validateDeployment(input: unknown, env?: Record<string,string|un
     if (name in commands && (s.read_only!==true || !s.cap_drop?.includes('ALL') || !s.security_opt?.includes('no-new-privileges:true') ||
       s.user!=='1000:1000' || s.volumes?.length || s.devices?.length || JSON.stringify(s.tmpfs)!==JSON.stringify(['/tmp:size=64m']) ||
       JSON.stringify(s.command)!==JSON.stringify(commands[name]))) errors.push(`${name}: unsafe runtime`);
+    if (name in commands && s.environment?.PLATFORM_PREVIEW_MODE !== previewModeParameter) {
+      errors.push(`${name}: shared preview mode configuration required`);
+    }
     const assigned = Array.isArray(s.networks) ? s.networks : Object.keys(s.networks??{});
     if (JSON.stringify([...assigned].sort())!==JSON.stringify([...(networks[name]??[])].sort())) errors.push(`${name}: unexpected network access`);
     for (const [key,value] of Object.entries(s.environment??{})) {
@@ -56,8 +60,11 @@ export function validateDeployment(input: unknown, env?: Record<string,string|un
       } catch { errors.push(`Invalid ${key} database configuration`); }
     }
     if (databaseRoles.length === 2 && databaseRoles[0] === databaseRoles[1]) errors.push('Preview requires a distinct database role');
-    try {validatePreviewConfig({previewOrigin:env.PLATFORM_PREVIEW_ORIGIN??'',platformOrigin:env.PLATFORM_GALLERY_ORIGIN??'',apiOrigin:env.PLATFORM_API_ORIGIN??''});}
-    catch {errors.push('Invalid independent preview domain configuration');}
+    try {
+      if (!previewConfigFromEnv(env)) throw new Error();
+    } catch {
+      errors.push('Invalid preview origin or mode configuration');
+    }
     if (!/^[A-Za-z0-9_-]{32,256}$/.test(env.PLATFORM_METRICS_TOKEN??'')) errors.push('Invalid metrics token');
     if (env.PLATFORM_DATABASE_URL===env.PREVIEW_DATABASE_URL || env.PLATFORM_S3_ACCESS_KEY===env.PREVIEW_S3_ACCESS_KEY) errors.push('Preview requires a separate limited identity');
     try {retentionPolicy(env);} catch {errors.push('Invalid retention policy');}

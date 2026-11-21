@@ -83,3 +83,33 @@ it('keeps missing fields, malformed templates and invalid configuration out of s
     expect(report.template.status).toBe('failed');
   }
 });
+
+it('selects the opt-in same-IP HTTPS preview port in both services and preflight', async () => {
+  for (const service of ['api', 'worker', 'preview-gateway']) {
+    expect(template.services[service].environment.PLATFORM_PREVIEW_MODE).toBe('${PLATFORM_PREVIEW_MODE:-domain}');
+  }
+  const env = {
+    ...environment(), PLATFORM_PREVIEW_MODE: 'ip-port',
+    PLATFORM_GALLERY_ORIGIN: 'https://192.0.2.13', PLATFORM_API_ORIGIN: 'https://192.0.2.13:8444',
+    PLATFORM_PREVIEW_ORIGIN: 'https://192.0.2.13:8443',
+  };
+  expect(validateDeployment(template, env)).toEqual([]);
+  const { productionPreflight } = await import('../../scripts/production-preflight.js');
+  const result = productionPreflight(template, env);
+  expect(result).toMatchObject({ previewMode: 'ip-port', productionAcceptance: false, exitCode: 0 });
+  expect(result.pendingAcceptance).toContain('production-dns-tls-browser-isolation');
+  const defaultMode = productionPreflight(template, { ...environment(), PLATFORM_PREVIEW_MODE: '' });
+  expect(defaultMode).toMatchObject({ previewMode: 'domain', productionAcceptance: false, exitCode: 0 });
+  for (const change of [
+    { PLATFORM_PREVIEW_MODE: '' },
+    { PLATFORM_PREVIEW_MODE: 'domain' },
+    { PLATFORM_PREVIEW_MODE: 'unsupported' },
+    { PLATFORM_PREVIEW_ORIGIN: 'https://192.0.2.13:8444' },
+    { PLATFORM_PREVIEW_ORIGIN: 'https://192.0.2.13' },
+    { PLATFORM_PREVIEW_ORIGIN: 'https://192.0.2.14:8443' },
+    { PLATFORM_PREVIEW_ORIGIN: 'https://preview.example.net:8443' },
+    { PLATFORM_PREVIEW_ORIGIN: 'http://192.0.2.13:8443' },
+  ]) expect(validateDeployment(template, { ...env, ...change })).toContain('Invalid preview origin or mode configuration');
+  expect(validateDeployment(template, { ...environment(), PLATFORM_PREVIEW_MODE: 'unsupported' }))
+    .toContain('Invalid preview origin or mode configuration');
+});

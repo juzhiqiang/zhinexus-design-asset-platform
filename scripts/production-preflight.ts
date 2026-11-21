@@ -2,6 +2,7 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { parse } from 'yaml';
+import { previewConfigFromEnv, type PreviewConfig } from '@company/contracts/preview';
 import { validateDeployment } from './verify-deployment.js';
 
 type Check = { status: 'passed' | 'failed' | 'unconfigured'; errors: string[] };
@@ -10,6 +11,7 @@ export type ProductionPreflightReport = {
   template: Check;
   environment: Check;
   missingVariables: string[];
+  previewMode: NonNullable<PreviewConfig['mode']> | null;
   pendingAcceptance: string[];
   productionAcceptance: false;
   exitCode: 0 | 1 | 2;
@@ -24,6 +26,7 @@ export function productionPreflight(
     template: { status: 'passed', errors: [] },
     environment: { status: 'unconfigured', errors: [] },
     missingVariables: [],
+    previewMode: null,
     pendingAcceptance: [
       'company-oidc-login-revocation', 'production-dns-tls-browser-isolation',
       'production-images-secrets-least-privilege', 'monitoring-alert-delivery',
@@ -41,8 +44,12 @@ export function productionPreflight(
     .map(match => match[1]!))].sort();
   report.missingVariables = required.filter(key => !env?.[key]?.trim());
   if (env === undefined || report.missingVariables.length) return report;
-  try { report.environment.errors = validateDeployment(template, env); }
-  catch { report.environment.errors = ['Invalid deployment environment']; }
+  try {
+    report.environment.errors = validateDeployment(template, env);
+    if (!report.environment.errors.length) report.previewMode = previewConfigFromEnv(env)?.mode ?? 'domain';
+  } catch {
+    report.environment.errors = ['Invalid deployment environment'];
+  }
   report.environment.status = report.environment.errors.length ? 'failed' : 'passed';
   report.exitCode = report.environment.errors.length ? 1 : 0;
   return report;

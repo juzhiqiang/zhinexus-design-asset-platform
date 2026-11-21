@@ -44,3 +44,19 @@ describe('G2 external access configuration', () => {
     expect(() => validateOidcJwks({ keys: [{ kty: 'RSA', n: 'public-modulus', e: 'AQAB' }] })).not.toThrow();
   });
 });
+
+it('accepts an explicitly selected same-IPv4 HTTPS preview port only', () => {
+  const preview = {
+    mode: 'ip-port', platformOrigin: 'https://192.0.2.13', apiOrigin: 'https://192.0.2.13:8444',
+    previewOrigin: 'https://192.0.2.13:8443',
+  };
+  expect(validateAccessConfig({ preview }).preview).toEqual(preview);
+  for (const change of [
+    { mode: 'domain' },
+    { mode: 'unknown' },
+    { apiOrigin: 'https://192.0.2.14:8444' },
+    { previewOrigin: 'https://192.0.2.13:8444' },
+    { previewOrigin: 'https://192.0.2.13:8443/' },
+  ]) expect(() => validateAccessConfig({ preview: { ...preview, ...change } })).toThrow();
+  expect(() => validateAccessConfig({ preview: { ...valid.preview, mode: 'unknown' } })).toThrow();
+});
