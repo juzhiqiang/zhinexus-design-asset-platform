@@ -9,8 +9,9 @@ import { PlatformError } from './errors.js';
 import { previewConfigFromEnv, validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 import { PlatformEvents } from './observability/events.js';
 import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
+import { AccessSettingsService, type AccessOptions } from './access/service.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions };
 function validateGalleryOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
@@ -46,6 +47,7 @@ export class Platform {
   readonly uploads?: UploadService;
   readonly preview?: PreviewConfig;
   readonly galleryOrigin?: string;
+  readonly access?: AccessSettingsService;
   constructor(options: PlatformOptions) {
     this.events = options.events ?? new PlatformEvents();
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
@@ -60,6 +62,15 @@ export class Platform {
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
+    if (this.db && options.access) this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin);
+  }
+  async runAdministrator<T>(authorization: string | undefined, requestId: string, operation: (service: AccessSettingsService, context: RequestContext) => Promise<T>): Promise<T> {
+    const principal = await this.verifier.verify(authorization);
+    if (!this.db || !this.access) throw new PlatformError('INFRA_UNAVAILABLE');
+    const context = { principal, requestId };
+    this.access.administrator(context);
+    if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
+    return operation(this.access, context);
   }
   async run<T>(authorization: string | undefined, action: 'read'|'upload'|'baseline'|'deprecate', requestId: string,
     operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {

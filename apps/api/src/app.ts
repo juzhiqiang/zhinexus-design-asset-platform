@@ -13,10 +13,11 @@ import { MatchingController } from './matching/routes.js';
 import { ComponentQueryController } from './matching/component-query-routes.js';
 import { MetricsController } from './observability/http.js';
 import type { ServerResponse } from 'node:http';
+import { AccessSettingsController } from './access/routes.js';
 
 export async function buildServer(options: PlatformOptions = environmentOptions()): Promise<INestApplication> {
   const platform = new Platform(options);
-  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController], providers: [{ provide: Platform, useValue: platform }] })
+  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController, AccessSettingsController], providers: [{ provide: Platform, useValue: platform }] })
   class ConfiguredModule {}
   try {
     const app = await NestFactory.create<NestExpressApplication>(ConfiguredModule, { logger: false, abortOnError: false, bodyParser: false });

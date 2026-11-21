@@ -3,6 +3,7 @@ import type { JWTVerifyGetKey } from 'jose';
 
 export type Principal = {
   subject: string;
+  issuer?: string; identitySubject?: string; generation?: string;
   clientId: string;
   channel: 'cli' | 'web';
   roles: readonly ('reader' | 'publisher' | 'maintainer')[];
@@ -85,7 +86,7 @@ export class OidcVerifier {
       const roles = payload.roles ?? [];
       if (payload.roles === null || !Array.isArray(roles) || !roles.every(isRole)) throw new AuthFailure('UNAUTHENTICATED');
       return Object.freeze({
-        subject: payload.sub, clientId, channel: this.webClients.has(clientId) ? 'web' : 'cli',
+        subject: payload.sub, issuer: this.config.issuer, identitySubject: payload.sub, clientId, channel: this.webClients.has(clientId) ? 'web' : 'cli',
         roles: Object.freeze([...roles]),
       });
     } catch {

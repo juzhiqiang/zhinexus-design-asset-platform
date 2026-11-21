@@ -72,6 +72,7 @@ describe('OIDC signature and claims verification', () => {
   it.each(['RS256', 'ES256'])('accepts a %s access token and takes identity from verified claims', async algorithm => {
     const token = await sign({ sub: 'signed-subject', roles: ['publisher', 'reader'] }, algorithm);
     expect(await verifier().verify(`Bearer ${token}`)).toEqual({
+      issuer: config.issuer, identitySubject: 'signed-subject',
       subject: 'signed-subject', clientId: 'gallery-web', channel: 'web', roles: ['publisher', 'reader'],
     });
   });
