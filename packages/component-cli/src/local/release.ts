@@ -3,7 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { manifestDigest } from '../contracts/digests.js';
 import type { ReleaseManifestV1 } from '../contracts/release-manifest.js';
-import type { ApiMessages } from '../contracts/api.js';
+import { validateApiMessage, type ApiMessages } from '../contracts/api.js';
 import { loadReleaseBundle } from './manifest.js';
 
 export type ReleaseSession = {
@@ -67,6 +67,24 @@ export async function saveReleaseSession(
   const sessionPath = path.join(bundleDir, SESSION_FILE);
   session.updatedAt = new Date().toISOString();
   await fs.promises.writeFile(sessionPath, JSON.stringify(session, null, 2) + '\n', 'utf8');
+}
+
+async function readApiResponse<K extends keyof ApiMessages>(
+  response: Response,
+  name: K,
+): Promise<ApiMessages[K]> {
+  let input: unknown;
+  try {
+    input = await response.json();
+  } catch {
+    throw new Error(`INVALID_RESPONSE: ${name} [INVALID_SCHEMA] "": Expected a JSON response`);
+  }
+  const result = validateApiMessage(name, input);
+  if (!result.ok) {
+    const details = result.issues.map(issue => `[${issue.code}] ${JSON.stringify(issue.path)}: ${issue.message}`).join('; ');
+    throw new Error(`INVALID_RESPONSE: ${name} ${details}`);
+  }
+  return result.value;
 }
 
 /**
@@ -136,7 +154,7 @@ export async function executeReleaseCommand(
       throw new Error(`CREATE_UPLOAD_FAILED: 创建上传会话失败 (${uploadReqRes.status}): ${errBody}`);
     }
 
-    const plan = (await uploadReqRes.json()) as ApiMessages['createUploadResponse'];
+    const plan = await readApiResponse(uploadReqRes, 'createUploadResponse');
     session.uploadSessionId = plan.uploadSessionId;
     await saveReleaseSession(bundleDir, session);
 
@@ -176,6 +194,7 @@ export async function executeReleaseCommand(
       const errBody = await completeRes.text();
       throw new Error(`COMPLETE_UPLOAD_FAILED: 完成上传核验失败 (${completeRes.status}): ${errBody}`);
     }
+    await readApiResponse(completeRes, 'completeUploadResponse');
   } else {
     log(`复用已完成的上传会话: ${session.uploadSessionId}`);
   }
@@ -202,7 +221,7 @@ export async function executeReleaseCommand(
       throw new Error(`CREATE_RELEASE_FAILED: 提交发布作业失败 (${releaseRes.status}): ${errBody}`);
     }
 
-    const relData = (await releaseRes.json()) as ApiMessages['createReleaseResponse'];
+    const relData = await readApiResponse(releaseRes, 'createReleaseResponse');
     session.jobId = relData.jobId;
     session.state = relData.state;
     await saveReleaseSession(bundleDir, session);
@@ -227,7 +246,7 @@ export async function executeReleaseCommand(
       throw new Error(`QUERY_RELEASE_FAILED: 查询发布作业状态失败 (${statusRes.status}): ${errBody}`);
     }
 
-    const statusData = (await statusRes.json()) as ApiMessages['releaseJobResponse'];
+    const statusData = await readApiResponse(statusRes, 'releaseJobResponse');
     session.state = statusData.state;
     await saveReleaseSession(bundleDir, session);
 
@@ -329,11 +348,12 @@ export async function executeStatusCommand(
     };
   }
 
-  const status = (await res.json()) as ApiMessages['releaseJobResponse'];
-  return {
-    ok: true,
-    status,
-  };
+  try {
+    const status = await readApiResponse(res, 'releaseJobResponse');
+    return { ok: true, status };
+  } catch (error: unknown) {
+    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+  }
 }
 
 /**
