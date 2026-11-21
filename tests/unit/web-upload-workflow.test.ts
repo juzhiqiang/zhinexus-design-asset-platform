@@ -256,7 +256,7 @@ describe('T08: 上传时序持久化、错误停止与幂等恢复', () => {
         // 断言在首次提交发布前，幂等键已经持久化保存
         const savedReleaseReq = JSON.parse(storage.getItem('zhinexus_pending_release') || '{}');
         expect(savedReleaseReq.idempotencyKey).toBe(idempotencyKey);
-        return { jobId: 'job-001', state: 'PENDING' };
+        return { jobId: 'job-001', state: 'PENDING' as const };
       }),
     };
 
