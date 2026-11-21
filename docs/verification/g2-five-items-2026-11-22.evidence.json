@@ -1,0 +1,1430 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-11-21T19:19:34.500Z",
+  "localDate": "2026-11-22",
+  "timezone": "Asia/Shanghai",
+  "baselineCommit": "6511ba772b77ddc055966289ac65aef148f71a37",
+  "branch": "chore/g2-five-item-acceptance",
+  "owner": "C / Codex",
+  "environment": {
+    "os": "Windows",
+    "arch": "x64",
+    "node": "v26.13.0",
+    "pnpm": "12.18.0",
+    "dockerEngine": "29.8.2"
+  },
+  "testSourceAtArchive": {
+    "path": "tests/platform/g2-storage-acceptance.test.ts",
+    "bytes": 16801,
+    "sha256": "ad0164e7a98783804b40bd71e63a5c199dcac3248ab48cae58d2281295785878"
+  },
+  "architectureSha256": "e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723",
+  "preservedReadmeSha256": "3d8a1373b1cfa4e4961b818850fa2bf1ae384a26ace31d5acad6bdd651e49cd7",
+  "selectedRunId": "2ce653ee-ac1c-4611-a94a-f2798cb30511",
+  "gate": {
+    "itemCount": 5,
+    "g2Ready": false,
+    "productionAcceptance": false,
+    "status": "incomplete",
+    "localMeasuredStorageItems": 3,
+    "unconfiguredItems": 2
+  },
+  "items": [
+    {
+      "id": "postgres",
+      "status": "local-measured-passed",
+      "formalCompanyAcceptance": false,
+      "selectedRunId": "2ce653ee-ac1c-4611-a94a-f2798cb30511",
+      "checks": [
+        {
+          "service": "postgres",
+          "name": "real-write-read-and-unique-constraint",
+          "measuredAt": "2026-11-21T19:16:44.873Z",
+          "result": {
+            "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+            "payloadSha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513",
+            "duplicateSqlState": "23505"
+          }
+        },
+        {
+          "service": "postgres",
+          "name": "process-restart-persistence",
+          "measuredAt": "2026-11-21T19:16:54.498Z",
+          "result": {
+            "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+          }
+        },
+        {
+          "service": "postgres",
+          "name": "backup-restore-to-separate-database",
+          "measuredAt": "2026-11-21T19:16:55.127Z",
+          "result": {
+            "database": "g2_restore",
+            "backupSha256": "313c72ab0254c524c6e194a5909d5a72a80696653bd1ca78851a61768bb22268",
+            "payloadSha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+          }
+        }
+      ]
+    },
+    {
+      "id": "verdaccio",
+      "status": "local-measured-passed",
+      "formalCompanyAcceptance": false,
+      "selectedRunId": "2ce653ee-ac1c-4611-a94a-f2798cb30511",
+      "checks": [
+        {
+          "service": "verdaccio",
+          "name": "publish-download-permissions-and-immutability",
+          "measuredAt": "2026-11-21T19:16:49.316Z",
+          "result": {
+            "packageName": "@g2-probe/probe-2ce653eeac1c4611a94af2798cb30511",
+            "version": "1.0.0",
+            "tarballSha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710",
+            "anonymousStatus": 401,
+            "readerWriteStatus": 403,
+            "duplicatePublish": "E409"
+          }
+        },
+        {
+          "service": "verdaccio",
+          "name": "exact-fresh-consumer-install",
+          "measuredAt": "2026-11-21T19:16:49.792Z",
+          "result": {
+            "packageName": "@g2-probe/probe-2ce653eeac1c4611a94af2798cb30511",
+            "version": "1.0.0",
+            "tarballSha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710",
+            "installedIntegrity": "sha512-vuIEK6Yqdi0LlcxO5HDQy6nsjFHi1FO2bFHgUhHQxQO7l4tPEOfze7mX01hKib7Ot+xwUyuaVg8ssVUuIzRSAQ==",
+            "freshCache": true
+          }
+        },
+        {
+          "service": "verdaccio",
+          "name": "process-restart-frozen-tarball-readable",
+          "measuredAt": "2026-11-21T19:16:54.545Z",
+          "result": {
+            "sha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710"
+          }
+        }
+      ]
+    },
+    {
+      "id": "minio",
+      "status": "local-measured-passed",
+      "formalCompanyAcceptance": false,
+      "selectedRunId": "2ce653ee-ac1c-4611-a94a-f2798cb30511",
+      "checks": [
+        {
+          "service": "minio",
+          "name": "private-object-put-get-digest-and-anonymous-denial",
+          "measuredAt": "2026-11-21T19:16:45.387Z",
+          "result": {
+            "bytes": 256,
+            "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513",
+            "anonymousStatus": 403,
+            "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+            "release": "RELEASE.2025-10-15T17-29-55Z"
+          }
+        },
+        {
+          "service": "minio",
+          "name": "process-restart-persistence",
+          "measuredAt": "2026-11-21T19:16:54.508Z",
+          "result": {
+            "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+          }
+        },
+        {
+          "service": "minio",
+          "name": "backup-restore-to-separate-object",
+          "measuredAt": "2026-11-21T19:16:55.147Z",
+          "result": {
+            "originalKey": "2ce653ee-ac1c-4611-a94a-f2798cb30511/original.bin",
+            "restoredKey": "2ce653ee-ac1c-4611-a94a-f2798cb30511/restored.bin",
+            "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+          }
+        }
+      ]
+    },
+    {
+      "id": "oidc",
+      "status": "unconfigured",
+      "formalCompanyAcceptance": false,
+      "commands": [
+        "access-script",
+        "access-direct"
+      ],
+      "missing": [
+        "company issuer and clients",
+        "web login and callback",
+        "CLI PKCE and callback",
+        "roles and revocation"
+      ]
+    },
+    {
+      "id": "preview",
+      "status": "unconfigured",
+      "formalCompanyAcceptance": false,
+      "commands": [
+        "access-script",
+        "access-direct"
+      ],
+      "missing": [
+        "target origin and certificate trust",
+        "formal domain DNS and certificate chain",
+        "release grant and revocation",
+        "target browser isolation"
+      ]
+    }
+  ],
+  "access": {
+    "checkedAt": "2026-11-21T19:08:18.536Z",
+    "oidc": "unconfigured",
+    "preview": "unconfigured",
+    "g2Ready": false
+  },
+  "commandRecords": [
+    {
+      "name": "access-direct",
+      "command": ".\\scripts\\pnpm.ps1 exec tsx infra/scripts/access.ts",
+      "startedAt": "2026-11-21T19:11:17.3245324Z",
+      "completedAt": "2026-11-21T19:11:17.5564984Z",
+      "exitCode": 2,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/access-direct.log",
+        "bytes": 83,
+        "sha256": "9f658c4098d8463695aa0c78b39dfe2e9e4214200b72e31844cf8e1359c895f0"
+      }
+    },
+    {
+      "name": "access-script",
+      "command": ".\\scripts\\pnpm.ps1 infra:check-access",
+      "startedAt": "2026-11-21T19:08:17.9384902Z",
+      "completedAt": "2026-11-21T19:08:18.5742076Z",
+      "exitCode": 2,
+      "configurationSource": "infra/access.example.json; G2_ACCESS_CONFIG unset",
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/access-script.log",
+        "bytes": 233,
+        "sha256": "8246c69277c4450874ccc42ed907faa60b0bf9f2dd8806217ddd4ef5cc8a660c"
+      }
+    },
+    {
+      "name": "final-build-services",
+      "command": "TURBO_FORCE=true; .\\scripts\\pnpm.ps1 build:services",
+      "startedAt": "2026-11-21T19:17:16.4577813Z",
+      "completedAt": "2026-11-21T19:17:21.1503714Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/final-build-services.log",
+        "bytes": 1055,
+        "sha256": "5be5b4c3d28fecadd47eef08a42023a8ea7d2c9529abf1644d588a2852e82685"
+      }
+    },
+    {
+      "name": "final-infra-unit",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run tests/infra tests/unit/infra-options.test.ts",
+      "startedAt": "2026-11-21T19:17:16.4832178Z",
+      "completedAt": "2026-11-21T19:17:19.0120603Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/final-infra-unit.log",
+        "bytes": 414,
+        "sha256": "74937441f8874cb3c5343a0d9eaf4f8f38d98b784cf4744e0f847873d80536ce"
+      }
+    },
+    {
+      "name": "final-root-types-after-build",
+      "command": ".\\scripts\\pnpm.ps1 exec tsc -p tsconfig.json --noEmit",
+      "startedAt": "2026-11-21T19:17:40.1216516Z",
+      "completedAt": "2026-11-21T19:17:41.2442054Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/final-root-types-after-build.log",
+        "bytes": 0,
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    },
+    {
+      "name": "final-root-types",
+      "command": ".\\scripts\\pnpm.ps1 exec tsc -p tsconfig.json --noEmit",
+      "startedAt": "2026-11-21T19:17:19.0568414Z",
+      "completedAt": "2026-11-21T19:17:20.2991067Z",
+      "exitCode": 1,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/final-root-types.log",
+        "bytes": 27108,
+        "sha256": "e01f69fa49f4216c15d64a5967ff0d845d3d02312a19b4168653b5d19c4b95e2"
+      }
+    },
+    {
+      "name": "final-workspace",
+      "command": ".\\scripts\\pnpm.ps1 verify:workspace",
+      "startedAt": "2026-11-21T19:17:41.2688291Z",
+      "completedAt": "2026-11-21T19:17:41.5769890Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/final-workspace.log",
+        "bytes": 124,
+        "sha256": "6937eb8c08c6db032212b3ac8189bd2d5ae43801e6e3641c8ff956a7d3161732"
+      }
+    },
+    {
+      "name": "isolated-storage-fifth",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:11:50.7323388Z",
+      "completedAt": "2026-11-21T19:12:11.7779761Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-fifth.log",
+        "bytes": 298,
+        "sha256": "e469ea62c953dc1aa65fb46bb2cb610b5ec86e6722dd57f20331a2322accfbf6"
+      }
+    },
+    {
+      "name": "isolated-storage-fourth",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:10:46.1824467Z",
+      "completedAt": "2026-11-21T19:11:07.8186362Z",
+      "exitCode": 1,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-fourth.log",
+        "bytes": 3586,
+        "sha256": "19ff533394e15c045120947c467f63c0c1c8f40b360a1893e162e1db42e2377d"
+      }
+    },
+    {
+      "name": "isolated-storage-second",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:07:41.6306031Z",
+      "completedAt": "2026-11-21T19:08:02.7201223Z",
+      "exitCode": 1,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-second.log",
+        "bytes": 2627,
+        "sha256": "91cd1b79ef5a518d507f3d96d09b6f51f600eb78a2f622fa2895420ec8c2559e"
+      }
+    },
+    {
+      "name": "isolated-storage-seventh",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:16:32.7800761Z",
+      "completedAt": "2026-11-21T19:17:03.4995217Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-seventh.log",
+        "bytes": 287,
+        "sha256": "fb7bcfe601466f3ae3f04a1a3015f1dbf925f1205f1b44212649651dd9295032"
+      }
+    },
+    {
+      "name": "isolated-storage-sixth",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:13:11.8261653Z",
+      "completedAt": "2026-11-21T19:13:31.0478312Z",
+      "exitCode": 0,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-sixth.log",
+        "bytes": 298,
+        "sha256": "4bf7c5fce07eb9755d7fb8f356536febe2f4b9d2a161b81c4814bb88d4af8324"
+      }
+    },
+    {
+      "name": "isolated-storage-third",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:09:33.8477766Z",
+      "completedAt": "2026-11-21T19:09:51.2177409Z",
+      "exitCode": 1,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-third.log",
+        "bytes": 2724,
+        "sha256": "5920a3b3ef3b0142ccf0749ee805c03e781eefbc23dbd427b88cfcbf48762b1f"
+      }
+    },
+    {
+      "name": "isolated-storage",
+      "command": ".\\scripts\\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts",
+      "startedAt": "2026-11-21T19:06:34.6552036Z",
+      "completedAt": "2026-11-21T19:06:57.4299015Z",
+      "exitCode": 1,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage.log",
+        "bytes": 2811,
+        "sha256": "34fb80783797a31c42df59fe7b7713c7c6f8983acf70d6b5641a5c8bf10ed2e8"
+      }
+    },
+    {
+      "name": "shared-preflight",
+      "command": ".\\scripts\\pnpm.ps1 test:infra",
+      "startedAt": "2026-11-21T19:04:55.0128924Z",
+      "completedAt": "2026-11-21T19:04:56.9731133Z",
+      "exitCode": 1,
+      "log": {
+        "path": ".tools/operations/g2-acceptance/2026-11-22/shared-preflight.log",
+        "bytes": 216,
+        "sha256": "774ac687f1d280030711c68467f11bd786092b09ca41b4c362f5c6e23d1e74e1"
+      }
+    }
+  ],
+  "runs": [
+    {
+      "path": ".tools/operations/g2-acceptance/0e1698e6-a695-4be2-a5d9-18448e4c3ae8/report.json",
+      "bytes": 2694,
+      "sha256": "ec2b40bf99440a708bcc686e9b61da4c3e798e5c06c7fee017d4e62a8aa0332d",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "0e1698e6-a695-4be2-a5d9-18448e4c3ae8",
+        "startedAt": "2026-11-21T19:06:46.612Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "failed",
+        "completedAt": "2026-11-21T19:06:53.974Z",
+        "stage": "verdaccio",
+        "services": {
+          "postgres": {
+            "container": "zhrec-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-postgres",
+            "volume": "zhrec-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-postgres-data",
+            "port": 54066,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:06:41.811013573Z"
+          },
+          "verdaccio": {
+            "container": "zhrec-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-verdaccio",
+            "volume": "zhrec-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-verdaccio-data",
+            "port": 54067,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:06:42.497126931Z"
+          },
+          "minio": {
+            "container": "zhrec-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-minio",
+            "volume": "zhrec-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-minio-data",
+            "port": 54074,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:06:43.3209984Z"
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:06:46.986Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "4d76c1e4681019509cc3c26b2271843effbeb0bc03c363d3089d530c4c411eeb",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:06:47.557Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "4d76c1e4681019509cc3c26b2271843effbeb0bc03c363d3089d530c4c411eeb",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed"
+      }
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/ea0aa51b-797b-4e42-9a5a-c173eb074171/report.json",
+      "bytes": 2696,
+      "sha256": "cfdcd5ed6977df5da47669920e89a83a1e6c680aac4b2643c05dd77ba809385f",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "ea0aa51b-797b-4e42-9a5a-c173eb074171",
+        "startedAt": "2026-11-21T19:07:52.533Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "failed",
+        "completedAt": "2026-11-21T19:07:58.470Z",
+        "stage": "verdaccio",
+        "services": {
+          "postgres": {
+            "container": "zhrec-ea0aa51b-797b-4e42-9a5a-c173eb074171-postgres",
+            "volume": "zhrec-ea0aa51b-797b-4e42-9a5a-c173eb074171-postgres-data",
+            "port": 58177,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:07:46.979134687Z"
+          },
+          "verdaccio": {
+            "container": "zhrec-ea0aa51b-797b-4e42-9a5a-c173eb074171-verdaccio",
+            "volume": "zhrec-ea0aa51b-797b-4e42-9a5a-c173eb074171-verdaccio-data",
+            "port": 54217,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:07:48.354421989Z"
+          },
+          "minio": {
+            "container": "zhrec-ea0aa51b-797b-4e42-9a5a-c173eb074171-minio",
+            "volume": "zhrec-ea0aa51b-797b-4e42-9a5a-c173eb074171-minio-data",
+            "port": 54218,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:07:49.474087518Z"
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:07:52.834Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "805edfbb62cf9bdd9ff47e9c6b7af80ff1ab1038c2403ae38f4ac565956aa58f",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:07:53.318Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "805edfbb62cf9bdd9ff47e9c6b7af80ff1ab1038c2403ae38f4ac565956aa58f",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed"
+      }
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/3784f993-5be6-451e-b469-ec917474476b/report.json",
+      "bytes": 2696,
+      "sha256": "171f499196de6ecfb61369fa4e8827162824db3bab077837dbdefe7a79dd98dc",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "3784f993-5be6-451e-b469-ec917474476b",
+        "startedAt": "2026-11-21T19:09:42.895Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "failed",
+        "completedAt": "2026-11-21T19:09:48.014Z",
+        "stage": "verdaccio",
+        "services": {
+          "postgres": {
+            "container": "zhrec-3784f993-5be6-451e-b469-ec917474476b-postgres",
+            "volume": "zhrec-3784f993-5be6-451e-b469-ec917474476b-postgres-data",
+            "port": 61582,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:09:39.047834093Z"
+          },
+          "verdaccio": {
+            "container": "zhrec-3784f993-5be6-451e-b469-ec917474476b-verdaccio",
+            "volume": "zhrec-3784f993-5be6-451e-b469-ec917474476b-verdaccio-data",
+            "port": 61584,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:09:39.850783061Z"
+          },
+          "minio": {
+            "container": "zhrec-3784f993-5be6-451e-b469-ec917474476b-minio",
+            "volume": "zhrec-3784f993-5be6-451e-b469-ec917474476b-minio-data",
+            "port": 61586,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:09:41.113846948Z"
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:09:43.126Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "9769f0c3caf1b09761a5ae81c0c7dcb12493a35240d2355827fc03b6637d2f7c",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:09:43.570Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "9769f0c3caf1b09761a5ae81c0c7dcb12493a35240d2355827fc03b6637d2f7c",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed"
+      }
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0d37251b-9c8a-42db-a144-dc422edc8b54/report.json",
+      "bytes": 3744,
+      "sha256": "555b3cb9d4d97edcf8c1a2b072ed15846a99c2614db2b80255b70c573aa9c88c",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "0d37251b-9c8a-42db-a144-dc422edc8b54",
+        "startedAt": "2026-11-21T19:10:55.076Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "failed",
+        "completedAt": "2026-11-21T19:11:04.612Z",
+        "stage": "restart",
+        "services": {
+          "postgres": {
+            "container": "zhrec-0d37251b-9c8a-42db-a144-dc422edc8b54-postgres",
+            "volume": "zhrec-0d37251b-9c8a-42db-a144-dc422edc8b54-postgres-data",
+            "port": 53986,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:10:51.007338198Z",
+            "startedAtAfter": "2026-11-21T19:10:58.719399696Z"
+          },
+          "verdaccio": {
+            "container": "zhrec-0d37251b-9c8a-42db-a144-dc422edc8b54-verdaccio",
+            "volume": "zhrec-0d37251b-9c8a-42db-a144-dc422edc8b54-verdaccio-data",
+            "port": 54003,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:10:51.616409381Z"
+          },
+          "minio": {
+            "container": "zhrec-0d37251b-9c8a-42db-a144-dc422edc8b54-minio",
+            "volume": "zhrec-0d37251b-9c8a-42db-a144-dc422edc8b54-minio-data",
+            "port": 54004,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:10:52.464144609Z"
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:10:55.315Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "749f783ad6defc3b19553d53c9f684c70e2e7e3b5885a967ebcd2be42312d8ca",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:10:55.836Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "749f783ad6defc3b19553d53c9f684c70e2e7e3b5885a967ebcd2be42312d8ca",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "publish-download-permissions-and-immutability",
+            "measuredAt": "2026-11-21T19:10:57.031Z",
+            "result": {
+              "packageName": "@g2-probe/probe-0d37251b9c8a42dba144dc422edc8b54",
+              "version": "1.0.0",
+              "tarballSha256": "fbcc476b1ffd83a97f1b08b116befe8bc0beb491ca1392aa6e8fc34ab88cb0ed",
+              "anonymousStatus": 401,
+              "readerWriteStatus": 403,
+              "duplicatePublish": "E409"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "exact-fresh-consumer-install",
+            "measuredAt": "2026-11-21T19:10:57.529Z",
+            "result": {
+              "packageName": "@g2-probe/probe-0d37251b9c8a42dba144dc422edc8b54",
+              "version": "1.0.0",
+              "tarballSha256": "fbcc476b1ffd83a97f1b08b116befe8bc0beb491ca1392aa6e8fc34ab88cb0ed",
+              "installedIntegrity": "sha512-Hh5j1z7e5lhKkd0GXeURlycLPJqEMo8aQgP4AVBl5MwYlNTR6A3RSDkkQxD0Qd7aySCo4uLDzDr3EY3ji3/wlQ==",
+              "freshCache": true
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed"
+      }
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/47427631-52f1-4a54-b0e0-9f1963e13da6/report.json",
+      "bytes": 5473,
+      "sha256": "2269c39eb51bbdd716d8029d7325410a7480585d07f8075f845d6479adc2dc98",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "47427631-52f1-4a54-b0e0-9f1963e13da6",
+        "startedAt": "2026-11-21T19:11:59.653Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "passed",
+        "completedAt": "2026-11-21T19:12:08.586Z",
+        "stage": "restore",
+        "services": {
+          "postgres": {
+            "container": "zhrec-47427631-52f1-4a54-b0e0-9f1963e13da6-postgres",
+            "volume": "zhrec-47427631-52f1-4a54-b0e0-9f1963e13da6-postgres-data",
+            "port": 65349,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:11:55.821271514Z",
+            "startedAtAfter": "2026-11-21T19:12:02.838153956Z",
+            "portAfter": 53432
+          },
+          "verdaccio": {
+            "container": "zhrec-47427631-52f1-4a54-b0e0-9f1963e13da6-verdaccio",
+            "volume": "zhrec-47427631-52f1-4a54-b0e0-9f1963e13da6-verdaccio-data",
+            "port": 65350,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:11:56.38831016Z",
+            "startedAtAfter": "2026-11-21T19:12:03.757891916Z",
+            "portAfter": 53434
+          },
+          "minio": {
+            "container": "zhrec-47427631-52f1-4a54-b0e0-9f1963e13da6-minio",
+            "volume": "zhrec-47427631-52f1-4a54-b0e0-9f1963e13da6-minio-data",
+            "port": 65353,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:11:57.183977239Z",
+            "startedAtAfter": "2026-11-21T19:12:04.786107706Z",
+            "portAfter": 53436
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:11:59.879Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:12:00.330Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "publish-download-permissions-and-immutability",
+            "measuredAt": "2026-11-21T19:12:01.374Z",
+            "result": {
+              "packageName": "@g2-probe/probe-4742763152f14a54b0e09f1963e13da6",
+              "version": "1.0.0",
+              "tarballSha256": "51edd12275a507190de31b649a8959ce93326dd84b00b429ecd5cbdc45a8fdba",
+              "anonymousStatus": 401,
+              "readerWriteStatus": 403,
+              "duplicatePublish": "E409"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "exact-fresh-consumer-install",
+            "measuredAt": "2026-11-21T19:12:01.697Z",
+            "result": {
+              "packageName": "@g2-probe/probe-4742763152f14a54b0e09f1963e13da6",
+              "version": "1.0.0",
+              "tarballSha256": "51edd12275a507190de31b649a8959ce93326dd84b00b429ecd5cbdc45a8fdba",
+              "installedIntegrity": "sha512-uLHmfezoOy2sERF6pREkjwlwQfPEsfYTey6DVkxg04TH7aHKVTj6viuTt+QNzBx3ESr+aajg2ixQfLrH6uqasw==",
+              "freshCache": true
+            }
+          },
+          {
+            "service": "postgres",
+            "name": "process-restart-persistence",
+            "measuredAt": "2026-11-21T19:12:05.395Z",
+            "result": {
+              "sha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "process-restart-persistence",
+            "measuredAt": "2026-11-21T19:12:05.400Z",
+            "result": {
+              "sha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "process-restart-frozen-tarball-readable",
+            "measuredAt": "2026-11-21T19:12:05.422Z",
+            "result": {
+              "sha256": "51edd12275a507190de31b649a8959ce93326dd84b00b429ecd5cbdc45a8fdba"
+            }
+          },
+          {
+            "service": "postgres",
+            "name": "backup-restore-to-separate-database",
+            "measuredAt": "2026-11-21T19:12:05.767Z",
+            "result": {
+              "database": "g2_restore",
+              "backupSha256": "93d229e1419707db2bd75efd1bb1a600c404473f195b74e3cc5be9fbc659dec9",
+              "payloadSha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "backup-restore-to-separate-object",
+            "measuredAt": "2026-11-21T19:12:05.780Z",
+            "result": {
+              "originalKey": "47427631-52f1-4a54-b0e0-9f1963e13da6/original.bin",
+              "restoredKey": "47427631-52f1-4a54-b0e0-9f1963e13da6/restored.bin",
+              "sha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6"
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed"
+      }
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/report.json",
+      "bytes": 5506,
+      "sha256": "c91ecaa88a53671dd5d75752ab5dd634332f05f0767e7c083d4bd3f35c7037df",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6",
+        "startedAt": "2026-11-21T19:13:18.831Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "passed",
+        "completedAt": "2026-11-21T19:13:28.113Z",
+        "stage": "restore",
+        "services": {
+          "postgres": {
+            "container": "zhrec-b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6-postgres",
+            "volume": "zhrec-b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6-postgres-data",
+            "port": 62227,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:13:16.244543001Z",
+            "startedAtAfter": "2026-11-21T19:13:21.901316318Z",
+            "portAfter": 64475
+          },
+          "verdaccio": {
+            "container": "zhrec-b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6-verdaccio",
+            "volume": "zhrec-b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6-verdaccio-data",
+            "port": 51542,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:13:16.791766528Z",
+            "startedAtAfter": "2026-11-21T19:13:22.820282951Z",
+            "portAfter": 64477
+          },
+          "minio": {
+            "container": "zhrec-b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6-minio",
+            "volume": "zhrec-b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6-minio-data",
+            "port": 62433,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:13:17.542610475Z",
+            "startedAtAfter": "2026-11-21T19:13:23.836800994Z",
+            "portAfter": 64344
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:13:19.063Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:13:19.501Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "publish-download-permissions-and-immutability",
+            "measuredAt": "2026-11-21T19:13:20.567Z",
+            "result": {
+              "packageName": "@g2-probe/probe-b95f1b8ffd2d4a19993dca3dbc92e8e6",
+              "version": "1.0.0",
+              "tarballSha256": "6b40695bacda6ab3c0ad830a02bd7f383f0210e07607e1bfc07d73ba42371be5",
+              "anonymousStatus": 401,
+              "readerWriteStatus": 403,
+              "duplicatePublish": "E409"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "exact-fresh-consumer-install",
+            "measuredAt": "2026-11-21T19:13:20.888Z",
+            "result": {
+              "packageName": "@g2-probe/probe-b95f1b8ffd2d4a19993dca3dbc92e8e6",
+              "version": "1.0.0",
+              "tarballSha256": "6b40695bacda6ab3c0ad830a02bd7f383f0210e07607e1bfc07d73ba42371be5",
+              "installedIntegrity": "sha512-DVh6SQrrQVySvEQNZFFDdfjcU7BQwDr95suAgluycCryy5HNynkirxdocVHEx1PGkfNDNh8PXC15XLaJXicb/g==",
+              "freshCache": true
+            }
+          },
+          {
+            "service": "postgres",
+            "name": "process-restart-persistence",
+            "measuredAt": "2026-11-21T19:13:24.381Z",
+            "result": {
+              "sha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "process-restart-persistence",
+            "measuredAt": "2026-11-21T19:13:24.386Z",
+            "result": {
+              "sha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "process-restart-frozen-tarball-readable",
+            "measuredAt": "2026-11-21T19:13:24.409Z",
+            "result": {
+              "sha256": "6b40695bacda6ab3c0ad830a02bd7f383f0210e07607e1bfc07d73ba42371be5"
+            }
+          },
+          {
+            "service": "postgres",
+            "name": "backup-restore-to-separate-database",
+            "measuredAt": "2026-11-21T19:13:24.782Z",
+            "result": {
+              "database": "g2_restore",
+              "backupSha256": "2f32a06f03072f2a35afca3c9285d9075e1d92f513bd6e1cd93a6fc1f1c15ffe",
+              "payloadSha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "backup-restore-to-separate-object",
+            "measuredAt": "2026-11-21T19:13:24.794Z",
+            "result": {
+              "originalKey": "b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/original.bin",
+              "restoredKey": "b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/restored.bin",
+              "sha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef"
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed",
+        "consumerCleanup": "removed"
+      }
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2ce653ee-ac1c-4611-a94a-f2798cb30511/report.json",
+      "bytes": 5505,
+      "sha256": "a0dbea2cbfe9113bba7d1136e593290d1ec7da78ef9418c507d0080e7332c318",
+      "report": {
+        "schemaVersion": 1,
+        "runId": "2ce653ee-ac1c-4611-a94a-f2798cb30511",
+        "startedAt": "2026-11-21T19:16:44.626Z",
+        "scope": "isolated-local-three-storage",
+        "g2Ready": false,
+        "productionAcceptance": false,
+        "status": "passed",
+        "completedAt": "2026-11-21T19:16:59.390Z",
+        "stage": "restore",
+        "services": {
+          "postgres": {
+            "container": "zhrec-2ce653ee-ac1c-4611-a94a-f2798cb30511-postgres",
+            "volume": "zhrec-2ce653ee-ac1c-4611-a94a-f2798cb30511-postgres-data",
+            "port": 65312,
+            "imageId": "sha256:8bca9649e52d948114ccc8164b55b7ab26b64e729893e420114bb5c87bf7c7cc",
+            "configuredImage": "postgres:18.6@sha256:e3d24f6906d0760bf4da0dae872415391ededefad23fd471c47dc53b0ddf3c42",
+            "startedAtBefore": "2026-11-21T19:16:40.021770922Z",
+            "startedAtAfter": "2026-11-21T19:16:51.170960141Z",
+            "portAfter": 62299
+          },
+          "verdaccio": {
+            "container": "zhrec-2ce653ee-ac1c-4611-a94a-f2798cb30511-verdaccio",
+            "volume": "zhrec-2ce653ee-ac1c-4611-a94a-f2798cb30511-verdaccio-data",
+            "port": 65392,
+            "imageId": "sha256:1d014b80fafa1419c2a098aeb5f9508b310cfabac97743491cb835993ae37d38",
+            "configuredImage": "verdaccio/verdaccio:7.1.0@sha256:c1b1b86154b43a4e1861bc7a4496d4977aa43c8bdb5db49b68445f8a9273729f",
+            "startedAtBefore": "2026-11-21T19:16:40.776966611Z",
+            "startedAtAfter": "2026-11-21T19:16:52.183032739Z",
+            "portAfter": 62328
+          },
+          "minio": {
+            "container": "zhrec-2ce653ee-ac1c-4611-a94a-f2798cb30511-minio",
+            "volume": "zhrec-2ce653ee-ac1c-4611-a94a-f2798cb30511-minio-data",
+            "port": 65163,
+            "imageId": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "configuredImage": "sha256:8cddf933628349b40111a4f03c04408d4f653803dc27a0d19786af7df6b6b8c0",
+            "startedAtBefore": "2026-11-21T19:16:41.669584854Z",
+            "startedAtAfter": "2026-11-21T19:16:53.24494016Z",
+            "portAfter": 53489
+          }
+        },
+        "checks": [
+          {
+            "service": "postgres",
+            "name": "real-write-read-and-unique-constraint",
+            "measuredAt": "2026-11-21T19:16:44.873Z",
+            "result": {
+              "version": "18.6 (Debian 18.6-1.pgdg13+2)",
+              "payloadSha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513",
+              "duplicateSqlState": "23505"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "private-object-put-get-digest-and-anonymous-denial",
+            "measuredAt": "2026-11-21T19:16:45.387Z",
+            "result": {
+              "bytes": 256,
+              "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513",
+              "anonymousStatus": 403,
+              "sourceCommit": "9e49d5e7a648f00e26f2246f4dc28e6b07f8c84a",
+              "release": "RELEASE.2025-10-15T17-29-55Z"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "publish-download-permissions-and-immutability",
+            "measuredAt": "2026-11-21T19:16:49.316Z",
+            "result": {
+              "packageName": "@g2-probe/probe-2ce653eeac1c4611a94af2798cb30511",
+              "version": "1.0.0",
+              "tarballSha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710",
+              "anonymousStatus": 401,
+              "readerWriteStatus": 403,
+              "duplicatePublish": "E409"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "exact-fresh-consumer-install",
+            "measuredAt": "2026-11-21T19:16:49.792Z",
+            "result": {
+              "packageName": "@g2-probe/probe-2ce653eeac1c4611a94af2798cb30511",
+              "version": "1.0.0",
+              "tarballSha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710",
+              "installedIntegrity": "sha512-vuIEK6Yqdi0LlcxO5HDQy6nsjFHi1FO2bFHgUhHQxQO7l4tPEOfze7mX01hKib7Ot+xwUyuaVg8ssVUuIzRSAQ==",
+              "freshCache": true
+            }
+          },
+          {
+            "service": "postgres",
+            "name": "process-restart-persistence",
+            "measuredAt": "2026-11-21T19:16:54.498Z",
+            "result": {
+              "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "process-restart-persistence",
+            "measuredAt": "2026-11-21T19:16:54.508Z",
+            "result": {
+              "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+            }
+          },
+          {
+            "service": "verdaccio",
+            "name": "process-restart-frozen-tarball-readable",
+            "measuredAt": "2026-11-21T19:16:54.545Z",
+            "result": {
+              "sha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710"
+            }
+          },
+          {
+            "service": "postgres",
+            "name": "backup-restore-to-separate-database",
+            "measuredAt": "2026-11-21T19:16:55.127Z",
+            "result": {
+              "database": "g2_restore",
+              "backupSha256": "313c72ab0254c524c6e194a5909d5a72a80696653bd1ca78851a61768bb22268",
+              "payloadSha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+            }
+          },
+          {
+            "service": "minio",
+            "name": "backup-restore-to-separate-object",
+            "measuredAt": "2026-11-21T19:16:55.147Z",
+            "result": {
+              "originalKey": "2ce653ee-ac1c-4611-a94a-f2798cb30511/original.bin",
+              "restoredKey": "2ce653ee-ac1c-4611-a94a-f2798cb30511/restored.bin",
+              "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+            }
+          }
+        ],
+        "pendingAcceptance": [
+          "company-oidc-web-cli-login-roles-revocation",
+          "target-preview-dns-tls-grants-browser-isolation"
+        ],
+        "cleanup": "owned-containers-and-volumes-removed",
+        "consumerCleanup": "removed"
+      }
+    }
+  ],
+  "files": [
+    {
+      "path": ".tools/g2-local/runs/227c5638206045ee9ba966a2ae7114b8/report.json",
+      "bytes": 224,
+      "sha256": "e54edf3690aba2c0232c14e30e4504da364445b48c72be1d0918f2760d458f79"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0d37251b-9c8a-42db-a144-dc422edc8b54/g2-probe-probe-0d37251b9c8a42dba144dc422edc8b54-1.0.0.tgz",
+      "bytes": 248,
+      "sha256": "fbcc476b1ffd83a97f1b08b116befe8bc0beb491ca1392aa6e8fc34ab88cb0ed"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0d37251b-9c8a-42db-a144-dc422edc8b54/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "749f783ad6defc3b19553d53c9f684c70e2e7e3b5885a967ebcd2be42312d8ca"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0d37251b-9c8a-42db-a144-dc422edc8b54/postgres.sql",
+      "bytes": 1719,
+      "sha256": "17c5d57300f730caa220d6b33a0cc61ee7e9bfb76334d3611c53210569987189"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0d37251b-9c8a-42db-a144-dc422edc8b54/report.json",
+      "bytes": 3744,
+      "sha256": "555b3cb9d4d97edcf8c1a2b072ed15846a99c2614db2b80255b70c573aa9c88c"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0e1698e6-a695-4be2-a5d9-18448e4c3ae8/g2-probe-probe-0e1698e6-a695-4be2-a5d9-18448e4c3ae8-1.0.0.tgz",
+      "bytes": 241,
+      "sha256": "47342619c4f6a6b12ab231d00b72896774b25f84b961e648e834f173de8e36f1"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0e1698e6-a695-4be2-a5d9-18448e4c3ae8/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "4d76c1e4681019509cc3c26b2271843effbeb0bc03c363d3089d530c4c411eeb"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0e1698e6-a695-4be2-a5d9-18448e4c3ae8/postgres.sql",
+      "bytes": 1719,
+      "sha256": "74c3a3727446bb2ae470a8b8a1b5d57f252546933009fe736048a6fb1a8f5fd3"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/0e1698e6-a695-4be2-a5d9-18448e4c3ae8/report.json",
+      "bytes": 2694,
+      "sha256": "ec2b40bf99440a708bcc686e9b61da4c3e798e5c06c7fee017d4e62a8aa0332d"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/access-direct.command.json",
+      "bytes": 192,
+      "sha256": "e94bafff734d369e77e718c2a903a20366fb49bf1e090536be76814f992a23b4"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/access-direct.log",
+      "bytes": 83,
+      "sha256": "9f658c4098d8463695aa0c78b39dfe2e9e4214200b72e31844cf8e1359c895f0"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/access-result.json",
+      "bytes": 121,
+      "sha256": "e1c22718b3f7a9c5e2850b4a2dc05aa70d34fb71dc0deadc2cd7f028933c1550"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/access-script.command.json",
+      "bytes": 257,
+      "sha256": "acd65607a8c5f5182348385a0d7598578987f6d3c3bff06e0d9ac3260df90320"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/access-script.log",
+      "bytes": 233,
+      "sha256": "8246c69277c4450874ccc42ed907faa60b0bf9f2dd8806217ddd4ef5cc8a660c"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-build-services.command.json",
+      "bytes": 192,
+      "sha256": "3ce987094341f31e17955c7a6cf28d6a969067cf761048e6238a9d0faab9812c"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-build-services.log",
+      "bytes": 1055,
+      "sha256": "5be5b4c3d28fecadd47eef08a42023a8ea7d2c9529abf1644d588a2852e82685"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-infra-unit.command.json",
+      "bytes": 220,
+      "sha256": "7567affcf36d2ee6013b2425db2f77827a20d51586401e442248949454581dc5"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-infra-unit.log",
+      "bytes": 414,
+      "sha256": "74937441f8874cb3c5343a0d9eaf4f8f38d98b784cf4744e0f847873d80536ce"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-root-types-after-build.command.json",
+      "bytes": 194,
+      "sha256": "6789bee118e2093fa40866679dea48612f3b545e5b21a77918c13ea63ab5378e"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-root-types-after-build.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-root-types.command.json",
+      "bytes": 194,
+      "sha256": "dc5745511bc240e6484631aad6413c188710ea01710810fba2c8822d7b350488"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-root-types.log",
+      "bytes": 27108,
+      "sha256": "e01f69fa49f4216c15d64a5967ff0d845d3d02312a19b4168653b5d19c4b95e2"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-workspace.command.json",
+      "bytes": 176,
+      "sha256": "6e2fef52147b0316381b236f9c4e323969976f3c2db0bf8bc9534370884d220c"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/final-workspace.log",
+      "bytes": 124,
+      "sha256": "6937eb8c08c6db032212b3ac8189bd2d5ae43801e6e3641c8ff956a7d3161732"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-fifth.command.json",
+      "bytes": 261,
+      "sha256": "ef738712e2a6be23267434b981cf898acbcf28e8dd9b9956db15999a7116d911"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-fifth.log",
+      "bytes": 298,
+      "sha256": "e469ea62c953dc1aa65fb46bb2cb610b5ec86e6722dd57f20331a2322accfbf6"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-fourth.command.json",
+      "bytes": 261,
+      "sha256": "7f3aea38f177d4ba9e67726f2d0d001931b8963d202b328e8544fe12773043a1"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-fourth.log",
+      "bytes": 3586,
+      "sha256": "19ff533394e15c045120947c467f63c0c1c8f40b360a1893e162e1db42e2377d"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-second.command.json",
+      "bytes": 261,
+      "sha256": "9c69bbb2c32f43c5cd7be9387a4a018b848251c2f1f4d90e2dfbeea68c9bfc5e"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-second.log",
+      "bytes": 2627,
+      "sha256": "91cd1b79ef5a518d507f3d96d09b6f51f600eb78a2f622fa2895420ec8c2559e"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-seventh.command.json",
+      "bytes": 261,
+      "sha256": "10f0797c66d50c8d4679ab3920ccd0f65aac8dc8a9bc1bc9ce0fca2de5f13460"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-seventh.log",
+      "bytes": 287,
+      "sha256": "fb7bcfe601466f3ae3f04a1a3015f1dbf925f1205f1b44212649651dd9295032"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-sixth.command.json",
+      "bytes": 261,
+      "sha256": "ce2fb01b9fba9df9107e499e4d0d8603c1fa435ea014cf54fa0fe9f4933f0374"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-sixth.log",
+      "bytes": 298,
+      "sha256": "4bf7c5fce07eb9755d7fb8f356536febe2f4b9d2a161b81c4814bb88d4af8324"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-third.command.json",
+      "bytes": 261,
+      "sha256": "7f98adfe8c2a6576be0169946fe2043339b5ad4cf4b343c6e7ee6571014c4d7e"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage-third.log",
+      "bytes": 2724,
+      "sha256": "5920a3b3ef3b0142ccf0749ee805c03e781eefbc23dbd427b88cfcbf48762b1f"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage.command.json",
+      "bytes": 261,
+      "sha256": "1d72e39e28bdb20bd1e486d4c93d8be502bf8ff3095ca7a45aa8215bd85fbe9a"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/isolated-storage.log",
+      "bytes": 2811,
+      "sha256": "34fb80783797a31c42df59fe7b7713c7c6f8983acf70d6b5641a5c8bf10ed2e8"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/shared-preflight.command.json",
+      "bytes": 170,
+      "sha256": "7c693c89317b8da1c01152baafc9738329705543008a7a8666c272ba1c810c81"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2026-11-22/shared-preflight.log",
+      "bytes": 216,
+      "sha256": "774ac687f1d280030711c68467f11bd786092b09ca41b4c362f5c6e23d1e74e1"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2ce653ee-ac1c-4611-a94a-f2798cb30511/g2-probe-probe-2ce653eeac1c4611a94af2798cb30511-1.0.0.tgz",
+      "bytes": 247,
+      "sha256": "9b3f05d7dfa6e4809a6029742cae78fd569cfa199611b39a8907efffc9e38710"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2ce653ee-ac1c-4611-a94a-f2798cb30511/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "434ee111dc7c29369909525dcfb5fd5c38c36ff68fd3f2fee34de6a3699ee513"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2ce653ee-ac1c-4611-a94a-f2798cb30511/postgres.sql",
+      "bytes": 1719,
+      "sha256": "313c72ab0254c524c6e194a5909d5a72a80696653bd1ca78851a61768bb22268"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/2ce653ee-ac1c-4611-a94a-f2798cb30511/report.json",
+      "bytes": 5505,
+      "sha256": "a0dbea2cbfe9113bba7d1136e593290d1ec7da78ef9418c507d0080e7332c318"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/3784f993-5be6-451e-b469-ec917474476b/g2-probe-probe-3784f9935be6451eb469ec917474476b-1.0.0.tgz",
+      "bytes": 248,
+      "sha256": "98075b04099ce480df177776886b9b393e04da55cf222b5bf50416dc96b332a3"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/3784f993-5be6-451e-b469-ec917474476b/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "9769f0c3caf1b09761a5ae81c0c7dcb12493a35240d2355827fc03b6637d2f7c"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/3784f993-5be6-451e-b469-ec917474476b/postgres.sql",
+      "bytes": 1719,
+      "sha256": "68fd8cdf7324fcdc7e5be7752765b1628284a87d713a3359c3ba7ec36922937f"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/3784f993-5be6-451e-b469-ec917474476b/report.json",
+      "bytes": 2696,
+      "sha256": "171f499196de6ecfb61369fa4e8827162824db3bab077837dbdefe7a79dd98dc"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/47427631-52f1-4a54-b0e0-9f1963e13da6/g2-probe-probe-4742763152f14a54b0e09f1963e13da6-1.0.0.tgz",
+      "bytes": 247,
+      "sha256": "51edd12275a507190de31b649a8959ce93326dd84b00b429ecd5cbdc45a8fdba"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/47427631-52f1-4a54-b0e0-9f1963e13da6/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "c9850124ca654616665d9ef988a3342f51e994142772015f176fff492a8153d6"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/47427631-52f1-4a54-b0e0-9f1963e13da6/postgres.sql",
+      "bytes": 1719,
+      "sha256": "93d229e1419707db2bd75efd1bb1a600c404473f195b74e3cc5be9fbc659dec9"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/47427631-52f1-4a54-b0e0-9f1963e13da6/report.json",
+      "bytes": 5473,
+      "sha256": "2269c39eb51bbdd716d8029d7325410a7480585d07f8075f845d6479adc2dc98"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/g2-probe-probe-b95f1b8ffd2d4a19993dca3dbc92e8e6-1.0.0.tgz",
+      "bytes": 248,
+      "sha256": "6b40695bacda6ab3c0ad830a02bd7f383f0210e07607e1bfc07d73ba42371be5"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "5db0c7a0c92226fc86ae137122e18cc666b6eab28faf3785aeff424689dbdcef"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/postgres.sql",
+      "bytes": 1719,
+      "sha256": "2f32a06f03072f2a35afca3c9285d9075e1d92f513bd6e1cd93a6fc1f1c15ffe"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/b95f1b8f-fd2d-4a19-993d-ca3dbc92e8e6/report.json",
+      "bytes": 5506,
+      "sha256": "c91ecaa88a53671dd5d75752ab5dd634332f05f0767e7c083d4bd3f35c7037df"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/ea0aa51b-797b-4e42-9a5a-c173eb074171/g2-probe-probe-ea0aa51b797b4e429a5ac173eb074171-1.0.0.tgz",
+      "bytes": 247,
+      "sha256": "9b6d2686e86b6f1dc29ef38ca739e495bef2d9c5d28db6e6d00f7a99453ba855"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/ea0aa51b-797b-4e42-9a5a-c173eb074171/minio-backup.bin",
+      "bytes": 256,
+      "sha256": "805edfbb62cf9bdd9ff47e9c6b7af80ff1ab1038c2403ae38f4ac565956aa58f"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/ea0aa51b-797b-4e42-9a5a-c173eb074171/postgres.sql",
+      "bytes": 1719,
+      "sha256": "2f175eb2cd94eb3062a864df8f36b92e4bf59594499d9c63b781628a12414ce2"
+    },
+    {
+      "path": ".tools/operations/g2-acceptance/ea0aa51b-797b-4e42-9a5a-c173eb074171/report.json",
+      "bytes": 2696,
+      "sha256": "cfdcd5ed6977df5da47669920e89a83a1e6c680aac4b2643c05dd77ba809385f"
+    }
+  ],
+  "boundaries": [
+    "Local isolated storage evidence does not accept company deployment, least privilege or maintenance responsibility.",
+    "No real company OIDC login, PKCE, roles or revocation were executed.",
+    "No target preview DNS, TLS, grants or browser isolation were executed.",
+    "MinIO restoration uses a separate object key; it is not full-volume empty-target disaster recovery.",
+    "Cleanup initialization and EPERM/EBUSY exception paths were reviewed but not fault-injected.",
+    "Four failed probe rounds and the build/typecheck scheduling failure remain preserved."
+  ]
+}

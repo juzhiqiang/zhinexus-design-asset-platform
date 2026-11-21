@@ -2,6 +2,8 @@
 
 当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划见 [G1/G2 清单](../docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)，早期设施证据见 [本地设施验证](../docs/verification/g2-local-infra-2026-11-12.md)。
 
+2026-11-22 新增 [G2 五项逐项实测记录](../docs/verification/g2-five-items-2026-11-22.md)：隔离本机三存储三轮完成真实写读、权限、精确安装、进程重启与恢复，OIDC/目标预览仍未配置。共享凭证缺失时可通过 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts` 创建自有隔离环境验收，须先执行 `build:services`，不会改动共享 Compose 数据。每轮脱敏报告位于 `.tools/operations/g2-acceptance/<runId>/report.json`，同目录 `.npmrc` 含消费凭证，不得整体分享。
+
 暂无公司资源时，可先运行 `.\scripts\pnpm.ps1 preflight:production` 完成离线模板预检。报告列出缺失变量与外部待验收项，始终 `productionAcceptance:false`；资源缺失的报告退出码为 2，pnpm 包装的外层退出码为 1。配置齐全后加 `--environment` 校验实际环境变量；该命令仍不发出网络请求。两个服务导出后运行 `verify:service-staging <staging>` 检查实际发布材料。完整命令、退出码和适用边界见 [运维部署准备](../docs/operations.md#部署准备)。
 
 ## 独立平台专项（2026-11-14）
