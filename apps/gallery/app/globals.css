@@ -560,6 +560,28 @@ h1 {
 }
 
 /* 兼容性与验证清单 */
+.echarts-compatibility {
+  margin-bottom: 24px;
+  padding: 20px;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #334155;
+}
+.echarts-compatibility h3 { margin: 0 0 16px; font-size: 16px; color: #0f172a; }
+.compatibility-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.compatibility-source { min-width: 0; }
+.compatibility-source h4 { margin: 0 0 10px; font-size: 14px; color: #0f172a; }
+.compatibility-source p { margin: 6px 0; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
+.compatibility-source .compatibility-meta { font-size: 12px; color: #64748b; }
+.compatibility-source a { color: #0369a1; }
+.compatibility-note { color: #475569; }
+.compatibility-records { margin: 10px 0 0; padding-left: 18px; }
+.compatibility-records li + li { margin-top: 12px; }
+@media (max-width: 680px) {
+  .compatibility-grid { grid-template-columns: 1fr; }
+}
+
 .verification-box {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;

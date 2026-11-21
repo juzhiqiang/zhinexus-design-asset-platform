@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import type { ComponentCatalogItem, ComponentVariantMeta } from '../../../lib/types';
 import { requestPreviewGrant } from '../../../lib/catalog';
+import { EchartsCompatibility } from './EchartsCompatibility';
 
 export function ComponentDetailViewer({
   component,
@@ -277,16 +278,9 @@ export function ComponentDetailViewer({
       </section>
 
       {/* 验证与兼容性凭证 */}
+      <EchartsCompatibility componentId={component.id} framework={activeVariant.framework} />
       <section className="verification-box" aria-label="验证与环境记录">
         <h3>全链路验证与环境凭证</h3>
-        <div className="verification-item">
-          <span className="check-icon">✓</span>
-          <span><strong>图表底层引擎：</strong> Apache ECharts {activeVariant.echartsVersion}（按需摇树引入）</span>
-        </div>
-        <div className="verification-item">
-          <span className="check-icon">✓</span>
-          <span><strong>目标框架兼容：</strong> {activeVariant.frameworkName} ({activeVariant.frameworkVersion}) 纯净 ESM 导出</span>
-        </div>
         <div className="verification-item">
           <span className="check-icon">✓</span>
           <span><strong>产物冻结机制：</strong> 工作区外干净消费者实测安装，确定性 LF 行尾与时间戳固定</span>
