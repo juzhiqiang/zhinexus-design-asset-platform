@@ -374,27 +374,3 @@ export async function getComponentDetail(slug: string): Promise<ComponentCatalog
 
   return null;
 }
-
-/**
- * 申请短期预览授权
- */
-export async function requestPreviewGrant(
-  variantReleaseId: string,
-  apiUrl = DEFAULT_API_ORIGIN,
-): Promise<{ bootstrapUrl: string; expiresAt: string } | null> {
-  try {
-    const res = await fetch(`${apiUrl}/v1/preview-grants`, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({ variantReleaseId }),
-      cache: 'no-store',
-      signal: AbortSignal.timeout(2000),
-    });
-    if (!res.ok) return null;
-    return (await res.json()) as { bootstrapUrl: string; expiresAt: string };
-  } catch {
-    return null;
-  }
-}

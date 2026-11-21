@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import Link from 'next/link';
 import type { ComponentCatalogItem, ComponentVariantMeta } from '../../../lib/types';
-import { requestPreviewGrant } from '../../../lib/catalog';
+import { ComponentPreview } from './ComponentPreview';
 import { EchartsCompatibility } from './EchartsCompatibility';
 
 export function ComponentDetailViewer({
@@ -12,35 +12,13 @@ export function ComponentDetailViewer({
   component: ComponentCatalogItem;
 }) {
   const [selectedFramework, setSelectedFramework] = useState<'vue' | 'react'>('vue');
-  const [iframeKey, setIframeKey] = useState(0);
+  const [previewRevision, setPreviewRevision] = useState(0);
   const [copied, setCopied] = useState(false);
-  const [grantUrl, setGrantUrl] = useState<string | null>(null);
 
   const activeVariant: ComponentVariantMeta =
     component.variants.find((v) => v.framework === selectedFramework) ||
     component.variants[0] ||
     component.defaultVariant;
-
-  // 尝试获取真实短期 preview grant
-  useEffect(() => {
-    let cancelled = false;
-    async function getGrant() {
-      if (activeVariant?.variantId) {
-        const grant = await requestPreviewGrant(activeVariant.variantId);
-        if (!cancelled && grant?.bootstrapUrl) {
-          setGrantUrl(grant.bootstrapUrl);
-        } else if (!cancelled) {
-          setGrantUrl(null);
-        }
-      }
-    }
-    getGrant();
-    return () => {
-      cancelled = true;
-    };
-  }, [activeVariant?.variantId]);
-
-  const effectivePreviewUrl = grantUrl || activeVariant.previewUrl;
 
   // 精确版本安装命令
   const exactInstallCmd =
@@ -137,48 +115,13 @@ export function ComponentDetailViewer({
       </section>
 
       {/* 交互与隔离预览 iframe */}
-      <section className="preview-section" aria-label="组件沙箱隔离预览">
-        <div className="preview-toolbar">
-          <div className="preview-badge-group">
-            <span className="live-indicator" title="预览服务正常"></span>
-            <strong>{activeVariant.frameworkName} 沙箱交互预览</strong>
-            <span className="shield-badge">独立域沙箱安全隔离 (sandbox allow-scripts allow-same-origin)</span>
-            {grantUrl && <span className="tag tag-ready" style={{ fontSize: '10px' }}>已授权 (Grant Active)</span>}
-          </div>
-
-          <div className="preview-actions">
-            <span style={{ fontSize: '12px', color: '#64748b', alignSelf: 'center' }}>800 × 400</span>
-            <button
-              type="button"
-              className="preview-btn"
-              onClick={() => setIframeKey((k) => k + 1)}
-              title="重新加载预览沙箱"
-            >
-              刷新预览
-            </button>
-            <a
-              href={effectivePreviewUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="preview-btn"
-              title="在独立窗口打开预览（第三方 Cookie 阻止时的降级方案）"
-              style={{ textDecoration: 'none' }}
-            >
-              独立窗口 ↗
-            </a>
-          </div>
-        </div>
-
-        <div className="iframe-container">
-          <iframe
-            key={`${activeVariant.variantId}-${iframeKey}`}
-            src={effectivePreviewUrl}
-            className="preview-frame"
-            sandbox="allow-scripts allow-same-origin"
-            title={`${component.name} (${activeVariant.frameworkName}) 交互预览`}
-          />
-        </div>
-      </section>
+      <ComponentPreview
+        key={`${component.id}:${activeVariant.variantId}:${previewRevision}`}
+        componentId={component.id}
+        componentName={component.name}
+        variant={activeVariant}
+        refresh={() => setPreviewRevision(revision => revision + 1)}
+      />
 
       {/* 快速安装与导入 */}
       <section className="code-section" aria-label="快速引入代码">
