@@ -4,7 +4,7 @@ import { chromium } from '@playwright/test';
 import { createArtifactRef } from './digest.js';
 import { detectEnvironment, computeEnvironmentKey } from './environment.js';
 import type { EnvironmentV1 } from '../contracts/reports.js';
-import type { CheckResult, Renderer, ScreenshotRef } from '../contracts/examples.js';
+import type { CheckResult, ComponentExample, Renderer, ScreenshotRef } from '../contracts/examples.js';
 import type { Framework } from '../contracts/release-manifest.js';
 
 export type CaptureOptions = {
@@ -41,6 +41,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
   const viewport = options.viewport ?? { width: 800, height: 400 };
   const renderer: Renderer = options.renderer ?? 'canvas';
   const theme = options.theme ?? 'light';
+  const statesToRun = options.states.length > 0 ? options.states : ['default'];
 
   await fs.promises.mkdir(options.outputDir, { recursive: true });
 
@@ -81,14 +82,30 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
 
     // 2. 等待 example.ready 解析
     try {
-      await page.evaluate(async (timeout: number) => {
-        const example = (window as unknown as { __COMPONENT_EXAMPLE__?: { ready: Promise<void> } }).__COMPONENT_EXAMPLE__;
-        if (!example || !example.ready) throw new Error('__COMPONENT_EXAMPLE__.ready missing');
-        const timer = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('READY_TIMEOUT: 页面就绪超时')), timeout),
-        );
-        await Promise.race([example.ready, timer]);
-      }, timeoutMs);
+      await page.evaluate(async ({ timeout, requiredStates }) => {
+        const input: unknown = (window as unknown as { __COMPONENT_EXAMPLE__?: unknown }).__COMPONENT_EXAMPLE__;
+        if (!input || typeof input !== 'object') throw new Error('INVALID_EXAMPLE_PROTOCOL: Expected an example object');
+        const example = input as Partial<ComponentExample>;
+        if (!example.ready || typeof example.ready.then !== 'function' ||
+          typeof example.runState !== 'function' || typeof example.getChecks !== 'function') {
+          throw new Error('INVALID_EXAMPLE_PROTOCOL: ready, runState and getChecks are required');
+        }
+        if (example.states !== undefined && (!Array.isArray(example.states) ||
+          example.states.some(state => typeof state !== 'string' || !state.trim()) ||
+          new Set(example.states).size !== example.states.length)) {
+          throw new Error('INVALID_EXAMPLE_PROTOCOL: states must be unique nonempty names');
+        }
+        if (example.states !== undefined) {
+          const missing = requiredStates.filter(state => !example.states!.includes(state));
+          if (missing.length) throw new Error('INVALID_EXAMPLE_PROTOCOL: Missing required states: ' + missing.join(', '));
+        }
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([example.ready, new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error('READY_TIMEOUT: 页面就绪超时')), timeout);
+          })]);
+        } finally { clearTimeout(timer); }
+      }, { timeout: timeoutMs, requiredStates: statesToRun });
     } catch (err: unknown) {
       throw new Error(err instanceof Error ? err.message : String(err));
     }
@@ -135,16 +152,40 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
     const environmentKey = computeEnvironmentKey(environment);
 
     const screenshots: ScreenshotRef[] = [];
-    const statesToRun = options.states.length > 0 ? options.states : ['default'];
+    const checks: CheckResult[] = [];
 
     // 4. 驱动 runState 并截取确定性图像
     for (const stateName of statesToRun) {
-      await page.evaluate(async (state: string) => {
-        const example = (window as unknown as { __COMPONENT_EXAMPLE__?: { runState: (s: string) => Promise<void> } }).__COMPONENT_EXAMPLE__;
-        if (example && typeof example.runState === 'function') {
-          await example.runState(state);
+      const stateChecks = await page.evaluate(async ({ state, timeout }) => {
+        const example = (window as unknown as { __COMPONENT_EXAMPLE__?: ComponentExample }).__COMPONENT_EXAMPLE__;
+        if (!example || typeof example.runState !== 'function' || typeof example.getChecks !== 'function') {
+          throw new Error('INVALID_EXAMPLE_PROTOCOL: runState and getChecks are required');
         }
-      }, stateName);
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        try {
+          await Promise.race([(async () => {
+            await example.runState(state);
+            if (!example.ready || typeof example.ready.then !== 'function') throw new Error('INVALID_EXAMPLE_PROTOCOL: ready must be a Promise');
+            await example.ready;
+          })(), new Promise<never>((_, reject) => {
+            timer = setTimeout(() => reject(new Error('READY_TIMEOUT: 状态就绪超时: ' + state)), timeout);
+          })]);
+        } finally { clearTimeout(timer); }
+        const input: unknown = example.getChecks();
+        if (!Array.isArray(input) || input.length === 0 || input.some(check =>
+          !check || typeof check !== 'object' || Array.isArray(check) ||
+          typeof check.name !== 'string' || !check.name.trim() ||
+          !['passed', 'failed'].includes(check.status) ||
+          (check.message !== undefined && typeof check.message !== 'string') ||
+          Object.keys(check).some(key => !['name', 'status', 'message'].includes(key)))) {
+          throw new Error('INVALID_EXAMPLE_PROTOCOL: getChecks must return nonempty CheckResult[] for ' + state);
+        }
+        return input as CheckResult[];
+      }, { state: stateName, timeout: timeoutMs });
+      const failedChecks = stateChecks.filter(check => check.status === 'failed');
+      if (failedChecks.length) throw new Error('CHECKS_FAILED: ' + stateName + ': ' + failedChecks.map(check => check.name + ': ' + (check.message ?? 'failed')).join('; '));
+      if (pageErrors.length) throw new Error('PAGE_ERROR: ' + pageErrors.join('; '));
+      checks.push(...stateChecks);
 
       // 短暂确认绘制循环完成
       await page.evaluate(async () => {
@@ -177,23 +218,9 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       });
     }
 
-    // 5. 调用 getChecks 收集自检结果
-    const checks: CheckResult[] = await page.evaluate(() => {
-      const example = (window as unknown as { __COMPONENT_EXAMPLE__?: { getChecks: () => CheckResult[] } }).__COMPONENT_EXAMPLE__;
-      return example && typeof example.getChecks === 'function' ? example.getChecks() : [];
-    });
-
     // 6. 严禁忽略页面运行错误：即使已有截图，发生 pageerror 也必须阻断退出
     if (pageErrors.length > 0) {
       throw new Error(`PAGE_ERROR: 页面在渲染或截图过程中发生错误: ${pageErrors.join('; ')}`);
-    }
-
-    // 7. 严禁忽略失败自检
-    const failedChecks = checks.filter((c) => c.status === 'failed');
-    if (failedChecks.length > 0) {
-      throw new Error(
-        `CHECKS_FAILED: 自检未通过: ${failedChecks.map((f) => `${f.name}: ${f.message ?? 'failed'}`).join('; ')}`,
-      );
     }
 
     await context.close();
@@ -202,7 +229,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       environment,
       environmentKey,
       screenshots,
-      checks: checks.length > 0 ? checks : [{ name: 'render-verified', status: 'passed' }],
+      checks,
     };
   } finally {
     await browser.close();

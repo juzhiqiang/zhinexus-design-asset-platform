@@ -78,6 +78,36 @@ test.describe('T04: Deterministic capture driven by ready -> runState -> getChec
   </script>
 </body>
 </html>`);
+      } else if (req.url?.startsWith('/protocol/')) {
+        const kind = req.url.split('/')[2];
+        res.end('<!doctype html><div id="chart" style="width:400px;height:300px"></div><script>' +
+          'const kind = ' + JSON.stringify(kind) + ';' +
+          String.raw`
+          let state = 'default';
+          let settled = true;
+          const example = {
+            ready: Promise.resolve(), states: ['default', 'updated'],
+            runState(next) {
+              state = next;
+              if (kind === 'state-ready') {
+                settled = false;
+                this.ready = new Promise(resolve => setTimeout(() => { settled = true; resolve(); }, 200));
+              }
+              return Promise.resolve();
+            },
+            getChecks() {
+              if (kind === 'empty-checks') return [];
+              if (kind === 'bad-checks') return [{ name: 'render', status: 'unknown' }];
+              return [{ name: state + '-render', status: (kind === 'masked-failure' && state === 'default') || !settled ? 'failed' : 'passed' }];
+            }
+          };
+          if (kind === 'missing-runState') delete example.runState;
+          if (kind === 'missing-getChecks') delete example.getChecks;
+          if (kind === 'bad-ready') example.ready = true;
+          if (kind === 'unsupported-state') example.states = ['default'];
+          if (kind === 'no-discovery') delete example.states;
+          window.__COMPONENT_EXAMPLE__ = example;
+          ` + '</script>');
       } else {
         res.statusCode = 404;
         res.end('Not Found');
@@ -164,5 +194,38 @@ test.describe('T04: Deterministic capture driven by ready -> runState -> getChec
         packageVersion: '0.0.1',
       }),
     ).rejects.toThrow(/READY_TIMEOUT|未在超时内就绪/);
+  });
+
+  function captureProtocol(kind: string, states = ['default']) {
+    return captureExample({ url: serverUrl + '/protocol/' + kind, states,
+      outputDir: path.join(tmpDir, kind), framework: 'react', frameworkVersion: '19.3.1',
+      echartsVersion: '6.1.0', exampleId: 'line-default', variantId: 'line-react',
+      packageSha256: 'a'.repeat(64), packageVersion: '0.0.1', timeoutMs: 1500 });
+  }
+
+  for (const kind of ['missing-runState', 'missing-getChecks', 'bad-ready', 'empty-checks', 'bad-checks']) {
+    test('rejects invalid example protocol: ' + kind, async () => {
+      await expect(captureProtocol(kind)).rejects.toThrow(/INVALID_EXAMPLE_PROTOCOL/);
+    });
+  }
+
+  test('does not hide a failed earlier required state behind a later passing state', async () => {
+    await expect(captureProtocol('masked-failure', ['default', 'updated'])).rejects.toThrow(/CHECKS_FAILED.*default/);
+  });
+
+  test('rejects required states omitted from the optional discovery list', async () => {
+    await expect(captureProtocol('unsupported-state', ['updated'])).rejects.toThrow(/INVALID_EXAMPLE_PROTOCOL.*updated/);
+  });
+
+  test('waits for the updated ready signal and records checks for every required state', async () => {
+    const result = await captureProtocol('state-ready', ['default', 'updated']);
+    expect(result.screenshots.map(shot => shot.state)).toEqual(['default', 'updated']);
+    expect(result.checks.map(check => check.name)).toEqual(['default-render', 'updated-render']);
+    expect(result.checks.every(check => check.status === 'passed')).toBe(true);
+  });
+
+  test('allows discovery to be omitted while still executing required states', async () => {
+    const result = await captureProtocol('no-discovery', ['default', 'updated']);
+    expect(result.checks.map(check => check.name)).toEqual(['default-render', 'updated-render']);
   });
 });
