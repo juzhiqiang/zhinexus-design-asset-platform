@@ -508,7 +508,10 @@ describe('T08: 外部 Manifest 与本地文件导入、大小限制与分片契�
 
     // 模拟某 tarball 文件需要分两片上传
     const targetFile = manifest.files[0]!;
-    const fileBytes = filesMap.get(targetFile.path)!;
+    const fileBytes = new Uint8Array(5 * 1024 * 1024 + 4).fill(7);
+    filesMap.set(targetFile.path, fileBytes);
+    targetFile.bytes = fileBytes.byteLength;
+    targetFile.sha256 = await computeBrowserSha256(fileBytes);
 
     const mockApi = {
       createUploadSession: vi.fn(async () => ({
@@ -518,9 +521,10 @@ describe('T08: 外部 Manifest 与本地文件导入、大小限制与分片契�
             path: targetFile.path,
             multipart: {
               uploadId: 'mp-upload-001',
+              partSize: 5242880,
               parts: [
-                { partNumber: 1, uploadUrl: 'http://mock-storage/part/1', bytes: 4 },
-                { partNumber: 2, uploadUrl: 'http://mock-storage/part/2', bytes: fileBytes.byteLength - 4 },
+                { partNumber: 1, uploadUrl: 'http://mock-storage/part/1', expiresAt: new Date(Date.now() + 3600000).toISOString() },
+                { partNumber: 2, uploadUrl: 'http://mock-storage/part/2', expiresAt: new Date(Date.now() + 3600000).toISOString() },
               ],
             },
             expiresAt: new Date(Date.now() + 3600000).toISOString(),
@@ -577,9 +581,10 @@ describe('T08: 外部 Manifest 与本地文件导入、大小限制与分片契�
             path: targetFile.path,
             multipart: {
               uploadId: 'mp-fail-001',
+              partSize: 5242880,
               parts: [
-                { partNumber: 1, uploadUrl: 'http://mock-storage/part/1', bytes: 4 },
-                { partNumber: 2, uploadUrl: 'http://mock-storage/part/2', bytes: 4 },
+                { partNumber: 1, uploadUrl: 'http://mock-storage/part/1', expiresAt: new Date(Date.now() + 3600000).toISOString() },
+                { partNumber: 2, uploadUrl: 'http://mock-storage/part/2', expiresAt: new Date(Date.now() + 3600000).toISOString() },
               ],
             },
             expiresAt: new Date(Date.now() + 3600000).toISOString(),

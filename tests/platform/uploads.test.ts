@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { platformHarness } from './http-support.js';
+import { uploadPartBytes } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
 
 const bytes = Buffer.from('valid upload');
 const ref = { path: 'docs/note.txt', sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length };
@@ -19,9 +20,8 @@ describe('T05 real Nest upload sessions', () => {
       expect((await h.request(completePath, { parts: [] }, await h.token('alice', ['publisher'], 'cli'))).status).toBe(404);
       for (const part of file.multipart.parts) {
         const offset = (part.partNumber - 1) * file.multipart.partSize;
-        const response = await fetch(part.uploadUrl, { method: 'PUT', body: content.subarray(offset, offset + file.multipart.partSize) });
-        expect(response.status).toBe(200);
-        parts.push({ path: file.path, partNumber: part.partNumber, etag: response.headers.get('etag')! });
+        const response = await uploadPartBytes(part.uploadUrl, content.subarray(offset, offset + file.multipart.partSize));
+        parts.push({ path: file.path, partNumber: part.partNumber, etag: response.etag });
       }
       expect((await h.request(completePath, { parts: parts.slice(1) }, owner)).status).toBe(409);
       expect((await h.request(completePath, { parts: parts.map((part, i) => i ? part : { ...part, etag: '"wrong"' }) }, owner)).status).toBe(409);

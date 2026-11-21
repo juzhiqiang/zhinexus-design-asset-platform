@@ -1,10 +1,11 @@
 import type {
   ArtifactRef,
+  ApiMessages,
   PackageRef,
   ReleaseManifestV1,
   VariantRef,
 } from '@company/contracts';
-import { manifestDigest, UPLOAD_LIMITS, validateManifest } from '@company/contracts';
+import { manifestDigest, UPLOAD_LIMITS, validateApiMessage, validateManifest } from '@company/contracts';
 
 /**
  * 在浏览器端通过 Web Crypto 计算字节数组的 SHA-256 哈希
@@ -181,20 +182,17 @@ export async function attachLocalFile(
   };
 }
 
-export type UploadSessionFilePlan = {
-  path: string;
-  uploadUrl?: string;
-  multipart?: {
-    uploadId: string;
-    parts: Array<{ partNumber: number; uploadUrl: string; bytes: number }>;
-  };
-  expiresAt: string;
-};
+export type UploadSessionResponse = ApiMessages['createUploadResponse'];
+export type UploadSessionFilePlan = UploadSessionResponse['files'][number];
 
-export type UploadSessionResponse = {
-  uploadSessionId: string;
-  files: Array<UploadSessionFilePlan>;
-};
+async function readApiResponse<K extends keyof ApiMessages>(name: K, response: Response): Promise<ApiMessages[K]> {
+  const input: unknown = await response.json();
+  const result = validateApiMessage(name, input);
+  if (!result.ok) {
+    throw new Error(`INVALID_API_RESPONSE (${name}): ${result.issues.map(issue => `${issue.code} ${issue.path}: ${issue.message}`).join('; ')}`);
+  }
+  return result.value;
+}
 
 /**
  * 创建上传会话 (POST /v1/uploads)
@@ -222,7 +220,7 @@ export async function createUploadSession(
     throw new Error(`创建上传会话失败 (${res.status}): ${errorText}`);
   }
 
-  return (await res.json()) as UploadSessionResponse;
+  return readApiResponse('createUploadResponse', res);
 }
 
 /**
@@ -269,8 +267,8 @@ export async function uploadPartBytes(
     throw new Error(`分片上传失败 (${res.status})`);
   }
 
-  const rawEtag = res.headers.get('etag') || res.headers.get('ETag') || `etag-${Date.now()}`;
-  const etag = rawEtag.replace(/^"|"$/g, '');
+  const etag = res.headers.get('etag');
+  if (!etag?.trim()) throw new Error('UPLOAD_ETAG_REQUIRED: 存储未返回分片 ETag，无法完成上传核验');
   return { etag };
 }
 
@@ -296,6 +294,7 @@ export async function completeUploadSession(
     const errorText = await res.text();
     throw new Error(`确认上传完成失败 (${res.status}): ${errorText}`);
   }
+  await readApiResponse('completeUploadResponse', res);
 }
 
 /**
@@ -307,7 +306,7 @@ export async function submitReleaseJob(
   sessionId: string,
   manifest: ReleaseManifestV1,
   idempotencyKey: string,
-): Promise<{ jobId: string; state: string }> {
+): Promise<ApiMessages['createReleaseResponse']> {
   const res = await fetch(`${apiUrl}/v1/releases`, {
     method: 'POST',
     headers: {
@@ -326,7 +325,7 @@ export async function submitReleaseJob(
     throw new Error(`提交发布作业失败 (${res.status}): ${errorText}`);
   }
 
-  return (await res.json()) as { jobId: string; state: string };
+  return readApiResponse('createReleaseResponse', res);
 }
 
 /**
@@ -567,7 +566,7 @@ export async function fetchReleaseJob(
   apiUrl: string,
   token: string,
   jobId: string,
-): Promise<any> {
+): Promise<ApiMessages['releaseJobResponse']> {
   const res = await fetch(`${apiUrl}/v1/releases/${jobId}`, {
     method: 'GET',
     headers: {
@@ -580,7 +579,7 @@ export async function fetchReleaseJob(
     throw new Error(`查询作业状态失败 (${res.status}): ${errorText}`);
   }
 
-  return await res.json();
+  return readApiResponse('releaseJobResponse', res);
 }
 
 export type FileValidationIssue = {
@@ -929,10 +928,9 @@ export async function executeWebUploadWorkflow(
     }
 
     if (plan.multipart && plan.multipart.parts && plan.multipart.parts.length > 0) {
-      let offset = 0;
       for (const part of plan.multipart.parts) {
-        const chunk = bytes.subarray(offset, offset + part.bytes);
-        offset += part.bytes;
+        const offset = (part.partNumber - 1) * plan.multipart.partSize;
+        const chunk = bytes.subarray(offset, offset + plan.multipart.partSize);
         const res = await partUploader(part.uploadUrl, chunk);
         uploadedParts.push({
           path: plan.path,
