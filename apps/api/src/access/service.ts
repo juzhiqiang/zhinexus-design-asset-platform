@@ -14,7 +14,14 @@ type RevisionRow = { id: string; section: AccessSection; config: AccessConfig<Ac
 const revisionView = (row: RevisionRow) => ({ id: row.id, config: row.config, checks: row.checks, createdAt: row.created_at.toISOString(), ...(row.checked_at ? { checkedAt: row.checked_at.toISOString() } : {}) });
 
 export class AccessSettingsService {
-  constructor(private readonly db: Database, readonly options: AccessOptions, private readonly galleryOrigin?: string, private readonly probe?: AccessProbe) {}
+  constructor(private readonly db: Database, readonly options: AccessOptions, readonly galleryOrigin?: string, private readonly probe?: AccessProbe) {}
+  async evidence(revision:string, generation:string, checks:AccessChecks): Promise<void> {
+    await this.db.transaction(async sql => {
+      const state = (await sql.query<ActiveRow>("SELECT * FROM access_active WHERE section='oidc' FOR UPDATE")).rows[0]!;
+      if (state.generation !== generation || (state.draft_revision_id !== revision && !(await sql.query("SELECT 1 FROM access_activations WHERE section='oidc' AND revision=$1",[revision])).rowCount)) throw new PlatformError('CONFLICT');
+      await sql.query('UPDATE access_revisions SET checks=checks || $2::jsonb,checked_at=clock_timestamp() WHERE id=$1',[revision,JSON.stringify(checks)]);
+    });
+  }
   administrator(context: RequestContext): void {
     const principal = context.principal;
     if (!this.options.administrators.some(a => a.issuer === principal.issuer && a.subject === (principal.identitySubject ?? principal.subject))) throw new PlatformError('FORBIDDEN');

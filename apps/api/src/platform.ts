@@ -10,6 +10,8 @@ import { previewConfigFromEnv, validatePreviewConfig, type PreviewConfig } from 
 import { PlatformEvents } from './observability/events.js';
 import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
 import { AccessSettingsService, type AccessOptions } from './access/service.js';
+import { CompanyOidc } from './access/oidc.js';
+import { readFileSync } from 'node:fs';
 
 export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions };
 function validateGalleryOrigin(value: string): string {
@@ -36,6 +38,11 @@ export function environmentOptions(): PlatformOptions {
     webClientIds: (env.PLATFORM_OIDC_WEB_CLIENT_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
     cliClientIds: (env.PLATFORM_OIDC_CLI_CLIENT_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
   };
+  if (env.PLATFORM_ACCESS_ADMINISTRATORS) {
+    try {
+      result.access = { apiOrigin:env.PLATFORM_API_ORIGIN ?? '',administrators:JSON.parse(env.PLATFORM_ACCESS_ADMINISTRATORS),outbound:JSON.parse(env.PLATFORM_ACCESS_OUTBOUND ?? '[]'),...(env.PLATFORM_ACCESS_CA_FILE ? {ca:readFileSync(env.PLATFORM_ACCESS_CA_FILE,'utf8')} : {}),...(env.PLATFORM_ACCESS_INITIAL_OIDC ? {initialOidc:JSON.parse(env.PLATFORM_ACCESS_INITIAL_OIDC)} : {}) };
+    } catch { throw new PlatformError('INVALID_SCHEMA'); }
+  }
   return result;
 }
 export class Platform {
@@ -48,6 +55,7 @@ export class Platform {
   readonly preview?: PreviewConfig;
   readonly galleryOrigin?: string;
   readonly access?: AccessSettingsService;
+  readonly companyOidc?: CompanyOidc;
   constructor(options: PlatformOptions) {
     this.events = options.events ?? new PlatformEvents();
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
@@ -62,10 +70,14 @@ export class Platform {
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
-    if (this.db && options.access) this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin);
+    if (this.db && options.access) {
+      this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : {});
+      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier);
+    }
   }
+  authenticate(authorization:string | undefined) { return this.companyOidc ? this.companyOidc.authenticate(authorization) : this.verifier.verify(authorization); }
   async runAdministrator<T>(authorization: string | undefined, requestId: string, operation: (service: AccessSettingsService, context: RequestContext) => Promise<T>): Promise<T> {
-    const principal = await this.verifier.verify(authorization);
+    const principal = await this.authenticate(authorization);
     if (!this.db || !this.access) throw new PlatformError('INFRA_UNAVAILABLE');
     const context = { principal, requestId };
     this.access.administrator(context);
@@ -76,7 +88,7 @@ export class Platform {
     operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {
     let principal: Principal | undefined;
     try {
-      principal = await this.verifier.verify(authorization);
+      principal = await this.authenticate(authorization);
       requireRole(principal, action);
       if (!this.db || !this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
       if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');

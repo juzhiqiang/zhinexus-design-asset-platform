@@ -29,6 +29,10 @@ export async function migrateRegistry(db: Database): Promise<void> {
 export async function rollbackEmptyRegistry(db: Database): Promise<void> {
   await db.transaction(async client => {
     await client.query('SELECT pg_advisory_xact_lock(75605001)');
+    const accessTables = ['access_audit','access_activations','oidc_attempts','oidc_sessions','identity_bindings','subject_role_restrictions','access_revisions'];
+    await client.query(`LOCK TABLE ${accessTables.join(',')},access_active IN ACCESS EXCLUSIVE MODE`);
+    for (const table of accessTables) if ((await client.query(`SELECT 1 FROM ${table} LIMIT 1`)).rowCount) throw new Error('Refusing rollback of non-empty registry');
+    if ((await client.query('SELECT 1 FROM access_active WHERE generation<>0 OR active_revision_id IS NOT NULL OR draft_revision_id IS NOT NULL')).rowCount) throw new Error('Refusing rollback of non-empty registry');
     await client.query(`LOCK TABLE ${tables.join(',')},disabled_subjects,preview_grants,preview_sessions IN ACCESS EXCLUSIVE MODE`);
     for (const table of ['preview_grants', 'preview_sessions']) if ((await client.query(`SELECT 1 FROM ${table} LIMIT 1`)).rowCount) throw new Error('Refusing rollback of non-empty registry');
     if ((await client.query('SELECT 1 FROM disabled_subjects LIMIT 1')).rowCount) throw new Error('Refusing rollback of non-empty registry');
@@ -37,6 +41,7 @@ export async function rollbackEmptyRegistry(db: Database): Promise<void> {
     }
     await client.query('DROP FUNCTION preview_can_read(uuid,text),catalog_can_read(text,text)');
     await client.query('DROP TABLE preview_sessions,preview_grants');
+    await client.query('DROP TABLE access_active,access_audit,access_activations,oidc_attempts,oidc_sessions,identity_bindings,subject_role_restrictions,access_revisions');
     await client.query(`DROP TABLE ${tables.join(',')},disabled_subjects,registry_migrations`);
     await client.query('DROP FUNCTION reject_immutable_change()');
   });

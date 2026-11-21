@@ -11,6 +11,7 @@ export async function runCli(
       stdout: `component CLI v${version} — 工程骨架
 
 用法:
+  component login --api-url <origin> [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
   component check [--framework vue|react|all] [--staging-dir <dir>]
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
@@ -47,6 +48,20 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   }
 
   const [command, ...rest] = args;
+  if (command === 'login') {
+    try {
+      const options:Record<string,string> = {};
+      for (let i=0;i<rest.length;i+=2) {
+        const key=rest[i]!,value=rest[i+1];
+        if (!['--api-url','--credential-file','--ca-file','--candidate'].includes(key) || !value || options[key]) throw new Error();
+        options[key]=value;
+      }
+      if (!options['--api-url']) throw new Error();
+      const { companyLogin } = await import('./commands/login.js');
+      const result = await companyLogin({ apiOrigin:options['--api-url'],credentialFile:options['--credential-file'],caFile:options['--ca-file'],candidate:options['--candidate'],administratorToken:process.env.ZHINEXUS_API_TOKEN });
+      return {exitCode:0,stdout:JSON.stringify(result)+'\n',stderr:''};
+    } catch { return {exitCode:1,stdout:'',stderr:'公司登录失败：请检查接入地址、客户端、回调端口与授权。\n'}; }
+  }
 
   if (command === 'prepare-release' || (command === 'release' && rest.includes('--prepare-only'))) {
     let frameworkChoice: 'vue' | 'react' | 'all' = 'all';

@@ -38,4 +38,13 @@ describe('access settings contracts', () => {
     expect(validateAccessConfig('preview', { mode: 'ip-port', previewOrigin: 'https://preview.example.net:8443' }).ok).toBe(false);
     expect(validateAccessConfig('preview', { mode: 'ip-port', previewOrigin: 'https://192.0.2.5' }).ok).toBe(false);
   });
+  it('validates CLI discovery without accepting arbitrary native redirects or token endpoints', () => {
+    const validate = access.validateOidcCliMetadata;
+    expect(typeof validate).toBe('function');
+    if (!validate) return;
+    const value = {issuer:identity.issuer,audience:identity.audience,clientId:'cli',redirectUri:identity.cliRedirectUri,authorizationEndpoint:identity.issuer+'/authorize',tokenEndpoint:identity.issuer+'/token',scopes:[],generation:'0'};
+    expect(validate(value).ok).toBe(true);
+    expect(validate({...value,tokenEndpoint:'http://id.example.com/token'}).ok).toBe(false);
+    expect(validate({...value,redirectUri:'http://127.0.0.1:43129/'}).ok).toBe(false);
+  });
 });

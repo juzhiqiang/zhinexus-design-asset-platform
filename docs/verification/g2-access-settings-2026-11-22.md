@@ -14,3 +14,10 @@
 原始架构 SHA-256：`E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723`。
 
 后续步骤和全图结果将在本记录追加；尚未执行的命令不作为通过证据。
+
+## OIDC 与 CLI 本机验证
+- `scripts/pnpm.ps1 exec vitest run tests/contracts/access-settings.test.ts tests/unit/access-cli.test.ts tests/integration/access-network.test.ts tests/integration/auth.test.ts`：110/110，退出 0。TLS 地址固定、IP SAN、网络白名单、越界重定向和响应上限均实测。
+- `scripts/pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/access-oidc.test.ts tests/platform/access-settings.test.ts tests/platform/database.test.ts`：5/5，退出 0；完整 Web PKCE、nonce 拒绝、候选权限隔离、配置启用、旧会话失效、逐请求角色限制及空库迁移往返。
+- 随后 `tests/platform/access-oidc.test.ts` 再次通过，1/1，退出 0；增加实际 CLI 回环 PKCE 和 TLS 令牌兑换。
+- `scripts/pnpm.ps1 --filter @company/component-cli build`：编译和探针打包复核通过，退出 0。
+- 发现原契约草稿含字面控制字符，将其改为正则转义，消除 Git 二进制判定；不改变拒绝控制字符的行为。

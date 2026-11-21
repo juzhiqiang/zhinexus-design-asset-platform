@@ -14,6 +14,8 @@ export type OidcConfig = {
   jwksUri: string;
   webClientIds: string[];
   cliClientIds: string[];
+  roleClaim?: string;
+  roleMapping?: { reader:string; publisher:string; maintainer:string };
 };
 export class AuthFailure extends Error {
   constructor(readonly code: 'UNAUTHENTICATED' | 'FORBIDDEN') {
@@ -22,7 +24,7 @@ export class AuthFailure extends Error {
   }
 }
 export class OidcVerifier {
-  private readonly config: Pick<OidcConfig, 'issuer' | 'audience'> | undefined;
+  private readonly config: Pick<OidcConfig, 'issuer' | 'audience' | 'roleClaim' | 'roleMapping'> | undefined;
   private readonly keyResolver: JWTVerifyGetKey | undefined;
   private readonly webClients = new Set<string>();
   private readonly cliClients = new Set<string>();
@@ -42,7 +44,7 @@ export class OidcVerifier {
         if (destination.size !== clients.length) throw new AuthFailure('UNAUTHENTICATED');
       }
       if ([...this.webClients].some(client => this.cliClients.has(client))) throw new AuthFailure('UNAUTHENTICATED');
-      this.config = { issuer: config.issuer, audience: config.audience };
+      this.config = { issuer: config.issuer, audience: config.audience, roleClaim:config.roleClaim,roleMapping:config.roleMapping };
       this.keyResolver = keyResolver ?? createRemoteJWKSet(jwksUrl, {
         timeoutDuration: 5_000,
         cooldownDuration: 30_000,
@@ -83,8 +85,12 @@ export class OidcVerifier {
       if (!isIdentifier(clientId) || (!this.webClients.has(clientId) && !this.cliClients.has(clientId))) {
         throw new AuthFailure('UNAUTHENTICATED');
       }
-      const roles = payload.roles ?? [];
-      if (payload.roles === null || !Array.isArray(roles) || !roles.every(isRole)) throw new AuthFailure('UNAUTHENTICATED');
+      const claim = payload[this.config.roleClaim ?? 'roles'];
+      if (claim === null || (claim !== undefined && (!Array.isArray(claim) || !claim.every(value => typeof value === 'string')))) throw new AuthFailure('UNAUTHENTICATED');
+      const roles = this.config.roleMapping
+        ? Object.entries(this.config.roleMapping).filter(([,value]) => (claim as string[] | undefined)?.includes(value)).map(([role]) => role).filter(isRole)
+        : claim ?? [];
+      if (!Array.isArray(roles) || !roles.every(isRole)) throw new AuthFailure('UNAUTHENTICATED');
       return Object.freeze({
         subject: payload.sub, issuer: this.config.issuer, identitySubject: payload.sub, clientId, channel: this.webClients.has(clientId) ? 'web' : 'cli',
         roles: Object.freeze([...roles]),

@@ -14,10 +14,11 @@ import { ComponentQueryController } from './matching/component-query-routes.js';
 import { MetricsController } from './observability/http.js';
 import type { ServerResponse } from 'node:http';
 import { AccessSettingsController } from './access/routes.js';
+import { CompanyAuthController } from './access/auth-routes.js';
 
 export async function buildServer(options: PlatformOptions = environmentOptions()): Promise<INestApplication> {
   const platform = new Platform(options);
-  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController, AccessSettingsController], providers: [{ provide: Platform, useValue: platform }] })
+  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController, AccessSettingsController, CompanyAuthController], providers: [{ provide: Platform, useValue: platform }] })
   class ConfiguredModule {}
   try {
     const app = await NestFactory.create<NestExpressApplication>(ConfiguredModule, { logger: false, abortOnError: false, bodyParser: false });
@@ -29,10 +30,18 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
       response.setHeader('Cache-Control', 'no-store');
       response.setHeader('X-Content-Type-Options', 'nosniff'); next();
     });
+    app.use((request:{headers:Record<string,string | undefined>;method:string},response:ServerResponse,next:() => void) => {
+      const values = (request.headers.cookie ?? '').split(';').map(v=>v.trim()).filter(v=>v.startsWith('__Host-platform='));
+      if (values.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(values[0]!.slice(16))) {
+        if (!['GET','HEAD','OPTIONS'].includes(request.method) && request.headers.origin !== platform.galleryOrigin) { response.statusCode=403;response.end();return; }
+        if (!request.headers.authorization || request.headers.authorization === 'Bearer __session__') request.headers.authorization = 'Session '+values[0]!.slice(16);
+      }
+      next();
+    });
     if (platform.galleryOrigin) app.enableCors({
       origin: (origin, callback) => callback(null, origin === platform.galleryOrigin),
       methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key'],
-      exposedHeaders: ['X-Request-Id'], credentials: false,
+      exposedHeaders: ['X-Request-Id'], credentials: true,
     });
     app.useBodyParser('json', { limit: '8mb', strict: true });
     app.useGlobalFilters(new ErrorFilter());
