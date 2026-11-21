@@ -12,8 +12,9 @@ import { retentionPolicy, type RetentionPolicy } from './operations/retention.js
 import { AccessSettingsService, type AccessOptions } from './access/service.js';
 import { CompanyOidc } from './access/oidc.js';
 import { readFileSync } from 'node:fs';
+import { probePreview } from './access/preview.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]> };
 function validateGalleryOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
@@ -71,8 +72,8 @@ export class Platform {
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
     if (this.db && options.access) {
-      this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : {});
-      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier);
+      this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : probePreview(this.db!,this.access!,this.companyOidc!.network,config as import('@company/contracts').PreviewAccessConfig));
+      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup);
     }
   }
   authenticate(authorization:string | undefined) { return this.companyOidc ? this.companyOidc.authenticate(authorization) : this.verifier.verify(authorization); }

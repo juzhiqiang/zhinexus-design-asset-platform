@@ -9,14 +9,14 @@ export class ProbeFailure extends Error {
 }
 /** Deployment rules, resolved address pinning and platform trust store apply to every request. */
 export class RestrictedHttps {
-  constructor(private readonly rules: OutboundRule[], private readonly ca?: string) {}
-  async read(endpoint: string, form?: URLSearchParams): Promise<{ bytes: Buffer; headers: import('node:http').IncomingHttpHeaders }> {
+  constructor(private readonly rules: OutboundRule[], private readonly ca?: string, private readonly resolveAddress=(hostname:string)=>lookup(hostname,{all:true,verbatim:true})) {}
+  async read(endpoint: string, form?: URLSearchParams, probeHeaders:Record<string,string> = {}): Promise<{ bytes: Buffer; headers: import('node:http').IncomingHttpHeaders }> {
     let url: URL;
     try {
       url = new URL(endpoint);
       if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || /[\\\s]/u.test(endpoint) || url.href !== endpoint) throw new Error();
     } catch { throw new ProbeFailure('connection'); }
-    const rule = this.rules.find(r => r.hostname === url.hostname && r.port === Number(url.port || 443));
+    const rule = this.rules.find(r => (r.hostname === url.hostname || (r.hostname.startsWith('*.') && url.hostname.split('.').slice(1).join('.') === r.hostname.slice(2))) && r.port === Number(url.port || 443));
     if (!rule) throw new ProbeFailure('dns');
     const allowed = new BlockList();
     try {
@@ -31,7 +31,7 @@ export class RestrictedHttps {
     let addresses: { address: string; family: number }[];
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      addresses = await Promise.race([lookup(url.hostname.replace(/^\[|\]$/g,''), { all:true,verbatim:true }), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProbeFailure('dns')), 3000); })]);
+      addresses = await Promise.race([this.resolveAddress(url.hostname.replace(/^\[|\]$/g,'')), new Promise<never>((_, reject) => { timer = setTimeout(() => reject(new ProbeFailure('dns')), 3000); })]);
       if (!addresses.length || addresses.some(a => !allowed.check(a.address, a.family === 4 ? 'ipv4' : 'ipv6'))) throw new Error();
     } catch { throw new ProbeFailure('dns'); }
     finally { clearTimeout(timer); }
@@ -44,7 +44,7 @@ export class RestrictedHttps {
         ca:this.ca ? [...rootCertificates,this.ca] : undefined, rejectUnauthorized:true,
         checkServerIdentity: (_host, cert) => checkServerIdentity(url.hostname,cert),
         signal:AbortSignal.timeout(5000), maxHeaderSize:8192,
-        headers: { accept:'application/json', ...(body === undefined ? {} : { 'content-type':'application/x-www-form-urlencoded','content-length':Buffer.byteLength(body) }) },
+        headers: { accept:'application/json', ...probeHeaders,...(body === undefined ? {} : { 'content-type':'application/x-www-form-urlencoded','content-length':Buffer.byteLength(body) }) },
       }, response => {
         if (!response.statusCode || response.statusCode < 200 || response.statusCode >= 300) { response.destroy(); reject(new ProbeFailure('routing')); return; }
         const chunks: Buffer[] = []; let size = 0;
@@ -60,8 +60,8 @@ export class RestrictedHttps {
       req.end(body);
     });
   }
-  async json(endpoint: string, form?: URLSearchParams): Promise<unknown> {
-    const response = await this.read(endpoint,form);
+  async json(endpoint: string, form?: URLSearchParams, probeHeaders?:Record<string,string>): Promise<unknown> {
+    const response = await this.read(endpoint,form,probeHeaders);
     try { if (!response.headers['content-type']?.includes('application/json')) throw new Error(); return JSON.parse(response.bytes.toString('utf8')); }
     catch { throw new ProbeFailure('response'); }
   }

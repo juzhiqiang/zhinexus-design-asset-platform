@@ -7,7 +7,7 @@ import { PlatformError } from '../errors.js';
 
 export type Administrator = { issuer: string; subject: string };
 export type OutboundRule = { hostname: string; port: number; networks: string[] };
-export type AccessOptions = { apiOrigin: string; administrators: Administrator[]; outbound: OutboundRule[]; ca?: string; initialOidc?: AccessConfig<'oidc'> };
+export type AccessOptions = { apiOrigin: string; administrators: Administrator[]; outbound: OutboundRule[]; ca?: string; initialOidc?: AccessConfig<'oidc'>;gatewayId?:string };
 export type AccessProbe = <K extends AccessSection>(section: K, config: AccessConfig<K>) => Promise<AccessChecks>;
 type ActiveRow = { section: AccessSection; generation: string; active_revision_id: string | null; draft_revision_id: string | null; gateway_generation: string | null };
 type RevisionRow = { id: string; section: AccessSection; config: AccessConfig<AccessSection>; checks: AccessChecks; created_at: Date; checked_at: Date | null };
@@ -93,7 +93,7 @@ export class AccessSettingsService {
         if (action === 'activate' || action === 'rollback') {
           const evidence = checks ?? row.checks;
           const required = section === 'oidc' ? ['discovery','secret','webLogin','cliLogin','roles','adminLogin'] : ['dns','tls','routing','gateway'];
-          if (!required.every(k => evidence[k as keyof AccessChecks] === 'passed') || !row.checked_at || Date.now() - row.checked_at.getTime() > 15 * 60_000) throw new PlatformError('CONFLICT');
+          if (!required.every(k => evidence[k as keyof AccessChecks] === 'passed') || (!checks && (!row.checked_at || Date.now() - row.checked_at.getTime() > 15 * 60_000))) throw new PlatformError('CONFLICT');
           await sql.query('UPDATE access_active SET active_revision_id=$2,generation=generation+1,gateway_generation=NULL WHERE section=$1', [section, revision]);
           await sql.query('INSERT INTO access_activations(section,generation,revision) SELECT section,generation,$2 FROM access_active WHERE section=$1', [section, revision]);
         }

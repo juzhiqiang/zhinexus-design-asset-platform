@@ -13,8 +13,8 @@ const record = (value:unknown): value is Record<string,unknown> => !!value && ty
 
 export class CompanyOidc {
   readonly network: RestrictedHttps;
-  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier) {
-    this.network = new RestrictedHttps(settings.options.outbound,settings.options.ca);
+  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>) {
+    this.network = new RestrictedHttps(settings.options.outbound,settings.options.ca,resolveAddress);
   }
   async metadata(config:OidcAccessConfig): Promise<{ metadata:Discovery; keys:ReturnType<typeof createLocalJWKSet> }> {
     const raw = await this.network.json(config.issuer.replace(/\/$/,'')+'/.well-known/openid-configuration');

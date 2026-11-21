@@ -21,3 +21,9 @@
 - 随后 `tests/platform/access-oidc.test.ts` 再次通过，1/1，退出 0；增加实际 CLI 回环 PKCE 和 TLS 令牌兑换。
 - `scripts/pnpm.ps1 --filter @company/component-cli build`：编译和探针打包复核通过，退出 0。
 - 发现原契约草稿含字面控制字符，将其改为正则转义，消除 Git 二进制判定；不改变拒绝控制字符的行为。
+
+## 预览活动版本与切换
+- RED：新增 IP 宿主到独立域的契约测试失败；新增切换 HTTP 测试因缺少网关检查失败。
+- GREEN：`scripts/pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/access-preview.test.ts tests/platform/preview.test.ts`，13/13，退出 0。使用真实预构建协议资产、三存储、TLS 与网关，覆盖错入口拒绝、两个发布 host、IP/域名切换、回退代数与旧 grant/session 拒绝。
+- 域名测试将本机 DNS 解析接口固定到测试回环地址，实际 TLS 主机名与通配 SAN、网关路由和资源读取是真实检查；这不替代生产 wildcard DNS 验收。
+- `scripts/pnpm.ps1 build:services`，5/5，退出 0。
