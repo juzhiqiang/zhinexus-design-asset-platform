@@ -2,10 +2,14 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { validateApiMessage, validateManifest, validateReleaseBundle } from '@company/contracts';
 import type { ApiMessages } from '@company/contracts';
+import { makeApiFixtures } from '../fixtures/releases/g1/api.js';
 
 const json = (name: string): unknown => JSON.parse(readFileSync(new URL(`../fixtures/releases/g1/json/${name}.json`, import.meta.url), 'utf8'));
 
 describe('G1 reviewable wire snapshots', () => {
+  it('keeps the review packet synchronized with every current API fixture', () => {
+    expect(json('api-messages')).toEqual(makeApiFixtures());
+  });
   it('accepts the checked-in web and CLI manifests', () => {
     expect(validateManifest(json('valid-web')).ok).toBe(true);
     expect(validateManifest(json('valid-cli'), { reports: json('reports') as Record<string, unknown> }).ok).toBe(true);
