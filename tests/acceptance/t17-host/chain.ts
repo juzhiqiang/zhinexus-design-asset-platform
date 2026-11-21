@@ -872,6 +872,11 @@ export async function runT17HostAcceptanceChain(options: T17HostChainOptions): P
       // Product verification preserves TEMP/TMP while sanitizing optional build
       // variables. Native compiler caches must stay outside source snapshots.
       const scriptTmp = await createChainEvidenceArea(`t17-${framework}-script-temp`);
+      // Chromium adds its own profile/cache hierarchy. Reserve at least 100
+      // characters below Windows MAX_PATH without weakening owned-area auditing.
+      if (allowBrowser && scriptTmp.length > 150) {
+        throw new Error('Use a short owned TEMP/TMP base for T17 browser acceptance (script TEMP exceeds 150 characters).');
+      }
       const baseTempEnv = {
         TEMP: scriptTmp, TMP: scriptTmp, NODE_DISABLE_COMPILE_CACHE: '1',
         PLAYWRIGHT_BROWSERS_PATH: join(toolchain.repositoryRoot, '.tools', 'playwright'),

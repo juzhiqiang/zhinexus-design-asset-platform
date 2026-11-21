@@ -65,3 +65,5 @@ component mcp serve --config D:/evidence/mcp-host.json
 严格输入校验仍会拒绝额外字段。回复在 stdio 序列化前统一脱敏，覆盖 SDK 自动产生的校验错误和协议错误，清除已知 API/registry 环境凭据及其 JSON 转义表示；请求关联标识保持原样。
 
 完整实跑入口及证据见 [T17 集成记录](../verification/t17-integration-2026-11-20.md)。单元配置、真实产品配置和历史运行记录需按其注明的范围分别使用。
+
+运行仓库的 `tests/acceptance/t17-host/local-product.vitest.config.ts` 时，Windows 下应把 `TEMP` / `TMP` 指向本轮独占的短目录（例如 `D:/t17-<随机标识>`），将长期归档放在另一个目录。夹具仍在该根下创建带 ownership marker 的独立项目和证据目录，不应直接共用系统临时文件。Chromium 会继续追加 profile、Network 和 Code Cache 路径；浏览器验收的 script TEMP 超过 150 字符时，夹具提前拒绝并提示缩短根路径。完成后保留封存证据，按原有归属和清单检查清理本轮项目与服务。

@@ -212,7 +212,10 @@ async function loadChainModule(): Promise<Record<string, unknown>> {
 }
 
 describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', () => {
-  it('keeps script temporary cache outside consumer source and inventories it before failure cleanup', async () => {
+  it.each([false, true])('keeps private script cache inventoried and rejects overlong browser TEMP (%s)', async overlong => {
+    const originalTemp = tmpdir();
+    const longBase = overlong ? await mkdtemp(join(originalTemp, 't17-long-' + 'x'.repeat(90))) : undefined;
+    if (longBase) { vi.stubEnv('TEMP', longBase); vi.stubEnv('TMP', longBase); vi.stubEnv('TMPDIR', longBase); }
     let owned: host.OwnedRun | undefined;
     let scriptTemp: string | undefined;
     let browserCache: string | undefined;
@@ -249,20 +252,27 @@ describe('T17 owned-host CLI 验收链（plan → apply → verify/repair）', (
     });
     try {
       const { runT17HostAcceptanceChain } = await import('./chain.js');
-      await expect(runT17HostAcceptanceChain({ env: {}, repositoryRoot: process.cwd() })).rejects.toThrow(/integrate plan failed/);
+      await expect(runT17HostAcceptanceChain({ env: {}, repositoryRoot: process.cwd(), allowBrowser: true })).rejects.toThrow(
+        overlong ? /short.*TEMP.*TMP/i : /integrate plan failed/);
       expect(owned).toBeDefined();
-      expect(scriptTemp).toBe(join(owned!.evidenceRoot, 't17-vue-script-temp'));
-      expect(browserCache).toBe(join(process.cwd(), '.tools', 'playwright'));
+      if (overlong) {
+        expect(runtime.runFrozenCli).not.toHaveBeenCalled();
+      } else {
+        expect(scriptTemp).toBe(join(owned!.evidenceRoot, 't17-vue-script-temp'));
+        expect(browserCache).toBe(join(process.cwd(), '.tools', 'playwright'));
+        await expect(readFile(join(scriptTemp!, 'node-compile-cache', 'nested', 'entry'), 'utf8')).resolves.toBe('actual child temporary output');
+        await expect(readFile(join(owned!.evidenceRoot, 'files', 'plan.stderr'), 'utf8')).resolves.toContain('controlled plan failure');
+      }
       await expect(lstat(owned!.parentRoot)).rejects.toMatchObject({ code: 'ENOENT' });
-      await expect(readFile(join(scriptTemp!, 'node-compile-cache', 'nested', 'entry'), 'utf8')).resolves.toBe('actual child temporary output');
-      await expect(readFile(join(owned!.evidenceRoot, 'files', 'plan.stderr'), 'utf8')).resolves.toContain('controlled plan failure');
     } finally {
       vi.restoreAllMocks();
       vi.unstubAllGlobals();
+      vi.unstubAllEnvs();
       if (owned) {
         await owned.abortForTest({ preserveEvidence: true });
         await rm(owned.evidenceRoot, { recursive: true, force: true });
       }
+      if (longBase) await rm(longBase, { recursive: true, force: true });
     }
   });
 
