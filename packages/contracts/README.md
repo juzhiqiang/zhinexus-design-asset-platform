@@ -64,6 +64,13 @@ type ComponentExample = {
 
 ready 在数据、fonts.ready、非零尺寸和 ECharts finished 后完成，失败 reject，不靠固定 sleep。runState 只接受声明状态，更新/渲染就绪后 resolve，未知状态 reject；getChecks 返回当前快照。超时诊断与默认 30 秒属于 CLI runner；contracts 只定义协议，不启动浏览器。
 
+2026-11-21 G1 评审澄清（字段及 Schema 保持兼容）：
+
+- `ExampleRef.theme` 与环境中的 `theme` 保持字符串字段；当前 SDK 内置支持 `light`、`dark`。示例与 runner 必须记录实际解析并应用的主题；未知查询值回退默认主题时，记录也使用回退后的值。其他主题须独立验证，不能由字符串类型推导支持范围。
+- contracts 与 charts-core 分别声明 `Renderer = 'canvas' | 'svg'`，这是公开 SDK 不依赖私有 contracts 的包边界要求。允许值变更须同步契约、SDK、生成 Schema、fixtures 和调用方验证。
+- `ready` 拒绝始终表示验证失败。SDK 示例有自身的状态就绪期限；CLI 默认 30 秒，可通过 `timeoutMs` 调整，并对初始就绪和每状态的 `runState`、更新后的 `ready` 设置超时。CLI 自身超时报 `READY_TIMEOUT`；已等待的底层 rejection 按失败处理，未处理的 rejection 才由页面错误收集器计入 `no-page-error`。每状态就绪后必须读取真实、非空且合法的 `CheckResult[]`，不得补造 `passed`。
+- 同一状态内检查名唯一。多个状态可使用相同的检查名，CLI 汇入报告时保留默认状态或首次出现的原名，给其余同名检查加上状态标签并避开原有名称。
+
 ## API 消息（B/C 评审）
 
 T05 补充（2026-11-12）：createUploadResponse 的每个文件可带 multipart={uploadId,partSize,parts:[{partNumber,uploadUrl,expiresAt}]}；旧单 PUT 响应不变。multipart 存在时客户端使用逐片 URL，complete 提交对应 path/partNumber/etag。UPLOAD_LIMITS 导出客户端/API 共用的初始字节、图片尺寸和分片限制；API 仍核对实际字节、聚合总量并冻结内容。来源由认证客户端身份映射，不能由 manifest.channel 升级权限。

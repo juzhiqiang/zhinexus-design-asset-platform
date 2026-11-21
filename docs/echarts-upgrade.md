@@ -1,6 +1,8 @@
 # ECharts 升级、兼容矩阵与回退
 
-日期：2026-11-13。负责人：A（SDK）。任务定义见 [T10 实施计划](../superpowers/plans/2026-11-11-component-platform-implementation.md)。
+2026-11-21 完成本机 T10 五项验收。当前冻结 SDK 为 core 0.0.11、Vue/React 0.0.12，收口 CLI 为 0.0.25。ECharts 6.1.0 在两种框架下四维通过。候选 6.0.0 的严格安装被拒，显式 legacy 测量中两框架的类型检查失败，保持 hold。两个原消费者已恢复 6.1.0 并复建。下文保留历史版本记录。见 [T10 验收记录](verification/g1-t10-closeout-2026-11-21.md)。
+
+日期：2026-11-13。负责人：A（SDK）。任务定义见 [T10 实施计划](superpowers/plans/2026-11-11-component-platform-implementation.md)。
 本文件是 T10 的**升级差异、兼容矩阵口径与回退交接材料**；本轮实测证据见 [T10 SDK 兼容验证记录](verification/t10-sdk-compatibility.md)。
 
 ## 1. 当前基线（不可随意变动）

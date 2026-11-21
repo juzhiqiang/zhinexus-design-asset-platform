@@ -400,15 +400,17 @@ flowchart LR
 
 ### T10：ECharts 升级、兼容矩阵与回退（4–6 人日）
 
+2026-11-21 五项本机验收均完成。候选来源、双框架矩阵、生命周期、原双消费者回退与画廊分区均有实际命令、退出码和摘要。6.0.0 保持 hold，G1 独立等待 A/B 人工签署。见 [本轮验收记录](../../verification/g1-t10-closeout-2026-11-21.md)。
+
 **Files:** 创建 `packages/component-cli/src/commands/echarts.ts`、`upgrades/{resolve,matrix,report}.ts`；`packages/charts-core/src/engine/compatibility.ts`；`docs/echarts-upgrade.md`；`tests/unit/upgrade-policy.test.ts`、`tests/integration/upgrade-matrix.test.ts`。
 
 **Interfaces:** `component echarts check`；`component echarts verify --version <exact-version>`；`component echarts verify --latest`。`resolveCandidate(input): {version,integrity,releaseNotesSource}`；`verifyCandidate(candidate,supported): Promise<CompatibilityReport>`；报告含每个精确组合的类型/运行/交互/视觉结果和差异，不修改未验证的支持范围。
 
-- [ ] 写失败测试：候选失败不扩大 peer 范围；latest 预发布被拒绝；共享核心变化必须验证双框架；registry 缓存旧版本时记录官方源与代理差异。
-- [ ] 实现从官方源发现、创建本地隔离升级目录、更新精确依赖、运行已支持组合与新候选的本地矩阵；patch/minor/major 都进入同样的基本门槛。
-- [ ] 运行 T02/T03/T09 所有相关生命周期、数据交互和截图；只有通过才生成建议的 peer/版本/迁移变更，不自动发布。预期视觉变化必须显式基线确认。
-- [ ] 在两个消费者中恢复上一组组件包/ECharts/锁文件并重新构建；保存升级与回退证据。无新上游版本时可用当前精确版本验证命令流程，但不得虚称完成跨版本兼容；以第二个实际可获取版本另行验证版本差异处理。
-- [ ] 运行本任务测试，确认画廊可分开显示官方发现版本与实测支持；提交。
+- [x] 写失败测试：候选失败不扩大 peer 范围；latest 预发布被拒绝；共享核心变化必须验证双框架；registry 缓存旧版本时记录官方源与代理差异。
+- [x] 实现从官方源发现、创建本地隔离升级目录、更新精确依赖、运行已支持组合与新候选的本地矩阵；patch/minor/major 都进入同样的基本门槛。
+- [x] 运行 T02/T03/T09 所有相关生命周期、数据交互和截图；只有通过才生成建议的 peer/版本/迁移变更，不自动发布。预期视觉变化必须显式基线确认。
+- [x] 在两个消费者中恢复上一组组件包/ECharts/锁文件并重新构建；保存升级与回退证据。无新上游版本时可用当前精确版本验证命令流程，但不得虚称完成跨版本兼容；以第二个实际可获取版本另行验证版本差异处理。
+- [x] 运行本任务测试，确认画廊可分开显示官方发现版本与实测支持；提交。
 
 ### T11：真实试点、故障演练与可观测性（6–8 人日）
 
