@@ -99,7 +99,8 @@ describe('T17 MCP stdio 进程边界', () => {
 
   it('拒绝相对 MCP config 路径且不启动 CLI', async () => {
     const setup = await makeCli(rpcServer());
-    const relativeConfig = path.relative(process.cwd(), setup.configPath);
+    const relativeConfig = path.relative(setup.root, setup.configPath);
+    expect(path.isAbsolute(relativeConfig)).toBe(false);
     await expect(McpStdioSession.launch({
       cli: setup.cli,
       expectedVersion: '0.0.14',
