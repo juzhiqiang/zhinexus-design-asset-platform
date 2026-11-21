@@ -22,6 +22,11 @@ const twoSeries = { series: [
   { id: 'beta', name: '乙', points: [{ x: 1, y: 5 }, { x: 2, y: 15 }] },
 ] };
 
+export async function loadPlaywright(repoRoot) {
+  const require = createRequire(path.join(repoRoot, 'package.json'));
+  return require('@playwright/test');
+}
+
 export function parseArguments(argv) {
   const names = ['root', 'evidence', 'owner', 'out'];
   const parsed = {};
@@ -364,8 +369,7 @@ export async function main(argv) {
   try {
     process.env.PLAYWRIGHT_BROWSERS_PATH = path.join(input.repoRoot, '.tools/playwright');
     process.env.NODE_ENV = 'development';
-    const require = createRequire(path.join(input.repoRoot, 'package.json'));
-    const { chromium } = await import(pathToFileURL(require.resolve('@playwright/test')).href);
+    const { chromium } = await loadPlaywright(input.repoRoot);
     const browserRevision = readBrowserRevision(pathToFileURL(path.join(input.repoRoot, 'package.json')).href);
     assert.equal(browserRevision, input.report.probe.browserRevision);
     browser = await chromium.launch({ headless: true });

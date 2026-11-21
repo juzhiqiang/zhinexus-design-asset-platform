@@ -6,7 +6,12 @@ import { test } from 'node:test';
 import { gzipSync } from 'node:zlib';
 import tar from 'tar-stream';
 import { createOwnedRoot } from '../../scripts/t10-consumer-ownership.mjs';
-import { parseArguments, validateLifecycleInputs, verifyInstalledTarball } from '../../scripts/t10-frozen-lifecycle.mjs';
+import { loadPlaywright, parseArguments, validateLifecycleInputs, verifyInstalledTarball } from '../../scripts/t10-frozen-lifecycle.mjs';
+
+test('loads a usable Chromium launcher from the repository Playwright installation', async () => {
+  const { chromium } = await loadPlaywright(path.resolve(import.meta.dirname, '../..'));
+  assert.equal(typeof chromium?.launch, 'function');
+});
 
 async function fixture(t) {
   const temporaryRoot = await mkdtemp(path.join(tmpdir(), 't10-lifecycle-unit-'));
