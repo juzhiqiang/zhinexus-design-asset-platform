@@ -8,7 +8,7 @@
 
 ## 静态预览隔离与网关策略
 
-- 静态预览网关（`apps/preview-gateway`）必须使用与平台画廊（`apps/gallery`）和管理 API（`apps/api`）不同的独立注册域名，并按发布版本隔离 origin，防止预览脚本读取主平台 Cookie、`localStorage`、`sessionStorage` 或 IndexedDB。
+- 网关默认使用与画廊和 API 不同的注册域，按发布版本隔离 origin。经用户确认，暂无域名时可显式启用 `PLATFORM_PREVIEW_MODE=ip-port`，使用同一 IPv4 上与画廊、API 不同的 HTTPS 端口。入口须过滤 Cookie 和 Authorization，且不得记录或缓存授权 URL。IP 模式使用一次性 grant 换取绑定发布版本的短期授权路径，iframe 与响应 CSP 的沙箱均只赋予 `allow-scripts`，使预览文档使用不透明源。具体配置见 [IP 预览部署](../docs/preview-ip-port.md)。
 - 画廊内嵌预览必须使用沙箱 `iframe`（受控 `sandbox` 属性），禁止赋予与主站同源的特权或顶层窗口劫持能力；预览页面严禁获取平台登录凭证或直接请求管理 API。
 - 访问预览资源必须通过 `POST /v1/preview-grants` 颁发的短期授权（`bootstrapUrl` / `expiresAt`）；未授权、授权过期、权限撤销或版本未就绪时，`preview-gateway` 必须拒绝访问，严禁将 MinIO 存储桶直接公开暴露。
 - `preview-gateway` 必须对请求路径做规范化与固定包内前缀校验，拦截 `..`、反斜杠、编码绕过和符号链接穿越；响应头必须设置严格的 `Content-Security-Policy`（CSP）、`X-Content-Type-Options: nosniff` 和准确的 MIME 类型。

@@ -1,5 +1,7 @@
 # 图表与组件资产平台 Implementation Plan
 
+2026-11-21 部署调整（T07、T12）。暂无域名时，可按用户授权显式启用同 IPv4 分 HTTPS 端口预览。独立域保持默认，正式 G2 的 DNS/TLS 仍走独立域验收。见 [分端口实施计划](2026-11-21-preview-ip-port.md)。
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** 完成可追溯、可恢复的双框架组件生产发布平台；建议 2026-12-31 验收一期，二三期按独立质量门槛推进。

@@ -6,7 +6,7 @@ import { audit, type RequestContext } from './db/access.js';
 import { ArtifactStore, type StorageConfig } from './storage/artifact-store.js';
 import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
-import { validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
+import { previewConfigFromEnv, validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 import { PlatformEvents } from './observability/events.js';
 import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
 
@@ -24,8 +24,7 @@ export function environmentOptions(): PlatformOptions {
   if (env.PLATFORM_GALLERY_ORIGIN) result.galleryOrigin = env.PLATFORM_GALLERY_ORIGIN;
   result.retention = retentionPolicy(env);
   if (env.PLATFORM_METRICS_TOKEN) result.metricsToken = env.PLATFORM_METRICS_TOKEN;
-  if (env.PLATFORM_PREVIEW_ORIGIN) result.preview = { previewOrigin: env.PLATFORM_PREVIEW_ORIGIN,
-    platformOrigin: env.PLATFORM_GALLERY_ORIGIN ?? '', apiOrigin: env.PLATFORM_API_ORIGIN ?? '' };
+  result.preview = previewConfigFromEnv(env);
   if (env.PLATFORM_DATABASE_URL) result.databaseUrl = env.PLATFORM_DATABASE_URL;
   if (env.PLATFORM_S3_ENDPOINT) result.storage = {
     endpoint: env.PLATFORM_S3_ENDPOINT, bucket: env.PLATFORM_S3_BUCKET ?? '', region: env.PLATFORM_S3_REGION ?? 'us-east-1',

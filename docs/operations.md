@@ -34,6 +34,8 @@ Postgres建立API、预览、迁移三个身份；预览最小权限参考网关
 
 预览需独立注册域、逐release origin/wildcard TLS、网关授权与CSP。`infra/gateway/preview.conf`为主机部署参考，容器时需将upstream改为preview-gateway:3001并使用实际独立域。管理API `/internal/`仅监控网络可达；网关无管理API凭证。OIDC、TLS、第三方Cookie策略、生产镜像与TLS入口仍待真实环境验收。
 
+暂无域名时，可显式启用同 IPv4 分 HTTPS 端口的试用模式。部署环境、TLS、入口模板及切换流程见 [IP 预览部署](preview-ip-port.md)。
+
 ## 备份与恢复
 
 建议生产RPO≤24h、RTO≤4h；这不是本地演练即可保证的SLA。生产停写窗口应停止API/worker并关闭存储入口写权限，等待发布租约和上传完成，记录一致性点。PG执行custom-format pg_dump，Verdaccio与MinIO暂停写入后对各自独立卷做一致快照；PG不能只复制正在运行的数据目录。记录镜像/迁移版本、文件长度与SHA-256、加密密钥的恢复途径。备份包含私有包/业务材料，须加密存储、限制ACL，凭证单独备份。

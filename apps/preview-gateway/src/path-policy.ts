@@ -24,3 +24,10 @@ export function sessionToken(cookie: string | undefined): string {
   if (tokens.length !== 1 || !token || !/^[A-Za-z0-9_-]{43}$/.test(token)) throw new PreviewDenied();
   return token;
 }
+
+export const previewSessionPrefix = '/_preview/';
+export function sessionResource(raw: string): { prefix: string; token: string; path: string } {
+  const match = /^\/_preview\/([A-Za-z0-9_-]{43})(?=\/)/.exec(raw);
+  if (!match || raw.length > 16384) throw new PreviewDenied();
+  return { prefix: match[0] + '/', token: match[1]!, path: resourcePath(raw.slice(match[0].length)) };
+}

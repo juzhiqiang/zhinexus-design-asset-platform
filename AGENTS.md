@@ -43,7 +43,7 @@
 - **双框架对等与独立建模**：一期同时支持 Vue 3 与 React 19，图表引擎采用 ECharts 6。`package_releases`（npm 包版本粒度）与 `variant_releases`（组件框架实现粒度）独立建模；某一实现通过验证不代表另一实现自动通过。SSR 宿主只承诺安全导入与客户端挂载，不提供服务端图表渲染。
 - **已发布版本不可变与幂等恢复**：Verdaccio 已发布版本严禁覆盖、严禁删除重发；MinIO 已发布版本资源保持不可变。跨存储（MinIO / Verdaccio / PostgreSQL）通过 PostgreSQL `release_jobs` 持久化状态机、唯一约束、租约与 fencing token 协调恢复；同名同版本不同摘要必须报 `CONFLICT` 并失败关闭。
 - **Ready 与可信度状态分离**：资产 `Ready` 仅表示包与预览资源均可达，与检查报告来源（`local-automatic` vs `manual-upload`）、视觉基线确认状态、检索索引状态严格独立，不得混用或相互推断。
-- **静态预览隔离**：静态预览必须通过独立注册域名与 `preview-gateway` 按短期授权（preview grant）提供只读静态资源，在访问者浏览器的沙箱 `iframe` 中隔离运行；预览代码严禁获取平台凭证或访问管理 API。
+- **静态预览隔离**：预览网关按短期授权提供只读资源，在访问者浏览器的沙箱 iframe 中运行。默认独立注册域名。用户于 2026-11-21 授权在暂无域名时启用同 IPv4 分 HTTPS 端口试用模式，须使用不透明源沙箱、短期路径授权及入口凭证过滤。预览代码严禁获取平台凭证或访问管理 API。详见 [安全规则](rules/security.md)。
 - **固定工具链与精确依赖**：Windows x64 本地开发使用项目 `.tools` 隔离的固定 Node `26.13.0` 与 pnpm `12.18.0`（通过 `.\scripts\bootstrap.ps1` 与 `.\scripts\pnpm.ps1` 执行，不修改全局安装）。外部依赖锁定精确版本（`saveExact: true`）；最新依赖组合若存在冲突，必须明确报告并适配或记录兼容例外，严禁静默回退旧版本。
 - **保留工作区与基线文档**：保留用户当前工作区中的已有修改，未经授权不得 `git reset`、`git checkout --` 或丢弃无关变更；`component-platform-architecture.md` 必须保持原始字节不变。
 

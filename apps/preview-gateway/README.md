@@ -1,6 +1,6 @@
 # 静态预览网关（T07 C）
 
-网关仅从 MinIO 读取 T06 已冻结的静态文件，不安装包、不构建、不运行上传脚本、不启动浏览器。每个 `variant_release` 使用独立 HTTPS origin，例如 `https://r-<uuid>.preview.company-assets.net`；平台/API 使用另一个注册域。运行前先在 API 执行迁移 001–006。
+网关仅从 MinIO 读取 T06 已冻结的静态文件，不安装包、不构建、不运行上传脚本、不启动浏览器。默认每个 `variant_release` 使用独立 HTTPS origin，例如 `https://r-<uuid>.preview.company-assets.net`，平台/API 使用另一个注册域。暂无域名时，可按 [IP 预览部署](../../docs/preview-ip-port.md) 显式使用同一 IPv4 上的专用 HTTPS 端口。运行前先在 API 执行迁移 001–006。
 
 ## 配置与运行
 
@@ -28,7 +28,7 @@ GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,tex
 ## 授权及静态目录
 
 1. 平台使用用户 Bearer token 调用 `POST /v1/preview-grants {variantReleaseId}`。角色与组件权限都通过后，返回 `bootstrapUrl` 与 `expiresAt`。
-2. 访问该地址一次性兑换 `__Host-preview` Cookie：`Secure; HttpOnly; SameSite=None; Path=/`，没有 Domain。303 跳转至第一示例入口，地址中不再含凭证。
+2. 域名模式一次性兑换 `__Host-preview` Cookie，属性为 `Secure; HttpOnly; SameSite=None; Path=/`，无 Domain。IP 模式使用 `/_preview/<session>/<资源路径>`，凭路径授权读取资源。两种模式都以 303 跳转到第一示例入口。
 3. grant 及 session 共用签发起 5 分钟期限，不滑动续期；数据库只保存随机令牌 SHA-256。兑换具有事务锁，进程重启不丢会话。
 4. 所有 GET/HEAD 文件请求检查当前 Ready、组件 public/ACL、停用用户、grant 撤销与到期，其他方法返回 405。文件须位于该实现声明的 `previewFiles`，对象 key 必须属于同一发布 job；每次读取核对长度与摘要。兄弟实现、任意桶路径、文档和 tarball 不作为预览资源分发。
 5. URL 只解码一次，随后按共享契约校验逻辑路径；支持中文文件名，拒绝双重编码、编码分隔符、空段、`.`/`..`、反斜杠和非法设备名。常见 HTML/JS/CSS/JSON、图片、字体、WASM 使用准确 MIME，扩展名大小写不影响识别；其他已声明字节作为 application/octet-stream 分发，不声明可执行。预览单文件上限 50 MiB。
@@ -39,7 +39,7 @@ GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,tex
 
 ## B 的画廊接入约定
 
-- iframe 固定 `sandbox="allow-scripts allow-same-origin"`、`referrerPolicy="no-referrer"`；不赋予 forms/popups/top-navigation，不在主站 origin 下运行该组合。
+- 域名模式的 iframe 使用 `sandbox="allow-scripts allow-same-origin"`。IP 模式使用 `sandbox="allow-scripts"`，且不提供独立窗口。两种模式均设置 `referrerPolicy="no-referrer"`，不赋予 forms、popups 或 top-navigation。
 - 只将 `bootstrapUrl` 交给 iframe，平台 Bearer token 不传入 iframe，也不附加到资源 URL。
 - 使用详情中的同一 `variantReleaseId` 签发 grant；其他示例入口在同 origin 下读取详情所列路径。
 - 到期/404 可重新申请 grant；第三方 Cookie 被阻止时给出“独立窗口打开预览”按钮并重新签发，由用户操作打开隔离域，保持 `noopener,noreferrer`。本轮没有实现 B 的该 UI。

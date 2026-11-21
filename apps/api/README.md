@@ -19,7 +19,7 @@ T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。
 | PLATFORM_WORKER_JOB_ID | 可选；诊断时将 worker 限制为一个已存在的作业，通常不设置 |
 | PLATFORM_GALLERY_ORIGIN | 浏览器画廊的精确 Origin（含端口，不带末尾斜杠）；配置后仅向该来源允许 API 跨域读取与预检 |
 
-画廊跨域配置使用 HTTPS；本机开发可显式设置 `http://127.0.0.1:5173`、`http://localhost:<port>` 或 `http://[::1]:<port>`。无配置时不开放跨域。配置了预览部署时默认采用其中的 platformOrigin，显式画廊 Origin 必须与其一致；预览仍要求独立注册域与 HTTPS，不能以本机例外放宽预览隔离。
+画廊跨域配置使用 HTTPS。本机开发可显式设置 `http://127.0.0.1:5173`、`http://localhost:<port>` 或 `http://[::1]:<port>`。无配置时不开放跨域。配置了预览部署时默认采用其中的 platformOrigin，显式画廊 Origin 必须与其一致。预览使用 HTTPS，默认采用独立注册域。可显式启用 `PLATFORM_PREVIEW_MODE=ip-port`，见 [IP 预览部署](../../docs/preview-ip-port.md)。
 
 API 跨域仅允许 GET/POST/OPTIONS、Authorization/Content-Type/Idempotency-Key，并暴露 X-Request-Id；不允许跨域 Cookie 凭证。OPTIONS 不要求 Bearer，实际业务请求仍使用原 OIDC/角色/组件权限校验。MinIO 预签名 PUT 的 CORS 与 ETag 暴露须在存储端独立配置和验证，API 的配置不会替代它。
 

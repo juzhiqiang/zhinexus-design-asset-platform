@@ -79,6 +79,8 @@
 
 以上是占位地址，须替换为实际资源；必须同时提供画廊和管理 API origin，不接受 HTTP、URL 内凭证、query/hash，预览须与画廊及管理 API 的注册域均不同。
 
+如按用户授权启用 IP 预览，在 `preview` 对象中添加 `"mode": "ip-port"`，填写同一 IPv4 的三个 HTTPS origin，并给预览配置专用端口。接入检查验证目标入口 TLS，具体配置见 [IP 预览部署](../docs/preview-ip-port.md)。
+
 ```powershell
 $env:G2_ACCESS_CONFIG = '.tools/g2-local/access.json'
 .\scripts\pnpm.ps1 infra:check-access

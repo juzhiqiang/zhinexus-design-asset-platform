@@ -1,5 +1,7 @@
 # Zhinexus 组件资产平台
 
+同一台服务器只有 IPv4 时，可以给画廊、API 和预览分配不同 HTTPS 端口，启用 IP 预览。获得域名后通过部署配置切回独立预览域。见 [部署步骤](docs/preview-ip-port.md)。
+
 2026-11-21 在 `chore/g1-t10-acceptance-closeout` 完成 T10 本机技术验收。冻结 CLI 0.0.25 实测 ECharts 6.1.0 的双框架四维矩阵，原双消费者回退通过，隔离三存储逐一核对 14 个发布实现。6.0.0 因两框架类型检查失败保持 hold。G1 的 A/B 技术审查材料已归档，实际业务回执与人工结论待签署。见 [G1/T10 验收记录](docs/verification/g1-t10-closeout-2026-11-21.md)。
 
 2026-11-20 三期 T15–T17 工具技术交付完成：CLI `0.0.23` 单次冻结，交付本地 `integrate verify/repair`、四工具 stdio MCP、完整源快照守卫、SDK 自动错误回复脱敏与异步 DOM 断言等待。同包通过强制全图构建/类型检查 20/20（0 cached）、根 tsc、根测试 2210/2210 与 T10 168/168、平台 137/137、浏览器 288/288、黑盒及 T15/T16 49/49、双框架四条宿主链，以及固定矩阵正向 20/20（各框架 10/10）和 13 项强制拒绝预期。原件评分、字节归档和已知归属临时工程清理已独立复核；历史保留目录与过程缺口见 [当前交付汇总](docs/verification/t17-completion-2026-11-20.md)。用法见 [本地验证、有限修复与 MCP](docs/phase3/local-project-verification.md)，追加过程见 [T17 集成记录](docs/verification/t17-integration-2026-11-20.md)。本轮采用用户授权的临时 Vue/React 工程；历史真实业务试点、T11/T12、公司 OIDC、生产独立预览域与生产 G2 继续单独验收。下方各日期内容保留为历史记录。
