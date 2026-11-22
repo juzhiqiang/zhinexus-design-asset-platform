@@ -1,172 +1,118 @@
 # Zhinexus 组件资产平台
 
-同一台服务器只有 IPv4 时，可以给画廊、API 和预览分配不同 HTTPS 端口，启用 IP 预览。获得域名后通过管理员「接入设置」验证并切换独立预览域，同时维护公司 OIDC、Web/CLI 登录与恢复。见 [接入设置与恢复](docs/access-settings.md) 和 [IP 部署步骤](docs/preview-ip-port.md)。
+Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资产，提供组件画廊、Vue/React 双框架 SDK、本地 CLI，以及发布与静态预览服务。
 
-2026-11-21 在 `chore/g1-t10-acceptance-closeout` 完成 T10 本机技术验收。冻结 CLI 0.0.25 实测 ECharts 6.1.0 的双框架四维矩阵，原双消费者回退通过，隔离三存储逐一核对 14 个发布实现。6.0.0 因两框架类型检查失败保持 hold。G1 的 A/B 技术审查材料已归档，实际业务回执与人工结论待签署。见 [G1/T10 验收记录](docs/verification/g1-t10-closeout-2026-11-21.md)。
+## 主要功能
 
-2026-11-20 三期 T15–T17 工具技术交付完成：CLI `0.0.23` 单次冻结，交付本地 `integrate verify/repair`、四工具 stdio MCP、完整源快照守卫、SDK 自动错误回复脱敏与异步 DOM 断言等待。同包通过强制全图构建/类型检查 20/20（0 cached）、根 tsc、根测试 2210/2210 与 T10 168/168、平台 137/137、浏览器 288/288、黑盒及 T15/T16 49/49、双框架四条宿主链，以及固定矩阵正向 20/20（各框架 10/10）和 13 项强制拒绝预期。原件评分、字节归档和已知归属临时工程清理已独立复核；历史保留目录与过程缺口见 [当前交付汇总](docs/verification/t17-completion-2026-11-20.md)。用法见 [本地验证、有限修复与 MCP](docs/phase3/local-project-verification.md)，追加过程见 [T17 集成记录](docs/verification/t17-integration-2026-11-20.md)。本轮采用用户授权的临时 Vue/React 工程；历史真实业务试点、T11/T12、公司 OIDC、生产独立预览域与生产 G2 继续单独验收。下方各日期内容保留为历史记录。
+- **组件画廊**：浏览和检索组件，查看组件详情、API、检查报告与隔离预览。
+- **双框架 SDK**：提供折线图、柱状图、饼图、散点图、趋势卡、排行榜和占比图的 Vue/React 实现。
+- **资产发布**：支持 CLI 提交冻结 Bundle，以及网页上传预构建产物和手动截图；由独立 worker 协调包、预览资源与发布状态。
+- **组件查询与装配**：按组件 ID、框架和精确包版本查询，通过显式设计 ID 映射生成装配方案；文本检索用于人工发现候选。
+- **本地项目接入**：支持工程识别、接入计划、受控应用与恢复、本地验证、有限修复和 stdio MCP。
 
-2026-11-19 T16 技术交付已按授权本地合并 main 并完成复验：CLI `0.0.14` 保持唯一冻结 tarball，B26 产品 141/141、契约/Schema/CLI 同步 166/166；main 强制全图构建与类型检查 20/20（0 cached）、根 Vitest 1753/1753 与 T10 168/168、完整冻结 T16 14/14、契约浏览器 1/1 全部通过。14 项包含八组双框架安装矩阵、四组 hostile 配置、Next Server Page 和实际 D 默认入口四段黑盒；此前完整浏览器 287/287、冻结 T15 25/25、D 既有黑盒 5/5 和平台补验结果保留。独立全树审查无未解决 Critical/Important，保留两项非阻断 Minor。完整 T16/T17、真实授权业务项目和生产 G2 仍开放；命令、摘要、审查及证据脚本纠正见 [main 收口记录](docs/verification/t16-main-completion-2026-11-19.md)。以下为各历史时点记录。
+## 技术架构
 
-2026-11-18 T16 开发审查修复：B08 后产品窄测 117 条中 97 通过、20 失败，失败项阻断合并；B05 的产品 84/84 与仓外双框架安装/类型/构建/迁移矩阵 12/12 保留为历史证据。受控 apply/rollback 用法见 [本地应用与恢复](docs/phase3/local-project-apply.md)，当前发现见 [产品审查记录](docs/verification/t16-product-review-2026-11-18.md)，原始交付和命令见 [客户端交付记录](docs/verification/t16-client-text-delivery-2026-11-18.md)。D 首条参数黑盒通过，完整独立黑盒、最终冻结 CLI 和全量回归待通过；通过全部技术门槛后本地合 main，完整 T16/T17 与真实业务试点保持未完成。
+| 模块 | 技术 |
+| --- | --- |
+| 工程组织 | Monorepo、pnpm workspace、Turborepo |
+| 平台画廊 | React、Next.js App Router |
+| 管理 API 与预览网关 | NestJS、Express |
+| 组件 SDK | Vue 3、React 19、ECharts 6 |
+| 存储 | PostgreSQL、Verdaccio、MinIO |
 
-2026-11-18 T16 P0 补充：恢复结果新增必填 unresolvedPaths，独立表达恢复 I/O 失败；首写失败允许已备份但没有已提交文件。Schema、CLI 内联副本和设计已同步。B / Claude 桌面端按 [安装隔离 brief](docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md) 先交产品失败测试，C 在 Windows 确认 RED 后再进入实现。恢复与验证证据见 [本轮补充记录](docs/verification/t16-recovery-sync-2026-11-18.md)；T16 产品安装与真实项目验收仍未完成。
+## 目录结构
 
-2026-11-17 T15 本地项目识别与只读接入计划已完成技术验收，CLI 为 `0.0.13`。`component integrate inspect/plan` 支持 Vue/React、npm/pnpm 和显式工作区，计划始终为 `executionAuthorized: false`。Claude 桌面端完成 CLI 产品，Antigravity 提供独立矩阵，Claude Code 提供黑盒验收，Codex 完成契约、真实服务与冻结包验证。使用方式见 [接入计划说明](docs/phase3/integration-plan.md)，命令、摘要、验证及本地合并清理结果见 [T15 收口记录](docs/verification/t15-completion-2026-11-17.md)。T16 安装/代码生成、T17 验证修复/MCP、生产 G2 和真实业务试点仍待完成。
+```text
+apps/api                 身份、上传、目录、基线 API 与独立发布 worker
+apps/gallery             组件画廊与发布、查询控制台
+apps/preview-gateway     短期授权的静态预览网关
+packages/contracts       私有运行时契约、错误码与 JSON Schema
+packages/charts-core     图表核心与兼容策略
+packages/charts-vue      Vue 适配
+packages/charts-react    React 适配
+packages/component-cli   本地构建、冻结、检查、截图与工程接入工具
+examples/vue             Vue 工作区示例
+examples/react           React 工作区示例
+tests                    单元、集成、消费者与浏览器测试
+infra                    本地存储环境与接入检查
+docs                     使用、部署、运维与工程文档
+```
 
-Monorepo + pnpm workspace + Turborepo 组件资产平台。画廊使用 React 19.3.1 + Next.js 16.4.6 App Router，API 与预览网关使用 NestJS 12.4.2；SDK 提供折线、柱状、饼图、散点、趋势卡、排名和占比共 14 个 Vue/React 实现。已有冻结 Bundle、消费者截图、网页手动发布、身份/上传/基线 API、持久化发布 worker 与隔离静态预览。合法 PENDING 作业须由独立 worker 通过三存储校验后进入 Ready。
+公开包为 `@company/charts-core`、`@company/charts-vue`、`@company/charts-react` 和 `@company/component-cli`。CLI 内联契约校验，公开包运行时不依赖私有 `@company/contracts`。画廊通过 HTTP 和公共契约访问后端。
 
-2026-11-16 二期协议交付已完成：`GET /v1/matching/components` 按组件 ID、框架与精确包版本查询，校验当前权限、资格及冻结材料；Gallery `/match` 已提供查询入口。平台 0.0.6、API/Gallery 0.0.9；14 个真实 SDK 实现与真实页面、独立调用侧、全图和回归均通过。使用方式见 [接口规范](docs/phase2/component-query-api.md)，结果与本地合并清理状态见 [收口记录](docs/verification/phase2-query-completion-2026-11-16.md)。用户已确认设计平台格式、真实设计导出和业务标注不作为本轮验收前置。公司 G2 与真实业务试点仍独立待验收，下方历史记录保留其发生时点。
+## 本地开发（Windows x64）
 
-2026-11-14：本地平台专项改为每轮自建随机端口和凭据的三存储环境，无需启动共享 G2。当前 SDK 0.0.10 与画廊手动发布已有本地真实证据；公司 OIDC、生产独立预览域、真实 Vue/React 业务试点仍未验收，不能据此宣布完整 G2/T10/T11/T12 或生产就绪。下一轮分工和集成门槛见 [执行计划](docs/superpowers/plans/2026-11-13-next-round-execution.md)。
-
-## 开始开发（Windows x64）
-
-2026-11-16 SDK 补充：Vue/React 0.0.11 修复配置同时变更及默认展示配置切换时的生命周期问题；新冻结包已通过 14 个预览和工作区外双框架消费者的本地验收。详见 [版本验收记录](docs/verification/a-sdk-0011-release-2026-11-16.md)，公司接入与真实业务试点仍待完成。
-
-2026-11-16 评估补充：确定性 ID 离线入口已支持分离的人工标注与 MatchPlan 观测，输出 real/synthetic 分组、原始字节摘要和缺口报告。使用方式与真实样本待办见 [ID 评估规范](docs/phase2/id-evaluation-runner.md)；仓库样例仅为 synthetic，不代表 T13/T14 业务验收。
-
-二期已实现设计 ID 显式映射、确定性装配 API、真实组件 API 材料生成及 `/match` 配置与方案界面，不接入大模型。未知 ID、冲突、权限/框架/版本不满足时返回缺口；文本检索保留为人工发现入口，不能自动替代指定目标。已有工程验证见 [集成记录](docs/verification/phase2-id-integration-2026-11-16.md)。T13/T14 当前协议范围的 GET、规范及独立调用侧验收已完成；真实设计侧集成由使用侧后续对接。
-
-2026-11-16：CLI 0.0.10 在安装/截图后重新核验冻结 tarball，并核对 bundle 副本身份。期间产物变化会终止检查或发布准备；需要重新完成产物验证，不得沿用旧报告。修复及真实链路证据见 [本轮 B 验证](docs/verification/b-release-acceptance-2026-11-16.md)，独立安装与版本范围见 [CLI 0.0.10 分发验证](docs/verification/b-cli-0010-release-2026-11-16.md)。
-
-在仓库根目录执行。首次运行会从官方源下载并校验项目固定的 Node/pnpm 到 `.tools`，不修改全局安装；需能够访问 npm、Node 和 Playwright 下载源。
+在仓库根目录执行以下命令。引导脚本会从官方源下载并校验固定的 Node 26.13.0 与 pnpm 12.18.0，安装到项目 `.tools` 目录。需要能够访问 Node、npm 和 Playwright 下载源。
 
 ```powershell
 .\scripts\bootstrap.ps1
 .\scripts\pnpm.ps1 install --frozen-lockfile
 .\scripts\pnpm.ps1 verify:workspace
+
+$env:NEXT_PUBLIC_SITE_URL = 'http://127.0.0.1:5173'
+$env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
 .\scripts\pnpm.ps1 build
+.\scripts\pnpm.ps1 dev
+```
+
+开发服务使用以下本机入口：
+
+| 入口 | 地址 / 命令 |
+| --- | --- |
+| 画廊 | `http://127.0.0.1:5173` |
+| Vue 示例 | `http://127.0.0.1:5174` |
+| React 示例 | `http://127.0.0.1:5175` |
+| API 存活检查 | `http://127.0.0.1:3000/healthz` |
+| 预览网关存活检查 | `http://127.0.0.1:3001/healthz` |
+| CLI 帮助 | `.\scripts\pnpm.ps1 component --help` |
+
+API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还需启动独立发布 worker。配置与启动方式见 [API 接入说明](apps/api/README.md)、[预览网关说明](apps/preview-gateway/README.md) 和 [本地基础设施](infra/README.md)。
+
+正式构建画廊时，`NEXT_PUBLIC_SITE_URL` 应设置为站点公开 origin，用于 sitemap 与 metadata；`NEXT_PUBLIC_PLATFORM_API_URL` 应指向管理 API，API 需允许画廊的精确 Origin。仅使用 IPv4 时，可以为画廊、API 和预览配置不同 HTTPS 端口，见 [IP 分端口部署](docs/preview-ip-port.md)。
+
+## 常用验证命令
+
+```powershell
 .\scripts\pnpm.ps1 typecheck
 .\scripts\pnpm.ps1 test
 .\scripts\pnpm.ps1 exec playwright install chromium
 .\scripts\pnpm.ps1 test:browser
-.\scripts\pnpm.ps1 dev
 ```
 
-浏览器测试消费构建后的 `dist`，运行前先 build，并关闭占用 5173–5176 端口的开发服务（5176 用于 React StrictMode 开发态测试）。浏览器安装后可用 `.\scripts\verify.ps1` 顺序重跑全部基础检查。`dev` 同时启动 10 个开发任务，Ctrl+C 停止；Windows 上若停在 shutting down，再按一次 Ctrl+C 结束子任务。其他操作系统可以自行安装同一版本工具链，但尚不在本次验证范围内。
-
-安装脚本支持 Windows 自带的 PowerShell 5.1 非交互执行。修改工具链或下载逻辑后，运行 `.\scripts\verify.ps1 -Bootstrap`：此模式只在独立临时目录中真实下载、校验并探测固定版本，再验证缓存重跑，结束后仅清理该测试目录。此检查需要联网和额外下载，不执行日常安装、构建和测试。
-
-日常 `verify.ps1` 依次执行冻结安装、工作区检查、构建、类型检查、单元/HTTP 测试和浏览器测试；服务构建已由 typecheck/test 的前置步骤覆盖。专项入口按需执行：
+浏览器测试消费构建后的产物，运行前先执行 `build`，并关闭占用 5173–5176 端口的开发服务。构建和浏览器测试使用相同的 `NEXT_PUBLIC_SITE_URL`。根 `typecheck` 与 `test` 会先构建后端服务。
 
 | 命令（仓库根目录） | 用途 |
 | --- | --- |
-| `.\scripts\verify.ps1 -Bootstrap` | 工具链首次下载与缓存重跑 |
-| `.\scripts\pnpm.ps1 test:gallery-cache` | 画廊域名切换与 HTTP sitemap 回归，脚本位于 tests/integration |
-| `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate` | 先构建 contracts，再重新生成 JSON Schema；普通 test 检查内容与格式一致性 |
-| `.\scripts\pnpm.ps1 versions:resolve` | 刷新官方候选版本报告 |
-| `.\scripts\pnpm.ps1 infra:up` / `infra:stop` | 启停隔离本地 PostgreSQL、Verdaccio、MinIO，保留卷和凭证 |
-| `.\scripts\pnpm.ps1 test:infra` | 三存储真实写读、权限、精确安装、重启及隔离备份恢复；不缓存 |
-| `.\scripts\pnpm.ps1 test:platform` | 自建并清理独立三存储，验证 Nest 上传/发布、租约并发、恢复、基线 CAS、SDK 发布和精确安装；需 Docker 与本机锁定镜像，不缓存 |
-| `.\scripts\pnpm.ps1 test:t10` | 本地兼容探针的 Node 回归测试；根 `test` 同时执行，不进入 Turbo 缓存 |
-| `.\scripts\pnpm.ps1 probe:t10 --bundle <冻结目录> --echarts <精确版本>` | 在工作区外消费者运行双框架类型、构建、SSR、浏览器和视觉探针；无同环境基线时保持 hold |
-| `.\scripts\pnpm.ps1 --filter @company/platform-api worker` | 独立发布 worker；显式迁移并注入存储/注册表服务凭证后运行，见 API 接入说明 |
-| `.\scripts\pnpm.ps1 infra:check-access` | OIDC/独立预览域前置检查；当前缺配置退出 2 |
+| `.\scripts\verify.ps1` | 顺序执行冻结安装、工作区检查、构建、类型检查、单元/HTTP 测试与浏览器测试 |
+| `.\scripts\verify.ps1 -Bootstrap` | 在隔离临时目录验证工具链首次下载、校验与缓存重跑 |
+| `.\scripts\pnpm.ps1 build:services` | 仅构建 API、预览网关及 contracts |
+| `.\scripts\pnpm.ps1 test:gallery-cache` | 检查画廊站点域名切换与 sitemap |
+| `.\scripts\pnpm.ps1 infra:up` / `.\scripts\pnpm.ps1 infra:stop` | 启停本地 PostgreSQL、Verdaccio 与 MinIO |
+| `.\scripts\pnpm.ps1 test:infra` | 验证三存储读写、权限与备份恢复 |
+| `.\scripts\pnpm.ps1 test:platform` | 自建隔离三存储，验证上传、发布与恢复；需要 Docker 和本机锁定镜像 |
 
-根 scripts 仅保留工具链安装/调用、统一验证、工作区检查和版本发现。入口迁移与验证见 [脚本整理记录](docs/verification/scripts-maintenance-2026-11-12.md)。
+`build`、`typecheck` 使用本地缓存，画廊构建输出不进入 Turbo 缓存；测试、消费者安装、截图、发布和基线更新不进入 Turbo 缓存。平台测试与浏览器测试应顺序执行，避免重建产物相互影响。
 
-| 入口 | 地址 / 用途 |
-| --- | --- |
-| 画廊 | `http://127.0.0.1:5173`，空平台入口 |
-| Vue 示例 | `http://127.0.0.1:5174`，工作区依赖冒烟 |
-| React 示例 | `http://127.0.0.1:5175`，工作区依赖冒烟 |
-| API | `http://127.0.0.1:3000/healthz` 存活；`/v1` 接口需配置 OIDC/存储与权限，见 [API 接入](apps/api/README.md) |
-| 预览网关 | `http://127.0.0.1:3001/healthz`，仅存活检查 |
-| CLI | `.\scripts\pnpm.ps1 component --help`；不支持的业务命令返回非零 |
+## 发布与运行边界
 
-后端单独构建使用 `.\scripts\pnpm.ps1 build:services`，只含 API、preview-gateway 与 contracts。组件构建、示例运行和截图保持在开发者电脑。根全量 build 用于本地开发，不作为服务端组件执行入口。
+- 组件构建、示例运行和自动截图在开发者电脑执行；API 与预览网关只接收和提供预构建产物。
+- tarball 打包后冻结，工作区外消费者安装、截图、报告、上传与发布必须绑定同一份产物摘要；产物变化后需重新验证。
+- 网页发布要求每个组件的每种框架实现至少关联一张有效手动截图，检查来源标记为 `manual-upload`。
+- 已发布的包与预览资源保持不可变，发布冲突及恢复由持久化作业协调。
+- `Ready` 仅表示包与预览资源可达，检查来源、视觉基线确认和检索索引状态独立维护。
+- 预览通过短期授权在沙箱 iframe 中运行；SSR 宿主仅支持安全导入与客户端挂载。
 
-本地 CLI 支持 `component echarts check --bundle <冻结目录> --version <精确版本>` 查询候选，也可用 `--latest`；`component echarts verify` 调用本地兼容探针，只有证据与本次冻结包和候选一致、双框架四维检查齐全时才建议采用。首次无基线的截图留作人工审查输入，复验时通过 `--baseline <证据JSON>` 显式指定；程序退出 0 不替代报告中的 `recommendation`。`check --registry offline` 仅查询冻结支持矩阵，不证明候选来源或实际兼容。`verify` 默认调用安装包内的 `dist/probe/probe.mjs`，新候选的独立安装矩阵验收另行记录。冻结 SDK 允许独立包版本；CLI、探针与 API 按 manifest 顺序绑定聚合版本及逐包名称、版本、SHA/bytes，见 [集成修复记录](docs/verification/cli-0011-integration-repairs-2026-11-16.md)。探针不改 SDK peer、不重新 pack 冻结包、不写线上兼容记录。
+## 文档导航
 
-验收冻结兼容策略时显式设置 `A10_FROZEN_BUNDLE` 为与 `--bundle` 相同的权威目录，再运行 `test:t10` 或根 `test`。没有提供真实冻结目录时，依赖该目录的策略用例明确跳过，不以合成策略替代，也不计为冻结兼容验收通过。完整消费者与浏览器测量仍由 `probe:t10` / `component echarts verify` 执行。
+- [本地开发与运维准备](docs/quickstart.md)
+- [发布与恢复操作](docs/publishing.md)
+- [运维说明](docs/operations.md)与[上线验收](docs/release-acceptance.md)
+- [组件精确查询 API](docs/phase2/component-query-api.md)
+- [本地接入计划](docs/phase3/integration-plan.md)、[应用与恢复](docs/phase3/local-project-apply.md)、[验证、有限修复与 MCP](docs/phase3/local-project-verification.md)
+- [ECharts 升级与回退](docs/echarts-upgrade.md)
+- [架构规格](component-platform-architecture.md)与[实施评估](component-platform-implementation-assessment.md)
+- [协作规范](AGENTS.md)与[详细工程规则](rules/)
 
-Windows 首轮、独立环境/字体/截图审计、显式基线复验，以及原两消费者清单/锁文件逐字节恢复的步骤见 [T10 本地复验](docs/verification/t10-windows-local-procedure.md)。回退按冻结清单恢复各包独立版本；只有两消费者均恢复成功才清理，失败保留目录和报告。新平台诊断写在冻结目录旁，绑定实际摘要，见 [回退与诊断修复](docs/verification/rollback-sidecar-repairs-2026-11-16.md)。
+## 版本记录
 
-## 工作区职责
-
-```text
-apps/api                 NestJS 身份/上传/基线 API 与独立 T06 发布 worker
-apps/gallery             React 19 + Next.js 16 画廊入口（公开发现页 SSG/ISR，控制台路由预留登录保护）
-apps/preview-gateway     NestJS 独立域静态预览网关（短期授权、逐请求撤权与摘要核查）
-packages/contracts       私有 V1 运行时契约、错误码、JSON Schema 与合成 fixtures（G1 待 A/B 评审）
-packages/charts-core     ECharts 七类组件核心与兼容策略
-packages/charts-vue       Vue 适配 → core
-packages/charts-react     React 适配 → core
-packages/component-cli  本地冻结、消费者检查、截图与 Bundle 生成
-examples/vue             Vue 工作区示例 → charts-vue
-examples/react           React 工作区示例 → charts-react
-tests                    基础行为和构建入口的浏览器冒烟
-infra                    隔离本地三存储、真实探针与 OIDC/预览域接入检查
-```
-
-四个公开包名称沿用 `@company/*`，版本以各自 package.json 为准。examples 消费 workspace 导出；工作区外 tarball 消费与截图由独立测试验证。CLI 内联契约校验，公开包运行时不依赖私有 contracts。
-
-## 工具链与缓存
-
-固定 Node 26.13.0、pnpm 12.18.0、Turbo 2.11.10；根与 React/Next 画廊使用 TypeScript 7.0.2。画廊使用 Next.js 16.4.6 App Router，公开页面可接入 SSG/ISR，上传和发布工作区预留登录后的动态渲染；两个 Nest 应用使用 Nest CLI 12.0.12 与 TypeScript 6.0.3，和 CLI 自带编译器保持一致，启用 decorator metadata。仅 Vue example 的 SFC 检查使用 vue-tsc 3.3.14 + TypeScript 6.0.3；画廊已移除 Vue 工具依赖。当前版本与初始化验证见 [Nest/React 调整记录](docs/verification/nest-react-bootstrap.md) 和 [画廊迁移验证](docs/verification/gallery-next-migration.md)，迁移边界见 [画廊 Next 计划](docs/superpowers/plans/2026-11-11-gallery-next-public-private.md)。
-
-正式构建 gallery 前设置 `NEXT_PUBLIC_SITE_URL` 为站点公开 origin；该值用于 sitemap 和 metadata base，并传入 gallery build。缺少该值时 sitemap 为空。独立运行 build 与浏览器测试时应使用同一环境变量；`verify.ps1` 在未设置时临时使用 `https://gallery.test`，结束后恢复调用者环境。
-
-两个后端均提供 Nest module/controller/service。单独开发执行 `pnpm --filter @company/platform-api dev`，构建后运行 `pnpm --filter @company/platform-api start`；网关替换为 `@company/preview-gateway`。本机请用上述 PowerShell wrapper 替代 `pnpm`。测试加载真实 Nest 编译结果，因此根 `test` 与 `typecheck` 均先执行 `build:services`，确保首次运行时已生成服务代码和类型声明，再执行各自的完整检查。
-
-pnpm 12 的配置放在 `pnpm-workspace.yaml`，包含官方 registry、严格 peer/engine、精确版本及仅允许 esbuild 的安装脚本。`.npmrc` 仅保留 npm 通用配置。所有人使用锁文件安装；新增依赖由 C 收口，不以脚本启动前隐式安装代替冻结安装检查。
-
-build/typecheck 使用本地缓存，dev 不缓存；gallery build 暂不使用 Turbo 输出缓存，避免恢复输出时残留旧域名的 Next 运行时 route-cache。可通过 `.\scripts\pnpm.ps1 test:gallery-cache` 验证 A→B→A 域名切换与当前配置的实际 HTTP sitemap。test、浏览器和 component 命令直接执行。未来消费者、截图、发布、基线接受同样不得缓存。`versions:resolve` 只刷新官方候选发现记录，不更改版本、不证明兼容。
-
-## 开发与分工文档
-
-二期文本检索：已登录客户端显式 `POST /v1/search/candidates`，请求 `{query,context,reactDomVersion?}`，仅按发布元数据搜索，不提供用途/视觉评分；精确 peers 不满足、权限撤销、废弃或索引过期的实现不返回。需求语义尚未评估，不能据此声称完成设计稿匹配。分工见 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。
-
-二期组件精确查询：在 `/match` 输入组件 ID、框架、包精确版本、宿主框架与 ECharts 版本，React 另填 react-dom 版本，点击「查询组件」调用 `GET /v1/matching/components`。同版本跨包歧义时补充 `packageName`；`matched` 结果提供精确发布 ID、API、依赖和兼容状态，可据此构造下述设计映射。调用参数、错误及响应校验规则见 [使用侧规范](docs/phase2/component-query-api.md)。
-
-二期 ID 装配：在 `/match` 填写项目上下文、规则 JSON、元素实例和可选绑定，显式点击「生成装配方案」调用 `POST /v1/matching/plans`。规则的每项为 `{designId,framework,variantReleaseId}`，其中发布 ID 从可访问目录选定；规则集包含 `schemaVersion:1`、`ruleSetId`、`revision`、`entries`。元素由 `{instanceId,designId}` 标识；同一设计 ID 可被不同实例复用。ID 按原值精确比较，没有内置业务命名规则。文本发现不会自动回写规则，选定候选后须手动修改配置。
-
-方案展示精确发布、依赖、API/文档摘要、参数和事件类型及显式绑定、布局、样式入口与就绪方法。`mapped` 只表示目标材料可映射：缺业务绑定、布局、兼容实测证据和未评估的文本需求仍会留下缺口。编辑输入或变更会话后旧方案失效。服务端只读冻结材料；缺少 `ComponentApiV1` 的历史材料返回 `API_UNSUPPORTED`，需按不可变发布流程提交新版本，不能回写旧包。响应超过 100,000 个 JSON 节点或 8 MiB 返回 `LIMIT_EXCEEDED`（413），应拆分元素批次。完整协议见 [HTTP 契约](docs/superpowers/plans/2026-11-15-phase2-match-plan-http.md)。
-
-部署先执行现有 API migrate（新增 008_search），再以固定工具链执行 `scripts/pnpm.ps1 exec node apps/api/dist/index/search-runner.js` 启动独立索引消费者；加 `--once` 处理至多一个作业。仅需既有 `PLATFORM_DATABASE_URL`，不得将凭据写入命令或日志。重建指定作业时设置 `PLATFORM_SEARCH_REBUILD_JOB_ID` 后运行同一入口；重建会重写派生索引，不修改已发布产物或 Ready。检查 `release_outbox.state`（indexed/failed/pending）判断处理结果，失败会在下次消费重试；查询始终复读当前权限和发布元数据。
-
-- [三人分工与必要依赖](docs/superpowers/plans/2026-11-11-three-person-allocation.md)：A SDK、B CLI/画廊、C 平台；前三天任务、依赖图和年底风险。
-- [完整实现计划 T01–T17](docs/superpowers/plans/2026-11-11-component-platform-implementation.md)
-- [实施评估](component-platform-implementation-assessment.md) / [原始架构](component-platform-architecture.md)
-- [本次初始化范围](docs/superpowers/plans/2026-11-11-bootstrap-execution.md)
-- [当前 Nest/React 验证](docs/verification/nest-react-bootstrap.md)
-- [迁移前初始化验证](docs/verification/bootstrap.md) / [迁移前 Turbo 缓存证据](docs/verification/turbo-baseline.md)
-- [独立审查与实施决定](docs/verification/bootstrap-review.md)
-
-2026-11-12：C 已补齐 G1 运行时结构/关联与冻结字节校验、错误码、示例接口、API 消息及合成 fixtures。调用与边界见 [contracts README](packages/contracts/README.md)，命令见 [G1 验证记录](docs/verification/g1-contracts-2026-11-12.md)。G1 仍待 A/B 于 **2026-11-13** 前实际评审回执；G2 五项责任和计划日期见 [评审与接入清单](docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)。
-
-本轮 C 已收口可选 `ComponentExample.states` 与权威 `requiredStates` 清单，并完成本地三存储真实探针，启动方式见 [infra README](infra/README.md)，结果见 [新增验证记录](docs/verification/g2-local-infra-2026-11-12.md)。按用户确认，OIDC 与独立预览域尚未配置，G2/T01 保持开放；本地探针与合成 fixtures 不代替完整组件发布、截图或生产验收。
-
-2026-11-12 T07 C：已交付公开/用户态目录、精确releaseId详情/报告/材料、一次性preview grant和独立静态网关。本地完整回归521普通测试、62真实平台测试、71浏览器测试通过，独立审查问题已修复。接口与部署见 [API](apps/api/README.md)、[网关](apps/preview-gateway/README.md)，证据见 [T07 C验证](docs/verification/t07-catalog-preview-2026-11-12.md)。完整T07/G2/M2仍需公司OIDC、生产独立域和B的真实画廊/八实现联调。
-
-## C 平台运维交付
-
-T07目录/预览后端已合入main；本轮提供脱敏日志、持久化指标、故障演练、三存储隔离备份恢复、部署检查与保留策略。入口与边界见 [quickstart](docs/quickstart.md)、[operations](docs/operations.md)、[release-acceptance](docs/release-acceptance.md)。完整G2/M2/T11/T12仍待公司环境及真实试点验收。
-
-2026-11-13：增加 `.\scripts\pnpm.ps1 rehearse:capacity`，在本机真实三存储上量测200组件/400实现的合成目录、20并发读取、总量100MiB分片恢复及5次协议发布。报告按runId写入 `.tools/operations/capacity/`，失败退出非零；不能替代生产容量或业务试点验收。当前SDK十实现的冻结发布、双框架精确安装与逐资源摘要检查，以及网页手动提交后端交接见 [C本轮验证](docs/verification/c-platform-capacity-2026-11-13.md)。
-
-2026-11-13 后续补验：SDK0.0.6 七组件十四实现已完成 Windows 冻结发布、真实 HTTPS 预览自检、逐材料摘要及 Vue/React 精确 Registry 消费，见 [十四实现验收](docs/verification/c-sdk14-acceptance-2026-11-13.md)。测试支撑支持隔离随机端口设施；共享凭据缺失导致旧完整平台套件仍阻塞，B 的真实网页流程和生产验收继续单列。
-
-2026-11-13 网页联调修复：API 复用 `PLATFORM_GALLERY_ORIGIN` 精确放行画廊的 Bearer/JSON/幂等键跨域请求，配置要求见 [API接入](apps/api/README.md)，RED/GREEN 与边界见 [跨域验证](docs/verification/c-gallery-cors-2026-11-13.md)。MinIO直传与B真实浏览器闭环仍单独验收。
-
-2026-11-13 A SDK 0.0.7 接续：C 已在 Windows 对固定 `f35ebc9` 完成强制构建/类型、外部消费者、67 项展示/核心浏览器及十四实现隔离发布复验，冻结摘要与证据见 [新增原生记录](docs/verification/c-a-sdk007-windows-2026-11-13.md)。兼容策略的三个独立审查问题仍待 A 修复，未标记 T10 完成。
-
-2026-11-13 A SDK 0.0.10 复审收口：C 对固定 `190b60b` 完成 20 项强制构建/类型、379 项单元与契约、十四实现真实发布/HTTPS 预览与双框架精确 Registry 消费；同一冻结包的 TS 6/7 × Bundler/NodeNext 严格消费者及六项公开策略检查全部通过。脚本、摘要、RED/GREEN 与边界见 [0.0.10 原生记录](docs/verification/c-a-sdk0010-windows-2026-11-13.md)。完整 T10、网页流程与外部门槛继续独立验收。
-
-2026-11-13 接续浏览器验证：C 在同一 `190b60b` Windows 归档实跑 185 项全部通过，含十四实现和 56 项主题/渲染器矩阵。结果与范围见 [浏览器新增记录](docs/verification/c-a-sdk0010-browser-2026-11-13.md)；不替代 B 最终网页流程、跨版本视觉或真实业务试点验收。
-
-2026-11-13 C 根测试接续：CLI 发布集成测试改用自有随机端口三存储，消除缺共享凭据的唯一失败；专项通过后根 test 实跑 33 文件/600 项通过。RED/GREEN、清理与边界见 [隔离复验](docs/verification/c-cli-release-isolation-2026-11-13.md)。
-
-2026-11-13 SDK 文档交接：A 修正 SSR 挂载、真实导出与静态类型/运行时边界后，C 原样提取 Vue/React 示例，在真实安装冻结 0.0.10 tarball 的干净消费者中完成六组严格编译。固定摘要、验证方式与未完成边界见 [文档独立复验](docs/verification/c-a-sdk0010-handover-2026-11-13.md)。
-
-2026-11-15 二期首批启动：按 [A/B/C 隔离分工](docs/superpowers/plans/2026-11-15-phase2-kickoff.md) 推进组件档案审计、React 项目上下文表单准备及 ProjectContext 公共契约。契约验证只确认输入形状，不等同于兼容通过；本批不提供多模态匹配结果，不标记 T13/T14 完成。C 的新增契约、CLI 同步范围与验证边界见 [独立记录](docs/verification/c-phase2-project-context-2026-11-15.md)。
-
-
-2026-11-15 B1/B3：画廊控制台 `/match` 保留项目上下文本地校验，并增加独立「搜索候选」按钮。仅点击搜索才将查询、上下文和可选 React DOM 精确版本提交至鉴权 API；编辑、退出或会话变化取消请求并清除旧结果，查询与结果不写入浏览器存储。本地校验成功不代表组件兼容或生成装配方案。
-
-构建画廊前设置 `NEXT_PUBLIC_PLATFORM_API_URL` 为管理 API origin（本机默认 `http://127.0.0.1:3000`），API 需允许画廊的精确 Origin 并部署 C3 检索迁移及 worker。文本检索仅覆盖已发布元数据，不提供用途、视觉评分或需求语义评估。实际验证与边界见 [B3 验收记录](docs/verification/c-b3-search-acceptance-2026-11-15.md)；A/B/C 三方代码已集成本地主分支；历史分支验收与本次集成复验分别记录。
-
-2026-11-16 SDK 视觉修复：排行榜和占比图按完整标签宽度预留空间，修复窄容器及长单位数值裁切。原冻结 SDK 保留，新候选独立升版验收；见 [标签回归记录](docs/verification/sdk-label-clipping-repair-2026-11-16.md)。
-
-2026-11-16 新候选本地验收收口：core 0.0.11、Vue/React 0.0.12 由已安装 CLI 0.0.11 完成全新消费者 adopt，56 张截图与已审查基线摘要一致；6.0.0 双框架 strict/strict-only 拒绝、显式 legacy 保持 hold、原双消费者真实回退通过。折线图两框架的兼容报告落库/重启/隐私/篡改拒绝及新冻结输入 T10 168 项通过，见 [采纳与回退证据](docs/verification/sdk-label-adopt-acceptance-2026-11-16.md)。公司环境、真实试点与 T13/T14 业务输入继续开放。
+版本信息与变更记录见 [CHANGELOG.md](CHANGELOG.md)。
