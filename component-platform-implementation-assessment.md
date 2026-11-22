@@ -212,3 +212,14 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 2026-11-12：C的T11/T12本地运维准备见 docs/superpowers/plans/2026-11-12-t11-t12-platform-operations.md；独立恢复不等于生产RPO/RTO和上线完成，完整验收见 docs/release-acceptance.md。原架构文档保持不变。
 
 2026-11-13 T08 联调修复范围：API 复用 `PLATFORM_GALLERY_ORIGIN` 作为精确 CORS 来源，允许网页 Bearer、JSON 与 Idempotency-Key 预检，保持现有身份/上传/幂等协议。缺配置不放行跨域；HTTPS 部署及显式本机 HTTP 开发例外分别验证。实施见 [C跨域修复计划](docs/superpowers/plans/2026-11-13-c-gallery-cors.md)，不扩大预览域权限或生产验收结论。
+
+## 11. 自主管理账号与权限后台的范围决定
+
+2026-11-22 用户确认按 [自主管理账号设计](docs/superpowers/specs/2026-11-22-self-managed-accounts-design.md) 全量实施，执行计划见 [实施计划](docs/superpowers/plans/2026-11-22-self-managed-accounts-implementation.md)，分支 `feat/self-managed-accounts-impl`。
+
+与原「公司 OIDC」要求的差异只有一点：**身份源由平台自行维护**。用户没有现成公司统一登录、部署服务器或域名，账号与访问权限改由资产平台后台管理。认证协议不变，仍沿用 OIDC、Web Cookie 会话与 CLI PKCE，平台不自行保存密码、不新增直接交换密码的协议；登录凭据交由自托管身份服务保管。
+
+具体范围决定：自托管 Keycloak 作为身份服务，凭证仅由 API 持有；日常管理入口是资产平台的「用户与权限」后台；第一版关闭公开注册、无 SMTP 依赖，用户名不要求公司邮箱；平台超级管理员由部署初始化并按 issuer + subject 登记，第一版后台只管理普通成员，不提供任命超级管理员、修改部署信任边界或删除管理员的 HTTP 接口；本机试用使用真实身份服务、持久化存储与可信 HTTPS IP 入口，本机账号不替代正式部署验收。
+
+原架构文档 `component-platform-architecture.md` 保持原样，本节不追改历史验证结论：既有「公司 OIDC」相关记录仍是当时事实，不因此改称本次验证。不新增工作区成员，身份服务属于 infra，API、网关、画廊与 contracts 按既有职责维护。
+
