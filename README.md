@@ -1,6 +1,6 @@
 # Zhinexus 组件资产平台
 
-同一台服务器只有 IPv4 时，可以给画廊、API 和预览分配不同 HTTPS 端口，启用 IP 预览。获得域名后通过部署配置切回独立预览域。见 [部署步骤](docs/preview-ip-port.md)。
+同一台服务器只有 IPv4 时，可以给画廊、API 和预览分配不同 HTTPS 端口，启用 IP 预览。获得域名后通过管理员「接入设置」验证并切换独立预览域，同时维护公司 OIDC、Web/CLI 登录与恢复。见 [接入设置与恢复](docs/access-settings.md) 和 [IP 部署步骤](docs/preview-ip-port.md)。
 
 2026-11-21 在 `chore/g1-t10-acceptance-closeout` 完成 T10 本机技术验收。冻结 CLI 0.0.25 实测 ECharts 6.1.0 的双框架四维矩阵，原双消费者回退通过，隔离三存储逐一核对 14 个发布实现。6.0.0 因两框架类型检查失败保持 hold。G1 的 A/B 技术审查材料已归档，实际业务回执与人工结论待签署。见 [G1/T10 验收记录](docs/verification/g1-t10-closeout-2026-11-21.md)。
 
