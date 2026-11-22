@@ -1,9 +1,17 @@
 import type { QueryResult, QueryResultRow } from 'pg';
 import type { Principal } from '../auth/oidc.js';
 import { PlatformError } from '../errors.js';
+import { requireRole } from '../auth/roles.js';
 
-export type RequestContext = { principal: Principal; requestId: string };
+export type RequestContext = { principal: Principal; requestId: string;operator?:string };
 export type Sql = { query<T extends QueryResultRow = QueryResultRow>(sql: string, values?: unknown[]): Promise<QueryResult<T>> };
+export async function requireCurrentIdentity(sql:Sql,context:RequestContext,action:'read'|'upload'|'baseline'|'deprecate'):Promise<void> {
+  const active=(await sql.query("SELECT generation FROM access_active WHERE section='oidc' FOR SHARE")).rows[0];
+  if (!active || (context.principal.generation ?? '0')!==active.generation) throw new PlatformError('UNAUTHENTICATED');
+  if ((await sql.query('SELECT 1 FROM disabled_subjects WHERE subject=$1',[context.principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
+  const denied=(await sql.query('SELECT role FROM subject_role_restrictions WHERE subject=$1',[context.principal.subject])).rows.map(row=>row.role);
+  requireRole({...context.principal,roles:context.principal.roles.filter(role=>!denied.includes(role))},action);
+}
 export async function audit(sql: Sql, subject: string | undefined, event: string, target: string, data: Record<string, unknown> = {}, requestId?: string): Promise<void> {
   await sql.query('INSERT INTO audit_events(subject,event,target_id,data,request_id) VALUES ($1,$2,$3,$4,$5)', [subject ?? null, event, target, JSON.stringify(data), requestId ?? null]);
 }

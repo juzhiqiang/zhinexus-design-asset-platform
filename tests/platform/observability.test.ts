@@ -39,8 +39,14 @@ it('disables unconfigured metrics and returns unavailable rather than zero backl
   try { expect((await disabled.request('/internal/metrics',undefined,undefined,'GET')).status).toBe(404); }
   finally {await disabled.close();}
   const token='metrics-test-token-with-at-least-32-characters';
-  const h=await platformHarness({databaseUrl:'postgres://unavailable:secret@127.0.0.1:1/unavailable',metricsToken:token,events:new PlatformEvents(()=>{})});
+  // Bootstrap must read active identity configuration. Simulate the outage only after a healthy start.
+  const h=await platformHarness({metricsToken:token,events:new PlatformEvents(()=>{})});
   try {
+    const database=h.platform().db!;
+    const pid=(await database.query('SELECT pg_backend_pid() AS id')).rows[0]!.id;
+    database.pool.options.connectionString='postgres://unavailable:secret@127.0.0.1:1/unavailable';
+    const removed=new Promise<void>(resolve=>database.pool.once('remove',()=>resolve()));
+    await h.db.query('SELECT pg_terminate_backend($1)',[pid]);await removed;
     const response=await h.request('/internal/metrics',undefined,token,'GET');
     expect(response.status).toBe(503);expect(await response.json()).toMatchObject({code:'INFRA_UNAVAILABLE'});
   } finally {await h.close();}

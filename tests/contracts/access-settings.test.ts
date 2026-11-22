@@ -10,6 +10,14 @@ const identity = {
 };
 
 describe('access settings contracts', () => {
+  it('accepts only exact candidate revision requests and opaque tickets',()=>{
+    const revision='123e4567-e89b-42d3-a456-426614174000';
+    expect(access.validateOidcCandidateStart({revision}).ok).toBe(true);
+    expect(access.validateOidcCandidateStart({revision,subject:'operator'}).ok).toBe(false);
+    expect(access.validateOidcCandidateStart({revision:'bad'}).ok).toBe(false);
+    expect(access.validateOidcCandidateTicket({ticket:'a'.repeat(43)}).ok).toBe(true);
+    for(const input of [{ticket:'https://other.example.com'},{ticket:'a'.repeat(43),url:'https://other.example.com'},{ticket:['a'.repeat(43)]}])expect(access.validateOidcCandidateTicket(input).ok).toBe(false);
+  });
   it('accepts independent OIDC and preview configuration', () => {
     expect(validateAccessConfig('oidc', identity).ok).toBe(true);
     expect(validateAccessConfig('preview', { mode: 'ip-port', previewOrigin: 'https://192.0.2.5:8443' }).ok).toBe(true);
@@ -46,5 +54,13 @@ describe('access settings contracts', () => {
     expect(validate(value).ok).toBe(true);
     expect(validate({...value,tokenEndpoint:'http://id.example.com/token'}).ok).toBe(false);
     expect(validate({...value,redirectUri:'http://127.0.0.1:43129/'}).ok).toBe(false);
+  });
+  it('validates settings responses before exposing them to the administrator',()=>{
+    const validate=access.validateAccessSettingsView;
+    expect(typeof validate).toBe('function');if(!validate)return;
+    const value={sections:{oidc:{generation:'0',history:[]},preview:{generation:'0',history:[]}},audit:[]};
+    expect(validate(value).ok).toBe(true);
+    expect(validate({...value,token:'secret'}).ok).toBe(false);
+    expect(validate({...value,sections:{...value.sections,preview:{generation:0,history:[]}}}).ok).toBe(false);
   });
 });

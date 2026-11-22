@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { environmentKey, validateApiMessage, validateCheckReport, type ApiMessages } from '@company/contracts';
 import type { Database } from '../db/database.js';
-import { audit, requireComponents, uuid, type RequestContext } from '../db/access.js';
+import { audit, requireComponents, requireCurrentIdentity, uuid, type RequestContext } from '../db/access.js';
 import { PlatformError } from '../errors.js';
 
 export class BaselineService {
@@ -12,6 +12,7 @@ export class BaselineService {
     const value = checked.value;
     if (!value.reason.trim() || value.reason.length > 2000) throw new PlatformError('INVALID_SCHEMA');
     return this.db.transaction(async client => {
+      await requireCurrentIdentity(client,context,'baseline');
       const variant = (await client.query('SELECT component_id FROM variants WHERE id=$1', [value.variantId])).rows[0];
       if (!variant) throw new PlatformError('NOT_FOUND');
       await requireComponents(client, context.principal.subject, [variant.component_id], true);
@@ -58,6 +59,7 @@ export class BaselineService {
     const reason = checked.value.reason.trim();
     if (!reason || reason.length > 2000) throw new PlatformError('INVALID_SCHEMA');
     return this.db.transaction(async client => {
+      await requireCurrentIdentity(client,context,'deprecate');
       const row = (await client.query('SELECT vr.availability,v.component_id FROM variant_releases vr JOIN variants v ON v.id=vr.variant_id WHERE vr.id=$1 FOR UPDATE OF vr', [uuid(id)])).rows[0];
       if (!row) throw new PlatformError('NOT_FOUND');
       await requireComponents(client, context.principal.subject, [row.component_id], true);

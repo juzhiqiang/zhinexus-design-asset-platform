@@ -45,7 +45,8 @@ export class PreviewRuntime {
       const current=await this.currentConfig(sql);
       const grant = (await sql.query<Access>(`SELECT g.*,vr.metadata FROM preview_grants g JOIN variant_releases vr ON vr.id=g.variant_release_id
         WHERE token_hash=$1 AND redeemed_at IS NULL AND revoked_at IS NULL AND expires_at>clock_timestamp()
-          AND preview_can_read(g.variant_release_id,g.subject) FOR UPDATE OF g`, [hash(token)])).rows[0];
+          AND preview_can_read(g.variant_release_id,g.subject)
+          AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role)) FOR UPDATE OF g`, [hash(token)])).rows[0];
       if (!grant || grant.origin !== this.origin(grant.variant_release_id, host,current.config) || grant.preview_generation!==current.previewGeneration || grant.oidc_generation!==current.oidcGeneration) throw new PreviewDenied();
       const entry = grant.metadata.examples[0]?.previewEntry;
       if (!entry || resourcePath(`/${entry}`) !== entry) throw new PreviewDenied();
@@ -63,9 +64,10 @@ export class PreviewRuntime {
       JOIN preview_grants g ON g.token_hash=s.grant_hash JOIN variant_releases vr ON vr.id=g.variant_release_id
       JOIN package_releases p ON p.id=vr.package_release_id
       WHERE s.token_hash=$1 AND g.redeemed_at IS NOT NULL AND g.revoked_at IS NULL AND g.expires_at>clock_timestamp()
-        AND preview_can_read(g.variant_release_id,g.subject)`, [hash(token)])).rows[0];
+        AND preview_can_read(g.variant_release_id,g.subject)
+        AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role))`, [hash(token)])).rows[0];
     const current=await this.currentConfig();
-    if (!access || access.origin !== this.origin(access.variant_release_id, host,current.config) || access.preview_generation!==current.previewGeneration || access.oidc_generation!==current.oidcGeneration || (await this.pool.query("SELECT 1 FROM subject_role_restrictions WHERE subject=$1 AND role='reader'",[access.subject])).rowCount) throw new PreviewDenied();
+    if (!access || access.origin !== this.origin(access.variant_release_id, host,current.config) || access.preview_generation!==current.previewGeneration || access.oidc_generation!==current.oidcGeneration) throw new PreviewDenied();
     return access;
   }
   async resource(path: string, token: string, host: string | undefined): Promise<{ bytes: Buffer; mime: string;config:PreviewConfig }> {

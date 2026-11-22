@@ -55,7 +55,7 @@ describe('T05 real PostgreSQL migration and invariants', () => {
       await expect(db.query('DELETE FROM audit_events')).rejects.toMatchObject({ code: '42501' });
       await expect(rollbackEmptyRegistry(db)).rejects.toThrow('non-empty');
       const triggers = await db.query("SELECT event_object_table FROM information_schema.triggers WHERE trigger_name='immutable_rows' GROUP BY event_object_table ORDER BY event_object_table");
-      expect(triggers.rows.map(row => row.event_object_table)).toEqual(['audit_events', 'baseline_revisions']);
+      expect(triggers.rows.map(row => row.event_object_table)).toEqual(['access_activations', 'access_audit', 'audit_events', 'baseline_revisions']);
     } finally { await db.close(); await isolated.close(); }
   });
 });

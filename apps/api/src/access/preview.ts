@@ -14,10 +14,14 @@ export async function probePreview(db:Database,settings:AccessSettingsService,ne
       const result=await network.json(previewOriginFor(id,checked)+'/access-probe',undefined,{cookie:'access-probe=credential-filter-check',authorization:'Bearer credential-filter-check'});
       if(!settings.options.gatewayId || !result || typeof result!=='object' || !('service' in result) || result.service!=='preview-gateway' || !('deploymentId' in result) || result.deploymentId!==settings.options.gatewayId) {checks.routing='failed';checks.gateway='failed';}
     }catch(error){
-      if(error instanceof ProbeFailure && error.step==='dns')checks.dns='failed';
-      else if(error instanceof ProbeFailure && error.step==='tls')checks.tls='failed';
-      else checks.routing='failed';
-      checks.gateway='failed';
+      const step = error instanceof ProbeFailure ? error.step : 'connection';
+      const failed:AccessChecks = step === 'dns' ? {dns:'failed',tls:'pending',routing:'pending',gateway:'failed'}
+        : step === 'tls' ? {dns:'passed',tls:'failed',routing:'pending',gateway:'failed'}
+        : step === 'connection' ? {dns:'passed',tls:'pending',routing:'pending',gateway:'failed'}
+        : {dns:'passed',tls:'passed',routing:'failed',gateway:'failed'};
+      for (const key of ['dns','tls','routing','gateway'] as const) {
+        if (checks[key] !== 'failed' && (failed[key] === 'failed' || failed[key] === 'pending')) checks[key] = failed[key];
+      }
     }
   }
   return checks;

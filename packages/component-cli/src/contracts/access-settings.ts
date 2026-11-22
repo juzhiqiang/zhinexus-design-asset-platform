@@ -1,4 +1,4 @@
-import { choice, object, text, validateSchema } from './schema.js';
+import { choice, object, text, timestamp, validateSchema } from './schema.js';
 import type { Schema } from './schema.js';
 import type { ValidationResult } from './release-manifest.js';
 
@@ -25,7 +25,7 @@ export const ACCESS_CHECKS = {
 export type AccessCheck = (typeof ACCESS_CHECKS)[AccessSection][number];
 export type AccessChecks = Partial<Record<AccessCheck, 'passed' | 'failed' | 'pending'>>;
 export type AccessRevision<K extends AccessSection> = {
-  id: string; config: AccessConfig<K>; createdAt: string; checkedAt?: string; checks: AccessChecks;
+  id: string; config: AccessConfig<K>; createdAt: string; checkedAt?: string; checks: AccessChecks;activated?:boolean;
 };
 export type AccessSectionView<K extends AccessSection> = {
   generation: string; active?: AccessRevision<K>; draft?: AccessRevision<K>; history: AccessRevision<K>[];
@@ -46,6 +46,10 @@ export type AccessMutation = {
 };
 export type AccessAction = 'draft' | 'validate' | 'activate' | 'rollback';
 export type AuthSessionView = { authenticated: boolean; administrator: boolean; subject?: string; roles?: string[] };
+export type OidcCandidateStart = {revision:string};
+export type OidcCandidateTicket = {ticket:string};
+export const validateOidcCandidateStart = (input:unknown):ValidationResult<OidcCandidateStart> => validateSchema(object({revision:{...text,pattern:'^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$'}}),input);
+export const validateOidcCandidateTicket = (input:unknown):ValidationResult<OidcCandidateTicket> => validateSchema(object({ticket:{...text,pattern:'^[A-Za-z0-9_-]{43}$'}}),input);
 
 const identifier: Schema = { ...text, maxLength: 256, pattern: '^[^\\s\\u0000-\\u001f\\u007f]+$' };
 const schemas: Record<AccessSection, Schema> = {
@@ -113,4 +117,11 @@ export function validateOidcCliMetadata(input:unknown): ValidationResult<OidcCli
     return {ok:false,issues:[{code:'INVALID_SCHEMA',path:'',message:'Invalid company CLI endpoints'}]};
   }
   return parsed;
+}
+export function validateAccessSettingsView(input:unknown):ValidationResult<AccessSettingsView> {
+  const generation:Schema={...text,pattern:'^(0|[1-9][0-9]{0,17})$'};
+  const checks=object(Object.fromEntries([...ACCESS_CHECKS.oidc,...ACCESS_CHECKS.preview].map(key=>[key,choice('passed','failed','pending')])),[...ACCESS_CHECKS.oidc,...ACCESS_CHECKS.preview]);
+  const revision=(section:AccessSection)=>object({id:identifier,config:schemas[section],createdAt:timestamp,checkedAt:timestamp,checks,activated:{type:'boolean'}},['checkedAt','activated']);
+  const section=(key:AccessSection)=>object({generation,active:revision(key),draft:revision(key),history:{type:'array',items:revision(key)},gatewayGeneration:generation},['active','draft','gatewayGeneration']);
+  return validateSchema(object({sections:object({oidc:section('oidc'),preview:section('preview')}),audit:{type:'array',items:object({section:choice('oidc','preview'),action:choice('draft','validate','activate','rollback'),revision:identifier,actor:text,at:timestamp,checks,result:choice('passed','failed'),generation},['checks','result','generation'])}}),input);
 }

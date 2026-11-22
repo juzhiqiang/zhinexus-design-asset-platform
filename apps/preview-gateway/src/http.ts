@@ -13,7 +13,11 @@ export function previewHandler(runtime: PreviewRuntime) {
     if(request.url==='/access-probe'){
       response.setHeader('Cache-Control','no-store');response.setHeader('Content-Type','application/json');
       if(request.method!=='GET' || request.headers.cookie || request.headers.authorization || !runtime.deploymentId){response.statusCode=404;response.end('{}');return;}
-      response.end(JSON.stringify({service:'preview-gateway',deploymentId:runtime.deploymentId}));return;
+      try {
+        const active = await runtime.currentConfig();
+        response.end(JSON.stringify({service:'preview-gateway',deploymentId:runtime.deploymentId,generation:active.previewGeneration}));
+      } catch {response.statusCode=404;response.end('{}');}
+      return;
     }
     const requestId = randomUUID(); response.setHeader('X-Request-Id', requestId);
     response.setHeader('Cache-Control', 'no-store');

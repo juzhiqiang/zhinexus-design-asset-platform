@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { UPLOAD_LIMITS, sha256, validateApiMessage, type ApiMessages, type ArtifactRef } from '@company/contracts';
 import { Database } from '../db/database.js';
-import { audit, uuid, type RequestContext } from '../db/access.js';
+import { audit, uuid, requireCurrentIdentity, type RequestContext } from '../db/access.js';
 import { PlatformError } from '../errors.js';
 import { ArtifactStore, type UploadPlan } from '../storage/artifact-store.js';
 import { validateUploadedArtifact } from './validator.js';
@@ -28,6 +28,7 @@ export class UploadService {
         planned.push({ file, key, plan: await this.store.planUpload(key, file.bytes) });
       }
       await this.db.transaction(async client => {
+        await requireCurrentIdentity(client,context,'upload');
         await client.query("INSERT INTO upload_sessions(id,subject,client_id,channel,manifest_digest,state,expires_at) VALUES ($1,$2,$3,$4,$5,'OPEN',now()+($6::double precision*interval '1 hour'))", [sessionId, context.principal.subject, context.principal.clientId, context.principal.channel, manifestDigest, this.retention.uploadHours]);
         for (const { file, key, plan } of planned) await client.query('INSERT INTO upload_files(session_id,path,sha256,bytes,object_key,multipart_id,part_count) VALUES ($1,$2,$3,$4,$5,$6,$7)', [sessionId, file.path, file.sha256, file.bytes, key, plan.multipart?.uploadId ?? null, plan.multipart?.parts.length ?? 1]);
         await audit(client, context.principal.subject, 'UPLOAD_CREATED', sessionId, { fileCount: files.length }, context.requestId);
@@ -55,6 +56,7 @@ export class UploadService {
     const verifiedFiles = files.map(file => ({ path: file.path, sha256: file.sha256, bytes: Number(file.bytes) }));
     if (checked.value.parts.some(part => !files.some(file => file.path === part.path && file.multipart_id))) throw new PlatformError('UPLOAD_INCOMPLETE');
     const fence = await this.db.transaction(async client => {
+      await requireCurrentIdentity(client,context,'upload');
       const row = (await client.query<Session>('SELECT * FROM upload_sessions WHERE id=$1 FOR UPDATE', [sessionId])).rows[0]!;
       if (row.state === 'COMPLETE') return null;
       if (row.expires_at.getTime() <= Date.now()) throw new PlatformError('UPLOAD_INCOMPLETE');
@@ -79,12 +81,14 @@ export class UploadService {
         const frozenKey = `frozen/${sessionId}/${fence}/${randomUUID()}`;
         await this.store.freeze(frozenKey, bytes, artifact.value.mimeType);
         await this.db.transaction(async client => {
+          await requireCurrentIdentity(client,context,'upload');
           const updated = await client.query("UPDATE upload_sessions SET lease_until=now()+interval '2 minutes' WHERE id=$1 AND fence=$2 AND state='VERIFYING' AND lease_until>now()", [sessionId, fence]);
           if (!updated.rowCount) throw new PlatformError('LEASE_LOST');
           await client.query('UPDATE upload_files SET frozen_key=$3,mime_type=$4,verified_at=now() WHERE session_id=$1 AND path=$2', [sessionId, file.path, frozenKey, artifact.value.mimeType]);
         });
       }
       await this.db.transaction(async client => {
+        await requireCurrentIdentity(client,context,'upload');
         const updated = await client.query("UPDATE upload_sessions SET state='COMPLETE',lease_until=NULL,last_error_code=NULL WHERE id=$1 AND fence=$2 AND state='VERIFYING' AND lease_until>now()", [sessionId, fence]);
         if (!updated.rowCount) throw new PlatformError('LEASE_LOST');
         await audit(client, context.principal.subject, 'UPLOAD_VERIFIED', sessionId, {}, context.requestId);
