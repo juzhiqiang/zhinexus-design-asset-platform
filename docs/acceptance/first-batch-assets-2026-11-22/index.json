@@ -1,0 +1,316 @@
+{
+  "status": "draft-unpublished",
+  "evidenceKind": "workspace-qa-crop",
+  "baseline": "b665681997ba842de6ed039652bf4f358771db6a",
+  "summaryPath": "docs/verification/component-visual-acceptance-2026-11-22/summary.json",
+  "assets": [
+    {
+      "component": "bar",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/bar-react.png",
+        "sha256": "2f98bb8d38e3d34a56f420529b11a43135e8e0c0bfba67bdab59ec6fbe55bc47",
+        "bytes": 8838
+      },
+      "source": {
+        "caseId": "react-bar-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-bar-light-canvas-1280-default.png",
+        "sha256": "360b835135c59afdf7f08e50d44dee06587009c5f5b980afe88d4e5e1eb0a4ff",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "line",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/line-react.png",
+        "sha256": "8cdd27af47be4faac4dd237c76e94f81dc938a4ae748f23864ae54750300c5fa",
+        "bytes": 12333
+      },
+      "source": {
+        "caseId": "react-line-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-line-light-canvas-1280-default.png",
+        "sha256": "84871739f3d7101970cc3f888a3ee4816d7b939d74097204ce5a13253e70e015",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "pie",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/pie-react.png",
+        "sha256": "e72ea7465d592e46d849c4f96bdf92149b05989162f17560d19de829e7c24e28",
+        "bytes": 17739
+      },
+      "source": {
+        "caseId": "react-pie-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-pie-light-canvas-1280-default.png",
+        "sha256": "d72e1bb3ac139e0e39827d997397b8eb7860a61c5d04601ccd9aee40a79eea1c",
+        "crop": {
+          "x": 24,
+          "y": 197,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "proportion",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/proportion-react.png",
+        "sha256": "7c3f3004220f5e6bbda1486741dde7369d67a850d99697158d8abd38160166fb",
+        "bytes": 17516
+      },
+      "source": {
+        "caseId": "react-proportion-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-proportion-light-canvas-1280-default.png",
+        "sha256": "3c2e29c61bc191a186da29c8581e46fcebe197fea4cf837d996b1038f7034a63",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 562,
+          "height": 322
+        }
+      }
+    },
+    {
+      "component": "ranking",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/ranking-react.png",
+        "sha256": "9d2578288da2c9048d4df3e10e9fa0ae943a2a64183611e9d61a1581af97994d",
+        "bytes": 19498
+      },
+      "source": {
+        "caseId": "react-ranking-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-ranking-light-canvas-1280-default.png",
+        "sha256": "dba1998787e0ac98506652aec6234e4bcb9db5065b54d53924a41ff4b568eb6e",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 562,
+          "height": 322
+        }
+      }
+    },
+    {
+      "component": "scatter",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/scatter-react.png",
+        "sha256": "c5ff46a66ef5b22c925c0532d4ee48a3cc27a6f62506a65c68f966742736d147",
+        "bytes": 9054
+      },
+      "source": {
+        "caseId": "react-scatter-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-scatter-light-canvas-1280-default.png",
+        "sha256": "16f1047d1fdcd5fd23acec12a0fbc9c30394ecb84260c08bac52abef22ac6570",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "trend-card",
+      "framework": "react",
+      "packageName": "@company/charts-react",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/trend-card-react.png",
+        "sha256": "b7d4500b72f9c23dc6ccb35299fbff508dff71f9bb13ddb4b409a2f4311ce0bb",
+        "bytes": 10084
+      },
+      "source": {
+        "caseId": "react-trend-card-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/react-trend-card-light-canvas-1280-default.png",
+        "sha256": "a3f5eabc6cf71797948b284032b68afe0fb6195167f47bbc575989ed9287bd71",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 362,
+          "height": 182
+        }
+      }
+    },
+    {
+      "component": "bar",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/bar-vue.png",
+        "sha256": "2f98bb8d38e3d34a56f420529b11a43135e8e0c0bfba67bdab59ec6fbe55bc47",
+        "bytes": 8838
+      },
+      "source": {
+        "caseId": "vue-bar-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-bar-light-canvas-1280-default.png",
+        "sha256": "b73b726844f3066351441ff46b8f438bf149ebf56c79fde335a32c3bce6cde72",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "line",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/line-vue.png",
+        "sha256": "8cdd27af47be4faac4dd237c76e94f81dc938a4ae748f23864ae54750300c5fa",
+        "bytes": 12333
+      },
+      "source": {
+        "caseId": "vue-line-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-line-light-canvas-1280-default.png",
+        "sha256": "98bfc6063da20de6fd9144ec32db298ab7a7cdfeeb074fb7974c48b5cdb16637",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "pie",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/pie-vue.png",
+        "sha256": "e72ea7465d592e46d849c4f96bdf92149b05989162f17560d19de829e7c24e28",
+        "bytes": 17739
+      },
+      "source": {
+        "caseId": "vue-pie-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-pie-light-canvas-1280-default.png",
+        "sha256": "1bc3826dc816dbb481657280a55e2e8a2fafd03d58c58ee1b52656a5627f2732",
+        "crop": {
+          "x": 24,
+          "y": 197,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "proportion",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/proportion-vue.png",
+        "sha256": "7c3f3004220f5e6bbda1486741dde7369d67a850d99697158d8abd38160166fb",
+        "bytes": 17516
+      },
+      "source": {
+        "caseId": "vue-proportion-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-proportion-light-canvas-1280-default.png",
+        "sha256": "355038cb05c226abdc599ad41c57f6540a54787aea5619e2a5e9f2f2c5e3bf9e",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 562,
+          "height": 322
+        }
+      }
+    },
+    {
+      "component": "ranking",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/ranking-vue.png",
+        "sha256": "9d2578288da2c9048d4df3e10e9fa0ae943a2a64183611e9d61a1581af97994d",
+        "bytes": 19498
+      },
+      "source": {
+        "caseId": "vue-ranking-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-ranking-light-canvas-1280-default.png",
+        "sha256": "2cb2900d341c1dafcf475747357051fe28c1cd3a02ef7374b028b1ff8a313565",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 562,
+          "height": 322
+        }
+      }
+    },
+    {
+      "component": "scatter",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/scatter-vue.png",
+        "sha256": "c5ff46a66ef5b22c925c0532d4ee48a3cc27a6f62506a65c68f966742736d147",
+        "bytes": 9054
+      },
+      "source": {
+        "caseId": "vue-scatter-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-scatter-light-canvas-1280-default.png",
+        "sha256": "07688e898c0ae3d9779a6528a15557ec6301db674d292429e8c066a3116863bd",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 722,
+          "height": 362
+        }
+      }
+    },
+    {
+      "component": "trend-card",
+      "framework": "vue",
+      "packageName": "@company/charts-vue",
+      "packageVersion": "0.0.12",
+      "image": {
+        "path": "docs/acceptance/first-batch-assets-2026-11-22/trend-card-vue.png",
+        "sha256": "b7d4500b72f9c23dc6ccb35299fbff508dff71f9bb13ddb4b409a2f4311ce0bb",
+        "bytes": 10084
+      },
+      "source": {
+        "caseId": "vue-trend-card-light-canvas-1280-default",
+        "path": ".tools/qa/component-visual-acceptance/vue-trend-card-light-canvas-1280-default.png",
+        "sha256": "31fc2018d902a9ca1d82f9c4a74c3d457727e983b94ce50f18e4a851e9b82f39",
+        "crop": {
+          "x": 24,
+          "y": 167,
+          "width": 362,
+          "height": 182
+        }
+      }
+    }
+  ]
+}
