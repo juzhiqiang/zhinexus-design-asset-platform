@@ -58,7 +58,7 @@ describe('自管账号的平台主体', () => {
 });
 
 describe('受保护请求的账号版本与认证时间核验', () => {
-  const claims = { accountVersion: '3', authTime: 1001, iat: 1001 };
+  const claims = { platform_account_version: '3', auth_time: 1001, iat: 1001 };
   it('接受签名版本与本地一致且 auth_time 严格大于下限的令牌', async () => {
     const { service } = harness([account()]);
     await expect(service.verifiedAccount(principal, claims)).resolves.toMatchObject({ username: 'lin.wei', version: '3' });
@@ -77,24 +77,24 @@ describe('受保护请求的账号版本与认证时间核验', () => {
   });
   it('拒绝旧账号版本，即使角色看起来仍然有效', async () => {
     const { service } = harness([account()]);
-    await expect(service.verifiedAccount(principal, { ...claims, accountVersion: '2' })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    await expect(service.verifiedAccount(principal, { ...claims, platform_account_version: '2' })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
   });
   it('拒绝缺失、非字符串或越界的账号版本声明', async () => {
     const { service } = harness([account()]);
-    for (const accountVersion of [undefined, null, 3, '3.0', '-1', '9007199254740993', '']) {
-      await expect(service.verifiedAccount(principal, { ...claims, accountVersion })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    for (const accountVersion of [undefined, null, 3, '3.0', '-1', '9007199254740993', '', '4']) {
+      await expect(service.verifiedAccount(principal, { ...claims, platform_account_version: accountVersion })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
     }
   });
   it('拒绝 auth_time 等于或早于下限，同一秒的新登录必须下一秒重新认证', async () => {
     const { service } = harness([account({ auth_time_floor: '1000' })]);
-    await expect(service.verifiedAccount(principal, { ...claims, authTime: 1000 })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
-    await expect(service.verifiedAccount(principal, { ...claims, authTime: 999 })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
-    await expect(service.verifiedAccount(principal, { ...claims, authTime: 1001 })).resolves.toBeTruthy();
+    await expect(service.verifiedAccount(principal, { ...claims, auth_time: 1000 })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    await expect(service.verifiedAccount(principal, { ...claims, auth_time: 999 })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    await expect(service.verifiedAccount(principal, { ...claims, auth_time: 1001 })).resolves.toBeTruthy();
   });
   it('拒绝缺失或非数字的 auth_time 与 iat', async () => {
     const { service } = harness([account()]);
-    for (const authTime of [undefined, null, '1001', Number.NaN, Number.POSITIVE_INFINITY]) {
-      await expect(service.verifiedAccount(principal, { ...claims, authTime })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
+    for (const authTime of [undefined, null, '1001', 1000.5, Number.NaN, Number.POSITIVE_INFINITY]) {
+      await expect(service.verifiedAccount(principal, { ...claims, auth_time: authTime })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
     }
     await expect(service.verifiedAccount(principal, { ...claims, iat: undefined })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });
     await expect(service.verifiedAccount(principal, { ...claims, iat: 1000 })).rejects.toMatchObject({ code: 'UNAUTHENTICATED' });

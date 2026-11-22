@@ -295,7 +295,7 @@ export default function ProjectContextMatchPage() {
       <main>
         <p className="eyebrow">Zhinexus 工作区</p>
         <h1>登录后开放</h1>
-        <p><a className="filter-btn active" href={companyLoginUrl}>使用公司账号登录</a></p>
+        <p><a className="filter-btn active" href={companyLoginUrl}>账号登录</a></p>
         <p className="lead">项目上下文匹配需要登录。请输入开发者凭证（OIDC Bearer Token）以继续：</p>
         <form onSubmit={handleLogin} className="auth-form" style={{ maxWidth: 480, marginTop: 24 }}>
           <div style={{ marginBottom: 16 }}>

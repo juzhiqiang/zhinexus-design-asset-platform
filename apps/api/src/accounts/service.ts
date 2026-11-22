@@ -354,14 +354,21 @@ export class ManagedAccountsService {
     return this.db.transaction(sql => this.detailOf(sql, confirmed));
   }
 
-  /** Called by the authentication path; every claim is signed and every comparison fails closed. */
-  async verifiedAccount(principal: Principal, claims: { accountVersion?: unknown; authTime?: unknown; iat?: unknown }): Promise<AccountRow> {
+  /**
+   * Called by the authentication path with the signed token payload. Every claim is checked
+   * against the directory and every comparison fails closed: a missing or malformed claim,
+   * an older account version, or an authentication time at or below the floor all deny access.
+   */
+  async verifiedAccount(principal: Principal, claims: Record<string, unknown>): Promise<AccountRow> {
     const row = await this.resolveSelfManaged(principal);
     if (!row) throw new AuthFailure('UNAUTHENTICATED');
     if (!row.enabled) throw new AuthFailure('FORBIDDEN');
-    if (typeof claims.accountVersion !== 'string' || !/^(0|[1-9][0-9]{0,18})$/.test(claims.accountVersion) || claims.accountVersion !== row.version) throw new AuthFailure('UNAUTHENTICATED');
-    if (typeof claims.authTime !== 'number' || !Number.isFinite(claims.authTime) || claims.authTime <= Number(row.auth_time_floor)) throw new AuthFailure('UNAUTHENTICATED');
-    if (typeof claims.iat !== 'number' || !Number.isFinite(claims.iat) || claims.iat < claims.authTime) throw new AuthFailure('UNAUTHENTICATED');
+    const version = claims['platform_account_version'];
+    const authTime = claims['auth_time'];
+    if (typeof version !== 'string' || !/^(0|[1-9][0-9]{0,18})$/.test(version) || version !== row.version) throw new AuthFailure('UNAUTHENTICATED');
+    if (typeof authTime !== 'number' || !Number.isInteger(authTime) || authTime <= Number(row.auth_time_floor)) throw new AuthFailure('UNAUTHENTICATED');
+    const iat = claims['iat'];
+    if (typeof iat !== 'number' || !Number.isInteger(iat) || iat < authTime) throw new AuthFailure('UNAUTHENTICATED');
     return row;
   }
   async accountFor(platformSubject: string): Promise<AccountRow | undefined> {
