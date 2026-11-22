@@ -61,3 +61,5 @@
 - [x] 独立复核范围与证据，更新本计划勾选和追加记录，再创建聚焦中文提交。Expected: 不宣称未运行的后台、生产 G2 或 T11 已通过。独立审查无 Critical/Important；异常清理建议作为非阻断项保留。
 
 执行结果见 [QA 记录](../../verification/component-visual-acceptance-2026-11-22.md)、[资产草案](../../acceptance/first-batch-assets-2026-11-22.md) 与 [测试清单](../../acceptance/platform-test-checklist-2026-11-22.md)。计划完成表示检查和交付完成，视觉验收仍有 V01–V03 未通过。
+
+2026-11-22 已合并本地 main（`3861b86e`），合并结果完成 10/10 无缓存构建、136 文件 / 2343 项常规回归。首次缺少本机浏览器的环境失败及补齐后复跑结果，独立追加到 [合并复验记录](../../verification/component-visual-acceptance-integration-2026-11-22.md)。
