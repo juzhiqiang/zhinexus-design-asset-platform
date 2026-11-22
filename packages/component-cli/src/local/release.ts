@@ -5,6 +5,7 @@ import { manifestDigest } from '../contracts/digests.js';
 import type { ReleaseManifestV1 } from '../contracts/release-manifest.js';
 import { validateApiMessage, type ApiMessages } from '../contracts/api.js';
 import { loadReleaseBundle } from './manifest.js';
+import { resolvePlatformApiUrl,resolvePlatformToken } from './credentials.js';
 
 export type ReleaseSession = {
   manifestDigest: string;
@@ -120,11 +121,11 @@ export async function executeReleaseCommand(
     await saveReleaseSession(bundleDir, session);
   }
 
-  const apiUrl = (options.apiUrl ?? process.env.PLATFORM_API_URL ?? 'http://127.0.0.1:3000').replace(
+  const apiUrl = (await resolvePlatformApiUrl(options.apiUrl) ?? 'http://127.0.0.1:3000').replace(
     /\/+$/,
     '',
   );
-  const token = options.token ?? process.env.PLATFORM_TOKEN ?? process.env.PLATFORM_API_TOKEN;
+  const token = await resolvePlatformToken(apiUrl,options.token);
 
   if (!token) {
     throw new Error('AUTH_TOKEN_REQUIRED: 发布必须提供认证凭证 (--token 或 PLATFORM_TOKEN 环境变量)');
@@ -138,7 +139,7 @@ export async function executeReleaseCommand(
     log('正在向平台创建上传会话 (POST /v1/uploads)...');
     const uploadReqRes = await fetch(`${apiUrl}/v1/uploads`, {
       method: 'POST',
-      headers: {
+      redirect: 'error', headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${token}`,
       },
@@ -167,7 +168,7 @@ export async function executeReleaseCommand(
 
       const putRes = await fetch(filePlan.uploadUrl, {
         method: 'PUT',
-        headers: {
+        redirect: 'error', headers: {
           'content-type': 'application/octet-stream',
         },
         body: Buffer.from(fileBytes),
@@ -182,7 +183,7 @@ export async function executeReleaseCommand(
     log('所有文件传输完成，正在通知服务端执行字节与摘要核对 (POST /v1/uploads/:id/complete)...');
     const completeRes = await fetch(`${apiUrl}/v1/uploads/${session.uploadSessionId}/complete`, {
       method: 'POST',
-      headers: {
+      redirect: 'error', headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${token}`,
       },
@@ -204,7 +205,7 @@ export async function executeReleaseCommand(
     log('正在向平台提交发布作业 (POST /v1/releases)...');
     const releaseRes = await fetch(`${apiUrl}/v1/releases`, {
       method: 'POST',
-      headers: {
+      redirect: 'error', headers: {
         'content-type': 'application/json',
         authorization: `Bearer ${token}`,
         'idempotency-key': session.idempotencyKey,
@@ -235,7 +236,7 @@ export async function executeReleaseCommand(
   while (Date.now() < deadline) {
     const statusRes = await fetch(`${apiUrl}/v1/releases/${session.jobId}`, {
       method: 'GET',
-      headers: {
+      redirect: 'error', headers: {
         authorization: `Bearer ${token}`,
       },
       signal: AbortSignal.timeout(15_000),
@@ -283,7 +284,7 @@ export async function executeReleaseCommand(
       log('作业等待重试，正在触发平台重试机制 (POST /v1/releases/:id/retry)...');
       await fetch(`${apiUrl}/v1/releases/${session.jobId}/retry`, {
         method: 'POST',
-        headers: {
+        redirect: 'error', headers: {
           'content-type': 'application/json',
           authorization: `Bearer ${token}`,
         },
@@ -320,11 +321,11 @@ export async function executeStatusCommand(
     };
   }
 
-  const apiUrl = (options.apiUrl ?? process.env.PLATFORM_API_URL ?? 'http://127.0.0.1:3000').replace(
+  const apiUrl = (await resolvePlatformApiUrl(options.apiUrl) ?? 'http://127.0.0.1:3000').replace(
     /\/+$/,
     '',
   );
-  const token = options.token ?? process.env.PLATFORM_TOKEN ?? process.env.PLATFORM_API_TOKEN;
+  const token = await resolvePlatformToken(apiUrl,options.token);
 
   if (!token) {
     return {
@@ -334,7 +335,7 @@ export async function executeStatusCommand(
   }
 
   const res = await fetch(`${apiUrl}/v1/releases/${jobId}`, {
-    headers: {
+    redirect: 'error', headers: {
       authorization: `Bearer ${token}`,
     },
     signal: AbortSignal.timeout(15_000),

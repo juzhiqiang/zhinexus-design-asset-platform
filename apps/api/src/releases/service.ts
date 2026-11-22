@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { manifestDigest, validateApiMessage, type ApiMessages, type CheckReportV1, type ReleaseManifestV1 } from '@company/contracts';
 import type { Database } from '../db/database.js';
-import { audit, requireComponents, requirePackages, uuid, type RequestContext, type Sql } from '../db/access.js';
+import { audit, requireComponents, requirePackages, requireCurrentIdentity, uuid, type RequestContext, type Sql } from '../db/access.js';
 import type { UploadService } from '../uploads/service.js';
 import { validatePlatformBundle } from '../uploads/validator.js';
 import { PlatformError } from '../errors.js';
@@ -26,6 +26,7 @@ export class ReleaseService {
     if (digest !== frozen.session.manifest_digest) throw new PlatformError('DIGEST_MISMATCH');
     const requestDigest = await manifestDigest(validated.value);
     return this.db.transaction(async client => {
+      await requireCurrentIdentity(client,context,'upload');
       await requireComponents(client, context.principal.subject, manifest.variants.map(variant => variant.componentId));
       await requirePackages(client, context.principal.subject, manifest.packages.map(pkg => pkg.name));
       // Serialize matching keys across API processes, with the unique constraint as the final guard.
@@ -96,6 +97,7 @@ export class ReleaseService {
   }
   async retry(jobId: string, context: RequestContext): Promise<ApiMessages['retryReleaseResponse']> {
     return this.db.transaction(async client => {
+      await requireCurrentIdentity(client,context,'upload');
       const job = await this.readable(client, jobId, context, true);
       await requireComponents(client, context.principal.subject, job.manifest.variants.map(variant => variant.componentId));
       await requirePackages(client, context.principal.subject, job.manifest.packages.map(pkg => pkg.name));

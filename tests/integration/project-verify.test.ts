@@ -884,10 +884,10 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
     }
   });
 
-  it('取消信号会终止运行中的原生脚本且保留 CANCELLED 结果', async () => {
+  it('工具链检查期间到期的取消信号阻止脚本副作用并保留 CANCELLED 结果', async () => {
     const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
       scripts: {
-        typecheck: "node -e \"setTimeout(() => require('fs').writeFileSync('cancel-sentinel.txt', 'finished'), 1500)\"",
+        typecheck: "node -e \"require('fs').writeFileSync('cancel-started.txt', 'started'); setTimeout(() => require('fs').writeFileSync('cancel-sentinel.txt', 'finished'), 1500)\"",
         build: 'node -e "process.exit(0)"',
       },
     });
@@ -905,12 +905,43 @@ describe('T17 A1 verifyIntegration（本地验证与证据报告）', () => {
       expect(report).toBeDefined();
       expect(report!.status).toBe('failed');
       expect(report!.pendingItems.some(issue => issue.code === 'CANCELLED')).toBe(true);
+      expect(fs.existsSync(path.join(root, 'cancel-started.txt'))).toBe(false);
       expect(fs.existsSync(path.join(root, 'cancel-sentinel.txt'))).toBe(false);
       expect(report!.checks.find(check => check.category === 'build')?.status).toBe('not-run');
     } finally {
       clearTimeout(timer);
     }
   });
+
+  it('脚本已运行后取消会终止原生进程树并跳过后续构建', async () => {
+    const { root, canonicalRoot, artifactRoot, plan, applyResult } = await setupAppliedProject({
+      scripts: {
+        typecheck: "node -e \"require('fs').writeFileSync('cancel-started.txt', 'started'); setTimeout(() => require('fs').writeFileSync('cancel-sentinel.txt', 'finished'), 1500)\"",
+        build: 'node -e "process.exit(0)"',
+      },
+    });
+    const manifestHash = sha256Hex(fs.readFileSync(path.join(root, 'package.json')));
+    const { spec, authorization } = makeSpecAndAuth(canonicalRoot, plan, applyResult, {
+      commands: [
+        { kind: 'type', script: 'typecheck', manifestPath: 'package.json', manifestSha256: manifestHash, timeoutMs: 10_000, outputDirectories: [] },
+        { kind: 'build', script: 'build', manifestPath: 'package.json', manifestSha256: manifestHash, timeoutMs: 10_000, outputDirectories: ['dist'] },
+      ],
+    });
+    const controller = new AbortController();
+    const timer = setInterval(() => {
+      if (fs.existsSync(path.join(root, 'cancel-started.txt'))) controller.abort();
+    }, 10);
+    try {
+      const report = await callVerify(cliExports, root, plan, { applyResult, spec, authorization, artifactRoot, signal: controller.signal });
+      expect(fs.existsSync(path.join(root, 'cancel-started.txt'))).toBe(true);
+      expect(report!.pendingItems.some(issue => issue.code === 'CANCELLED')).toBe(true);
+      await new Promise(resolve => setTimeout(resolve, 1600));
+      expect(fs.existsSync(path.join(root, 'cancel-sentinel.txt'))).toBe(false);
+      expect(report!.checks.find(check => check.category === 'build')?.status).toBe('not-run');
+    } finally {
+      clearInterval(timer);
+    }
+  }, 15_000);
 
   it('取消信号会终止等待中的浏览器验证并跳过视觉检查', async () => {
     let loaded = false;

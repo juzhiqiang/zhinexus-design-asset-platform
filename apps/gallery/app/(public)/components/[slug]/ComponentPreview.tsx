@@ -23,7 +23,7 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
     return () => controller.abort();
   }, [componentId, variantId, framework]);
 
-  const opaque = ipPreviewMode || grant?.isolation === 'ip-port';
+  const opaque = grant ? grant.isolation === 'ip-port' : ipPreviewMode;
   const sandbox = opaque ? 'allow-scripts' : 'allow-scripts allow-same-origin';
   const url = grant?.url ?? (opaque ? null : previewUrl);
 

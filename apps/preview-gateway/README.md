@@ -1,6 +1,6 @@
 # 静态预览网关（T07 C）
 
-网关仅从 MinIO 读取 T06 已冻结的静态文件，不安装包、不构建、不运行上传脚本、不启动浏览器。默认每个 `variant_release` 使用独立 HTTPS origin，例如 `https://r-<uuid>.preview.company-assets.net`，平台/API 使用另一个注册域。暂无域名时，可按 [IP 预览部署](../../docs/preview-ip-port.md) 显式使用同一 IPv4 上的专用 HTTPS 端口。运行前先在 API 执行迁移 001–006。
+网关仅从 MinIO 读取 T06 已冻结的静态文件，不安装包、不构建、不运行上传脚本、不启动浏览器。默认每个 `variant_release` 使用独立 HTTPS origin，例如 `https://r-<uuid>.preview.company-assets.net`，平台/API 使用另一个注册域。暂无域名时，可按 [IP 预览部署](../../docs/preview-ip-port.md) 显式使用同一 IPv4 上的专用 HTTPS 端口。运行前先在 API 执行全部现有迁移（当前 001–011）。
 
 ## 配置与运行
 
@@ -17,13 +17,17 @@ MinIO 账户只授予目标桶 `releases/*` 的 GetObject。网关 PostgreSQL �
 ```sql
 GRANT SELECT ON components, component_permissions, disabled_subjects, variants,
   variant_releases, package_releases, release_jobs, release_artifacts,
-  preview_grants, preview_sessions TO preview_reader;
+  preview_grants, preview_sessions, access_active, access_revisions,
+  subject_role_restrictions TO preview_reader;
 GRANT UPDATE (redeemed_at) ON preview_grants TO preview_reader;
+GRANT UPDATE (gateway_generation) ON access_active TO preview_reader;
 GRANT INSERT ON preview_sessions TO preview_reader;
 GRANT INSERT ON audit_events TO preview_reader;
 GRANT USAGE ON SEQUENCE audit_events_id_seq TO preview_reader;
 GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,text) TO preview_reader;
 ```
+
+可直接使用 [权限脚本](../../infra/gateway/preview-role.sql)。网关只读取活动配置和撤销角色、更新网关确认代数，不能修改活动指针、代数或读取 OIDC 会话／身份映射。实际生产账号和 MinIO 策略仍需部署验收。域名入口只转发唯一有效 `__Host-preview` Cookie，过滤其他 Cookie 和全部 Authorization；`/access-probe` 与 IP 入口过滤全部凭据。
 
 ## 授权及静态目录
 

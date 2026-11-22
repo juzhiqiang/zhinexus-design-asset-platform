@@ -10,20 +10,30 @@ function previewCsp(platform: string, source: string, sandbox: string): string {
 export function previewHandler(runtime: PreviewRuntime) {
   return async (request: IncomingMessage, response: ServerResponse, next: () => void): Promise<void> => {
     if (request.url === '/healthz') { next(); return; }
+    if(request.url==='/access-probe'){
+      response.setHeader('Cache-Control','no-store');response.setHeader('Content-Type','application/json');
+      if(request.method!=='GET' || request.headers.cookie || request.headers.authorization || !runtime.deploymentId){response.statusCode=404;response.end('{}');return;}
+      try {
+        const active = await runtime.currentConfig();
+        response.end(JSON.stringify({service:'preview-gateway',deploymentId:runtime.deploymentId,generation:active.previewGeneration}));
+      } catch {response.statusCode=404;response.end('{}');}
+      return;
+    }
     const requestId = randomUUID(); response.setHeader('X-Request-Id', requestId);
     response.setHeader('Cache-Control', 'no-store');
     response.setHeader('Referrer-Policy', 'no-referrer');
     response.setHeader('X-Content-Type-Options', 'nosniff');
     response.setHeader('X-Robots-Tag', 'noindex, nofollow');
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
-    const config = runtime.config;
-    const ipPort = config?.mode === 'ip-port';
-    const platform = config?.platformOrigin ?? "'none'";
+    let config = runtime.config;
+    let ipPort = config?.mode === 'ip-port';
+    let platform = config?.platformOrigin ?? "'none'";
     response.setHeader('Content-Security-Policy', ipPort
       ? `default-src 'none'; frame-ancestors ${platform}; sandbox allow-scripts`
       : previewCsp(platform, "'self'", 'allow-scripts allow-same-origin'));
     try {
       if (!config) throw new PreviewDenied();
+      config=(await runtime.currentConfig()).config;ipPort=config.mode==='ip-port';platform=config.platformOrigin;
       if (request.method !== 'GET' && request.method !== 'HEAD') { response.statusCode = 405; response.setHeader('Allow', 'GET, HEAD'); response.end(); return; }
       const raw = request.url ?? '';
       const session = ipPort && raw.startsWith(previewSessionPrefix) ? sessionResource(raw) : undefined;
@@ -33,6 +43,7 @@ export function previewHandler(runtime: PreviewRuntime) {
         const query = new URLSearchParams(raw.split('?')[1]);
         if (raw.split('?').length !== 2 || [...query.keys()].length !== 1 || !query.has('grant')) throw new PreviewDenied();
         const redeemed = await runtime.redeem(query.get('grant')!, request.headers.host);
+        ipPort=redeemed.config.mode==='ip-port';
         const entry = redeemed.entry.split('/').map(encodeURIComponent).join('/');
         let location = '/' + entry;
         if (ipPort) {
@@ -45,6 +56,8 @@ export function previewHandler(runtime: PreviewRuntime) {
       }
       if (ipPort && !session) throw new PreviewDenied();
       const result = await runtime.resource(path, session?.token ?? sessionToken(request.headers.cookie), request.headers.host);
+      config=result.config;platform=config.platformOrigin;
+      response.setHeader('Content-Security-Policy',previewCsp(platform,"'self'",config.mode==='ip-port' ? 'allow-scripts' : 'allow-scripts allow-same-origin'));
       if (session) {
         response.setHeader('Content-Security-Policy', previewCsp(platform, config.previewOrigin + session.prefix, 'allow-scripts'));
         // Sandboxed ES modules fetch with an opaque origin. The path authorizes each response.

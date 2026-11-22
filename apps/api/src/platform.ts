@@ -1,16 +1,21 @@
-import type { JWTVerifyGetKey } from 'jose';
-import { OidcVerifier, type OidcConfig, type Principal } from './auth/oidc.js';
+import { createLocalJWKSet,type JSONWebKeySet,type JWTVerifyGetKey } from 'jose';
+import { OidcVerifier, AuthFailure, type OidcConfig, type Principal } from './auth/oidc.js';
 import { requireRole } from './auth/roles.js';
 import { Database } from './db/database.js';
-import { audit, type RequestContext } from './db/access.js';
+import { audit, requireCurrentIdentity, type RequestContext } from './db/access.js';
 import { ArtifactStore, type StorageConfig } from './storage/artifact-store.js';
 import { UploadService } from './uploads/service.js';
 import { PlatformError } from './errors.js';
 import { previewConfigFromEnv, validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
 import { PlatformEvents } from './observability/events.js';
 import { retentionPolicy, type RetentionPolicy } from './operations/retention.js';
+import { AccessSettingsService, validateAccessOptions, type AccessOptions } from './access/service.js';
+import { CompanyOidc } from './access/oidc.js';
+import { readFileSync } from 'node:fs';
+import { probePreview } from './access/preview.js';
+import { RestrictedHttps } from './access/outbound.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]> };
 function validateGalleryOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
@@ -35,6 +40,11 @@ export function environmentOptions(): PlatformOptions {
     webClientIds: (env.PLATFORM_OIDC_WEB_CLIENT_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
     cliClientIds: (env.PLATFORM_OIDC_CLI_CLIENT_IDS ?? '').split(',').map(value => value.trim()).filter(Boolean),
   };
+  if (env.PLATFORM_ACCESS_ADMINISTRATORS) {
+    try {
+      result.access = { apiOrigin:env.PLATFORM_API_ORIGIN ?? '',administrators:JSON.parse(env.PLATFORM_ACCESS_ADMINISTRATORS),outbound:JSON.parse(env.PLATFORM_ACCESS_OUTBOUND ?? '[]'),gatewayId:env.PLATFORM_PREVIEW_DEPLOYMENT_ID,...(env.PLATFORM_ACCESS_CA_FILE ? {ca:readFileSync(env.PLATFORM_ACCESS_CA_FILE,'utf8')} : {}),...(env.PLATFORM_ACCESS_INITIAL_OIDC ? {initialOidc:JSON.parse(env.PLATFORM_ACCESS_INITIAL_OIDC)} : {}) };
+    } catch { throw new PlatformError('INVALID_SCHEMA'); }
+  }
   return result;
 }
 export class Platform {
@@ -46,7 +56,10 @@ export class Platform {
   readonly uploads?: UploadService;
   readonly preview?: PreviewConfig;
   readonly galleryOrigin?: string;
+  readonly access?: AccessSettingsService;
+  readonly companyOidc?: CompanyOidc;
   constructor(options: PlatformOptions) {
+    if (options.access) validateAccessOptions(options.access);
     this.events = options.events ?? new PlatformEvents();
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
     this.metricsToken = options.metricsToken;
@@ -56,19 +69,58 @@ export class Platform {
       this.galleryOrigin = validateGalleryOrigin(galleryOrigin);
       if (this.preview && this.galleryOrigin !== this.preview.platformOrigin) throw new PlatformError('INVALID_SCHEMA');
     }
-    this.verifier = new OidcVerifier(options.oidc, options.keyResolver);
+    const bootstrapResolver:JWTVerifyGetKey | undefined=options.access && options.oidc && !options.keyResolver ? async (header,token)=>{
+      const network=new RestrictedHttps(options.access!.outbound,options.access!.ca,options.accessLookup);
+      const value=await network.json(options.oidc!.jwksUri);
+      if (!value || typeof value!=='object' || !('keys' in value) || !Array.isArray(value.keys) || !value.keys.length || value.keys.length>32 || value.keys.some(key=>!key || typeof key!=='object' || 'd' in key || 'k' in key)) throw new AuthFailure('UNAUTHENTICATED');
+      return createLocalJWKSet(value as JSONWebKeySet)(header,token);
+    } : undefined;
+    this.verifier = new OidcVerifier(options.oidc, options.keyResolver ?? bootstrapResolver);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
+    if (this.db && options.access) {
+      this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : probePreview(this.db!,this.access!,this.companyOidc!.network,config as import('@company/contracts').PreviewAccessConfig));
+      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup);
+    }
+  }
+  async requireAccessConfiguration():Promise<void> {
+    if (this.companyOidc || !this.db) return;
+    const exists=(await this.db.query("SELECT to_regclass('access_active') AS name")).rows[0]?.name;
+    if (exists && (await this.db.query('SELECT 1 FROM access_active WHERE active_revision_id IS NOT NULL LIMIT 1')).rowCount) throw new AuthFailure('UNAUTHENTICATED');
+  }
+  async authenticate(authorization:string | undefined) {
+    if (this.companyOidc) return this.companyOidc.authenticate(authorization);
+    await this.requireAccessConfiguration();
+    const principal=await this.verifier.verify(authorization);
+    await this.requireAccessConfiguration();
+    return principal;
+  }
+  async runAdministrator<T>(authorization: string | undefined, requestId: string, operation: (service: AccessSettingsService, context: RequestContext) => Promise<T>): Promise<T> {
+    let principal: Principal | undefined;
+    try {
+      principal = await this.authenticate(authorization);
+      if (!this.db || !this.access) throw new PlatformError('INFRA_UNAVAILABLE');
+      const context = { principal, requestId };
+      this.access.administrator(context);
+      if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
+      if (this.companyOidc && (await this.access!.current('oidc')).generation!==principal.generation) throw new AuthFailure('UNAUTHENTICATED');
+      return await operation(this.access, context);
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? error.code : undefined;
+      if (code === 'UNAUTHENTICATED' || code === 'FORBIDDEN') await this.db?.query('SELECT 1').then(()=>audit(this.db!,principal?.subject,'AUTH_DENIED','access-settings',{code},requestId)).catch(()=>{});
+      throw error;
+    }
   }
   async run<T>(authorization: string | undefined, action: 'read'|'upload'|'baseline'|'deprecate', requestId: string,
     operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {
     let principal: Principal | undefined;
     try {
-      principal = await this.verifier.verify(authorization);
+      principal = await this.authenticate(authorization);
       requireRole(principal, action);
       if (!this.db || !this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
       if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
+      await requireCurrentIdentity(this.db,{principal,requestId},action);
       return await operation({ principal, requestId }, this.uploads, this.db);
     } catch (error) {
       const code = error instanceof PlatformError && error.authorizationDenied ? 'FORBIDDEN'

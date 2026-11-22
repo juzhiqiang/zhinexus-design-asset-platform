@@ -11,6 +11,7 @@ if (!fs.existsSync(targetContractsDir)) {
 }
 
 const filesToSync = [
+  'access-settings.ts',
   'schema.ts',
   'schemas.ts',
   'validation.ts',

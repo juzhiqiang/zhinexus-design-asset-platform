@@ -145,6 +145,11 @@ async function runNativeCommand(
   args: readonly string[],
   options: { cwd: string; env: NodeJS.ProcessEnv; timeoutMs: number; signal?: AbortSignal },
 ): Promise<NativeCommandResult> {
+  // 固定工具链和快照检查是同步操作；先处理已到期的取消，避免先启动脚本再终止。
+  await new Promise<void>(resolve => setTimeout(resolve, 0));
+  if (options.signal?.aborted) {
+    return { status: null, signal: null, stdout: '', stderr: '', timedOut: false, cancelled: true };
+  }
   return new Promise(resolve => {
     const child = spawn(executable, [...args], {
       cwd: options.cwd, env: options.env, shell: false, windowsHide: true,

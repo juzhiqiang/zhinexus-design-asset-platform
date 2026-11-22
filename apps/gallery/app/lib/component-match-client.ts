@@ -139,6 +139,7 @@ async function run(query: ComponentMatchQueryV1, options: ComponentMatchOptions)
   try {
     throwIfAborted(signal); // 检查点 1：发起请求前
     response = await doFetch(`${apiUrl}${COMPONENT_MATCH_PATH}?${componentMatchSearchParams(fixed).toString()}`, {
+      ...(token==='__session__' ? {credentials:'include' as const} : {}),
       method: 'GET',
       headers: { accept: 'application/json', authorization: `Bearer ${token}` },
       ...(signal ? { signal } : {}),

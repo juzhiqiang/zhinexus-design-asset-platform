@@ -41,7 +41,7 @@ export type ApiMessages = {
   deprecateRequest: { reason: string };
   deprecateResponse: { variantReleaseId: string; status: 'DEPRECATED' };
   previewGrantRequest: { variantReleaseId: string };
-  previewGrantResponse: { bootstrapUrl: string; expiresAt: string };
+  previewGrantResponse: { bootstrapUrl: string; expiresAt: string; mode?: 'domain' | 'ip-port' };
   error: ApiError;
 };
 const identifier: Schema = { ...text, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$' };
@@ -77,7 +77,7 @@ const schemas: Record<keyof ApiMessages, Schema> = {
   deprecateRequest: object({ reason: text }),
   deprecateResponse: object({ variantReleaseId: identifier, status: { type: 'string', const: 'DEPRECATED' } }),
   previewGrantRequest: object({ variantReleaseId: identifier }),
-  previewGrantResponse: object({ bootstrapUrl: url, expiresAt: timestamp }),
+  previewGrantResponse: object({ bootstrapUrl: url, expiresAt: timestamp, mode: choice('domain', 'ip-port') }, ['mode']),
   error,
 };
 export const API_SCHEMAS: Record<string, Schema> = Object.fromEntries(Object.entries(schemas).map(([name, schema]) => [`api-${name}-v1`, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: name, ...schema }]));

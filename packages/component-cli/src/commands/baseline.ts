@@ -2,6 +2,7 @@ import * as fs from 'node:fs/promises';
 import { validateCheckReport } from '../contracts/validation.js';
 import { validateApiMessage, type ApiMessages } from '../contracts/api.js';
 import { computeEnvironmentKey } from '../local/environment.js';
+import { resolvePlatformApiUrl,resolvePlatformToken } from '../local/credentials.js';
 
 export type AcceptBaselineOptions = {
   reportPath: string;
@@ -175,7 +176,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
     };
   }
 
-  const rawApiUrl = (options.apiUrl ?? process.env.PLATFORM_API_URL ?? process.env.ZHINEXUS_API_URL ?? '').trim();
+  const rawApiUrl = (await resolvePlatformApiUrl(options.apiUrl) ?? '').trim();
   const urlCheck = validateApiUrl(rawApiUrl);
   if (!urlCheck.ok) {
     return {
@@ -186,13 +187,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
   }
   const apiUrl = urlCheck.url;
 
-  const token = (
-    options.token ??
-    process.env.PLATFORM_TOKEN ??
-    process.env.PLATFORM_API_TOKEN ??
-    process.env.ZHINEXUS_TOKEN ??
-    ''
-  ).trim();
+  const token = (await resolvePlatformToken(apiUrl,options.token) ?? '').trim();
 
   if (!token) {
     return {

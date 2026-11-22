@@ -12,6 +12,13 @@
     "expiresAt": {
       "type": "string",
       "format": "date-time"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "domain",
+        "ip-port"
+      ]
     }
   },
   "required": [

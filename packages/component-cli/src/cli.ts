@@ -11,6 +11,7 @@ export async function runCli(
       stdout: `component CLI v${version} — 工程骨架
 
 用法:
+  component login --api-url <origin> [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
   component check [--framework vue|react|all] [--staging-dir <dir>]
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
@@ -28,12 +29,17 @@ export async function runCli(
   component --help
 
 可用命令:
+  login            公司 OIDC S256 回环登录，保存当前 API 的用户私有凭证
   check            本地构建、冻结、干净消费者验证、截图与报告生成闭环
   prepare-release  整理并生成合法的 ReleaseManifestV1 与完整冻结发布材料 Bundle
   baseline         管理与确认本地自动验证产生的视觉回归基线
   integrate        只读识别目标项目（inspect）、生成可审查的只读接入计划（plan），
                    或按显式授权执行受控应用（apply）与保留用户编辑的恢复（rollback）
   init/dev/release/status  (部分开发中)
+
+发布、状态与基线命令按 --token、环境凭证、已保存登录的顺序选择认证。
+保存的凭证只用于完全匹配的 API origin，过期后需重新登录；自定义登录文件可通过
+ZHINEXUS_CREDENTIAL_FILE 指定。候选登录使用 ZHINEXUS_API_TOKEN 管理员凭证，只记录验证结果。
 
 只读边界: component integrate inspect/plan 不写入目标项目、不创建目录/缓存/备份、不执行安装/构建/
 项目脚本/浏览器；apply/rollback 的写入、安装与恢复范围由产品边界决定（授权只来自本次显式调用，
@@ -47,6 +53,20 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   }
 
   const [command, ...rest] = args;
+  if (command === 'login') {
+    try {
+      const options:Record<string,string> = {};
+      for (let i=0;i<rest.length;i+=2) {
+        const key=rest[i]!,value=rest[i+1];
+        if (!['--api-url','--credential-file','--ca-file','--candidate'].includes(key) || !value || options[key]) throw new Error();
+        options[key]=value;
+      }
+      if (!options['--api-url']) throw new Error();
+      const { companyLogin } = await import('./commands/login.js');
+      const result = await companyLogin({ apiOrigin:options['--api-url'],credentialFile:options['--credential-file'],caFile:options['--ca-file'],candidate:options['--candidate'],administratorToken:process.env.ZHINEXUS_API_TOKEN });
+      return {exitCode:0,stdout:JSON.stringify(result)+'\n',stderr:''};
+    } catch { return {exitCode:1,stdout:'',stderr:'公司登录失败：请检查接入地址、客户端、回调端口与授权。\n'}; }
+  }
 
   if (command === 'prepare-release' || (command === 'release' && rest.includes('--prepare-only'))) {
     let frameworkChoice: 'vue' | 'react' | 'all' = 'all';

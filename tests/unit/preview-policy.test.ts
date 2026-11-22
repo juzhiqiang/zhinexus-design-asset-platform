@@ -7,6 +7,9 @@ describe('preview deployment isolation', () => {
     expect(contracts.validatePreviewConfig?.(config)).toEqual(config);
     expect(contracts.previewOriginFor?.('12345678-1234-4234-8234-123456789abc', config)).toBe('https://r-12345678-1234-4234-8234-123456789abc.preview.assets.test');
   });
+  it('supports switching an IP hosted platform to a separate registered preview domain', () => {
+    expect(contracts.validatePreviewConfig({ ...config,platformOrigin:'https://127.0.0.1:4443',apiOrigin:'https://127.0.0.1:4444' })).toMatchObject({previewOrigin:config.previewOrigin});
+  });
   it.each(['https://preview.platform.test','http://preview.assets.test','https://user@preview.assets.test','https://preview.assets.test/path','https://preview.assets.test/?x=1','https://127.0.0.1'])('rejects unsafe domain config %s', previewOrigin => {
     expect(() => contracts.validatePreviewConfig?.({ ...config, previewOrigin })).toThrow();
   });

@@ -22,7 +22,7 @@ export function validatePreviewConfig(input: PreviewConfig): PreviewConfig {
     return { ...input };
   }
   const domains = origins.map(url => getDomain(url.hostname, { allowPrivateDomains: false }));
-  if (domains.some(domain => !domain) || domains[0] === domains[2] || domains[1] === domains[2]) throw new Error('Preview requires a separate registered domain');
+  if (!domains[2] || domains[0] === domains[2] || domains[1] === domains[2] || origins[0].hostname === preview.hostname || origins[1].hostname === preview.hostname) throw new Error('Preview requires a separate registered domain');
   return { ...input };
 }
 
