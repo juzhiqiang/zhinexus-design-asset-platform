@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "update-managed-account-request-v1",
+  "type": "object",
+  "properties": {
+    "expectedRevision": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 19,
+      "pattern": "^(0|[1-9][0-9]{0,18})$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "\\S"
+    },
+    "roles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "reader",
+          "publisher",
+          "maintainer"
+        ]
+      },
+      "minItems": 1
+    },
+    "componentGrants": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "componentId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+          },
+          "canPublish": {
+            "type": "boolean"
+          },
+          "canMaintain": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "componentId",
+          "canPublish",
+          "canMaintain"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
+    },
+    "packageGrants": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "maxLength": 214,
+        "pattern": "^(?:@[a-z0-9][a-z0-9._-]*/)?[a-z0-9][a-z0-9._-]*$"
+      },
+      "minItems": 0
+    }
+  },
+  "required": [
+    "expectedRevision"
+  ],
+  "additionalProperties": false
+}

@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "managed-account-list-query-v1",
+  "type": "object",
+  "properties": {
+    "query": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "\\S"
+    },
+    "enabled": {
+      "type": "boolean"
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000
+    },
+    "pageSize": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}
