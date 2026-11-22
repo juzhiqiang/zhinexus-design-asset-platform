@@ -64,4 +64,8 @@
 
 ## 2026-11-22 执行记录
 
-实施中补充。
+计划 1–6 项已实现并落在 `feat/self-managed-accounts-impl`：contracts（`managed-accounts.ts` + 9 个生成 JSON Schema）、迁移 `012_managed_accounts.sql`、`apps/api/src/accounts` 与 `apps/api/src/identity`、`/v1/managed-accounts` 端点、认证端与网关的账号版本核验、`infra/compose.self-managed.yaml` + `infra/keycloak/realm-zhinexus.json` + `infra/scripts/self-managed.ts`、画廊「用户与权限」后台。
+
+实际命令、退出码、RED → GREEN 与未覆盖边界见 [本轮验证记录](../../verification/self-managed-accounts-2026-11-22.md)，部署与恢复见 [自管账号栈说明](../../self-managed-accounts.md)。根版本升至 0.0.10，API 0.0.12、画廊 0.0.13、预览网关 0.0.5、CLI 0.0.27。
+
+**尚未完成**：真实 Keycloak 集成（mapper、首次改密、登录）、`tests/platform/managed-accounts.test.ts` 真实 PostgreSQL 集成、本机浏览器验收、撤权时限实测、正式部署验收。Keycloak 版本与 digest 未固定，compose 失败关闭。设计第 10 节要求的独立 builder check 本轮未派发。

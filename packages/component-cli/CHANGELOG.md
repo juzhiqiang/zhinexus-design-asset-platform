@@ -2,6 +2,13 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.27] - 2026-11-22
+
+### Fixed
+
+- 契约内联镜像同步列表补充自管账号契约模块，构建产物与 `@company/contracts` 保持一致。
+
+
 ## [0.0.26] - 2026-11-22
 
 ### Added
