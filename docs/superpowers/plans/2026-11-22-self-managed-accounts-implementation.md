@@ -68,4 +68,6 @@
 
 实际命令、退出码、RED → GREEN 与未覆盖边界见 [本轮验证记录](../../verification/self-managed-accounts-2026-11-22.md)，部署与恢复见 [自管账号栈说明](../../self-managed-accounts.md)。根版本升至 0.0.10，API 0.0.12、画廊 0.0.13、预览网关 0.0.5、CLI 0.0.27。
 
+2026-11-22 已 `--no-ff` 合入 `main`（合并提交 `8ce44290`），合并结果重跑全图与分支一致；`main` 领先 `origin/main` 8 个提交未 push。
+
 **尚未完成**：真实 Keycloak 集成（mapper、首次改密、登录）、`tests/platform/managed-accounts.test.ts` 真实 PostgreSQL 集成、本机浏览器验收、撤权时限实测、正式部署验收。Keycloak 版本与 digest 未固定，compose 失败关闭。设计第 10 节要求的独立 builder check 本轮未派发。

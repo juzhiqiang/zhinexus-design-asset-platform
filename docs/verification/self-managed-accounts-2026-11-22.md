@@ -48,7 +48,15 @@
 | 撤权时限实测（提交时刻 / 各路径首次拒绝时刻 / 请求结果） | **未实测**；设计第 5 节的生产目标时限仍待部署负责人确认 |
 | 正式部署验收、公司部署责任与双业务试点 | **未开始**，独立记账 |
 
-## 5. 边界与安全自查
+## 5. 合并结果
+
+2026-11-22 以 `--no-ff` 合并入 `main`，合并提交 `8ce44290`（父提交 `b6656819` + `b4ea3cdf`），62 个文件、约 3600 行新增。合并前重查：`main` 仍停在 `b6656819`、主工作树干净、`main` 未被其他 worktree 检出；合并后核对 `git diff --name-only b6656819 8ce44290` 为 62 个文件（非空），逐个确认关键文件已进入合并树。
+
+合并后在合并结果上重跑：contracts / api / gateway / gallery 四项 typecheck 0 错误、`verify:workspace` 通过、`tests/contracts` + `tests/unit` + `tests/gallery` 52 文件通过（950 项断言通过）、10 文件因沙箱缺 `pnpm` / `@playwright/test` / `vite` / charts 构建失败。与合并前分支结果逐项一致，合并未引入差异。
+
+`main` 领先 `origin/main` 8 个提交，**尚未 push**（push 需用户明确授权）。分支 `feat/self-managed-accounts-impl` 与 `feat/self-managed-accounts` 保留未删，是否清理由用户决定。
+
+## 6. 边界与安全自查
 
 - 迁移 `012_managed_accounts.sql` 不存储任何密码材料；`identity_operations` 的 CHECK 约束不含密码类操作，密码设置只能走瞬时受保护请求。
 - 账号视图契约（`managed-account-summary/detail/list-response/audit-response`）一律 `additionalProperties: false`，单测覆盖拒绝 `password`、`remoteUserId`、`token`、`secretRef` 等字段。
