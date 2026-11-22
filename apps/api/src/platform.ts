@@ -14,8 +14,12 @@ import { CompanyOidc } from './access/oidc.js';
 import { readFileSync } from 'node:fs';
 import { probePreview } from './access/preview.js';
 import { RestrictedHttps } from './access/outbound.js';
+import { ManagedAccountsService, type ManagedAccountsOptions } from './accounts/service.js';
+import { KeycloakIdentityAdapter, type KeycloakOptions } from './identity/keycloak.js';
+import type { IdentityAdapter } from './identity/adapter.js';
+import { IdentityWorker } from './identity/worker.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]> };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter };
 function validateGalleryOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
@@ -45,6 +49,19 @@ export function environmentOptions(): PlatformOptions {
       result.access = { apiOrigin:env.PLATFORM_API_ORIGIN ?? '',administrators:JSON.parse(env.PLATFORM_ACCESS_ADMINISTRATORS),outbound:JSON.parse(env.PLATFORM_ACCESS_OUTBOUND ?? '[]'),gatewayId:env.PLATFORM_PREVIEW_DEPLOYMENT_ID,...(env.PLATFORM_ACCESS_CA_FILE ? {ca:readFileSync(env.PLATFORM_ACCESS_CA_FILE,'utf8')} : {}),...(env.PLATFORM_ACCESS_INITIAL_OIDC ? {initialOidc:JSON.parse(env.PLATFORM_ACCESS_INITIAL_OIDC)} : {}) };
     } catch { throw new PlatformError('INVALID_SCHEMA'); }
   }
+  if (env.PLATFORM_SELF_MANAGED_ISSUER) {
+    // The self-managed issuer and realm are deployment configuration, never taken from a request.
+    const base = new URL(env.PLATFORM_SELF_MANAGED_ISSUER);
+    if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new PlatformError('INVALID_SCHEMA');
+    const realm = /^\/realms\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/.exec(base.pathname)?.[1];
+    if (!realm || !env.PLATFORM_IDENTITY_BASE_URL || !env.PLATFORM_IDENTITY_ADMIN_CLIENT_ID || !env.PLATFORM_IDENTITY_ADMIN_SECRET_REF) throw new PlatformError('INVALID_SCHEMA');
+    const secret = process.env['PLATFORM_IDENTITY_ADMIN_SECRET_' + env.PLATFORM_IDENTITY_ADMIN_SECRET_REF];
+    if (!secret) throw new PlatformError('INVALID_SCHEMA');
+    const identityBase = new URL(env.PLATFORM_IDENTITY_BASE_URL);
+    if (identityBase.protocol !== 'https:' || identityBase.username || identityBase.password || identityBase.search || identityBase.hash || !identityBase.pathname.startsWith('/realms/')) throw new PlatformError('INVALID_SCHEMA');
+    result.managedAccounts = { issuer: env.PLATFORM_SELF_MANAGED_ISSUER, realm };
+    result.identity = { baseUrl: env.PLATFORM_IDENTITY_BASE_URL, realm, adminClientId: env.PLATFORM_IDENTITY_ADMIN_CLIENT_ID, adminClientSecret: secret };
+  }
   return result;
 }
 export class Platform {
@@ -58,6 +75,8 @@ export class Platform {
   readonly galleryOrigin?: string;
   readonly access?: AccessSettingsService;
   readonly companyOidc?: CompanyOidc;
+  readonly accounts?: ManagedAccountsService;
+  readonly identityWorker?: IdentityWorker;
   constructor(options: PlatformOptions) {
     if (options.access) validateAccessOptions(options.access);
     this.events = options.events ?? new PlatformEvents();
@@ -81,7 +100,12 @@ export class Platform {
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
     if (this.db && options.access) {
       this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : probePreview(this.db!,this.access!,this.companyOidc!.network,config as import('@company/contracts').PreviewAccessConfig));
-      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup);
+      if (options.managedAccounts && options.identity) {
+        const network = new RestrictedHttps(options.access.outbound, options.access.ca, options.accessLookup);
+        this.accounts = new ManagedAccountsService(this.db, this.access, options.managedAccounts, options.identityAdapter ?? new KeycloakIdentityAdapter(network, options.identity!));
+      }
+      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts);
+      if (this.accounts) this.identityWorker = new IdentityWorker(this.accounts);
     }
   }
   async requireAccessConfiguration():Promise<void> {
@@ -131,5 +155,18 @@ export class Platform {
       throw error;
     }
   }
-  async onApplicationShutdown(): Promise<void> { this.store?.close(); await this.db?.close(); }
+  async onApplicationShutdown(): Promise<void> { this.identityWorker?.stop(); this.store?.close(); await this.db?.close(); }
+  /** Member management: the directory itself decides administrator authority, not a business role. */
+  async runManaged<T>(authorization: string | undefined, requestId: string, operation: (service: ManagedAccountsService, context: RequestContext) => Promise<T>): Promise<T> {
+    let principal: Principal | undefined;
+    try {
+      principal = await this.authenticate(authorization);
+      if (!this.accounts) throw new PlatformError('INFRA_UNAVAILABLE');
+      return await operation(this.accounts, { principal, requestId });
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? error.code : undefined;
+      if (code === 'UNAUTHENTICATED' || code === 'FORBIDDEN') await this.db?.query('SELECT 1').then(()=>audit(this.db!,principal?.subject,'AUTH_DENIED','managed-accounts',{code},requestId)).catch(()=>{});
+      throw error;
+    }
+  }
 }

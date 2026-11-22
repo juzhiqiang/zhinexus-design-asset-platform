@@ -58,7 +58,7 @@ export async function platformHarness(overrides: Record<string, unknown> = {}, s
     app = await buildServer(options);
     await app.listen(0, '127.0.0.1');
     let origin = await app.getUrl();
-    const token = (subject = 'alice', roles = ['publisher'], client = 'web', expiration = '5m') => new SignJWT({ roles, azp: client })
+    const token = (subject = 'alice', roles = ['publisher'], client = 'web', expiration = '5m', claims: Record<string, unknown> = {}) => new SignJWT({ roles, azp: client, ...claims })
       .setProtectedHeader({ alg: 'RS256', kid: 'test-key' }).setIssuer(oidc.issuer).setAudience(oidc.audience)
       .setSubject(subject).setIssuedAt().setExpirationTime(expiration).sign(keys.privateKey);
     return {
@@ -85,7 +85,7 @@ export async function platformHarness(overrides: Record<string, unknown> = {}, s
     throw error;
   }
 }
-type Harness = Awaited<ReturnType<typeof platformHarness>>;
+export type Harness = Awaited<ReturnType<typeof platformHarness>>;
 export async function grant(h: Harness, subject = 'alice', maintain = false) {
   for (const id of ['line', 'bar', 'pie', 'scatter', 'trend-card', 'ranking', 'proportion']) {
     await h.db.query('INSERT INTO components(id) VALUES ($1) ON CONFLICT DO NOTHING', [id]);

@@ -13,7 +13,7 @@ const record = (value:unknown): value is Record<string,unknown> => !!value && ty
 
 export class CompanyOidc {
   readonly network: RestrictedHttps;
-  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>) {
+  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>, private readonly accounts?:import('../accounts/service.js').ManagedAccountsService) {
     this.network = new RestrictedHttps(settings.options.outbound,settings.options.ca,resolveAddress);
   }
   async metadata(config:OidcAccessConfig): Promise<{ metadata:Discovery; keys:ReturnType<typeof createLocalJWKSet> }> {
@@ -57,12 +57,34 @@ export class CompanyOidc {
       if (!/^[A-Za-z0-9_-]{43}$/.test(token)) throw new AuthFailure('UNAUTHENTICATED');
       const row = (await this.db.query('SELECT * FROM oidc_sessions WHERE token_hash=$1 AND generation=$2 AND expires_at>clock_timestamp()',[digest(token),active.generation])).rows[0];
       if (!row || row.issuer !== (active.revision?.config ?? this.settings.options.initialOidc)?.issuer) throw new AuthFailure('UNAUTHENTICATED');
+      // A self-managed session must still belong to an enabled account at the version it was issued for.
+      if (this.accounts && row.issuer === this.accounts.selfManagedIssuer) {
+        const account = await this.accounts.sessionAccount(this.db,row.principal.subject);
+        if (!account) throw new AuthFailure('UNAUTHENTICATED');
+        if (!account.enabled) throw new AuthFailure('FORBIDDEN');
+        if (row.account_version === null || row.auth_time === null || String(row.account_version) !== account.version || Number(row.auth_time) <= Number(account.auth_time_floor)) throw new AuthFailure('UNAUTHENTICATED');
+        return finish({ ...row.principal,roles:account.roles,generation:active.generation });
+      }
       return finish(row.principal);
     }
-    if (!active.revision) return finish({...await this.fallback.verify(authorization),generation:active.generation});
-    const principal = await (await this.verifier(active.revision.config)).verify(authorization);
-    const binding = (await this.db.query('SELECT platform_subject FROM identity_bindings WHERE issuer=$1 AND identity_subject=$2',[principal.issuer,principal.identitySubject])).rows[0];
-    return finish({ ...principal,subject:binding?.platform_subject ?? 'oidc:'+digest(principal.issuer+'\0'+principal.identitySubject),generation:active.generation });
+    if (!active.revision) {
+      // No activated configuration does not relax the self-managed claim checks.
+      const initial = await this.fallback.verifyWithClaims(authorization);
+      if (this.accounts && initial.principal.issuer === this.accounts.selfManagedIssuer) {
+        const account = await this.accounts.verifiedAccount(initial.principal, initial.claims);
+        return finish({ ...initial.principal,subject:account.platform_subject,roles:account.roles,generation:active.generation });
+      }
+      return finish({ ...initial.principal,generation:active.generation });
+    }
+    const verified = await (await this.verifier(active.revision.config)).verifyWithClaims(authorization);
+    const binding = (await this.db.query('SELECT platform_subject FROM identity_bindings WHERE issuer=$1 AND identity_subject=$2',[verified.principal.issuer,verified.principal.identitySubject])).rows[0];
+    // Self-managed subjects fail closed: unregistered principals are denied, and the signed
+    // account version plus authentication time must still be current.
+    if (this.accounts && verified.principal.issuer === this.accounts.selfManagedIssuer) {
+      const account = await this.accounts.verifiedAccount(verified.principal, verified.claims);
+      return finish({ ...verified.principal,subject:account.platform_subject,roles:account.roles,generation:active.generation });
+    }
+    return finish({ ...verified.principal,subject:binding?.platform_subject ?? 'oidc:'+digest(verified.principal.issuer+'\0'+verified.principal.identitySubject),generation:active.generation });
   }
   async candidateTicket(input:unknown,principal:Principal):Promise<{ticket:string}> {
     const parsed=validateOidcCandidateStart(input);
@@ -116,19 +138,23 @@ export class CompanyOidc {
       if (payload.nonce !== attempt.nonce || (payload.azp !== undefined && payload.azp !== config.webClientId) || (Array.isArray(payload.aud) && payload.aud.length > 1 && payload.azp !== config.webClientId) || typeof payload.iat !== 'number' || payload.iat > Math.floor(Date.now()/1000)) throw new AuthFailure('UNAUTHENTICATED');
       const principal = await (await this.verifier(config)).verify('Bearer '+tokens.access_token);
       if (principal.identitySubject !== payload.sub || principal.channel !== 'web') throw new AuthFailure('UNAUTHENTICATED');
-      const bound = { ...principal,subject:(await this.db.query('SELECT platform_subject FROM identity_bindings WHERE issuer=$1 AND identity_subject=$2',[principal.issuer,principal.identitySubject])).rows[0]?.platform_subject ?? 'oidc:'+digest(principal.issuer+'\0'+principal.identitySubject),generation:active.generation };
-      const effective=await this.restricted(bound);
-      const isAdmin = this.settings.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject);
+      const accessPayload = (await jwtVerify(tokens.access_token,keys,{ issuer:config.issuer,audience:config.audience,algorithms:['RS256','ES256'] })).payload;
+      // A self-managed login must satisfy the signed account version and authentication time too.
+      const managed = this.accounts && principal.issuer === this.accounts.selfManagedIssuer
+        ? await this.accounts.verifiedAccount(principal, accessPayload) : undefined;
+      const bound = { ...principal,subject:managed?.platform_subject ?? (await this.db.query('SELECT platform_subject FROM identity_bindings WHERE issuer=$1 AND identity_subject=$2',[principal.issuer,principal.identitySubject])).rows[0]?.platform_subject ?? 'oidc:'+digest(principal.issuer+'\0'+principal.identitySubject),generation:active.generation };
+      const effective=await this.restricted(managed ? { ...bound,roles:managed.roles } : bound);
+      const isAdmin = managed ? managed.administrator : this.settings.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject);
       if (attempt.candidate) {
         await this.settings.evidence(attempt.revision,active.generation,{webLogin:'passed',roles:effective.roles.length ? 'passed' : 'failed',...(isAdmin ? {adminLogin:'passed'} : {})});
         return { location:this.settings.galleryOrigin+'/access-settings?candidate=passed' };
       }
-      const accessPayload = (await jwtVerify(tokens.access_token,keys,{ issuer:config.issuer,audience:config.audience,algorithms:['RS256','ES256'] })).payload;
       const token = randomBytes(32).toString('base64url');
+      const authTime = typeof accessPayload.auth_time === 'number' && Number.isFinite(accessPayload.auth_time) ? Math.floor(accessPayload.auth_time) : null;
       await this.db.transaction(async sql => {
         const current = await this.settings.current('oidc',sql,true);
         if (current.generation !== active.generation) throw new AuthFailure('UNAUTHENTICATED');
-        await sql.query('INSERT INTO oidc_sessions(token_hash,generation,issuer,identity_subject,principal,expires_at) VALUES ($1,$2,$3,$4,$5,to_timestamp($6))',[digest(token),active.generation,principal.issuer,principal.identitySubject,JSON.stringify(bound),Math.min(accessPayload.exp!,payload.exp!)]);
+        await sql.query('INSERT INTO oidc_sessions(token_hash,generation,issuer,identity_subject,principal,expires_at,account_version,auth_time) VALUES ($1,$2,$3,$4,$5,to_timestamp($6),$7,$8)',[digest(token),active.generation,principal.issuer,principal.identitySubject,JSON.stringify(bound),Math.min(accessPayload.exp!,payload.exp!),managed ? Number(managed.version) : null,managed ? authTime : null]);
       });
       return { location:this.settings.galleryOrigin+'/upload',cookie:`__Host-platform=${token}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=None` };
     } catch { throw new AuthFailure('UNAUTHENTICATED'); }
@@ -137,11 +163,14 @@ export class CompanyOidc {
     if (!record(input) || Object.keys(input).sort().join(',') !== 'accessToken,expectedGeneration,revision' || typeof input.revision !== 'string' || typeof input.expectedGeneration !== 'string' || typeof input.accessToken !== 'string' || input.accessToken.length > 16384) throw new PlatformError('INVALID_SCHEMA');
     const config = (await this.db.query('SELECT config FROM access_revisions WHERE id=$1 AND section=$2',[input.revision,'oidc'])).rows[0]?.config as OidcAccessConfig | undefined;
     if (!config) throw new PlatformError('NOT_FOUND');
-    const principal = await (await this.verifier(config)).verify('Bearer '+input.accessToken);
-    if (principal.channel !== 'cli') throw new AuthFailure('UNAUTHENTICATED');
-    const binding = (await this.db.query('SELECT platform_subject FROM identity_bindings WHERE issuer=$1 AND identity_subject=$2',[principal.issuer,principal.identitySubject])).rows[0];
-    const bound = { ...principal,subject:binding?.platform_subject ?? 'oidc:'+digest(principal.issuer+'\0'+principal.identitySubject) };
-    const effective=await this.restricted(bound);
+    const verified = await (await this.verifier(config)).verifyWithClaims('Bearer '+input.accessToken);
+    if (verified.principal.channel !== 'cli') throw new AuthFailure('UNAUTHENTICATED');
+    const binding = (await this.db.query('SELECT platform_subject FROM identity_bindings WHERE issuer=$1 AND identity_subject=$2',[verified.principal.issuer,verified.principal.identitySubject])).rows[0];
+    // CLI tokens are stateless: only the signed account version and authentication time can retire them.
+    const managed = this.accounts && verified.principal.issuer === this.accounts.selfManagedIssuer
+      ? await this.accounts.verifiedAccount(verified.principal, verified.claims) : undefined;
+    const bound = { ...verified.principal,subject:managed?.platform_subject ?? binding?.platform_subject ?? 'oidc:'+digest(verified.principal.issuer+'\0'+verified.principal.identitySubject) };
+    const effective=await this.restricted(managed ? { ...bound,roles:managed.roles } : bound);
     await this.settings.evidence(input.revision,input.expectedGeneration,{cliLogin:'passed',roles:effective.roles.length ? 'passed' : 'failed'});
     return { passed:true };
   }

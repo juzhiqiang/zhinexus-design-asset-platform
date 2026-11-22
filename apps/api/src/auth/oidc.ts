@@ -56,6 +56,10 @@ export class OidcVerifier {
   }
 
   async verify(authorization?: string): Promise<Principal> {
+    return (await this.verifyWithClaims(authorization)).principal;
+  }
+  /** Same verification, with the signed payload so callers can check protected account claims. */
+  async verifyWithClaims(authorization?: string): Promise<{ principal: Principal; claims: Record<string, unknown> }> {
     try {
       if (!this.config || !this.keyResolver || typeof authorization !== 'string') throw new AuthFailure('UNAUTHENTICATED');
       const token = /^Bearer +([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.exec(authorization)?.[1];
@@ -91,10 +95,13 @@ export class OidcVerifier {
         ? Object.entries(this.config.roleMapping).filter(([,value]) => (claim as string[] | undefined)?.includes(value)).map(([role]) => role).filter(isRole)
         : claim ?? [];
       if (!Array.isArray(roles) || !roles.every(isRole)) throw new AuthFailure('UNAUTHENTICATED');
-      return Object.freeze({
-        subject: payload.sub, issuer: this.config.issuer, identitySubject: payload.sub, clientId, channel: this.webClients.has(clientId) ? 'web' : 'cli',
-        roles: Object.freeze([...roles]),
-      });
+      return {
+        principal: Object.freeze({
+          subject: payload.sub, issuer: this.config.issuer, identitySubject: payload.sub, clientId, channel: this.webClients.has(clientId) ? 'web' : 'cli',
+          roles: Object.freeze([...roles]),
+        }),
+        claims: { ...payload },
+      };
     } catch {
       // Never expose JWT contents, upstream errors, URLs or authentication config.
       throw new AuthFailure('UNAUTHENTICATED');
