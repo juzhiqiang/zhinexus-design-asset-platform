@@ -1,0 +1,81 @@
+# 自主管理账号本机试用栈
+#
+# 独立的 Compose 项目、端口、卷与凭据目录，**不复用**凭据缺失的共享 G2 栈
+# （`infra/compose.yaml`，项目名 zhinexus-g2）。入口默认仅本机可达。
+#
+# 启动：`.\scripts\pnpm.ps1 infra:self-managed:up`
+# 停止：`.\scripts\pnpm.ps1 infra:self-managed:stop`
+# 首次初始化：`.\scripts\pnpm.ps1 infra:self-managed:bootstrap`
+#
+# Keycloak 版本与镜像 digest 由 `infra/self-managed-versions.json` 固定，
+# 不使用 latest；变更前必须重新核对官方来源并实测。
+
+name: zhinexus-self-managed
+
+services:
+  postgres:
+    image: ${SELF_MANAGED_POSTGRES_IMAGE:?Run infra:self-managed:up to resolve the pinned image}
+    platform: linux/amd64
+    ports: ['127.0.0.1:25432:5432']
+    environment:
+      POSTGRES_USER: zhinexus
+      POSTGRES_DB: zhinexus
+      POSTGRES_PASSWORD_FILE: /run/secrets/postgres_password
+    secrets: [postgres_password]
+    volumes: ['self_managed_postgres:/var/lib/postgresql']
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U zhinexus -d zhinexus']
+      interval: 2s
+      timeout: 3s
+      retries: 60
+
+  identity:
+    image: ${SELF_MANAGED_KEYCLOAK_IMAGE:?Run infra:self-managed:up to resolve the pinned image}
+    platform: linux/amd64
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:29443:8443'
+    environment:
+      KC_DB: postgres
+      KC_DB_URL_HOST: postgres
+      KC_DB_URL_PORT: '5432'
+      KC_DB_URL_DATABASE: zhinexus
+      KC_DB_USERNAME: zhinexus
+      KC_DB_PASSWORD_FILE: /run/secrets/postgres_password
+      KC_BOOTSTRAP_ADMIN_USERNAME: bootstrap-admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD_FILE: /run/secrets/keycloak_bootstrap_password
+      KC_HTTP_ENABLED: 'false'
+      KC_HOSTNAME_STRICT: 'false'
+      KC_HOSTNAME_STRICT_HTTPS: 'false'
+      KC_HTTPS_CERTIFICATE_FILE: /run/secrets/tls_certificate
+      KC_HTTPS_CERTIFICATE_KEY_FILE: /run/secrets/tls_private_key
+      KC_HEALTH_ENABLED: 'true'
+      KC_METRICS_ENABLED: 'false'
+      KC_LOG_LEVEL: INFO
+    secrets: [postgres_password, keycloak_bootstrap_password, tls_certificate, tls_private_key]
+    volumes: ['self_managed_identity:/opt/keycloak/data']
+    read_only: true
+    tmpfs: ['/tmp']
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    healthcheck:
+      test: ['CMD-SHELL', 'exec 3<>/dev/tcp/127.0.0.1/8080; printf "GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n" >&3; grep -q "200 OK" <&3']
+      interval: 5s
+      timeout: 5s
+      retries: 60
+
+volumes:
+  self_managed_postgres:
+  self_managed_identity:
+
+secrets:
+  postgres_password:
+    file: ../.tools/self-managed/postgres-password
+  keycloak_bootstrap_password:
+    file: ../.tools/self-managed/keycloak-bootstrap-password
+  tls_certificate:
+    file: ../.tools/self-managed/tls-certificate.pem
+  tls_private_key:
+    file: ../.tools/self-managed/tls-private-key.pem
