@@ -14,7 +14,7 @@ import { readApi, resolveRelease, type Eligible, type MatchContext, type Materia
 /**
  * 二期 P1：`GET /v1/matching/components` 组件标识精确查询。
  *
- * 边界（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 边界（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 无 body；查询字段全部来自 `ComponentMatchQueryV1`，React 必须精确 `reactDomVersion`，Vue 禁止；
  * - **权威 SQL 查询** components/variants/package_releases/variant_releases 与当前权限，
  *   参数化、不依赖文本 Top-50、不依赖索引状态、不按组件命名拼接；

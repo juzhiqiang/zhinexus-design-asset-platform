@@ -12,7 +12,7 @@ import { componentApiFixture } from '../fixtures/match-plan.js';
 /**
  * 二期 P1：`GET /v1/matching/components` 真实隔离 Nest HTTP / PostgreSQL / MinIO / Verdaccio 验收。
  *
- * 范围与约束（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 范围与约束（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 无 body、Bearer `read`；`Cache-Control: no-store`、`X-Robots-Tag: noindex`；
  * - 原始 query 串整串保留：重复原始键、重复解码后键、未知键、数组/嵌套、空值、范围版本、
  *   畸形百分号编码一律 400 `INVALID_SCHEMA`，不取首值/末值；

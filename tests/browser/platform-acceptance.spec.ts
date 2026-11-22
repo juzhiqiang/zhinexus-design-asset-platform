@@ -1,11 +1,11 @@
 /**
  * T11 平台验收：合成试点工程的浏览器点击/更新交互与页面核对
  *
- * 依据 docs/superpowers/plans/2026-11-11-component-platform-implementation.md T11 第 1 项
+ * 依据 docs/plans/2026-11-11-component-platform-implementation.md T11 第 1 项
  * 「完成类型/构建、点击/更新交互和页面核对，记录框架/引擎版本」，
  * 以及 T11 Files 要求创建 `tests/browser/platform-acceptance.spec.ts`。
  *
- * 断言语义沿用已冻结的 T17 浏览器契约（CLI 0.0.23，docs/verification/t17-async-assertion-2026-11-20.md）：
+ * 断言语义沿用已冻结的 T17 浏览器契约（CLI 0.0.23，docs/verification/phase3-t17.md）：
  * - 动作之后所有断言共用同一等待预算 `BROWSER_TIMEOUT_MS`，允许页面异步更新；
  * - 条件满足即继续，永久不匹配在预算耗尽后仍失败；
  * - 文本保留首个匹配元素的 `textContent().trim()`；数量必须精确相等；可见性须非零宽高；

@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品 RED 辅助：synthetic 临时工程与独立字节证据。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md：
  * - 临时工程一律位于工作区之外（`os.tmpdir()`），每个用例独占一个目录；
  * - 文件证据（SHA-256 / 原始字节）由本文件用 Node `fs` + `crypto` 独立实算，
  *   不读取公共 fixtures 的占位摘要，也不用 fixtures 冒充字节证据；

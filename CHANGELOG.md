@@ -18,7 +18,7 @@
 
 ### 未验证
 
-- 真实 Keycloak 集成（mapper、首次改密、登录）、浏览器验收与正式部署验收尚未执行，详见 [自管账号栈说明](docs/self-managed-accounts.md) 与 [本轮验证记录](docs/verification/self-managed-accounts-2026-11-22.md)。
+- 真实 Keycloak 集成（mapper、首次改密、登录）、浏览器验收与正式部署验收尚未执行，详见 [自管账号栈说明](docs/guides/self-managed-accounts.md) 与 [本轮验证记录](docs/verification/gates-infra.md)。
 
 
 ## [0.0.9] - 2026-11-22

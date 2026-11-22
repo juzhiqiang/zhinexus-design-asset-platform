@@ -4,7 +4,7 @@ import { validateComponentMatchResponse } from '@company/contracts';
 /**
  * 二期 P1：`/match` 组件精确查询表单的浏览器测试。
  *
- * 范围与约束（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 范围与约束（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 表单**只显式 GET** `/v1/matching/components`，无 body，Bearer 取当前 session；
  * - 字段：componentId / framework / packageVersion / 可选 packageName / frameworkVersion /
  *   echartsVersion；React 必须精确 reactDomVersion，Vue 禁止；

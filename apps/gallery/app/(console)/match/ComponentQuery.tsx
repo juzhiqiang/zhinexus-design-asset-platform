@@ -8,7 +8,7 @@ import { buildComponentMatchQuery, requestComponentMatchWithOutcome } from '../.
 /**
  * 二期 P1：`/match` 的组件标识精确查询表单（`GET /v1/matching/components`）。
  *
- * 边界（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 边界（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 字段：componentId / framework / packageVersion / 可选 packageName / frameworkVersion /
  *   echartsVersion；React 必须精确 reactDomVersion，Vue 隐藏且不发送该字段；
  * - **只有显式点击「查询组件」才 GET**，无 body，Bearer 取当前 session；

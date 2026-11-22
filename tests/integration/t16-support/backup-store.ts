@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品 RED 辅助：备份存储的独立读取与真实磁盘证据。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md：
  * - 备份摘要/原字节/root/plan/id 不得被信任：本文件只用 Node fs/crypto **独立实算**落盘字节的 SHA-256，
  *   再与产品返回的 `backupRef.sha256` 比对，不用任何自报摘要充当证据；
  * - 字段级破坏与空字节恢复需在真实存储存在后接入；本文件不伪造 latest 或新摘要引用。

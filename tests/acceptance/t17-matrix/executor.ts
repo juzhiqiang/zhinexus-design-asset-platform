@@ -1,7 +1,7 @@
 /**
  * T17 矩阵 CLI 参数构造器（冻结命令表对应 C0）。
  *
- * 只做参数组装与最小形态检查，不做执行。命令形态（docs/superpowers/plans/2026-11-19-phase3-t17-completion.md）：
+ * 只做参数组装与最小形态检查，不做执行。命令形态（docs/plans/2026-11-19-phase3-t17-completion.md）：
  *   component integrate verify --project <p> --plan <f> --apply-result <f> --spec <f> --out <dir>
  *                             --allow-project-scripts <true|false> --allow-browser <true|false>
  *   component integrate repair ... --report <f> [--max-attempts <0|1|2>]

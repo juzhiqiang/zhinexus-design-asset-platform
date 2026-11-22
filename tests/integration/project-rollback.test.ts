@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品失败测试：rollbackIntegration。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md 的 12 组要求中属于恢复的部分：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md 的 12 组要求中属于恢复的部分：
  * ⑨ 有效备份恢复（原文件、新文件删除、已匹配 before 的 unchanged，四组互斥且完整覆盖）；
  * ⑩ 用户后续编辑 vs 恢复 I/O 失败（preserved + USER_EDITED；unresolved + WRITE_FAILED/RECOVERY_REQUIRED）；
  * ⑪ 同时存在 restored/unchanged/preserved/unresolved 时的逐路径 coverage 与 installStarted 保守性；

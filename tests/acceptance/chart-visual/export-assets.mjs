@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { PNG } from 'pngjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
-const summaryPath = 'docs/verification/component-visual-acceptance-2026-11-22/summary.json';
+const summaryPath = 'docs/verification/evidence/component-visual-acceptance-2026-11-22/summary.json';
 const summary = JSON.parse(await readFile(path.join(root, summaryPath), 'utf8'));
 const destination = 'docs/acceptance/first-batch-assets-2026-11-22';
 const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');

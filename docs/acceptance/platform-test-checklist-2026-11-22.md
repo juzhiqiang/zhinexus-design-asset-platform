@@ -16,7 +16,7 @@
 
 | ID | 操作及预期 | 当前结果 / 证据 |
 | --- | --- | --- |
-| C01 | 7 组件 × Vue/React × 明暗 × Canvas/SVG × 4 viewport，读取真实主题、渲染器、自检并查看截图 | 已执行，见 [QA 记录](../verification/component-visual-acceptance-2026-11-22.md)；视觉问题待修复 |
+| C01 | 7 组件 × Vue/React × 明暗 × Canvas/SVG × 4 viewport，读取真实主题、渲染器、自检并查看截图 | 已执行，见 [QA 记录](../verification/phase3-t15.md)；视觉问题待修复 |
 | C02 | 遍历全部 fixture 状态，核对空值、负值、更新、嵌套、排名、零总量和摘要 | 已执行；直接 default→solid-empty 的自检问题保留 |
 | C03 | 真实点选与键盘 Enter 更新，双框架数据/事件一致 | 本轮复验结果见 QA 记录 |
 | C04 | 查看首批资产用途、字段、导出和 14 张草案图，准备内部试用说明 | 清单已完成；业务维护人与正式材料待发布时登记 |
@@ -24,7 +24,7 @@
 
 ## 账号后台交付后优先执行
 
-以下预期来自已批准的自主管理账号实施计划（Git `55092fb8` 的 `docs/superpowers/plans/2026-11-22-self-managed-accounts-implementation.md`），以最终收口的契约字段和错误码补记实际结果。本清单不修改该契约。
+以下预期来自已批准的自主管理账号实施计划（Git `55092fb8` 的 `docs/plans/2026-11-22-self-managed-accounts-implementation.md`），以最终收口的契约字段和错误码补记实际结果。本清单不修改该契约。
 
 | ID | 操作 | 必须观察到的结果 | 结果 / 证据 |
 | --- | --- | --- | --- |

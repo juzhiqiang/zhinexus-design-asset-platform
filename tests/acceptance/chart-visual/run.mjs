@@ -11,7 +11,7 @@ import { PNG } from 'pngjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const rawDir = path.join(root, '.tools/qa/component-visual-acceptance');
-const evidenceDir = path.join(root, 'docs/verification/component-visual-acceptance-2026-11-22');
+const evidenceDir = path.join(root, 'docs/verification/evidence/component-visual-acceptance-2026-11-22');
 const components = ['line', 'bar', 'pie', 'scatter', 'trend-card', 'ranking', 'proportion'];
 const viewports = [
   { width: 390, height: 844 }, { width: 768, height: 1024 },

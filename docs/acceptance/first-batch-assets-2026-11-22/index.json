@@ -2,7 +2,7 @@
   "status": "draft-unpublished",
   "evidenceKind": "workspace-qa-crop",
   "baseline": "b665681997ba842de6ed039652bf4f358771db6a",
-  "summaryPath": "docs/verification/component-visual-acceptance-2026-11-22/summary.json",
+  "summaryPath": "docs/verification/evidence/component-visual-acceptance-2026-11-22/summary.json",
   "assets": [
     {
       "component": "bar",

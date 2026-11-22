@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品 RED 辅助：CLI 根出口的命名空间查找与 optional 调用。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md：
  * - `applyIntegration` / `rollbackIntegration` 在 GREEN 阶段才从 CLI 根出口导出；
  * - RED 阶段**不得**对尚不存在的模块做静态 import（那会变成 collect/typecheck 错误，
  *   而不是行为断言失败），因此这里只按命名空间可选查找，缺函数时返回 undefined，

@@ -1,7 +1,7 @@
 /**
  * T16 P1 受控应用编排：`applyIntegration` / `rollbackIntegration`。
  *
- * 冻结接口（docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md）：
+ * 冻结接口（docs/plans/2026-11-18-t16-b-install-isolation-brief.md）：
  *
  * ```text
  * applyIntegration(root, plan, options): Promise<IntegrationApplyResultV1>

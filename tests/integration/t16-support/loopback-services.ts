@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品 RED 辅助：本地 loopback API / registry 与 synthetic 凭据。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md：
  * - API 与 registry 是两个独立的 loopback 服务（127.0.0.1 随机端口）；
  * - 只使用明确的 synthetic 凭据，两套凭据分别只发往各自 origin，便于断言不互传；
  * - 记录每个请求的目标、query 与 Authorization，供“请求目标和认证分别检查”使用；

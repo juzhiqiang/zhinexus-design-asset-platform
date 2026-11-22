@@ -1,7 +1,7 @@
 /**
  * T11 真实试点 harness（合成演练）
  *
- * 依据 docs/superpowers/plans/2026-11-11-component-platform-implementation.md T11 第 1 项：
+ * 依据 docs/plans/2026-11-11-component-platform-implementation.md T11 第 1 项：
  *   「用真实 Vue 和 React 项目（用户提供访问范围）安装精确发布版本；只读识别项目后创建可审查变更，
  *     完成类型/构建、点击/更新交互和页面核对，记录框架/引擎版本。**合成消费者不能替代这一步。**」
  *

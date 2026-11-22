@@ -2,7 +2,7 @@
  * T17 矩阵实操顺序、环境契约与证据封存的测试壳。
  *
  * 这些测试只固定结构与契约，不执行真实 CLI / 浏览器 / 安装；真实执行由 C 提供
- * 冻结包与授权环境后另行运行（见 docs/verification/t17-matrix-2026-11-19.md）。
+ * 冻结包与授权环境后另行运行（见 docs/verification/phase3-t17.md）。
  */
 import { describe, expect, it } from 'vitest';
 import { matrixEnvReport, matrixPlan, matrixTools, REPRODUCE_COMMANDS } from './plan.js';

@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品失败测试：applyIntegration。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md 的 12 组要求中属于 apply 的部分：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md 的 12 组要求中属于 apply 的部分：
  * ① 授权/replan 及时间变化；③ 安全字符串绑定；④ 首个写入失败；⑤ 第二个写入失败；
  * ⑥ 安装启动后保守 reinstall；启动前日志精确故障待 GREEN 接入。
  * 另检查 API/registry 可控请求的目标和认证分别隔离。

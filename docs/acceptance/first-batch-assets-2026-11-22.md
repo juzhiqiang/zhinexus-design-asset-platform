@@ -37,7 +37,7 @@
 | ranking | default、empty、missing、single、updated、tied |
 | proportion | default、empty、zero-total、missing、single、updated |
 
-default 覆盖明暗主题、Canvas / SVG 与四种 viewport；额外状态只覆盖 1280×720 / light / canvas。结果及问题见 [本轮视觉验收](../verification/component-visual-acceptance-2026-11-22.md)。窄屏、深色宿主及空实心饼图自检尚有问题，不能用此清单宣布所有场景通过。
+default 覆盖明暗主题、Canvas / SVG 与四种 viewport；额外状态只覆盖 1280×720 / light / canvas。结果及问题见 [本轮视觉验收](../verification/phase3-t15.md)。窄屏、深色宿主及空实心饼图自检尚有问题，不能用此清单宣布所有场景通过。
 
 ## 素材来源与正式发布前的缺项
 

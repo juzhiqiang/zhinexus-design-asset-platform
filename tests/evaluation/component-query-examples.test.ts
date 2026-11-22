@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { validateComponentMatchQuery, validateComponentMatchResponse } from '@company/contracts';
 import { componentMatchGapFixture, componentMatchResponseFixture, componentMatchQueryFixture } from '../fixtures/component-match.js';
 
-const doc = readFileSync(new URL('../../docs/phase2/component-query-api.md', import.meta.url), 'utf8');
+const doc = readFileSync(new URL('../../docs/phases/phase2/component-query-api.md', import.meta.url), 'utf8');
 function example(name: string): unknown {
   const found = new RegExp('<!-- example: ' + name + ' -->\\s*```json\\s*([\\s\\S]*?)\\s*```').exec(doc);
   if (!found) throw new Error(`Missing example ${name}`);

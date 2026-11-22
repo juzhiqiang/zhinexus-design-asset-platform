@@ -19,7 +19,7 @@ T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。
 | PLATFORM_WORKER_JOB_ID | 可选；诊断时将 worker 限制为一个已存在的作业，通常不设置 |
 | PLATFORM_GALLERY_ORIGIN | 浏览器画廊的精确 Origin（含端口，不带末尾斜杠）；配置后仅向该来源允许 API 跨域读取与预检 |
 
-画廊跨域配置使用 HTTPS。本机开发可显式设置 `http://127.0.0.1:5173`、`http://localhost:<port>` 或 `http://[::1]:<port>`。无配置时不开放跨域。配置了预览部署时默认采用其中的 platformOrigin，显式画廊 Origin 必须与其一致。预览使用 HTTPS，默认采用独立注册域。可显式启用 `PLATFORM_PREVIEW_MODE=ip-port`，见 [IP 预览部署](../../docs/preview-ip-port.md)。
+画廊跨域配置使用 HTTPS。本机开发可显式设置 `http://127.0.0.1:5173`、`http://localhost:<port>` 或 `http://[::1]:<port>`。无配置时不开放跨域。配置了预览部署时默认采用其中的 platformOrigin，显式画廊 Origin 必须与其一致。预览使用 HTTPS，默认采用独立注册域。可显式启用 `PLATFORM_PREVIEW_MODE=ip-port`，见 [IP 预览部署](../../docs/guides/preview-ip-port.md)。
 
 API 跨域仅允许 GET/POST/OPTIONS、Authorization/Content-Type/Idempotency-Key，并暴露 X-Request-Id；不允许跨域 Cookie 凭证。OPTIONS 不要求 Bearer，实际业务请求仍使用原 OIDC/角色/组件权限校验。MinIO 预签名 PUT 的 CORS 与 ETag 暴露须在存储端独立配置和验证，API 的配置不会替代它。
 
@@ -109,4 +109,4 @@ API 请求/响应禁止缓存且 noindex；用途/视觉分数省略，不将人
 
 T07 精确定位补充：同一 variant 换包名后可能存在同号版本。B 应以目录返回的 variantReleaseId 调用 `/v1/variant-releases/:releaseId` 及材料/报告子资源；旧 variantId/version 路径仅在唯一时可用，多条匹配返回 CONFLICT，不随意选择材料。当前 SDK 已到 0.0.4（line/bar/pie/scatter 八实现）；B 仍需同步已合入 T06，并提供该版本完整冻结材料和真实画廊联调证据。
 
-运维补充：会话默认24小时，可通过 PLATFORM_UPLOAD_RETENTION_HOURS 配置；新会话采用新期限，签名URL仍15分钟。独立 PLATFORM_METRICS_TOKEN 保护 /internal/metrics；API/worker输出字段白名单JSON，阶段统计持久化。配置与故障/备份命令见 [operations](../../docs/operations.md)。
+运维补充：会话默认24小时，可通过 PLATFORM_UPLOAD_RETENTION_HOURS 配置；新会话采用新期限，签名URL仍15分钟。独立 PLATFORM_METRICS_TOKEN 保护 /internal/metrics；API/worker输出字段白名单JSON，阶段统计持久化。配置与故障/备份命令见 [operations](../../docs/guides/operations.md)。

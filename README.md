@@ -68,7 +68,7 @@ $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
 
 API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还需启动独立发布 worker。配置与启动方式见 [API 接入说明](apps/api/README.md)、[预览网关说明](apps/preview-gateway/README.md) 和 [本地基础设施](infra/README.md)。
 
-正式构建画廊时，`NEXT_PUBLIC_SITE_URL` 应设置为站点公开 origin，用于 sitemap 与 metadata；`NEXT_PUBLIC_PLATFORM_API_URL` 应指向管理 API，API 需允许画廊的精确 Origin。仅使用 IPv4 时，可以为画廊、API 和预览配置不同 HTTPS 端口，见 [IP 分端口部署](docs/preview-ip-port.md)。
+正式构建画廊时，`NEXT_PUBLIC_SITE_URL` 应设置为站点公开 origin，用于 sitemap 与 metadata；`NEXT_PUBLIC_PLATFORM_API_URL` 应指向管理 API，API 需允许画廊的精确 Origin。仅使用 IPv4 时，可以为画廊、API 和预览配置不同 HTTPS 端口，见 [IP 分端口部署](docs/guides/preview-ip-port.md)。
 
 ## 常用验证命令
 
@@ -104,12 +104,12 @@ API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还�
 
 ## 文档导航
 
-- [本地开发与运维准备](docs/quickstart.md)
-- [发布与恢复操作](docs/publishing.md)
-- [运维说明](docs/operations.md)与[上线验收](docs/release-acceptance.md)
-- [组件精确查询 API](docs/phase2/component-query-api.md)
-- [本地接入计划](docs/phase3/integration-plan.md)、[应用与恢复](docs/phase3/local-project-apply.md)、[验证、有限修复与 MCP](docs/phase3/local-project-verification.md)
-- [ECharts 升级与回退](docs/echarts-upgrade.md)
+- [本地开发与运维准备](docs/guides/quickstart.md)
+- [发布与恢复操作](docs/guides/publishing.md)
+- [运维说明](docs/guides/operations.md)与[上线验收](docs/guides/release-acceptance.md)
+- [组件精确查询 API](docs/phases/phase2/component-query-api.md)
+- [本地接入计划](docs/phases/phase3/integration-plan.md)、[应用与恢复](docs/phases/phase3/local-project-apply.md)、[验证、有限修复与 MCP](docs/phases/phase3/local-project-verification.md)
+- [ECharts 升级与回退](docs/guides/echarts-upgrade.md)
 - [架构规格](component-platform-architecture.md)与[实施评估](component-platform-implementation-assessment.md)
 - [协作规范](AGENTS.md)与[详细工程规则](rules/)
 

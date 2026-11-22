@@ -42,7 +42,7 @@ $env:T17_D_NPM_CLI = (Resolve-Path '.tools/node-v26.13.0-win-x64/node_modules/np
 .\scripts\pnpm.ps1 -PnpmArgs @('exec','vitest','run','tests/acceptance/t17-host/local-services.test.ts')
 ```
 
-2026-11-20 本轮冻结 CLI `0.0.20` 的完整 live 为 **5/5 passed**（405.72 秒，exit 0）；同一冻结包的 legacy 安装与边界入口为 **5/5 passed**（70.66 秒，exit 0）。本轮 support 为 **7/7 passed**、preflight 为 **4/4 passed**、live 支持单测为 **2/2 passed**。四条真实链的 spec 均使用既定 `maxDiffPixelRatio=0.001`、`pixelThreshold=0.1`，验证结果均为 passed、视觉均为 PASS。完整命令、输入与边界见 [本轮独立记录](../../../docs/verification/t17-blackbox-2026-11-20.md)。稳定归档为：
+2026-11-20 本轮冻结 CLI `0.0.20` 的完整 live 为 **5/5 passed**（405.72 秒，exit 0）；同一冻结包的 legacy 安装与边界入口为 **5/5 passed**（70.66 秒，exit 0）。本轮 support 为 **7/7 passed**、preflight 为 **4/4 passed**、live 支持单测为 **2/2 passed**。四条真实链的 spec 均使用既定 `maxDiffPixelRatio=0.001`、`pixelThreshold=0.1`，验证结果均为 passed、视觉均为 PASS。完整命令、输入与边界见 [本轮独立记录](../../../docs/verification/phase3-t17.md)。稳定归档为：
 
 ```text
 D:/project/zhinexus-t17-acceptance-evidence/2026-11-20/blackbox-live-0.0.20-4c17068513014bbb9c596a3b0da01177

@@ -17,7 +17,7 @@ import { canonicalJson, validateComponentMatchQuery, validateComponentMatchRespo
  * - `buildComponentMatchQuery(fields)` 是纯函数：**不 trim**，空白原样交给校验，
  *   由 `validateComponentMatchQuery` 拒绝，而不是先 trim 成合法值发出去。
  *
- * 其它边界（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 其它边界（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - `GET`，**无 body**，Bearer read；查询字段经 `URLSearchParams` 单次编码
  *   （scoped packageName 同样只编码一次），不另定义 HTTP 形状；
  * - 本地先按 `validateComponentMatchQuery` 校验：非法输入在本地即拒绝，**不发起任何网络请求**，

@@ -362,7 +362,7 @@ describe('消费者构建与真实渲染', () => {
       }
       const cssBytes = cssName ? (await readFile(path.join(assetsDir, cssName))).length : 0;
       bundleBaseline.push({ framework, jsBytes, cssBytes });
-      // 体积护栏为初始校准值（实测见 docs/verification/t03-adapters.md 与 test-results 基线），
+      // 体积护栏为初始校准值（实测见 docs/verification/sdk-charts.md 与 test-results 基线），
       // 用于捕获意外全量引入 ECharts 或其他图表模块的回归，不作为发布指标
       expect(jsBytes, `${framework} 产物体积超出基线`).toBeLessThan(1024 * 1024);
     }

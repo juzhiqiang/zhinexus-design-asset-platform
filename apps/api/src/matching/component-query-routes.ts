@@ -10,7 +10,7 @@ import { ComponentQueryService } from './component-query.js';
 /**
  * 二期 P1：`GET /v1/matching/components` HTTP 适配层。
  *
- * 边界（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 边界（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 无 body、Bearer `read`；`Cache-Control: no-store`、`X-Robots-Tag: noindex, nofollow`；
  * - **原始 query 串整串解析**：不读框架 query 对象（它可能丢弃重复值或静默取末值），
  *   保留全部键，做合法的一次百分号解码，解码后再检查重复键；

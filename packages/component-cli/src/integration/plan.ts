@@ -37,7 +37,7 @@ import { isInsideDirectory, realpathOrSelf } from './workspace.js';
 /**
  * T15 P1 接入计划编排。
  *
- * 冻结接口（docs/superpowers/plans/2026-11-16-phase3-t15-kickoff.md P1）：
+ * 冻结接口（docs/plans/2026-11-16-phase3-t15-kickoff.md P1）：
  * `planIntegration(root, matchPlan, options): Promise<IntegrationPlanV1>`。
  *
  * 行为边界：只读目标项目与远端材料，输出结构化 IntegrationPlanV1；

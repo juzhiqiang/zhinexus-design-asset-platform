@@ -1,7 +1,7 @@
 /**
  * T11 平台验收：合成双框架试点演练
  *
- * 依据 docs/superpowers/plans/2026-11-11-component-platform-implementation.md T11：
+ * 依据 docs/plans/2026-11-11-component-platform-implementation.md T11：
  * Files 要求创建 `tests/integration/platform-acceptance.test.ts` 与 `tests/browser/platform-acceptance.spec.ts`。
  *
  * 本文件只覆盖**可在工程内独立证明**的部分：只读识别、可审查变更清单、命令结果记录与

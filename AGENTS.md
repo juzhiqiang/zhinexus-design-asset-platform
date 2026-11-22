@@ -8,18 +8,18 @@
 
 - 原始架构规格：`component-platform-architecture.md`
 - 实施评估与总体计划：`component-platform-implementation-assessment.md`
-- 完整实现计划（T01–T17）：`docs/superpowers/plans/2026-11-11-component-platform-implementation.md`
-- 三人分工与排期计划：`docs/superpowers/plans/2026-11-11-three-person-allocation.md`
-- 验证记录与技术栈调整证据：`docs/verification/nest-react-bootstrap.md`
-- 画廊 Next 迁移与公开/私有渲染边界：`docs/verification/gallery-next-migration.md`
+- 完整实现计划（T01–T17）：`docs/plans/2026-11-11-component-platform-implementation.md`
+- 三人分工与排期计划：`docs/plans/2026-11-11-three-person-allocation.md`
+- 验证记录与技术栈调整证据：`docs/foundation/nest-react-bootstrap.md`
+- 画廊 Next 迁移与公开/私有渲染边界：`docs/foundation/gallery-next-migration.md`
 - 详细工程规则：`rules/`
 
 ## 唯一事实来源
 
 - 架构设计与业务流程以 `component-platform-architecture.md` 为基线（**原架构文档保持原样，严禁修改其内容或破坏其 SHA-256**）。
-- 用户确认的技术栈调整（Monorepo + pnpm workspace + Turborepo、NestJS 后端、React 平台前端）及任务拆解以 `component-platform-implementation-assessment.md`、`docs/superpowers/plans/2026-11-11-component-platform-implementation.md` 和 `docs/verification/nest-react-bootstrap.md` 为准。
-- 当前团队分工（A：SDK、B：CLI/画廊、C：NestJS 平台）与并行依赖以 `docs/superpowers/plans/2026-11-11-three-person-allocation.md` 为准。
-- 迁移前的 Fastify 初始化记录（`docs/superpowers/plans/2026-11-11-bootstrap-execution.md`、`docs/verification/bootstrap.md`）仅供历史追溯，不得作为当前后端框架依据。
+- 用户确认的技术栈调整（Monorepo + pnpm workspace + Turborepo、NestJS 后端、React 平台前端）及任务拆解以 `component-platform-implementation-assessment.md`、`docs/plans/2026-11-11-component-platform-implementation.md` 和 `docs/foundation/nest-react-bootstrap.md` 为准。
+- 当前团队分工（A：SDK、B：CLI/画廊、C：NestJS 平台）与并行依赖以 `docs/plans/2026-11-11-three-person-allocation.md` 为准。
+- 迁移前的 Fastify 初始化记录（`docs/plans/2026-11-11-bootstrap-execution.md`、`docs/verification/gates-infra.md`）仅供历史追溯，不得作为当前后端框架依据。
 - 如果实现细节与架构规格、实施计划或公共契约冲突，以架构规格和实施计划为准；先停止冲突部分并请求范围决策。
 
 ## 任务执行流程
@@ -82,7 +82,7 @@
 
 ## 文档与规则维护
 
-- 原始架构文档 `component-platform-architecture.md` 作为立项基准保持只读不改；用户确认的范围、技术栈或协议变更先更新 `component-platform-implementation-assessment.md`、`docs/superpowers/plans/` 和 `@company/contracts`，再实施代码变更。
+- 原始架构文档 `component-platform-architecture.md` 作为立项基准保持只读不改；用户确认的范围、技术栈或协议变更先更新 `component-platform-implementation-assessment.md`、`docs/plans/` 和 `@company/contracts`，再实施代码变更。
 - 对外可见行为、协议结构、工作区成员、构建脚本或兼容范围变化后，同步更新 `README.md`、实施计划、验证记录和必要的交付说明。
 - 规则放在 `rules/` 中按主题维护；`AGENTS.md` 保留入口和不可违反的核心约束，避免多处复制详细规则。
 - `CLAUDE.md` 等工具专属入口只维护工具特有约定，并引用本文件，不复制项目通用规则。

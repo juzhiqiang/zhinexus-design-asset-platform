@@ -4,8 +4,8 @@
  * 结构：① 20 个基础识别用例（宿主已确认 20 RED → 20 GREEN）；② 独立审查反例（6 类）；
  * ③ A 冻结的真实工具锁快照消费 + 项目依赖文档歧义守卫；④ Git filter 执行反例。
  * 契约一律通过 CLI 内联合约副本导入；fixtures 在临时目录合成或只读消费 A 的快照，
- * 不读取任何真实业务工作区。依据：docs/superpowers/plans/2026-11-16-phase3-t15-kickoff.md P1、
- * .superpowers/t15/brief.md、docs/verification/c-t15-contracts-2026-11-17.md（P0 冻结）。
+ * 不读取任何真实业务工作区。依据：docs/plans/2026-11-16-phase3-t15-kickoff.md P1、
+ * .superpowers/t15/brief.md、docs/verification/phase3-t15.md（P0 冻结）。
  */
 import { afterAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createHash } from 'node:crypto';

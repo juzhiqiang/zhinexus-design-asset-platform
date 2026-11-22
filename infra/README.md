@@ -1,10 +1,10 @@
 # 本地三存储与接入检查（C / T01 / G2）
 
-当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划见 [G1/G2 清单](../docs/superpowers/plans/2026-11-12-g1-review-g2-access.md)，早期设施证据见 [本地设施验证](../docs/verification/g2-local-infra-2026-11-12.md)。
+当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划见 [G1/G2 清单](../docs/plans/2026-11-12-g1-review-g2-access.md)，早期设施证据见 [本地设施验证](../docs/verification/gates-infra.md)。
 
-2026-11-22 新增 [G2 五项逐项实测记录](../docs/verification/g2-five-items-2026-11-22.md)：隔离本机三存储三轮完成真实写读、权限、精确安装、进程重启与恢复，OIDC/目标预览仍未配置。共享凭证缺失时可通过 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts` 创建自有隔离环境验收，须先执行 `build:services`，不会改动共享 Compose 数据。每轮脱敏报告位于 `.tools/operations/g2-acceptance/<runId>/report.json`，同目录 `.npmrc` 含消费凭证，不得整体分享。
+2026-11-22 新增 [G2 五项逐项实测记录](../docs/verification/gates-infra.md)：隔离本机三存储三轮完成真实写读、权限、精确安装、进程重启与恢复，OIDC/目标预览仍未配置。共享凭证缺失时可通过 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts` 创建自有隔离环境验收，须先执行 `build:services`，不会改动共享 Compose 数据。每轮脱敏报告位于 `.tools/operations/g2-acceptance/<runId>/report.json`，同目录 `.npmrc` 含消费凭证，不得整体分享。
 
-暂无公司资源时，可先运行 `.\scripts\pnpm.ps1 preflight:production` 完成离线模板预检。报告列出缺失变量与外部待验收项，始终 `productionAcceptance:false`；资源缺失的报告退出码为 2，pnpm 包装的外层退出码为 1。配置齐全后加 `--environment` 校验实际环境变量；该命令仍不发出网络请求。两个服务导出后运行 `verify:service-staging <staging>` 检查实际发布材料。完整命令、退出码和适用边界见 [运维部署准备](../docs/operations.md#部署准备)。
+暂无公司资源时，可先运行 `.\scripts\pnpm.ps1 preflight:production` 完成离线模板预检。报告列出缺失变量与外部待验收项，始终 `productionAcceptance:false`；资源缺失的报告退出码为 2，pnpm 包装的外层退出码为 1。配置齐全后加 `--environment` 校验实际环境变量；该命令仍不发出网络请求。两个服务导出后运行 `verify:service-staging <staging>` 检查实际发布材料。完整命令、退出码和适用边界见 [运维部署准备](../docs/guides/operations.md#部署准备)。
 
 ## 独立平台专项（2026-11-14）
 
@@ -81,7 +81,7 @@
 
 以上是占位地址，须替换为实际资源；必须同时提供画廊和管理 API origin，不接受 HTTP、URL 内凭证、query/hash，预览须与画廊及管理 API 的注册域均不同。
 
-如按用户授权启用 IP 预览，在 `preview` 对象中添加 `"mode": "ip-port"`，填写同一 IPv4 的三个 HTTPS origin，并给预览配置专用端口。接入检查验证目标入口 TLS，具体配置见 [IP 预览部署](../docs/preview-ip-port.md)。
+如按用户授权启用 IP 预览，在 `preview` 对象中添加 `"mode": "ip-port"`，填写同一 IPv4 的三个 HTTPS origin，并给预览配置专用端口。接入检查验证目标入口 TLS，具体配置见 [IP 预览部署](../docs/guides/preview-ip-port.md)。
 
 ```powershell
 $env:G2_ACCESS_CONFIG = '.tools/g2-local/access.json'
@@ -93,4 +93,4 @@ Remove-Item Env:G2_ACCESS_CONFIG
 
 仍须交付：OIDC 网页/CLI 客户端注册、真实登录/回调/角色拒绝与撤销；独立域 wildcard DNS/TLS、逐发布 origin、preview-grant 和浏览器沙箱隔离。当前工具不能证明这些已完成，C 不代填 A/B 业务回执。
 
-T11/T12补充：rehearse:backup 使用独立 zhrec-UUID 容器/卷完成真实三存储备份与空目标恢复。共享G2可运行 test:infra --no-restart，报告明确省略共享重启项；默认test:infra仍会重启。配置、备份保密与未验收边界见 [operations](../docs/operations.md)。
+T11/T12补充：rehearse:backup 使用独立 zhrec-UUID 容器/卷完成真实三存储备份与空目标恢复。共享G2可运行 test:infra --no-restart，报告明确省略共享重启项；默认test:infra仍会重启。配置、备份保密与未验收边界见 [operations](../docs/guides/operations.md)。

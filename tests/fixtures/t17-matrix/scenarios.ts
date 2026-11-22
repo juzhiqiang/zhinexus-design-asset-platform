@@ -2,7 +2,7 @@
  * T17 B 独立支持矩阵的冻结场景声明。
  *
  * 唯一事实来源是 `scenarios.json`（本文件只做加载、类型化与结构校验）。
- * 冻结规则（docs/verification/t17-matrix-2026-11-19.md）：
+ * 冻结规则（docs/verification/phase3-t17.md）：
  * - 正向 20 例：Vue 10 + React 10，成功率分母固定，跑后不得改分母；
  * - 强制拒绝 13 例：单列，不计入正向分子或分母；
  * - 支持域 = Vue 3.5.45 / React 19.3.1 × npm/pnpm × standalone/workspace × ECharts 6.1.0。

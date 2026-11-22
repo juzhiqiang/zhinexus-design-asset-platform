@@ -1,8 +1,8 @@
 /**
  * T15 P1 接入计划远端边界测试（角色 B：Claude 桌面端）。
  *
- * 依据：docs/superpowers/plans/2026-11-16-phase3-t15-kickoff.md P1「RED / 计划与远端」、
- * docs/superpowers/specs/2026-11-16-phase3-t15-design.md「发布与凭据检查」、
+ * 依据：docs/plans/2026-11-16-phase3-t15-kickoff.md P1「RED / 计划与远端」、
+ * docs/specs/2026-11-16-phase3-t15-design.md「发布与凭据检查」、
  * .superpowers/t15/c-plan-next-stage-2026-11-17.md、.superpowers/t15/c-plan-red-fixture-precheck-2026-11-17.md。
  *
  * 覆盖：GET 请求身份不符、包摘要损坏、registry dist.integrity 与实收 bytes 不符、

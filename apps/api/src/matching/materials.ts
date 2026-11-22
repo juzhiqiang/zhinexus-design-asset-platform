@@ -9,7 +9,7 @@ import { PlatformError } from '../errors.js';
 /**
  * 装配 POST 与组件精确查询 GET 共享的资格/静态材料内部 helper。
  *
- * 边界（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 边界（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 只做**权威元数据复读**与**冻结材料摘要校验**：不加载 SDK 运行时代码、不构建、不跑浏览器；
  * - `resolveRelease` 复用 `eligibleRelease`，因此索引状态、Top-50 文本检索、组件命名拼接都不参与判定；
  * - `readApi` 逐字节核对 api/docs 摘要与字节数，再校验 `ComponentApiV1` 与 target 身份一致；

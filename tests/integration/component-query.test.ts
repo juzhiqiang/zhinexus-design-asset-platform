@@ -15,7 +15,7 @@ import {
 /**
  * 二期 P1：`GET /v1/matching/components` 组件精确查询集成测试。
  *
- * 范围与约束（与 `docs/superpowers/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
+ * 范围与约束（与 `docs/specs/2026-11-16-phase2-query-completion-design.md` 一致）：
  * - 权威 SQL 查询 + 精确 package/variant 选择；先应用 `catalog_can_read` 再判断可读歧义，
  *   不可因私有目标存在泄露信息；
  * - 不可读 / 不存在 / 非 Ready / 已废弃 / peer 不满足同形 200 gap `TARGET_UNAVAILABLE`；

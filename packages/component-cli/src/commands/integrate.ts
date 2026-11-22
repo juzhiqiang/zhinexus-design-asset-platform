@@ -1,7 +1,7 @@
 /**
  * T15 P1 `component integrate` 命令。
  *
- * 冻结命令形态（docs/superpowers/specs/2026-11-16-phase3-t15-design.md）：
+ * 冻结命令形态（docs/specs/2026-11-16-phase3-t15-design.md）：
  *
  * ```text
  * component integrate inspect --project <path> [--workspace <relative-path>]

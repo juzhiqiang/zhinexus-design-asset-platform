@@ -129,7 +129,7 @@ T16 受控应用契约（2026-11-18）新增 apply authorization、apply result�
 
 apply result 采用显式状态/证据矩阵：applied 必须有完整写入、无 issue，并与计划的安装状态一致；blocked 只能表达写入和安装前的守卫失败，不得带 changedFiles、backupRef、安装副作用或写后错误码；rolled-back 必须有 backupRef，首写失败时允许空 changedFiles/beforeHashes/afterHashes、not-run 和 WRITE_FAILED，不虚构已提交文件；recovery-required 必须带 backupRef，并至少证明发生过写入或安装副作用。issue message 由 code 映射到固定脱敏文本，任意 stderr、URL、凭证或错配消息均拒绝。rollback 中 preserved 与同路径 USER_EDITED 双向绑定，unresolved 与同路径 WRITE_FAILED/RECOVERY_REQUIRED 双向绑定；rolled-back 不得有 preserved、unresolved 或 issues。畸形 backup 上下文返回 ValidationResult 失败，不得抛出运行时异常。
 
-修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/g1-contracts-2026-11-12.md、docs/superpowers/plans/2026-11-12-g1-review-g2-access.md。
+修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/gates-infra.md、docs/plans/2026-11-12-g1-review-g2-access.md。
 
 V1 评审通过后冻结字段/错误码；兼容可选字段明确同步调用方，不兼容修改升级 schemaVersion 并保留旧版解析策略。本包 private=true，版本仍 0.0.0；本次无对外业务端点/组件/CLI 功能发布，不触发公开包或平台升版。CLI 将来使用本包须内联运行时代码，不保留私有运行时依赖，并验证干净消费者。
 
@@ -149,7 +149,7 @@ T07 兼容扩展（2026-11-12）：新增 variantReportsResponse，返回指定�
 
 拒绝未知字段及非 JSON 对象，错误使用现有 `ValidationResult` 与 JSON Pointer 路径。合法值保留原输入，不做版本推断、兼容证明或需求补全。用户填写的上下文不代表任何候选已通过 peer 硬过滤、真实安装或截图验证；Ready、来源、兼容、索引状态继续独立。
 
-本批没有新增 HTTP 消息、检索接口或 MatchPlan。CLI 构建按现有机制同步并内联同一契约，不引入私有运行时依赖。计划与实际验证见 `docs/superpowers/plans/2026-11-15-phase2-kickoff.md`、`docs/verification/c-phase2-project-context-2026-11-15.md`（仓库根路径）。
+本批没有新增 HTTP 消息、检索接口或 MatchPlan。CLI 构建按现有机制同步并内联同一契约，不引入私有运行时依赖。计划与实际验证见 `docs/plans/2026-11-15-phase2-kickoff.md`、`docs/verification/phase2-matching.md`（仓库根路径）。
 
 ## 二期第三批文本候选检索契约
 
@@ -159,4 +159,4 @@ T07 兼容扩展（2026-11-12）：新增 variantReportsResponse，返回指定�
 
 响应为 `{ candidates: Candidate[], gaps: string[] }`。Candidate 绑定实现发布 ID、包版本/摘要、框架与导出，含 API/文档证据、可选截图及来源、兼容记录、排名和缺口；拒绝重复实现发布 ID。verified 要求非空且唯一的记录 ID，unverified 无记录；这只检查结构，记录真实性、精确宿主组合及摘要由服务端复核。
 
-本批 provider 为 `metadata-text-v1`，仅提供 0–1 的 text 排名，不填 usage/visual 分数；响应明确说明不提供用途、视觉或需求语义评估。Ready、当前权限、索引 revision/provider、兼容可信度分别判断。契约通过不证明可安装或真实兼容，不提供 MatchPlan。实施与验收见仓库根 `docs/superpowers/plans/2026-11-15-phase2-text-search.md`。
+本批 provider 为 `metadata-text-v1`，仅提供 0–1 的 text 排名，不填 usage/visual 分数；响应明确说明不提供用途、视觉或需求语义评估。Ready、当前权限、索引 revision/provider、兼容可信度分别判断。契约通过不证明可安装或真实兼容，不提供 MatchPlan。实施与验收见仓库根 `docs/plans/2026-11-15-phase2-text-search.md`。

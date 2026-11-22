@@ -10,7 +10,7 @@ import type {
 /**
  * 二期发布验收补齐（T04/T07/T08）：网页手动提交的截图/冻结包一致性覆盖补齐。
  *
- * 背景（详见 `docs/verification/b-release-acceptance-2026-11-16.md`）：
+ * 背景（详见 `docs/verification/sdk-release.md`）：
  * - 缺口 E：既有 `web-upload-workflow.test.ts` 的 `validateVariantScreenshots` 用例全部不传
  *   `packages`，`DIGEST_MISMATCH`（截图包摘要 vs 冻结包摘要）分支无覆盖。本文件补齐。
  * - 原「同一实现重复关联同一 `image.sha256` 必须拒绝」按 C 2026-11-16 复核意见**已撤除**：

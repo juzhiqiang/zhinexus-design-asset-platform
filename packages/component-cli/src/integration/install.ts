@@ -4,7 +4,7 @@
  * 分为“候选锁生成”和“冻结依赖物化 / 受控目录交付”两个阶段，目标工程从不作为包管理器的
  * cwd/prefix/dir，也不通过临时更名项目 `.npmrc` 或删除 pnpmfile 实现隔离。
  *
- * 固定边界（docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md 冻结）：
+ * 固定边界（docs/plans/2026-11-18-t16-b-install-isolation-brief.md 冻结）：
  * - 工具链只用工作区 `.tools` 内的固定绝对路径（Node 26.13.0 + npm 11.20.0 / pnpm 12.18.0），
  *   先验证绝对路径与 `--version`——含裸 `node.exe --version` 精确要求 `v26.13.0`，
  *   不从 PATH 查找、不 corepack、不 npx、不下载其他工具链；

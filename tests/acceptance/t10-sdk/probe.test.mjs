@@ -9,7 +9,7 @@
  * 不依赖构建）。纯逻辑部分因此用 Node 内置 runner，先 RED 后 GREEN。
  *
  * 涉及 npm 安装 / vite 构建 / Playwright 的部分不在这里单测——它们由
- * `probe.mjs` 的真实运行覆盖，见 `docs/verification/a-t10-probes-next-2026-11-13.md`。
+ * `probe.mjs` 的真实运行覆盖，见 `docs/verification/sdk-release.md`。
  */
 
 import assert from 'node:assert/strict';

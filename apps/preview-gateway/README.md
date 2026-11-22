@@ -1,6 +1,6 @@
 # 静态预览网关（T07 C）
 
-网关仅从 MinIO 读取 T06 已冻结的静态文件，不安装包、不构建、不运行上传脚本、不启动浏览器。默认每个 `variant_release` 使用独立 HTTPS origin，例如 `https://r-<uuid>.preview.company-assets.net`，平台/API 使用另一个注册域。暂无域名时，可按 [IP 预览部署](../../docs/preview-ip-port.md) 显式使用同一 IPv4 上的专用 HTTPS 端口。运行前先在 API 执行全部现有迁移（当前 001–011）。
+网关仅从 MinIO 读取 T06 已冻结的静态文件，不安装包、不构建、不运行上传脚本、不启动浏览器。默认每个 `variant_release` 使用独立 HTTPS origin，例如 `https://r-<uuid>.preview.company-assets.net`，平台/API 使用另一个注册域。暂无域名时，可按 [IP 预览部署](../../docs/guides/preview-ip-port.md) 显式使用同一 IPv4 上的专用 HTTPS 端口。运行前先在 API 执行全部现有迁移（当前 001–011）。
 
 ## 配置与运行
 
@@ -55,4 +55,4 @@ GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,tex
 
 公司 OIDC/PKCE/撤权、生产独立注册域 wildcard DNS/TLS、目标浏览器第三方 Cookie 策略及 B 的真实画廊/八实现闭环仍需验收；不能据此标记完整 T07/G2/M2 完成。
 
-容器入口支持 PLATFORM_BIND_HOST=0.0.0.0（默认本机loopback），启动失败不输出原始异常。生产准备模板使用独立DB/S3最小权限凭证，见 [operations](../../docs/operations.md)；尚未作为生产部署验证。
+容器入口支持 PLATFORM_BIND_HOST=0.0.0.0（默认本机loopback），启动失败不输出原始异常。生产准备模板使用独立DB/S3最小权限凭证，见 [operations](../../docs/guides/operations.md)；尚未作为生产部署验证。

@@ -1,7 +1,7 @@
 /**
  * T16 B / P1 产品失败测试：安装隔离（暂存进程边界与依赖目录交付）。
  *
- * 依据 docs/superpowers/plans/2026-11-18-t16-b-install-isolation-brief.md 的 12 组要求中属于安装隔离的部分：
+ * 依据 docs/plans/2026-11-18-t16-b-install-isolation-brief.md 的 12 组要求中属于安装隔离的部分：
  * ⑦ 暂存进程 cwd、argv、环境与复制字段白名单；恶意 .npmrc/pnpmfile/环境 NODE_OPTIONS/scripts 无执行；
  *    npm API token 不在 registry/config/env，registry token 不在 API 或原始错误输出；
  * ⑧ 冻结锁不符、实际安装版本不符、stage 外链接、未知目标依赖链接、并发 node_modules 变化：失败关闭，
