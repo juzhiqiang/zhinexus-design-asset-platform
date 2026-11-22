@@ -1,0 +1,354 @@
+{
+  "counts": {
+    "total": 302,
+    "defaultMatrix": 224,
+    "additionalStates": 78,
+    "functionalPassed": 298,
+    "horizontalOverflow": 104,
+    "hostClipped": 48,
+    "parityErrors": 0
+  },
+  "environment": {
+    "os": "win32",
+    "arch": "x64",
+    "node": "v26.13.0",
+    "browserVersion": "158.0.8127.18",
+    "locale": "zh-CN",
+    "timezone": "Asia/Shanghai",
+    "deviceScaleFactor": 1
+  },
+  "failures": [
+    {
+      "id": "react-bar-light-canvas-1280-default",
+      "framework": "react",
+      "component": "bar",
+      "theme": "light",
+      "renderer": "canvas",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "default",
+      "url": "http://127.0.0.1:5185/bar.html?theme=light&renderer=canvas",
+      "errors": [
+        "page.waitForFunction: Timeout 3000ms exceeded."
+      ],
+      "consoleErrors": [],
+      "networkErrors": [],
+      "runtime": {
+        "checks": [
+          {
+            "name": "single-instance",
+            "status": "passed",
+            "message": "实例=1 canvas=1 svg=0"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed",
+            "message": ""
+          },
+          {
+            "name": "series-match",
+            "status": "passed",
+            "message": "期望 [\"revenue\",\"cost\"]，实际 [\"revenue\",\"cost\"]"
+          },
+          {
+            "name": "renderer-match",
+            "status": "passed",
+            "message": "声明 canvas，canvas=1 svg=0"
+          }
+        ],
+        "data": [
+          [
+            120,
+            180,
+            90,
+            150
+          ],
+          [
+            40,
+            55,
+            30,
+            60
+          ]
+        ],
+        "summary": [],
+        "labels": [],
+        "presentation": {
+          "canvases": 1,
+          "svgs": 0,
+          "paletteFirst": "#3b82f6",
+          "textColor": "#263044"
+        },
+        "versions": {
+          "stage": "bootstrap",
+          "echartsVersion": "6.1.0",
+          "framework": "react",
+          "frameworkVersion": "19.3.1"
+        }
+      },
+      "layout": {
+        "viewportWidth": 1280,
+        "scrollWidth": 1280,
+        "horizontalOverflow": false,
+        "host": {
+          "x": 25,
+          "y": 168.4375,
+          "width": 720,
+          "height": 360
+        },
+        "hostClipped": false,
+        "activeState": "default"
+      },
+      "screenshot": {
+        "path": ".tools/qa/component-visual-acceptance-initial/react-bar-light-canvas-1280-default.png",
+        "sha256": "360b835135c59afdf7f08e50d44dee06587009c5f5b980afe88d4e5e1eb0a4ff",
+        "bytes": 29482
+      },
+      "functionalPassed": false
+    },
+    {
+      "id": "react-pie-light-canvas-1280-solid-empty",
+      "framework": "react",
+      "component": "pie",
+      "theme": "light",
+      "renderer": "canvas",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "solid-empty",
+      "url": "http://127.0.0.1:5185/pie.html?theme=light&renderer=canvas",
+      "errors": [
+        "示例自检未全部通过",
+        "实际主题或渲染器不匹配"
+      ],
+      "consoleErrors": [],
+      "networkErrors": [],
+      "runtime": {
+        "checks": [
+          {
+            "name": "single-instance",
+            "status": "failed",
+            "message": "实例=1 canvas=0 svg=0"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed",
+            "message": ""
+          },
+          {
+            "name": "series-match",
+            "status": "passed",
+            "message": "期望 []，实际 []"
+          },
+          {
+            "name": "renderer-match",
+            "status": "failed",
+            "message": "声明 canvas，canvas=0 svg=0"
+          }
+        ],
+        "data": [],
+        "summary": [],
+        "labels": [],
+        "presentation": {
+          "canvases": 0,
+          "svgs": 0,
+          "paletteFirst": "#3b82f6",
+          "textColor": "#263044"
+        },
+        "versions": {
+          "stage": "bootstrap",
+          "echartsVersion": "6.1.0",
+          "framework": "react",
+          "frameworkVersion": "19.3.1"
+        }
+      },
+      "layout": {
+        "viewportWidth": 1280,
+        "scrollWidth": 1280,
+        "horizontalOverflow": false,
+        "host": {
+          "x": 25,
+          "y": 198.4375,
+          "width": 720,
+          "height": 360
+        },
+        "hostClipped": false,
+        "activeState": "solid-empty"
+      },
+      "screenshot": {
+        "path": ".tools/qa/component-visual-acceptance-initial/react-pie-light-canvas-1280-solid-empty.png",
+        "sha256": "8ae0a612196735fd8db29f31163584e26ca06269b9e661e5ee905aa412d35b40",
+        "bytes": 1597
+      },
+      "functionalPassed": false
+    },
+    {
+      "id": "vue-bar-light-canvas-1280-default",
+      "framework": "vue",
+      "component": "bar",
+      "theme": "light",
+      "renderer": "canvas",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "default",
+      "url": "http://127.0.0.1:5184/bar.html?theme=light&renderer=canvas",
+      "errors": [
+        "page.waitForFunction: Timeout 3000ms exceeded."
+      ],
+      "consoleErrors": [],
+      "networkErrors": [],
+      "runtime": {
+        "checks": [
+          {
+            "name": "single-instance",
+            "status": "passed",
+            "message": "实例=1 canvas=1 svg=0"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed",
+            "message": ""
+          },
+          {
+            "name": "series-match",
+            "status": "passed",
+            "message": "期望 [\"revenue\",\"cost\"]，实际 [\"revenue\",\"cost\"]"
+          },
+          {
+            "name": "renderer-match",
+            "status": "passed",
+            "message": "声明 canvas，canvas=1 svg=0"
+          }
+        ],
+        "data": [
+          [
+            120,
+            180,
+            90,
+            150
+          ],
+          [
+            40,
+            55,
+            30,
+            60
+          ]
+        ],
+        "summary": [],
+        "labels": [],
+        "presentation": {
+          "canvases": 1,
+          "svgs": 0,
+          "paletteFirst": "#3b82f6",
+          "textColor": "#263044"
+        },
+        "versions": {
+          "stage": "bootstrap",
+          "echartsVersion": "6.1.0",
+          "framework": "vue",
+          "frameworkVersion": "3.5.45"
+        }
+      },
+      "layout": {
+        "viewportWidth": 1280,
+        "scrollWidth": 1280,
+        "horizontalOverflow": false,
+        "host": {
+          "x": 25,
+          "y": 168.4375,
+          "width": 720,
+          "height": 360
+        },
+        "hostClipped": false,
+        "activeState": "default"
+      },
+      "screenshot": {
+        "path": ".tools/qa/component-visual-acceptance-initial/vue-bar-light-canvas-1280-default.png",
+        "sha256": "b73b726844f3066351441ff46b8f438bf149ebf56c79fde335a32c3bce6cde72",
+        "bytes": 28847
+      },
+      "functionalPassed": false
+    },
+    {
+      "id": "vue-pie-light-canvas-1280-solid-empty",
+      "framework": "vue",
+      "component": "pie",
+      "theme": "light",
+      "renderer": "canvas",
+      "viewport": {
+        "width": 1280,
+        "height": 720
+      },
+      "state": "solid-empty",
+      "url": "http://127.0.0.1:5184/pie.html?theme=light&renderer=canvas",
+      "errors": [
+        "示例自检未全部通过",
+        "实际主题或渲染器不匹配"
+      ],
+      "consoleErrors": [],
+      "networkErrors": [],
+      "runtime": {
+        "checks": [
+          {
+            "name": "single-instance",
+            "status": "failed",
+            "message": "实例=1 canvas=0 svg=0"
+          },
+          {
+            "name": "no-page-error",
+            "status": "passed",
+            "message": ""
+          },
+          {
+            "name": "series-match",
+            "status": "passed",
+            "message": "期望 []，实际 []"
+          },
+          {
+            "name": "renderer-match",
+            "status": "failed",
+            "message": "声明 canvas，canvas=0 svg=0"
+          }
+        ],
+        "data": [],
+        "summary": [],
+        "labels": [],
+        "presentation": {
+          "canvases": 0,
+          "svgs": 0,
+          "paletteFirst": "#3b82f6",
+          "textColor": "#263044"
+        },
+        "versions": {
+          "stage": "bootstrap",
+          "echartsVersion": "6.1.0",
+          "framework": "vue",
+          "frameworkVersion": "3.5.45"
+        }
+      },
+      "layout": {
+        "viewportWidth": 1280,
+        "scrollWidth": 1280,
+        "horizontalOverflow": false,
+        "host": {
+          "x": 25,
+          "y": 198.4375,
+          "width": 720,
+          "height": 360
+        },
+        "hostClipped": false,
+        "activeState": "solid-empty"
+      },
+      "screenshot": {
+        "path": ".tools/qa/component-visual-acceptance-initial/vue-pie-light-canvas-1280-solid-empty.png",
+        "sha256": "8ae0a612196735fd8db29f31163584e26ca06269b9e661e5ee905aa412d35b40",
+        "bytes": 1597
+      },
+      "functionalPassed": false
+    }
+  ]
+}
