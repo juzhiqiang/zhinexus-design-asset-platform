@@ -29,12 +29,17 @@ export async function runCli(
   component --help
 
 可用命令:
+  login            公司 OIDC S256 回环登录，保存当前 API 的用户私有凭证
   check            本地构建、冻结、干净消费者验证、截图与报告生成闭环
   prepare-release  整理并生成合法的 ReleaseManifestV1 与完整冻结发布材料 Bundle
   baseline         管理与确认本地自动验证产生的视觉回归基线
   integrate        只读识别目标项目（inspect）、生成可审查的只读接入计划（plan），
                    或按显式授权执行受控应用（apply）与保留用户编辑的恢复（rollback）
   init/dev/release/status  (部分开发中)
+
+发布、状态与基线命令按 --token、环境凭证、已保存登录的顺序选择认证。
+保存的凭证只用于完全匹配的 API origin，过期后需重新登录；自定义登录文件可通过
+ZHINEXUS_CREDENTIAL_FILE 指定。候选登录使用 ZHINEXUS_API_TOKEN 管理员凭证，只记录验证结果。
 
 只读边界: component integrate inspect/plan 不写入目标项目、不创建目录/缓存/备份、不执行安装/构建/
 项目脚本/浏览器；apply/rollback 的写入、安装与恢复范围由产品边界决定（授权只来自本次显式调用，

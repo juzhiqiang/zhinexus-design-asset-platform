@@ -1,7 +1,7 @@
-import { createHash,randomBytes } from 'node:crypto';
+import { createHash,randomBytes,randomUUID } from 'node:crypto';
 import { createServer,request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { readFile,mkdir,writeFile } from 'node:fs/promises';
+import { readFile,mkdir,writeFile,rename,rm } from 'node:fs/promises';
 import { dirname,join,resolve } from 'node:path';
 import { homedir } from 'node:os';
 import { spawn } from 'node:child_process';
@@ -57,7 +57,11 @@ export async function companyLogin(options:LoginOptions):Promise<{authenticated:
     if(!session || typeof session!=='object' || !('authenticated' in session) || session.authenticated!==true)throw new Error('Protected access denied');
     const target=resolve(options.credentialFile ?? join(homedir(),'.zhinexus','session.local'));
     await mkdir(dirname(target),{recursive:true,mode:0o700});
-    await writeFile(target,JSON.stringify({apiOrigin:options.apiOrigin,accessToken})+'\n',{mode:0o600,flag:'wx'});
+    const temporary = target+'.'+randomUUID()+'.local';
+    try {
+      await writeFile(temporary,JSON.stringify({apiOrigin:options.apiOrigin,accessToken})+'\n',{mode:0o600,flag:'wx'});
+      await rename(temporary,target);
+    } finally {await rm(temporary,{force:true});}
     return{authenticated:true,candidate:false,credentialFile:target};
   } finally {clearTimeout(timer);server.closeAllConnections();await new Promise<void>(accept=>{if(!server.listening){accept();return;}server.close(()=>accept());});}
 }
