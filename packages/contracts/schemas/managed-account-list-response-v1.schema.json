@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "managed-account-list-response-v1",
+  "type": "object",
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2048,
+            "pattern": "^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$"
+          },
+          "username": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+          },
+          "displayName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 64,
+            "pattern": "\\S"
+          },
+          "roles": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "reader",
+                "publisher",
+                "maintainer"
+              ]
+            },
+            "minItems": 1
+          },
+          "enabled": {
+            "type": "boolean"
+          },
+          "credentialState": {
+            "type": "string",
+            "enum": [
+              "unset",
+              "set",
+              "uncertain"
+            ]
+          },
+          "syncState": {
+            "type": "string",
+            "enum": [
+              "pending",
+              "syncing",
+              "synced",
+              "failed"
+            ]
+          },
+          "administrator": {
+            "type": "boolean"
+          },
+          "accountVersion": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 19,
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "desiredRevision": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 19,
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "accessEpoch": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 19,
+            "pattern": "^(0|[1-9][0-9]{0,18})$"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "required": [
+          "id",
+          "username",
+          "displayName",
+          "roles",
+          "enabled",
+          "credentialState",
+          "syncState",
+          "administrator",
+          "accountVersion",
+          "desiredRevision",
+          "accessEpoch",
+          "createdAt",
+          "updatedAt"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 1
+    },
+    "page": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100000
+    },
+    "pageSize": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 100
+    },
+    "total": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "required": [
+    "items",
+    "page",
+    "pageSize",
+    "total"
+  ],
+  "additionalProperties": false
+}

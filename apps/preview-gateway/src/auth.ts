@@ -7,7 +7,13 @@ import { PreviewStorage } from './storage.js';
 import { PreviewDenied, resourcePath, resourceMime } from './path-policy.js';
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
-type Access = { variant_release_id: string; subject: string; origin: string; expires_at: Date; metadata: VariantRef; job_id: string; preview_generation:string;oidc_generation:string };
+type Access = { variant_release_id: string; subject: string; origin: string; expires_at: Date; metadata: VariantRef; job_id: string; preview_generation:string;oidc_generation:string;account_version:string|null };
+/** A grant issued for a self-managed account stays valid only while that account version does. */
+async function accountCurrent(sql:Pool | PoolClient, subject:string, version:string|null):Promise<boolean> {
+  if (version === null) return true;
+  const row=(await sql.query<{version:string;enabled:boolean}>('SELECT version,enabled FROM managed_accounts WHERE platform_subject=$1',[subject])).rows[0];
+  return !!row && row.enabled && row.version === version;
+}
 export class PreviewRuntime {
   readonly config?: PreviewConfig;
   private readonly pool?: Pool;
@@ -48,6 +54,7 @@ export class PreviewRuntime {
           AND preview_can_read(g.variant_release_id,g.subject)
           AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role)) FOR UPDATE OF g`, [hash(token)])).rows[0];
       if (!grant || grant.origin !== this.origin(grant.variant_release_id, host,current.config) || grant.preview_generation!==current.previewGeneration || grant.oidc_generation!==current.oidcGeneration) throw new PreviewDenied();
+      if (!await accountCurrent(sql,grant.subject,grant.account_version)) throw new PreviewDenied();
       const entry = grant.metadata.examples[0]?.previewEntry;
       if (!entry || resourcePath(`/${entry}`) !== entry) throw new PreviewDenied();
       const session = randomBytes(32).toString('base64url');
@@ -68,6 +75,7 @@ export class PreviewRuntime {
         AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role))`, [hash(token)])).rows[0];
     const current=await this.currentConfig();
     if (!access || access.origin !== this.origin(access.variant_release_id, host,current.config) || access.preview_generation!==current.previewGeneration || access.oidc_generation!==current.oidcGeneration) throw new PreviewDenied();
+    if (!await accountCurrent(this.pool!,access.subject,access.account_version)) throw new PreviewDenied();
     return access;
   }
   async resource(path: string, token: string, host: string | undefined): Promise<{ bytes: Buffer; mime: string;config:PreviewConfig }> {

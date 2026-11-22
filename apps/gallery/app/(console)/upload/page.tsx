@@ -568,7 +568,7 @@ export default function WebUploadConsole() {
       <main>
         <p className="eyebrow">Zhinexus 工作区</p>
         <h1>登录后开放</h1>
-        <p><a className="filter-btn active" href={companyLoginUrl}>使用公司账号登录</a></p>
+        <p><a className="filter-btn active" href={companyLoginUrl}>账号登录</a></p>
         <p className="lead">身份与权限服务接入后，此处提供组件发布功能。请输入开发者发布凭证（OIDC Bearer Token）登录控制台：</p>
 
         <form onSubmit={handleLogin} className="auth-form" style={{ maxWidth: '480px', marginTop: '24px' }}>
