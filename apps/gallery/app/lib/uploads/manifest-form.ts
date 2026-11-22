@@ -204,6 +204,7 @@ export async function createUploadSession(
 ): Promise<UploadSessionResponse> {
   const digest = await manifestDigest(manifest);
   const res = await fetch(`${apiUrl}/v1/uploads`, {
+    credentials:token==='__session__' ? 'include' : 'omit',
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -282,6 +283,7 @@ export async function completeUploadSession(
   parts: Array<{ path: string; partNumber: number; etag: string }> = [],
 ): Promise<void> {
   const res = await fetch(`${apiUrl}/v1/uploads/${sessionId}/complete`, {
+    credentials:token==='__session__' ? 'include' : 'omit',
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -308,6 +310,7 @@ export async function submitReleaseJob(
   idempotencyKey: string,
 ): Promise<ApiMessages['createReleaseResponse']> {
   const res = await fetch(`${apiUrl}/v1/releases`, {
+    credentials:token==='__session__' ? 'include' : 'omit',
     method: 'POST',
     headers: {
       'content-type': 'application/json',
@@ -568,6 +571,7 @@ export async function fetchReleaseJob(
   jobId: string,
 ): Promise<ApiMessages['releaseJobResponse']> {
   const res = await fetch(`${apiUrl}/v1/releases/${jobId}`, {
+    credentials:token==='__session__' ? 'include' : 'omit',
     method: 'GET',
     headers: {
       authorization: `Bearer ${token}`,

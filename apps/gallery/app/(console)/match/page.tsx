@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectContext, SearchCandidatesResponse, ValidationResult } from '@company/contracts';
-import { getStoredSession, saveSession, clearSession, type UserSession } from '../../lib/auth';
+import { getStoredSession, saveSession, clearSession,loadCompanySession,companyLoginUrl,type UserSession } from '../../lib/auth';
 import { buildProjectContext } from '../../lib/project-context-form';
 import { searchCandidates } from '../../lib/search-client';
 import { CandidateResults } from './CandidateResults';
@@ -72,6 +72,7 @@ export default function ProjectContextMatchPage() {
   useEffect(() => {
     const stored = getStoredSession();
     if (stored) setSession(stored);
+    void loadCompanySession().then(value=>{if(value)setSession(value);});
   }, []);
 
   /** 复核当前会话是否仍与锁定快照一致（token 与 subject 都比对）；不一致则取消并不回显。 */
@@ -294,6 +295,7 @@ export default function ProjectContextMatchPage() {
       <main>
         <p className="eyebrow">Zhinexus 工作区</p>
         <h1>登录后开放</h1>
+        <p><a className="filter-btn active" href={companyLoginUrl}>使用公司账号登录</a></p>
         <p className="lead">项目上下文匹配需要登录。请输入开发者凭证（OIDC Bearer Token）以继续：</p>
         <form onSubmit={handleLogin} className="auth-form" style={{ maxWidth: 480, marginTop: 24 }}>
           <div style={{ marginBottom: 16 }}>

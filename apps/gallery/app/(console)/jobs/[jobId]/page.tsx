@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getStoredSession } from '../../../lib/auth';
+import { getStoredSession,loadCompanySession,platformApiOrigin } from '../../../lib/auth';
 import { fetchReleaseJob } from '../../../lib/uploads/manifest-form';
 
 export default function JobDetailPage({
@@ -16,19 +16,14 @@ export default function JobDetailPage({
   const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
-    const session = getStoredSession();
-    const token = session?.token;
-    if (!token) {
-      setError('未登录或未找到凭证，请先登录控制台');
-      return;
-    }
+    let token = getStoredSession()?.token;
 
     let timer: any;
     let cancelled = false;
 
     async function poll() {
       try {
-        const data = await fetchReleaseJob('http://127.0.0.1:3000', token!, jobId);
+        const data = await fetchReleaseJob(platformApiOrigin, token!, jobId);
         if (!cancelled) {
           setJob(data);
           if (data.state !== 'READY' && data.state !== 'CONFLICT' && data.state !== 'REJECTED') {
@@ -43,7 +38,7 @@ export default function JobDetailPage({
       }
     }
 
-    poll();
+    void loadCompanySession().then(session=>{token=session?.token;if(cancelled)return;if(token)void poll();else setError('未登录或未找到凭证，请先登录控制台');});
 
     return () => {
       cancelled = true;
@@ -56,7 +51,9 @@ export default function JobDetailPage({
     if (!session?.token) return;
     setRetrying(true);
     try {
-      const res = await fetch(`http://127.0.0.1:3000/v1/releases/${jobId}/retry`, {
+      const res = await fetch(`${platformApiOrigin}/v1/releases/${jobId}/retry`, {
+        credentials: session.token === '__session__' ? 'include' : 'omit',
+        redirect: 'error',
         method: 'POST',
         headers: { authorization: `Bearer ${session.token}` },
       });

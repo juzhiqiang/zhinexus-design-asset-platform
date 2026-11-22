@@ -16,6 +16,7 @@ export default function ConsoleLayout({ children }: Readonly<{ children: React.R
         <span className="console-nav-links">
           <Link href="/upload" className="console-nav-link">上传发布</Link>
           <Link href="/match" className="console-nav-link">项目上下文匹配</Link>
+          <Link href="/access-settings" className="console-nav-link">接入设置</Link>
         </span>
       </nav>
       {children}

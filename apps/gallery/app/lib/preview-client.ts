@@ -1,5 +1,5 @@
 import { validateApiMessage, type Framework } from '@company/contracts';
-import { getStoredSession } from './auth';
+import { getStoredSession,loadCompanySession } from './auth';
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 export const ipPreviewMode = process.env.NEXT_PUBLIC_PLATFORM_PREVIEW_MODE === 'ip-port';
@@ -10,7 +10,7 @@ async function previewApi(path: string, input: RequestInit, signal: AbortSignal)
   const response = await fetch(`${API_ORIGIN}${path}`, {
     ...input,
     cache: 'no-store',
-    credentials: 'omit',
+    credentials: getStoredSession()?.token==='__session__' ? 'include' : 'omit',
     redirect: 'error',
     referrerPolicy: 'no-referrer',
     signal: AbortSignal.any([signal, AbortSignal.timeout(2000)]),
@@ -25,7 +25,7 @@ export async function requestComponentPreview(
   framework: Framework,
   signal: AbortSignal,
 ): Promise<PreviewGrant | null> {
-  if (!getStoredSession()) return null;
+  if (!await loadCompanySession()) return null;
   try {
     const query = new URLSearchParams({ framework, query: componentId, pageSize: '100' });
     const catalog = validateApiMessage('componentsResponse', await previewApi(`/v1/components?${query}`, {
@@ -42,7 +42,7 @@ export async function requestComponentPreview(
 }
 
 export async function requestPreviewGrant(variantReleaseId: string, signal: AbortSignal): Promise<PreviewGrant | null> {
-  const session = getStoredSession();
+  const session = getStoredSession() ?? await loadCompanySession();
   if (!session) return null;
   try {
     const grant = validateApiMessage('previewGrantResponse', await previewApi('/v1/preview-grants', {
@@ -57,11 +57,12 @@ export async function requestPreviewGrant(variantReleaseId: string, signal: Abor
       !/^\?grant=[A-Za-z0-9_-]{43}$/.test(url.search) || url.origin === gallery.origin) return null;
 
     const numericHost = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(url.hostname) || url.hostname.startsWith('[');
+    if (grant.value.mode === 'domain' && numericHost || grant.value.mode === 'ip-port' && !numericHost) return null;
     if (numericHost) {
       if (url.hostname !== gallery.hostname || !url.port || url.port === gallery.port || url.origin === new URL(API_ORIGIN).origin) return null;
       return { url: url.href, variantReleaseId, isolation: 'ip-port' };
     }
-    if (ipPreviewMode || url.hostname === gallery.hostname || !url.hostname.startsWith(`r-${variantReleaseId}.`)) return null;
+    if ((!grant.value.mode && ipPreviewMode) || url.hostname === gallery.hostname || url.origin===new URL(API_ORIGIN).origin || !url.hostname.startsWith(`r-${variantReleaseId}.`)) return null;
     return { url: url.href, variantReleaseId, isolation: 'domain' };
   } catch {
     return null;

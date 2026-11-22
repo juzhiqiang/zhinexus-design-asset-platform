@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { manifestDigest, type PackageRef, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
-import { getStoredSession, saveSession, clearSession, type UserSession } from '../../lib/auth';
+import { getStoredSession, saveSession, clearSession, loadCompanySession,companyLoginUrl,platformApiOrigin,type UserSession } from '../../lib/auth';
 import {
   validateVariantScreenshots,
   createManualScreenshotRef,
@@ -29,7 +29,7 @@ const LOCAL_STORAGE_ACTIVE_SESSION = 'zhinexus_active_session_id';
 export default function WebUploadConsole() {
   const [session, setSession] = useState<UserSession | null>(null);
   const [tokenInput, setTokenInput] = useState('');
-  const [apiUrl, setApiUrl] = useState<string>('http://127.0.0.1:3000');
+  const [apiUrl, setApiUrl] = useState<string>(platformApiOrigin);
   
   // 初始化覆盖 7 组件 14 实现的干净草稿结构（初始无截图，必须由用户上传有效展示截图）
   const [initialData] = useState(() => createEmptySevenComponentsDraft('0.0.6'));
@@ -54,6 +54,7 @@ export default function WebUploadConsole() {
   useEffect(() => {
     const s = getStoredSession();
     if (s) setSession(s);
+    void loadCompanySession().then(value=>{if(value)setSession(value);});
 
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -567,6 +568,7 @@ export default function WebUploadConsole() {
       <main>
         <p className="eyebrow">Zhinexus 工作区</p>
         <h1>登录后开放</h1>
+        <p><a className="filter-btn active" href={companyLoginUrl}>使用公司账号登录</a></p>
         <p className="lead">身份与权限服务接入后，此处提供组件发布功能。请输入开发者发布凭证（OIDC Bearer Token）登录控制台：</p>
 
         <form onSubmit={handleLogin} className="auth-form" style={{ maxWidth: '480px', marginTop: '24px' }}>

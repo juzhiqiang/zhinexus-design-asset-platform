@@ -121,6 +121,7 @@ export async function requestMatchPlan(options: MatchPlanOptions): Promise<Match
   try {
     throwIfAborted(signal); // 检查点 1：发起请求前
     response = await doFetch(`${apiUrl}${MATCH_PLAN_PATH}`, {
+      ...(token==='__session__' ? {credentials:'include' as const} : {}),
       method: 'POST',
       headers: {
         'content-type': 'application/json',

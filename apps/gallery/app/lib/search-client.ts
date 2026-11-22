@@ -90,6 +90,7 @@ export async function searchCandidates(
   try {
     throwIfAborted(signal); // 检查点 1：发起请求前
     response = await doFetch(`${apiUrl}/v1/search/candidates`, {
+      ...(token==='__session__' ? {credentials:'include' as const} : {}),
       method: 'POST',
       headers: {
         'content-type': 'application/json',

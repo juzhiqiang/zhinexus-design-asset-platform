@@ -4,6 +4,19 @@ export type UserSession = {
   roles: string[];
   channel: 'cli' | 'web';
 };
+export const platformApiOrigin=(process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://127.0.0.1:3000').replace(/\/$/,'');
+export const companyLoginUrl=platformApiOrigin+'/v1/auth/oidc/start';
+let companySession:UserSession | null=null;
+export async function loadCompanySession():Promise<UserSession | null> {
+  try{
+    const response=await fetch(platformApiOrigin+'/v1/auth/oidc/session',{credentials:'include',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(5000)});
+    if(!response.ok){companySession=null;return getStoredSession();}
+    const value:unknown=await response.json();
+    if(!value || typeof value!=='object' || !('authenticated' in value) || value.authenticated!==true || !('subject' in value) || typeof value.subject!=='string' || !('roles' in value) || !Array.isArray(value.roles) || !value.roles.every(role=>typeof role==='string')){companySession=null;return getStoredSession();}
+    companySession={token:'__session__',subject:value.subject,roles:value.roles,channel:'web'};
+    return companySession;
+  }catch{companySession=null;return getStoredSession();}
+}
 
 /**
  * 从 JWT Token 中解析 Payload（仅在客户端用于展示身份信息，安全性由服务端 Bearer 鉴权强制校验）
@@ -30,6 +43,7 @@ const STORAGE_KEY = 'zhinexus_console_auth';
 
 export function getStoredSession(): UserSession | null {
   if (typeof window === 'undefined') return null;
+  if(companySession)return companySession;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -53,11 +67,14 @@ export function saveSession(token: string): UserSession | null {
     channel: clientId === 'cli' ? 'cli' : 'web',
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
+  companySession=null;
   return session;
 }
 
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
   localStorage.removeItem(STORAGE_KEY);
+  companySession=null;
+  void fetch(platformApiOrigin+'/v1/auth/oidc/logout',{method:'POST',credentials:'include',cache:'no-store',redirect:'error'}).catch(()=>{});
 }
 
