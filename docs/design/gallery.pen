@@ -32513,32 +32513,79 @@
                 "type": "gradient",
                 "gradientType": "linear",
                 "enabled": true,
-                "rotation": 155,
+                "rotation": 150,
                 "size": {
                   "height": 1
                 },
                 "colors": [
                   {
-                    "color": "#141C24",
+                    "color": "#151B23",
                     "position": 0
                   },
                   {
-                    "color": "#090C11",
+                    "color": "#0A0E14",
+                    "position": 0.5
+                  },
+                  {
+                    "color": "#080B10",
                     "position": 1
                   }
                 ]
               },
-              "cornerRadius": 3,
-              "stroke": "#37414D66",
+              "cornerRadius": 8,
+              "stroke": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": 175,
+                "size": {
+                  "height": 1
+                },
+                "colors": [
+                  {
+                    "color": "#8B9CAA69",
+                    "position": 0
+                  },
+                  {
+                    "color": "#34404B40",
+                    "position": 0.5
+                  },
+                  {
+                    "color": "#7B8C9A26",
+                    "position": 1
+                  }
+                ]
+              },
               "strokeWidth": 1,
+              "effect": [
+                {
+                  "type": "shadow",
+                  "shadowType": "outer",
+                  "color": "#00000070",
+                  "offset": {
+                    "x": 0,
+                    "y": 12
+                  },
+                  "blur": 28
+                },
+                {
+                  "type": "shadow",
+                  "shadowType": "inner",
+                  "color": "#DDEAF01A",
+                  "offset": {
+                    "x": 0,
+                    "y": 1
+                  }
+                }
+              ],
               "layout": "none",
               "children": [
                 {
                   "type": "ellipse",
-                  "id": "hTyCv",
-                  "x": 270,
-                  "y": 82,
-                  "name": "趋势底部光场",
+                  "id": "SpzQO",
+                  "x": 131.24,
+                  "y": 57,
+                  "name": "柔焦环境反射",
                   "fill": {
                     "type": "gradient",
                     "gradientType": "radial",
@@ -32550,7 +32597,7 @@
                     },
                     "colors": [
                       {
-                        "color": "#3872771C",
+                        "color": "#4DA89D20",
                         "position": 0
                       },
                       {
@@ -32559,149 +32606,284 @@
                       }
                     ]
                   },
-                  "width": 470,
-                  "height": 244
+                  "width": 594.44,
+                  "height": 264
+                },
+                {
+                  "type": "rectangle",
+                  "id": "HcZZg",
+                  "x": 16,
+                  "y": 1,
+                  "name": "顶部玻璃折射边",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 90,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#D0E8EE00",
+                        "position": 0
+                      },
+                      {
+                        "color": "#D0E8EE52",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#D0E8EE00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 740,
+                  "height": 1
+                },
+                {
+                  "type": "path",
+                  "id": "y85QGy",
+                  "x": 0,
+                  "y": 0,
+                  "name": "仪器角部刻线 0",
+                  "geometry": "M16 17l0 6",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#DDE6EA60",
+                  "strokeWidth": 1,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "kaimS",
+                  "x": 0,
+                  "y": 0,
+                  "name": "仪器角部刻线 1",
+                  "geometry": "M756 17l0 6",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#DDE6EA60",
+                  "strokeWidth": 1,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "rectangle",
+                  "id": "I2JZ7",
+                  "x": 20,
+                  "y": 326,
+                  "name": "底部隐约反光",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 90,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#8AA8AD00",
+                        "position": 0
+                      },
+                      {
+                        "color": "#8AA8AD2C",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#8AA8AD00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 732,
+                  "height": 1
                 },
                 {
                   "type": "text",
-                  "id": "Z1wCi",
-                  "x": 26,
+                  "id": "jRh3g",
+                  "x": 28,
                   "y": 23,
-                  "name": "趋势类型编号",
-                  "fill": "#A0A5B0",
+                  "name": "趋势展品编号",
+                  "fill": "#A9BABF",
                   "textGrowth": "fixed-width",
-                  "width": 310,
-                  "content": "01 / LINE CHART",
-                  "lineHeight": 1.5,
+                  "width": 340,
+                  "content": "01 / SIGNAL TO INSIGHT",
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "UiZDP",
-                  "x": 502,
+                  "id": "QNLSD",
+                  "x": 504,
                   "y": 23,
-                  "name": "趋势数据标记",
-                  "fill": "#656C7C",
+                  "name": "趋势概念标记",
+                  "fill": "#72818D",
                   "textGrowth": "fixed-width",
-                  "width": 242,
-                  "content": "DESIGN STUDY / DEMO",
-                  "lineHeight": 1.5,
+                  "width": 240,
+                  "content": "NATIVE STUDY / DEMO",
+                  "lineHeight": 1.4,
                   "textAlign": "right",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 9,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
-                  "type": "rectangle",
-                  "id": "pCrdw",
-                  "x": 28,
-                  "y": 100,
-                  "name": "趋势水平网格 100",
-                  "fill": "#A9BFCA0D",
-                  "width": 716,
-                  "height": 1
+                  "type": "text",
+                  "id": "M5tEl",
+                  "x": 30,
+                  "y": 51,
+                  "name": "趋势示意指数",
+                  "fill": "#E8F3F2",
+                  "textGrowth": "fixed-width",
+                  "width": 110,
+                  "content": "74.8",
+                  "lineHeight": 1.4,
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 36,
+                  "fontWeight": "500",
+                  "letterSpacing": -1.4
                 },
                 {
-                  "type": "rectangle",
-                  "id": "lvZD7",
-                  "x": 28,
-                  "y": 155,
-                  "name": "趋势水平网格 155",
-                  "fill": "#A9BFCA0D",
-                  "width": 716,
-                  "height": 1
-                },
-                {
-                  "type": "rectangle",
-                  "id": "a0dpx",
-                  "x": 28,
-                  "y": 210,
-                  "name": "趋势水平网格 210",
-                  "fill": "#A9BFCA0D",
-                  "width": 716,
-                  "height": 1
-                },
-                {
-                  "type": "rectangle",
-                  "id": "VUHvw",
-                  "x": 28,
-                  "y": 265,
-                  "name": "趋势水平网格 265",
-                  "fill": "#A9BFCA0D",
-                  "width": 716,
-                  "height": 1
-                },
-                {
-                  "type": "rectangle",
-                  "id": "tr5uA",
-                  "x": 28,
-                  "y": 74,
-                  "name": "趋势垂直网格 28",
-                  "fill": "#A9BFCA0A",
-                  "width": 1,
-                  "height": 192
-                },
-                {
-                  "type": "rectangle",
-                  "id": "ay95i",
-                  "x": 171,
-                  "y": 74,
-                  "name": "趋势垂直网格 171",
-                  "fill": "#A9BFCA0A",
-                  "width": 1,
-                  "height": 192
-                },
-                {
-                  "type": "rectangle",
-                  "id": "Bg4SJ",
-                  "x": 314,
-                  "y": 74,
-                  "name": "趋势垂直网格 314",
-                  "fill": "#A9BFCA0A",
-                  "width": 1,
-                  "height": 192
-                },
-                {
-                  "type": "rectangle",
-                  "id": "ac2pr",
-                  "x": 457,
-                  "y": 74,
-                  "name": "趋势垂直网格 457",
-                  "fill": "#A9BFCA0A",
-                  "width": 1,
-                  "height": 192
-                },
-                {
-                  "type": "rectangle",
-                  "id": "Q7qQO5",
-                  "x": 600,
-                  "y": 74,
-                  "name": "趋势垂直网格 600",
-                  "fill": "#A9BFCA0A",
-                  "width": 1,
-                  "height": 192
-                },
-                {
-                  "type": "rectangle",
-                  "id": "O0zDR",
-                  "x": 744,
-                  "y": 74,
-                  "name": "趋势垂直网格 744",
-                  "fill": "#A9BFCA0A",
-                  "width": 1,
-                  "height": 192
+                  "type": "text",
+                  "id": "A2EWt",
+                  "x": 150,
+                  "y": 77,
+                  "name": "趋势指数说明",
+                  "fill": "#8A9CA4",
+                  "textGrowth": "fixed-width",
+                  "width": 190,
+                  "content": "趋势指数 · 示意",
+                  "lineHeight": 1.4,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
                 },
                 {
                   "type": "path",
-                  "id": "v8c56p",
+                  "id": "q4pprP",
                   "x": 0,
                   "y": 0,
-                  "name": "趋势面积光影",
-                  "geometry": "M28 236c52 7 72-27 115-23 53 5 51-60 99-54 53 11 59 48 102 16 48-42 79-29 128-42 57-16 72 31 116-14 47-47 81 3 156-47l0 194-716 0z",
+                  "name": "本期图例光带",
+                  "geometry": "M487 73l22 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#94EEE2",
+                  "strokeWidth": 2.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "text",
+                  "id": "sUHmf",
+                  "x": 517,
+                  "y": 65,
+                  "name": "本期图例",
+                  "fill": "#AFBDC3",
+                  "textGrowth": "fixed-width",
+                  "width": 45,
+                  "content": "本期",
+                  "lineHeight": 1.4,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "path",
+                  "id": "AEnJu",
+                  "x": 0,
+                  "y": 0,
+                  "name": "对照图例光带",
+                  "geometry": "M588 73l22 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#74808F",
+                  "strokeWidth": 1,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "text",
+                  "id": "Yn5dZ",
+                  "x": 618,
+                  "y": 65,
+                  "name": "对照图例",
+                  "fill": "#84929E",
+                  "textGrowth": "fixed-width",
+                  "width": 60,
+                  "content": "对照",
+                  "lineHeight": 1.4,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 11,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 3,
+                  "id": "dMZ1k",
+                  "x": 77,
+                  "y": 106,
+                  "name": "悬浮后层玻璃",
+                  "fill": "#18252D16",
+                  "width": 660,
+                  "height": 157,
+                  "stroke": "#B3CAD521",
+                  "strokeWidth": 0.8
+                },
+                {
+                  "type": "rectangle",
+                  "cornerRadius": 3,
+                  "id": "XKOyh",
+                  "x": 62,
+                  "y": 118,
+                  "name": "悬浮中层玻璃",
+                  "fill": "#17252B1A",
+                  "width": 660,
+                  "height": 157,
+                  "stroke": "#ABC5CE20",
+                  "strokeWidth": 0.8
+                },
+                {
+                  "type": "path",
+                  "id": "F9GML",
+                  "x": 0,
+                  "y": 0,
+                  "name": "主层玻璃底座侧面",
+                  "geometry": "M48 277l643 0 36-27 0 6-36 28-643 0z",
                   "viewBox": [
                     0,
                     0,
@@ -32718,11 +32900,337 @@
                     },
                     "colors": [
                       {
-                        "color": "#77F9E230",
+                        "color": "#4A626A39",
                         "position": 0
                       },
                       {
-                        "color": "#77F9E200",
+                        "color": "#10171E30",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#9AB9C026",
+                  "strokeWidth": 0.5
+                },
+                {
+                  "type": "path",
+                  "id": "wKa6t",
+                  "x": 0,
+                  "y": 0,
+                  "name": "主层玻璃底座",
+                  "geometry": "M48 277l643 0 36-27-643 0z",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 170,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#4A817A20",
+                        "position": 0
+                      },
+                      {
+                        "color": "#17282B1C",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#B7D8D730",
+                  "strokeWidth": 0.6
+                },
+                {
+                  "type": "path",
+                  "id": "RPDKz",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 0",
+                  "geometry": "M48 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "f0UYU",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 1",
+                  "geometry": "M155 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "oUvSn",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 2",
+                  "geometry": "M262 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "Z7j8F",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 3",
+                  "geometry": "M369 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "VcKEi",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 4",
+                  "geometry": "M476 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "LeD4d",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 5",
+                  "geometry": "M583 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "ebn3L",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学底板纵向刻线 6",
+                  "geometry": "M691 277l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#BFDCD61A",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "nVxFa",
+                  "x": 0,
+                  "y": 0,
+                  "name": "后层细网格 0",
+                  "geometry": "M80 142l648 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#C5E5E211",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "UrGKC",
+                  "x": 0,
+                  "y": 0,
+                  "name": "后层细网格 1",
+                  "geometry": "M80 190l648 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#C5E5E211",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "LBkIO",
+                  "x": 0,
+                  "y": 0,
+                  "name": "后层细网格 2",
+                  "geometry": "M80 236l648 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#C5E5E211",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "hfhZs",
+                  "x": 0,
+                  "y": 0,
+                  "name": "前后玻璃左角连接",
+                  "geometry": "M48 277l36-27m-36-117l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#CFEEEA30",
+                  "strokeWidth": 0.7,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "s9AkI",
+                  "x": 0,
+                  "y": 0,
+                  "name": "前后玻璃右角连接",
+                  "geometry": "M691 277l36-27m-36-117l36-27",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#CFEEEA30",
+                  "strokeWidth": 0.7,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "w36Re",
+                  "x": 0,
+                  "y": 0,
+                  "name": "趋势体积投影幕",
+                  "geometry": "M60 248c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52l0 150-616 0z",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 180,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#83DCC524",
+                        "position": 0
+                      },
+                      {
+                        "color": "#73E7D506",
                         "position": 1
                       }
                     ]
@@ -32732,11 +33240,137 @@
                 },
                 {
                   "type": "path",
-                  "id": "F3JsJa",
+                  "id": "rY71I",
                   "x": 0,
                   "y": 0,
-                  "name": "趋势主曲线",
-                  "geometry": "M28 236c52 7 72-27 115-23 53 5 51-60 99-54 53 11 59 48 102 16 48-42 79-29 128-42 57-16 72 31 116-14 47-47 81 3 156-47",
+                  "name": "趋势地面柔影",
+                  "geometry": "M65 273.3c17-0.38333 68-1.08333 102-2.3 34-1.21667 68-4.76667 102-5 34-0.23333 68 3.78333 102 3.6 34-0.18333 68.5-4.16667 102-4.7 33.5-0.53333 64.33333 2.11667 99 1.5 34.66667-0.61667 90.83333-4.33333 109-5.2",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#8ADBCC19",
+                  "strokeWidth": 6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round",
+                  "effect": {
+                    "type": "blur",
+                    "radius": 5
+                  }
+                },
+                {
+                  "type": "path",
+                  "id": "vOojr",
+                  "x": 0,
+                  "y": 0,
+                  "name": "趋势参照轨迹",
+                  "geometry": "M60 259c62-23 104 4 156-18s70-22 128 3 76-30 130-15 81-7 130-22 60 14 103-22",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#8B93A35C",
+                  "strokeWidth": 1,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "lreqn",
+                  "x": 0,
+                  "y": 0,
+                  "name": "悬浮趋势玻璃光带",
+                  "geometry": "M60 248c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52l33-23c-18.16667 8.66667-74.33333 45.83333-109 52-34.66667 6.16667-65.5-20.33333-99-15-33.5 5.33333-68 45.16667-102 47-34 1.83333-68-38.33333-102-36-34 2.33333-68 37.83333-102 50-34 12.16667-85 19.16667-102 23z",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 125,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#D8FFF13E",
+                        "position": 0
+                      },
+                      {
+                        "color": "#77CCBD45",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#214B4B5E",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#9EDAD127",
+                  "strokeWidth": 0.5
+                },
+                {
+                  "type": "path",
+                  "id": "QiJdq",
+                  "x": 0,
+                  "y": 0,
+                  "name": "趋势光带立体侧面",
+                  "geometry": "M60 248c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52l0 7c-18.16667 8.66667-74.33333 45.83333-109 52-34.66667 6.16667-65.5-20.33333-99-15-33.5 5.33333-68 45.16667-102 47-34 1.83333-68-38.33333-102-36-34 2.33333-68 37.83333-102 50-34 12.16667-85 19.16667-102 23z",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 180,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#89C8BB78",
+                        "position": 0
+                      },
+                      {
+                        "color": "#20433F72",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#0C1B216E",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 772,
+                  "height": 328
+                },
+                {
+                  "type": "path",
+                  "id": "yZfnr",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光带后缘银青反射",
+                  "geometry": "M93 225c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52",
                   "viewBox": [
                     0,
                     0,
@@ -32756,31 +33390,26 @@
                     },
                     "colors": [
                       {
-                        "color": "#A5F2E5",
+                        "color": "#D4EDE561",
                         "position": 0
                       },
                       {
-                        "color": "#5ECCC9",
+                        "color": "#77B4A959",
                         "position": 1
                       }
                     ]
                   },
-                  "strokeWidth": 2.5,
-                  "strokeLinecap": "round",
-                  "effect": {
-                    "type": "shadow",
-                    "shadowType": "outer",
-                    "color": "#83E9DB55",
-                    "blur": 12
-                  }
+                  "strokeWidth": 1.2,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
                 },
                 {
                   "type": "path",
-                  "id": "b8YDWi",
+                  "id": "eI9j2",
                   "x": 0,
                   "y": 0,
-                  "name": "趋势对照曲线",
-                  "geometry": "M28 251c74-27 91 1 157-20s86-47 141-17 83-32 144-15 93-3 132-29 93 23 142-14",
+                  "name": "光带前缘晕光",
+                  "geometry": "M60 248c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52",
                   "viewBox": [
                     0,
                     0,
@@ -32790,164 +33419,483 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#A49EC96B",
-                  "strokeWidth": 1.2
+                  "stroke": "#65D3C948",
+                  "strokeWidth": 7,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round",
+                  "effect": {
+                    "type": "blur",
+                    "radius": 4
+                  }
+                },
+                {
+                  "type": "path",
+                  "id": "gWgLy",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光带前缘高光",
+                  "geometry": "M60 248c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 90,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#DAFFF1",
+                        "position": 0
+                      },
+                      {
+                        "color": "#83DAD1",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#D9FFF4",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "strokeWidth": 2.2,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round",
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#65D3C950",
+                    "blur": 10
+                  }
+                },
+                {
+                  "type": "path",
+                  "id": "aVuuN",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光带下缘暗反射",
+                  "geometry": "M60 255c17-3.83333 68-10.83333 102-23 34-12.16667 68-47.66667 102-50 34-2.33333 68 37.83333 102 36 34-1.83333 68.5-41.66667 102-47 33.5-5.33333 64.33333 21.16667 99 15 34.66667-6.16667 90.83333-43.33333 109-52",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#A0D7CB45",
+                  "strokeWidth": 0.7,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
                 },
                 {
                   "type": "ellipse",
-                  "id": "VdhEp",
-                  "x": 141,
-                  "y": 211,
-                  "name": "趋势数据节点 0",
-                  "fill": "#C2FFF1",
+                  "id": "lYWQm",
+                  "x": 160,
+                  "y": 223,
+                  "name": "曲面微刻节点 0",
+                  "fill": "#D6FFF2",
                   "width": 4,
-                  "height": 4
+                  "height": 4,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#9BE9D84D",
+                    "blur": 8
+                  }
                 },
                 {
                   "type": "ellipse",
-                  "id": "SqHue",
-                  "x": 240,
-                  "y": 157,
-                  "name": "趋势数据节点 1",
-                  "fill": "#C2FFF1",
-                  "width": 4,
-                  "height": 4
-                },
-                {
-                  "type": "ellipse",
-                  "id": "m1w16",
-                  "x": 342,
+                  "id": "LyC72",
+                  "x": 262,
                   "y": 173,
-                  "name": "趋势数据节点 2",
-                  "fill": "#C2FFF1",
+                  "name": "曲面微刻节点 1",
+                  "fill": "#D6FFF2",
+                  "width": 4,
+                  "height": 4,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#9BE9D84D",
+                    "blur": 8
+                  }
+                },
+                {
+                  "type": "ellipse",
+                  "id": "AnEUH",
+                  "x": 466,
+                  "y": 162,
+                  "name": "曲面微刻节点 2",
+                  "fill": "#D6FFF2",
+                  "width": 4,
+                  "height": 4,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#9BE9D84D",
+                    "blur": 8
+                  }
+                },
+                {
+                  "type": "ellipse",
+                  "id": "BN1GD",
+                  "x": 674,
+                  "y": 125,
+                  "name": "曲面微刻节点 3",
+                  "fill": "#D6FFF2",
+                  "width": 4,
+                  "height": 4,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#9BE9D84D",
+                    "blur": 8
+                  }
+                },
+                {
+                  "type": "rectangle",
+                  "id": "TfWSF",
+                  "x": 567,
+                  "y": 193,
+                  "name": "聚焦垂直投影 193",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "O03uy",
+                  "x": 567,
+                  "y": 201,
+                  "name": "聚焦垂直投影 201",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "XySp4",
+                  "x": 567,
+                  "y": 209,
+                  "name": "聚焦垂直投影 209",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "AYp1F",
+                  "x": 567,
+                  "y": 217,
+                  "name": "聚焦垂直投影 217",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "p42Hk",
+                  "x": 567,
+                  "y": 225,
+                  "name": "聚焦垂直投影 225",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "Z64w6K",
+                  "x": 567,
+                  "y": 233,
+                  "name": "聚焦垂直投影 233",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "WmUqq",
+                  "x": 567,
+                  "y": 241,
+                  "name": "聚焦垂直投影 241",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "nkb9D",
+                  "x": 567,
+                  "y": 249,
+                  "name": "聚焦垂直投影 249",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "UyRph",
+                  "x": 567,
+                  "y": 257,
+                  "name": "聚焦垂直投影 257",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "rectangle",
+                  "id": "uxqbQ",
+                  "x": 567,
+                  "y": 265,
+                  "name": "聚焦垂直投影 265",
+                  "fill": "#8CBAB64B",
+                  "width": 1,
+                  "height": 3
+                },
+                {
+                  "type": "ellipse",
+                  "id": "cKnK0",
+                  "x": 560,
+                  "y": 267,
+                  "name": "聚焦落点地面环",
+                  "fill": "#77CCBE10",
+                  "width": 15,
+                  "height": 7,
+                  "stroke": "#B9EADB45",
+                  "strokeWidth": 0.7
+                },
+                {
+                  "type": "ellipse",
+                  "id": "R5Dbpr",
+                  "x": 557,
+                  "y": 169,
+                  "name": "聚焦光学外环",
+                  "fill": "#132A2B70",
+                  "width": 20,
+                  "height": 20,
+                  "stroke": "#B2F1E758",
+                  "strokeWidth": 0.7,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#72DBCB4F",
+                    "blur": 13
+                  }
+                },
+                {
+                  "type": "ellipse",
+                  "id": "KpZk7",
+                  "x": 562,
+                  "y": 174,
+                  "name": "聚焦光学内环",
+                  "fill": "#122026",
+                  "width": 10,
+                  "height": 10,
+                  "stroke": "#E3FFF0",
+                  "strokeWidth": 1.3
+                },
+                {
+                  "type": "ellipse",
+                  "id": "C0Rqu",
+                  "x": 565,
+                  "y": 177,
+                  "name": "聚焦节点白芯",
+                  "fill": "#E5FFF3",
                   "width": 4,
                   "height": 4
                 },
                 {
-                  "type": "ellipse",
-                  "id": "FS3gs",
-                  "x": 470,
-                  "y": 131,
-                  "name": "趋势数据节点 3",
-                  "fill": "#C2FFF1",
-                  "width": 4,
-                  "height": 4
+                  "type": "frame",
+                  "id": "uA2O7",
+                  "x": 548,
+                  "y": 105,
+                  "name": "悬浮玻璃聚焦注释",
+                  "width": 122,
+                  "height": 42,
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 170,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#243E40CC",
+                        "position": 0
+                      },
+                      {
+                        "color": "#122025E8",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "cornerRadius": 5,
+                  "stroke": "#BDEADF4A",
+                  "strokeWidth": 0.8,
+                  "effect": [
+                    {
+                      "type": "shadow",
+                      "shadowType": "outer",
+                      "color": "#00000050",
+                      "offset": {
+                        "x": 0,
+                        "y": 8
+                      },
+                      "blur": 16
+                    },
+                    {
+                      "type": "background_blur",
+                      "radius": 7
+                    }
+                  ],
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "Pb0gL",
+                      "x": 14,
+                      "y": 11,
+                      "name": "聚焦注释值",
+                      "fill": "#D6ECE6",
+                      "textGrowth": "fixed-width",
+                      "width": 103,
+                      "content": "09 / 74.8",
+                      "lineHeight": 1.4,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 13,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.5
+                    }
+                  ]
                 },
                 {
-                  "type": "ellipse",
-                  "id": "U3Efn",
-                  "x": 586,
-                  "y": 117,
-                  "name": "趋势数据节点 4",
-                  "fill": "#C2FFF1",
-                  "width": 4,
-                  "height": 4
-                },
-                {
-                  "type": "ellipse",
-                  "id": "GGz7z",
-                  "x": 742,
-                  "y": 70,
-                  "name": "趋势数据节点 5",
-                  "fill": "#C2FFF1",
-                  "width": 4,
-                  "height": 4
+                  "type": "path",
+                  "id": "Y4LWm",
+                  "x": 0,
+                  "y": 0,
+                  "name": "注释细引线",
+                  "geometry": "M593 147l0 9-16 13",
+                  "viewBox": [
+                    0,
+                    0,
+                    772,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 772,
+                  "height": 328,
+                  "stroke": "#A7CFC95B",
+                  "strokeWidth": 0.7,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
                 },
                 {
                   "type": "text",
-                  "id": "iLjsO",
-                  "x": 28,
-                  "y": 284,
-                  "name": "趋势横轴 01",
-                  "fill": "#656C7C",
+                  "id": "BeLbZ",
+                  "x": 52,
+                  "y": 293,
+                  "name": "玻璃前缘横轴 01",
+                  "fill": "#7D8B99",
                   "textGrowth": "fixed-width",
-                  "width": 45,
+                  "width": 30,
                   "content": "01",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "TGRMk",
-                  "x": 169,
-                  "y": 284,
-                  "name": "趋势横轴 03",
-                  "fill": "#656C7C",
+                  "id": "g8SMwz",
+                  "x": 175,
+                  "y": 293,
+                  "name": "玻璃前缘横轴 03",
+                  "fill": "#7D8B99",
                   "textGrowth": "fixed-width",
-                  "width": 45,
+                  "width": 30,
                   "content": "03",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "MuCXX",
-                  "x": 310,
-                  "y": 284,
-                  "name": "趋势横轴 05",
-                  "fill": "#656C7C",
+                  "id": "XBiw5",
+                  "x": 298,
+                  "y": 293,
+                  "name": "玻璃前缘横轴 05",
+                  "fill": "#7D8B99",
                   "textGrowth": "fixed-width",
-                  "width": 45,
+                  "width": 30,
                   "content": "05",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "AhRv7",
-                  "x": 451,
-                  "y": 284,
-                  "name": "趋势横轴 07",
-                  "fill": "#656C7C",
+                  "id": "BMcmF",
+                  "x": 421,
+                  "y": 293,
+                  "name": "玻璃前缘横轴 07",
+                  "fill": "#7D8B99",
                   "textGrowth": "fixed-width",
-                  "width": 45,
+                  "width": 30,
                   "content": "07",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "xJRTt",
-                  "x": 592,
-                  "y": 284,
-                  "name": "趋势横轴 09",
-                  "fill": "#656C7C",
+                  "id": "PXycx",
+                  "x": 544,
+                  "y": 293,
+                  "name": "玻璃前缘横轴 09",
+                  "fill": "#7D8B99",
                   "textGrowth": "fixed-width",
-                  "width": 45,
+                  "width": 30,
                   "content": "09",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "w5fCCj",
-                  "x": 733,
-                  "y": 284,
-                  "name": "趋势横轴 12",
-                  "fill": "#656C7C",
+                  "id": "QqbxH",
+                  "x": 667,
+                  "y": 293,
+                  "name": "玻璃前缘横轴 12",
+                  "fill": "#7D8B99",
                   "textGrowth": "fixed-width",
-                  "width": 35,
+                  "width": 30,
                   "content": "12",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 }
               ]
             },
@@ -32963,32 +33911,79 @@
                 "type": "gradient",
                 "gradientType": "linear",
                 "enabled": true,
-                "rotation": 165,
+                "rotation": 150,
                 "size": {
                   "height": 1
                 },
                 "colors": [
                   {
-                    "color": "#1A1826",
+                    "color": "#151B23",
                     "position": 0
                   },
                   {
-                    "color": "#0B0C12",
+                    "color": "#0A0E14",
+                    "position": 0.5
+                  },
+                  {
+                    "color": "#080B10",
                     "position": 1
                   }
                 ]
               },
-              "cornerRadius": 3,
-              "stroke": "#49415466",
+              "cornerRadius": 8,
+              "stroke": {
+                "type": "gradient",
+                "gradientType": "linear",
+                "enabled": true,
+                "rotation": 175,
+                "size": {
+                  "height": 1
+                },
+                "colors": [
+                  {
+                    "color": "#8B9CAA69",
+                    "position": 0
+                  },
+                  {
+                    "color": "#34404B40",
+                    "position": 0.5
+                  },
+                  {
+                    "color": "#7B8C9A26",
+                    "position": 1
+                  }
+                ]
+              },
               "strokeWidth": 1,
+              "effect": [
+                {
+                  "type": "shadow",
+                  "shadowType": "outer",
+                  "color": "#00000070",
+                  "offset": {
+                    "x": 0,
+                    "y": 12
+                  },
+                  "blur": 28
+                },
+                {
+                  "type": "shadow",
+                  "shadowType": "inner",
+                  "color": "#DDEAF01A",
+                  "offset": {
+                    "x": 0,
+                    "y": 1
+                  }
+                }
+              ],
               "layout": "none",
               "children": [
                 {
                   "type": "ellipse",
-                  "id": "llDPb",
-                  "x": 33,
-                  "y": 98,
-                  "name": "排行底部光场",
+                  "id": "ymt69",
+                  "x": 81.94000000000001,
+                  "y": 57,
+                  "name": "柔焦环境反射",
                   "fill": {
                     "type": "gradient",
                     "gradientType": "radial",
@@ -33000,7 +33995,7 @@
                     },
                     "colors": [
                       {
-                        "color": "#7460961A",
+                        "color": "#9984BF24",
                         "position": 0
                       },
                       {
@@ -33009,94 +34004,223 @@
                       }
                     ]
                   },
-                  "width": 410,
-                  "height": 230
+                  "width": 371.14,
+                  "height": 264
+                },
+                {
+                  "type": "rectangle",
+                  "id": "LZ9aQ",
+                  "x": 16,
+                  "y": 1,
+                  "name": "顶部玻璃折射边",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 90,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#D0E8EE00",
+                        "position": 0
+                      },
+                      {
+                        "color": "#D0E8EE52",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#D0E8EE00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 450,
+                  "height": 1
+                },
+                {
+                  "type": "path",
+                  "id": "TcevD",
+                  "x": 0,
+                  "y": 0,
+                  "name": "仪器角部刻线 0",
+                  "geometry": "M16 17l0 6",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#DDE6EA60",
+                  "strokeWidth": 1,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "no8WY",
+                  "x": 0,
+                  "y": 0,
+                  "name": "仪器角部刻线 1",
+                  "geometry": "M466 17l0 6",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#DDE6EA60",
+                  "strokeWidth": 1,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "rectangle",
+                  "id": "Wb2ls",
+                  "x": 20,
+                  "y": 326,
+                  "name": "底部隐约反光",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 90,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#8AA8AD00",
+                        "position": 0
+                      },
+                      {
+                        "color": "#8AA8AD2C",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#8AA8AD00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 442,
+                  "height": 1
                 },
                 {
                   "type": "text",
-                  "id": "fRBpz",
-                  "x": 26,
+                  "id": "Qnrga",
+                  "x": 27,
                   "y": 23,
-                  "name": "排行类型编号",
-                  "fill": "#A0A5B0",
+                  "name": "结构展品编号",
+                  "fill": "#B9B7C8",
                   "textGrowth": "fixed-width",
-                  "width": 245,
-                  "content": "02 / BAR CHART",
-                  "lineHeight": 1.5,
+                  "width": 310,
+                  "content": "02 / ORDER IN SPACE",
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
                   "type": "text",
-                  "id": "dJu6y",
-                  "x": 378,
+                  "id": "ZNdtJ",
+                  "x": 386,
                   "y": 23,
-                  "name": "排行数据标记",
-                  "fill": "#656C7C",
+                  "name": "结构概念标记",
+                  "fill": "#848194",
                   "textGrowth": "fixed-width",
-                  "width": 78,
+                  "width": 65,
                   "content": "DEMO",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "textAlign": "right",
                   "fontFamily": "IBM Plex Mono",
                   "fontSize": 9,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 1
                 },
                 {
-                  "type": "rectangle",
-                  "id": "jwSFv",
+                  "type": "text",
+                  "id": "yQVUV",
                   "x": 28,
-                  "y": 100,
-                  "name": "排行水平网格 100",
-                  "fill": "#C8B9D814",
-                  "width": 426,
-                  "height": 1
+                  "y": 52,
+                  "name": "结构展品副标题",
+                  "fill": "#DCE0E8",
+                  "textGrowth": "fixed-width",
+                  "width": 180,
+                  "content": "空间序列",
+                  "lineHeight": 1.4,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 18,
+                  "fontWeight": "500",
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "id": "HNoSi",
-                  "x": 28,
-                  "y": 155,
-                  "name": "排行水平网格 155",
-                  "fill": "#C8B9D814",
-                  "width": 426,
-                  "height": 1
+                  "type": "text",
+                  "id": "GUBgG",
+                  "x": 306,
+                  "y": 59,
+                  "name": "结构材料说明",
+                  "fill": "#9193A5",
+                  "textGrowth": "fixed-width",
+                  "width": 146,
+                  "content": "TITANIUM / 08",
+                  "lineHeight": 1.4,
+                  "textAlign": "right",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 9,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
                 },
                 {
-                  "type": "rectangle",
-                  "id": "i23Dfg",
-                  "x": 28,
-                  "y": 210,
-                  "name": "排行水平网格 210",
-                  "fill": "#C8B9D814",
-                  "width": 426,
-                  "height": 1
+                  "type": "ellipse",
+                  "id": "uBvHK",
+                  "x": 48,
+                  "y": 252,
+                  "name": "金属序列接触柔影",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "radial",
+                    "enabled": true,
+                    "rotation": 0,
+                    "size": {
+                      "width": 1,
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#000000C0",
+                        "position": 0
+                      },
+                      {
+                        "color": "#06070A00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 384,
+                  "height": 40
                 },
                 {
-                  "type": "rectangle",
-                  "id": "owf1e",
-                  "x": 28,
-                  "y": 265,
-                  "name": "排行水平网格 265",
-                  "fill": "#C8B9D814",
-                  "width": 426,
-                  "height": 1
-                },
-                {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
+                  "type": "path",
+                  "id": "DzBu8",
+                  "x": 0,
+                  "y": 0,
+                  "name": "浮空底座深色前立面",
+                  "geometry": "M41 271l368 0 40-26 0 6-40 28-368 0z",
+                  "viewBox": [
                     0,
-                    0
+                    0,
+                    482,
+                    328
                   ],
-                  "id": "w3uoT",
-                  "x": 31,
-                  "y": 203,
-                  "name": "钛紫渐变柱 1",
                   "fill": {
                     "type": "gradient",
                     "gradientType": "linear",
@@ -33107,495 +34231,2724 @@
                     },
                     "colors": [
                       {
-                        "color": "#A99ECA",
+                        "color": "#4952648F",
                         "position": 0
                       },
                       {
-                        "color": "#5D527D",
+                        "color": "#151923B0",
                         "position": 0.5
                       },
                       {
-                        "color": "#2F2A46",
+                        "color": "#070A1090",
                         "position": 1
                       }
                     ]
                   },
-                  "width": 27,
-                  "height": 62
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#BFC3D42B",
+                  "strokeWidth": 0.5
                 },
                 {
-                  "type": "rectangle",
-                  "id": "UwJ5l",
-                  "x": 31,
-                  "y": 203,
-                  "name": "柱顶反射高光 1",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                  "type": "path",
+                  "id": "n7q0x",
+                  "x": 0,
+                  "y": 0,
+                  "name": "光学玻璃承重台面",
+                  "geometry": "M41 271l368 0 40-26-368 0z",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 155,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#65617A3B",
+                        "position": 0
+                      },
+                      {
+                        "color": "#29303B80",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#11182254",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C8C5DB3D",
+                  "strokeWidth": 0.7
+                },
+                {
+                  "type": "path",
+                  "id": "l50Ikz",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 0",
+                  "geometry": "M44 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "L21Qd",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 1",
+                  "geometry": "M91 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "gNj4Y",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 2",
+                  "geometry": "M138 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "SwYBD",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 3",
+                  "geometry": "M185 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "CYOxM",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 4",
+                  "geometry": "M232 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "rGOSY",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 5",
+                  "geometry": "M279 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "v1iXV",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 6",
+                  "geometry": "M326 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "nGQZu",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 7",
+                  "geometry": "M373 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "IPDYl",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座精密纵向蚀刻 8",
+                  "geometry": "M410 271l39-26",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C6CAD720",
+                  "strokeWidth": 0.5,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "HRbiD",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座前缘微反射",
+                  "geometry": "M42 271l367 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#B7BAD045",
+                  "strokeWidth": 0.8,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "path",
+                  "id": "O793H",
+                  "x": 0,
+                  "y": 0,
+                  "name": "底座中线微反射",
+                  "geometry": "M61 258l368 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#C7BFE015",
+                  "strokeWidth": 0.6,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "ellipse",
+                  "id": "IEJuq",
+                  "x": 50,
+                  "y": 257,
+                  "name": "金属柱接触阴影 1",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "w7l8EV",
+                  "x": 53,
+                  "y": 209,
+                  "name": "缎面金属序列柱 1",
+                  "width": 38,
+                  "height": 54,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "ufCnK",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 46-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        54
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 54,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "Qyh3Z",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 46,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "kmilM",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "I897E3",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1,
+                      "height": 45
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "AQdmZ",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 45
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "pfi50",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 39
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "K35h6q",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
+                      }
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "OWqjP",
-                  "x": 34,
-                  "y": 285,
-                  "name": "排行横轴 1",
-                  "fill": "#656C7C",
+                  "id": "CcKhZ",
+                  "x": 55,
+                  "y": 293,
+                  "name": "空间序列编号 1",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "01",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "LmdDe",
-                  "x": 84,
-                  "y": 158,
-                  "name": "钛紫渐变柱 2",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
+                  "type": "ellipse",
+                  "id": "aAuh3",
+                  "x": 95,
+                  "y": 257,
+                  "name": "金属柱接触阴影 2",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "VRqmE",
+                  "x": 98,
+                  "y": 177,
+                  "name": "缎面金属序列柱 2",
+                  "width": 38,
+                  "height": 86,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "T2IDr2",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 78-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        86
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 86,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
                     },
-                    "colors": [
-                      {
-                        "color": "#A99ECA",
-                        "position": 0
+                    {
+                      "type": "rectangle",
+                      "id": "g04mV",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 78,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "xKBG7",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "QrdON",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
+                      "width": 1,
+                      "height": 77
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "eJyW1",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 77
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "r077A",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 71
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "abwTN",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
                       }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 107
-                },
-                {
-                  "type": "rectangle",
-                  "id": "TaC0C",
-                  "x": 84,
-                  "y": 158,
-                  "name": "柱顶反射高光 2",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "V2ujU",
-                  "x": 87,
-                  "y": 285,
-                  "name": "排行横轴 2",
-                  "fill": "#656C7C",
+                  "id": "hO3ST",
+                  "x": 100,
+                  "y": 293,
+                  "name": "空间序列编号 2",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "02",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "mWjO5",
-                  "x": 137,
-                  "y": 179,
-                  "name": "钛紫渐变柱 3",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
-                    },
-                    "colors": [
-                      {
-                        "color": "#A99ECA",
-                        "position": 0
-                      },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
-                      },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
-                      }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 86
-                },
-                {
-                  "type": "rectangle",
-                  "id": "Dds0K",
-                  "x": 137,
-                  "y": 179,
-                  "name": "柱顶反射高光 3",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
-                },
-                {
-                  "type": "text",
-                  "id": "bGLzj",
+                  "type": "ellipse",
+                  "id": "BrODS",
                   "x": 140,
-                  "y": 285,
-                  "name": "排行横轴 3",
-                  "fill": "#656C7C",
+                  "y": 257,
+                  "name": "金属柱接触阴影 3",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "SpfIh",
+                  "x": 143,
+                  "y": 192,
+                  "name": "缎面金属序列柱 3",
+                  "width": 38,
+                  "height": 71,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "v7tJG",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 63-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        71
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 71,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "C3Jvh",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 63,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "GcBuU",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "JaooN",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1,
+                      "height": 62
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "N0YlvV",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 62
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "y3u09q",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 56
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "HX3J0",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
+                      }
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "W02JR",
+                  "x": 145,
+                  "y": 293,
+                  "name": "空间序列编号 3",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "03",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "IU9W2",
-                  "x": 190,
-                  "y": 116,
-                  "name": "钛紫渐变柱 4",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
+                  "type": "ellipse",
+                  "id": "mENce",
+                  "x": 185,
+                  "y": 257,
+                  "name": "金属柱接触阴影 4",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "vyIXu",
+                  "x": 188,
+                  "y": 151,
+                  "name": "缎面金属序列柱 4",
+                  "width": 38,
+                  "height": 112,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "E4qPV",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 104-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        112
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 112,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
                     },
-                    "colors": [
-                      {
-                        "color": "#A99ECA",
-                        "position": 0
+                    {
+                      "type": "rectangle",
+                      "id": "wnbXr",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 104,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "hdriX",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "uD6uV",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
+                      "width": 1,
+                      "height": 103
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "nE41V",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 103
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "BxgFj",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 97
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "n78A7X",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
                       }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 149
-                },
-                {
-                  "type": "rectangle",
-                  "id": "R5VFOy",
-                  "x": 190,
-                  "y": 116,
-                  "name": "柱顶反射高光 4",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "XrwbJ",
-                  "x": 193,
-                  "y": 285,
-                  "name": "排行横轴 4",
-                  "fill": "#656C7C",
+                  "id": "Ly84l",
+                  "x": 190,
+                  "y": 293,
+                  "name": "空间序列编号 4",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "04",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "aILeB",
-                  "x": 243,
-                  "y": 143,
-                  "name": "钛紫渐变柱 5",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
+                  "type": "ellipse",
+                  "id": "SndPi",
+                  "x": 230,
+                  "y": 257,
+                  "name": "金属柱接触阴影 5",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "cckcV",
+                  "x": 233,
+                  "y": 166,
+                  "name": "缎面金属序列柱 5",
+                  "width": 38,
+                  "height": 97,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "UBQyp",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 89-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        97
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 97,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
                     },
-                    "colors": [
-                      {
-                        "color": "#A99ECA",
-                        "position": 0
+                    {
+                      "type": "rectangle",
+                      "id": "MfbZx",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 89,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "G0chy",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "xBAc2",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
+                      "width": 1,
+                      "height": 88
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "lR8qE",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 88
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "M5mob",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 82
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "hMsnh",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
                       }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 122
-                },
-                {
-                  "type": "rectangle",
-                  "id": "tc5kq",
-                  "x": 243,
-                  "y": 143,
-                  "name": "柱顶反射高光 5",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "jDQlZ",
-                  "x": 246,
-                  "y": 285,
-                  "name": "排行横轴 5",
-                  "fill": "#656C7C",
+                  "id": "mrCEf",
+                  "x": 235,
+                  "y": 293,
+                  "name": "空间序列编号 5",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "05",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "X1UPJ0",
-                  "x": 296,
-                  "y": 81,
-                  "name": "钛紫渐变柱 6",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
+                  "type": "ellipse",
+                  "id": "qW58d",
+                  "x": 275,
+                  "y": 257,
+                  "name": "金属柱接触阴影 6",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "vWmJG",
+                  "x": 278,
+                  "y": 125,
+                  "name": "缎面金属序列柱 6",
+                  "width": 38,
+                  "height": 138,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "RF3WN",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 130-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        138
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 138,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
                     },
-                    "colors": [
-                      {
-                        "color": "#A99ECA",
-                        "position": 0
+                    {
+                      "type": "rectangle",
+                      "id": "JDlu1",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 130,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "ZKYKy",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "XPTvj",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
+                      "width": 1,
+                      "height": 129
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "xupIT",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 129
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "BQGuh",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 123
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "RnwWW",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
                       }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 184
-                },
-                {
-                  "type": "rectangle",
-                  "id": "AbSwS",
-                  "x": 296,
-                  "y": 81,
-                  "name": "柱顶反射高光 6",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "RQOVt",
-                  "x": 299,
-                  "y": 285,
-                  "name": "排行横轴 6",
-                  "fill": "#656C7C",
+                  "id": "vxTij",
+                  "x": 280,
+                  "y": 293,
+                  "name": "空间序列编号 6",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "06",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "Tp7xJ",
-                  "x": 349,
-                  "y": 106,
-                  "name": "钛紫渐变柱 7",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
+                  "type": "ellipse",
+                  "id": "KKnCk",
+                  "x": 320,
+                  "y": 257,
+                  "name": "金属柱接触阴影 7",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "qnuoU",
+                  "x": 323,
+                  "y": 143,
+                  "name": "缎面金属序列柱 7",
+                  "width": 38,
+                  "height": 120,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "eXDqS",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 112-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        120
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 120,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
                     },
-                    "colors": [
-                      {
-                        "color": "#D1C8EF",
-                        "position": 0
+                    {
+                      "type": "rectangle",
+                      "id": "tu0LK",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#B3ACD02A",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 112,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "P94NPY",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C8C5D4",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "j2AWkA",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
+                      "width": 1,
+                      "height": 111
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "XLSfL",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 111
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "qtniJ",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 105
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "ZUozu",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#CFCDE590",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
                       }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 159
-                },
-                {
-                  "type": "rectangle",
-                  "id": "feZr9",
-                  "x": 349,
-                  "y": 106,
-                  "name": "柱顶反射高光 7",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "aGlpW",
-                  "x": 352,
-                  "y": 285,
-                  "name": "排行横轴 7",
-                  "fill": "#656C7C",
+                  "id": "Nk5kl",
+                  "x": 325,
+                  "y": 293,
+                  "name": "空间序列编号 7",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "07",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
                 },
                 {
-                  "type": "rectangle",
-                  "cornerRadius": [
-                    2,
-                    2,
-                    0,
-                    0
-                  ],
-                  "id": "kPCSf",
-                  "x": 402,
-                  "y": 52,
-                  "name": "钛紫渐变柱 8",
-                  "fill": {
-                    "type": "gradient",
-                    "gradientType": "linear",
-                    "enabled": true,
-                    "rotation": 180,
-                    "size": {
-                      "height": 1
+                  "type": "ellipse",
+                  "id": "KK2L7",
+                  "x": 365,
+                  "y": 257,
+                  "name": "金属柱接触阴影 8",
+                  "fill": "#00000066",
+                  "width": 44,
+                  "height": 12,
+                  "effect": {
+                    "type": "blur",
+                    "radius": 3
+                  }
+                },
+                {
+                  "type": "frame",
+                  "id": "Km976",
+                  "x": 368,
+                  "y": 98,
+                  "name": "缎面金属序列柱 8",
+                  "width": 38,
+                  "height": 165,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "path",
+                      "id": "wkYrP",
+                      "x": 0,
+                      "y": 0,
+                      "name": "侧面 · 深钛反射",
+                      "geometry": "M25 8l13-8 0 157-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        165
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 105,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#525269",
+                            "position": 0
+                          },
+                          {
+                            "color": "#232735",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#0C1019",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 38,
+                      "height": 165,
+                      "stroke": "#BFC5DA18",
+                      "strokeWidth": 0.5
                     },
-                    "colors": [
-                      {
-                        "color": "#D1C8EF",
-                        "position": 0
+                    {
+                      "type": "rectangle",
+                      "id": "t33u4",
+                      "x": 0,
+                      "y": 8,
+                      "name": "正面 · 缎面金属多段反射",
+                      "fill": [
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 90,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#898A9B",
+                              "position": 0
+                            },
+                            {
+                              "color": "#47495B",
+                              "position": 0.3333333333333333
+                            },
+                            {
+                              "color": "#646878",
+                              "position": 0.6666666666666666
+                            },
+                            {
+                              "color": "#1E2332",
+                              "position": 1
+                            }
+                          ]
+                        },
+                        {
+                          "type": "gradient",
+                          "gradientType": "linear",
+                          "enabled": true,
+                          "rotation": 180,
+                          "size": {
+                            "height": 1
+                          },
+                          "colors": [
+                            {
+                              "color": "#BFB6D74D",
+                              "position": 0
+                            },
+                            {
+                              "color": "#1E1E3520",
+                              "position": 0.5
+                            },
+                            {
+                              "color": "#04071088",
+                              "position": 1
+                            }
+                          ]
+                        }
+                      ],
+                      "width": 25,
+                      "height": 157,
+                      "stroke": "#B5BED02B",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "path",
+                      "id": "Jhecn",
+                      "x": 0,
+                      "y": 0,
+                      "name": "顶面 · 银紫磨砂高光",
+                      "geometry": "M0 8l13-8 25 0-13 8z",
+                      "viewBox": [
+                        0,
+                        0,
+                        38,
+                        8
+                      ],
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 170,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E5DFF1",
+                            "position": 0
+                          },
+                          {
+                            "color": "#8C879E",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#B6B5C8",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#5D527D",
-                        "position": 0.5
+                      "width": 38,
+                      "height": 8,
+                      "stroke": "#E7E3F168",
+                      "strokeWidth": 0.5
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "DXJRF",
+                      "x": 0,
+                      "y": 9,
+                      "name": "正面左缘银白倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#D8D6E398",
+                            "position": 0
+                          },
+                          {
+                            "color": "#AFB5C645",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#8190A329",
+                            "position": 1
+                          }
+                        ]
                       },
-                      {
-                        "color": "#2F2A46",
-                        "position": 1
+                      "width": 1,
+                      "height": 156
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "FCpEC",
+                      "x": 24,
+                      "y": 9,
+                      "name": "正面右缘紫钛倒角",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#C5BAD9B0",
+                            "position": 0
+                          },
+                          {
+                            "color": "#625F8280",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#2E344255",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 0.7,
+                      "height": 156
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "kWH9F",
+                      "x": 4,
+                      "y": 11,
+                      "name": "正面窄幅柔亮反射",
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "linear",
+                        "enabled": true,
+                        "rotation": 180,
+                        "size": {
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#E0DBF01C",
+                            "position": 0
+                          },
+                          {
+                            "color": "#CED5E512",
+                            "position": 0.5
+                          },
+                          {
+                            "color": "#CED5E500",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 1.5,
+                      "height": 150
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "WOrEs",
+                      "x": 0.7,
+                      "y": 8,
+                      "name": "顶面前缘细光带",
+                      "fill": "#EEE6FFD9",
+                      "width": 24,
+                      "height": 0.8,
+                      "effect": {
+                        "type": "shadow",
+                        "shadowType": "outer",
+                        "color": "#BA9ED626",
+                        "blur": 5
                       }
-                    ]
-                  },
-                  "width": 27,
-                  "height": 213
-                },
-                {
-                  "type": "rectangle",
-                  "id": "qnc1z",
-                  "x": 402,
-                  "y": 52,
-                  "name": "柱顶反射高光 8",
-                  "fill": "#DDD2FFAA",
-                  "width": 27,
-                  "height": 1
+                    }
+                  ]
                 },
                 {
                   "type": "text",
-                  "id": "Gc0DC",
-                  "x": 405,
-                  "y": 285,
-                  "name": "排行横轴 8",
-                  "fill": "#656C7C",
+                  "id": "nk9Jm",
+                  "x": 370,
+                  "y": 293,
+                  "name": "空间序列编号 8",
+                  "fill": "#9196A5",
                   "textGrowth": "fixed-width",
-                  "width": 40,
+                  "width": 34,
                   "content": "08",
-                  "lineHeight": 1.5,
+                  "lineHeight": 1.4,
                   "fontFamily": "IBM Plex Mono",
-                  "fontSize": 9,
+                  "fontSize": 10,
                   "fontWeight": "normal",
-                  "letterSpacing": 1.3
+                  "letterSpacing": 0.4
+                },
+                {
+                  "type": "path",
+                  "id": "APEGj",
+                  "x": 0,
+                  "y": 0,
+                  "name": "最高序列聚焦引线",
+                  "geometry": "M399 98l25-16 22 0",
+                  "viewBox": [
+                    0,
+                    0,
+                    482,
+                    328
+                  ],
+                  "fill": "#00000000",
+                  "width": 482,
+                  "height": 328,
+                  "stroke": "#CAC2DF60",
+                  "strokeWidth": 0.7,
+                  "strokeLinejoin": "round",
+                  "strokeLinecap": "round"
+                },
+                {
+                  "type": "ellipse",
+                  "id": "izpye",
+                  "x": 396,
+                  "y": 96,
+                  "name": "最高序列聚焦端点",
+                  "fill": "#DDD6EF",
+                  "width": 4,
+                  "height": 4,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#D3C3E044",
+                    "blur": 8
+                  }
                 }
               ]
             },
