@@ -68,6 +68,10 @@ $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
 | 预览网关存活检查 | `http://127.0.0.1:3001/healthz` |
 | CLI 帮助 | `.\scripts\pnpm.ps1 component --help` |
 
+根 `dev` 通过 `turbo run dev --concurrency=12 --cache=local:rw` 编排 10 个工作区包，先执行上游构建；开发任务不缓存。同一工作区只保留一组开发服务，重新启动前在原终端按 `Ctrl+C` 并等待退出。
+
+若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。Windows 请使用上述 `.\scripts\pnpm.ps1 dev` 固定工具链入口。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
+
 API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还需启动独立发布 worker。配置与启动方式见 [API 接入说明](apps/api/README.md)、[预览网关说明](apps/preview-gateway/README.md) 和 [本地基础设施](infra/README.md)。
 
 正式构建画廊时，`NEXT_PUBLIC_SITE_URL` 应设置为站点公开 origin，用于 sitemap 与 metadata；`NEXT_PUBLIC_PLATFORM_API_URL` 应指向管理 API，API 需允许画廊的精确 Origin。仅使用 IPv4 时，可以为画廊、API 和预览配置不同 HTTPS 端口，见 [IP 分端口部署](docs/guides/preview-ip-port.md)。
