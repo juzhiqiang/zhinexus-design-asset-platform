@@ -7,10 +7,10 @@
       "x": -1520,
       "y": 0,
       "name": "00 介绍首页 · 科技朋克 · /",
-      "context": "深黑钛金属科技朋克介绍首页 V2；静态概念设计，全部文字、图表、数字雕塑、光场均为可编辑原生图层，无外部图片依赖。",
+      "context": "科技朋克介绍首页 V4：午夜蓝环境、蓝紫光学图表、五处分区 shader 背景。@time 慢漂光场与稀疏微粒，u_speed=0 可冻结；只为设计稿，不含应用代码。",
       "clip": true,
       "width": 1440,
-      "fill": "#06070A",
+      "fill": "#080D1C",
       "layout": "vertical",
       "children": [
         {
@@ -19,7 +19,7 @@
           "name": "01 导航 · 钛金属字标",
           "width": 1440,
           "height": 88,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
             {
@@ -206,9 +206,35 @@
           "name": "02 首屏 · 灵感轨道",
           "width": 1440,
           "height": 720,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
+            {
+              "type": "rectangle",
+              "id": "OCSdm",
+              "x": 0,
+              "y": 0,
+              "name": "背景动效 · 首屏 · 星轨与微粒慢漂",
+              "context": "装饰层位于正文之后；u_speed=0 固定代表帧，@time驱动慢漂，不绑定鼠标、不闪烁",
+              "fill": [
+                "#080D1C",
+                {
+                  "type": "shader",
+                  "enabled": true,
+                  "url": "shaders/gallery-atmosphere.glsl",
+                  "uniforms": {
+                    "u_speed": 1,
+                    "u_frame": 0,
+                    "u_mode": 0,
+                    "u_base": "#080D1C",
+                    "u_blue": "#387BFF",
+                    "u_iris": "#9164FF"
+                  }
+                }
+              ],
+              "width": 1440,
+              "height": 720
+            },
             {
               "type": "ellipse",
               "id": "o6KsZ",
@@ -226,11 +252,11 @@
                 },
                 "colors": [
                   {
-                    "color": "#533A951B",
+                    "color": "#2B52CD22",
                     "position": 0
                   },
                   {
-                    "color": "#06070A00",
+                    "color": "#080D1C00",
                     "position": 1
                   }
                 ]
@@ -31881,6 +31907,7 @@
               "x": 677,
               "y": 8,
               "name": "艺术左边缘无缝淡出",
+              "enabled": false,
               "fill": {
                 "type": "gradient",
                 "gradientType": "linear",
@@ -31891,11 +31918,11 @@
                 },
                 "colors": [
                   {
-                    "color": "#06070A00",
+                    "color": "#080D1C00",
                     "position": 0
                   },
                   {
-                    "color": "#06070A",
+                    "color": "#080D1C",
                     "position": 1
                   }
                 ]
@@ -31909,6 +31936,7 @@
               "x": 678,
               "y": 592,
               "name": "艺术底边缘无缝淡出",
+              "enabled": false,
               "fill": {
                 "type": "gradient",
                 "gradientType": "linear",
@@ -31919,11 +31947,11 @@
                 },
                 "colors": [
                   {
-                    "color": "#06070A00",
+                    "color": "#080D1C00",
                     "position": 0
                   },
                   {
-                    "color": "#06070A",
+                    "color": "#080D1C",
                     "position": 1
                   }
                 ]
@@ -31979,11 +32007,11 @@
                 },
                 "colors": [
                   {
-                    "color": "#F4F6F8",
+                    "color": "#F3F6FF",
                     "position": 0
                   },
                   {
-                    "color": "#A9B0BF",
+                    "color": "#ADC6F0",
                     "position": 1
                   }
                 ]
@@ -32295,7 +32323,7 @@
           "name": "03 生态 · 为你的技术栈而生",
           "width": 1440,
           "height": 128,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
             {
@@ -32451,9 +32479,35 @@
           "name": "04 资产 · 从经验到作品",
           "width": 1440,
           "height": 760,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
+            {
+              "type": "rectangle",
+              "id": "R300D",
+              "x": 0,
+              "y": 0,
+              "name": "背景动效 · 资产 · 蓝紫环境与光纤游光",
+              "context": "装饰层位于正文之后；u_speed=0 固定代表帧，@time驱动慢漂，不绑定鼠标、不闪烁",
+              "fill": [
+                "#080D1C",
+                {
+                  "type": "shader",
+                  "enabled": true,
+                  "url": "shaders/gallery-atmosphere.glsl",
+                  "uniforms": {
+                    "u_speed": 1,
+                    "u_frame": 0,
+                    "u_mode": 1,
+                    "u_base": "#080D1C",
+                    "u_blue": "#387BFF",
+                    "u_iris": "#9164FF"
+                  }
+                }
+              ],
+              "width": 1440,
+              "height": 760
+            },
             {
               "type": "text",
               "id": "u0gY0U",
@@ -32519,15 +32573,15 @@
                 },
                 "colors": [
                   {
-                    "color": "#151B23",
+                    "color": "#142443",
                     "position": 0
                   },
                   {
-                    "color": "#0A0E14",
+                    "color": "#0B162C",
                     "position": 0.5
                   },
                   {
-                    "color": "#080B10",
+                    "color": "#080F21",
                     "position": 1
                   }
                 ]
@@ -32543,15 +32597,15 @@
                 },
                 "colors": [
                   {
-                    "color": "#8B9CAA69",
+                    "color": "#819FDB69",
                     "position": 0
                   },
                   {
-                    "color": "#34404B40",
+                    "color": "#2A427240",
                     "position": 0.5
                   },
                   {
-                    "color": "#7B8C9A26",
+                    "color": "#748CC526",
                     "position": 1
                   }
                 ]
@@ -32597,11 +32651,11 @@
                     },
                     "colors": [
                       {
-                        "color": "#4DA89D20",
+                        "color": "#1C71E820",
                         "position": 0
                       },
                       {
-                        "color": "#06070A00",
+                        "color": "#080D1C00",
                         "position": 1
                       }
                     ]
@@ -32625,15 +32679,15 @@
                     },
                     "colors": [
                       {
-                        "color": "#D0E8EE00",
+                        "color": "#BCDFFF00",
                         "position": 0
                       },
                       {
-                        "color": "#D0E8EE52",
+                        "color": "#BCDFFF52",
                         "position": 0.5
                       },
                       {
-                        "color": "#D0E8EE00",
+                        "color": "#BCDFFF00",
                         "position": 1
                       }
                     ]
@@ -32699,15 +32753,15 @@
                     },
                     "colors": [
                       {
-                        "color": "#8AA8AD00",
+                        "color": "#6E8BD900",
                         "position": 0
                       },
                       {
-                        "color": "#8AA8AD2C",
+                        "color": "#6E8BD92C",
                         "position": 0.5
                       },
                       {
-                        "color": "#8AA8AD00",
+                        "color": "#6E8BD900",
                         "position": 1
                       }
                     ]
@@ -32795,7 +32849,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#94EEE2",
+                  "stroke": "#70CCFF",
                   "strokeWidth": 2.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -32858,7 +32912,7 @@
                   "x": 77,
                   "y": 106,
                   "name": "悬浮后层玻璃",
-                  "fill": "#18252D16",
+                  "fill": "#17376C16",
                   "width": 660,
                   "height": 157,
                   "stroke": "#B3CAD521",
@@ -32871,7 +32925,7 @@
                   "x": 62,
                   "y": 118,
                   "name": "悬浮中层玻璃",
-                  "fill": "#17252B1A",
+                  "fill": "#1536631A",
                   "width": 660,
                   "height": 157,
                   "stroke": "#ABC5CE20",
@@ -32900,18 +32954,18 @@
                     },
                     "colors": [
                       {
-                        "color": "#4A626A39",
+                        "color": "#31558739",
                         "position": 0
                       },
                       {
-                        "color": "#10171E30",
+                        "color": "#0B183230",
                         "position": 1
                       }
                     ]
                   },
                   "width": 772,
                   "height": 328,
-                  "stroke": "#9AB9C026",
+                  "stroke": "#6F9ED726",
                   "strokeWidth": 0.5
                 },
                 {
@@ -32937,18 +32991,18 @@
                     },
                     "colors": [
                       {
-                        "color": "#4A817A20",
+                        "color": "#336FC420",
                         "position": 0
                       },
                       {
-                        "color": "#17282B1C",
+                        "color": "#122B581C",
                         "position": 1
                       }
                     ]
                   },
                   "width": 772,
                   "height": 328,
-                  "stroke": "#B7D8D730",
+                  "stroke": "#9BB9EC30",
                   "strokeWidth": 0.6
                 },
                 {
@@ -32967,7 +33021,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -32988,7 +33042,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33009,7 +33063,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33030,7 +33084,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33051,7 +33105,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33072,7 +33126,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33093,7 +33147,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#BFDCD61A",
+                  "stroke": "#98B6E51A",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33114,7 +33168,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#C5E5E211",
+                  "stroke": "#89B5F011",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33135,7 +33189,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#C5E5E211",
+                  "stroke": "#89B5F011",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33156,7 +33210,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#C5E5E211",
+                  "stroke": "#89B5F011",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33177,7 +33231,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#CFEEEA30",
+                  "stroke": "#B3D4FF30",
                   "strokeWidth": 0.7,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33198,7 +33252,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#CFEEEA30",
+                  "stroke": "#B3D4FF30",
                   "strokeWidth": 0.7,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33226,11 +33280,11 @@
                     },
                     "colors": [
                       {
-                        "color": "#83DCC524",
+                        "color": "#489BFF24",
                         "position": 0
                       },
                       {
-                        "color": "#73E7D506",
+                        "color": "#328CFF06",
                         "position": 1
                       }
                     ]
@@ -33254,7 +33308,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#8ADBCC19",
+                  "stroke": "#5DA7FF19",
                   "strokeWidth": 6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round",
@@ -33307,22 +33361,22 @@
                     },
                     "colors": [
                       {
-                        "color": "#D8FFF13E",
+                        "color": "#BDE6FF64",
                         "position": 0
                       },
                       {
-                        "color": "#77CCBD45",
+                        "color": "#4996E665",
                         "position": 0.5
                       },
                       {
-                        "color": "#214B4B5E",
+                        "color": "#12376678",
                         "position": 1
                       }
                     ]
                   },
                   "width": 772,
                   "height": 328,
-                  "stroke": "#9EDAD127",
+                  "stroke": "#82BDFF27",
                   "strokeWidth": 0.5
                 },
                 {
@@ -33348,15 +33402,15 @@
                     },
                     "colors": [
                       {
-                        "color": "#89C8BB78",
+                        "color": "#579DEC78",
                         "position": 0
                       },
                       {
-                        "color": "#20433F72",
+                        "color": "#163C7772",
                         "position": 0.5
                       },
                       {
-                        "color": "#0C1B216E",
+                        "color": "#081A386E",
                         "position": 1
                       }
                     ]
@@ -33390,11 +33444,11 @@
                     },
                     "colors": [
                       {
-                        "color": "#D4EDE561",
+                        "color": "#B1D6FF61",
                         "position": 0
                       },
                       {
-                        "color": "#77B4A959",
+                        "color": "#4D92D259",
                         "position": 1
                       }
                     ]
@@ -33419,7 +33473,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#65D3C948",
+                  "stroke": "#3EA4FF48",
                   "strokeWidth": 7,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round",
@@ -33454,15 +33508,15 @@
                     },
                     "colors": [
                       {
-                        "color": "#DAFFF1",
+                        "color": "#EBF8FF",
                         "position": 0
                       },
                       {
-                        "color": "#83DAD1",
+                        "color": "#5CC8FF",
                         "position": 0.5
                       },
                       {
-                        "color": "#D9FFF4",
+                        "color": "#C4EEFF",
                         "position": 1
                       }
                     ]
@@ -33473,7 +33527,7 @@
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#65D3C950",
+                    "color": "#3EA4FF50",
                     "blur": 10
                   }
                 },
@@ -33493,7 +33547,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#A0D7CB45",
+                  "stroke": "#84B4F745",
                   "strokeWidth": 0.7,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33504,13 +33558,13 @@
                   "x": 160,
                   "y": 223,
                   "name": "曲面微刻节点 0",
-                  "fill": "#D6FFF2",
+                  "fill": "#E4F6FF",
                   "width": 4,
                   "height": 4,
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#9BE9D84D",
+                    "color": "#76C5FF4D",
                     "blur": 8
                   }
                 },
@@ -33520,13 +33574,13 @@
                   "x": 262,
                   "y": 173,
                   "name": "曲面微刻节点 1",
-                  "fill": "#D6FFF2",
+                  "fill": "#E4F6FF",
                   "width": 4,
                   "height": 4,
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#9BE9D84D",
+                    "color": "#76C5FF4D",
                     "blur": 8
                   }
                 },
@@ -33536,13 +33590,13 @@
                   "x": 466,
                   "y": 162,
                   "name": "曲面微刻节点 2",
-                  "fill": "#D6FFF2",
+                  "fill": "#E4F6FF",
                   "width": 4,
                   "height": 4,
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#9BE9D84D",
+                    "color": "#76C5FF4D",
                     "blur": 8
                   }
                 },
@@ -33552,13 +33606,13 @@
                   "x": 674,
                   "y": 125,
                   "name": "曲面微刻节点 3",
-                  "fill": "#D6FFF2",
+                  "fill": "#E4F6FF",
                   "width": 4,
                   "height": 4,
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#9BE9D84D",
+                    "color": "#76C5FF4D",
                     "blur": 8
                   }
                 },
@@ -33568,7 +33622,7 @@
                   "x": 567,
                   "y": 193,
                   "name": "聚焦垂直投影 193",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33578,7 +33632,7 @@
                   "x": 567,
                   "y": 201,
                   "name": "聚焦垂直投影 201",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33588,7 +33642,7 @@
                   "x": 567,
                   "y": 209,
                   "name": "聚焦垂直投影 209",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33598,7 +33652,7 @@
                   "x": 567,
                   "y": 217,
                   "name": "聚焦垂直投影 217",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33608,7 +33662,7 @@
                   "x": 567,
                   "y": 225,
                   "name": "聚焦垂直投影 225",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33618,7 +33672,7 @@
                   "x": 567,
                   "y": 233,
                   "name": "聚焦垂直投影 233",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33628,7 +33682,7 @@
                   "x": 567,
                   "y": 241,
                   "name": "聚焦垂直投影 241",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33638,7 +33692,7 @@
                   "x": 567,
                   "y": 249,
                   "name": "聚焦垂直投影 249",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33648,7 +33702,7 @@
                   "x": 567,
                   "y": 257,
                   "name": "聚焦垂直投影 257",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33658,7 +33712,7 @@
                   "x": 567,
                   "y": 265,
                   "name": "聚焦垂直投影 265",
-                  "fill": "#8CBAB64B",
+                  "fill": "#6DABEB4B",
                   "width": 1,
                   "height": 3
                 },
@@ -33668,10 +33722,10 @@
                   "x": 560,
                   "y": 267,
                   "name": "聚焦落点地面环",
-                  "fill": "#77CCBE10",
+                  "fill": "#3D9DFF10",
                   "width": 15,
                   "height": 7,
-                  "stroke": "#B9EADB45",
+                  "stroke": "#99CAFF45",
                   "strokeWidth": 0.7
                 },
                 {
@@ -33680,15 +33734,15 @@
                   "x": 557,
                   "y": 169,
                   "name": "聚焦光学外环",
-                  "fill": "#132A2B70",
+                  "fill": "#0C2B6470",
                   "width": 20,
                   "height": 20,
-                  "stroke": "#B2F1E758",
+                  "stroke": "#87CBFF58",
                   "strokeWidth": 0.7,
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#72DBCB4F",
+                    "color": "#53B5FF4F",
                     "blur": 13
                   }
                 },
@@ -33698,10 +33752,10 @@
                   "x": 562,
                   "y": 174,
                   "name": "聚焦光学内环",
-                  "fill": "#122026",
+                  "fill": "#0C1A38",
                   "width": 10,
                   "height": 10,
-                  "stroke": "#E3FFF0",
+                  "stroke": "#EAF8FF",
                   "strokeWidth": 1.3
                 },
                 {
@@ -33710,7 +33764,7 @@
                   "x": 565,
                   "y": 177,
                   "name": "聚焦节点白芯",
-                  "fill": "#E5FFF3",
+                  "fill": "#EAF8FF",
                   "width": 4,
                   "height": 4
                 },
@@ -33732,17 +33786,17 @@
                     },
                     "colors": [
                       {
-                        "color": "#243E40CC",
+                        "color": "#193761CC",
                         "position": 0
                       },
                       {
-                        "color": "#122025E8",
+                        "color": "#091A36E8",
                         "position": 1
                       }
                     ]
                   },
                   "cornerRadius": 5,
-                  "stroke": "#BDEADF4A",
+                  "stroke": "#94C2F74A",
                   "strokeWidth": 0.8,
                   "effect": [
                     {
@@ -33768,7 +33822,7 @@
                       "x": 14,
                       "y": 11,
                       "name": "聚焦注释值",
-                      "fill": "#D6ECE6",
+                      "fill": "#D4ECFF",
                       "textGrowth": "fixed-width",
                       "width": 103,
                       "content": "09 / 74.8",
@@ -33796,7 +33850,7 @@
                   "fill": "#00000000",
                   "width": 772,
                   "height": 328,
-                  "stroke": "#A7CFC95B",
+                  "stroke": "#80AEE95B",
                   "strokeWidth": 0.7,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -33917,15 +33971,15 @@
                 },
                 "colors": [
                   {
-                    "color": "#151B23",
+                    "color": "#16233E",
                     "position": 0
                   },
                   {
-                    "color": "#0A0E14",
+                    "color": "#0E1630",
                     "position": 0.5
                   },
                   {
-                    "color": "#080B10",
+                    "color": "#080F21",
                     "position": 1
                   }
                 ]
@@ -33941,15 +33995,15 @@
                 },
                 "colors": [
                   {
-                    "color": "#8B9CAA69",
+                    "color": "#9BA6E269",
                     "position": 0
                   },
                   {
-                    "color": "#34404B40",
+                    "color": "#37477840",
                     "position": 0.5
                   },
                   {
-                    "color": "#7B8C9A26",
+                    "color": "#8A96CD26",
                     "position": 1
                   }
                 ]
@@ -33995,11 +34049,11 @@
                     },
                     "colors": [
                       {
-                        "color": "#9984BF24",
+                        "color": "#6553EA24",
                         "position": 0
                       },
                       {
-                        "color": "#06070A00",
+                        "color": "#080D1C00",
                         "position": 1
                       }
                     ]
@@ -34023,15 +34077,15 @@
                     },
                     "colors": [
                       {
-                        "color": "#D0E8EE00",
+                        "color": "#CDD7FF00",
                         "position": 0
                       },
                       {
-                        "color": "#D0E8EE52",
+                        "color": "#CDD7FF52",
                         "position": 0.5
                       },
                       {
-                        "color": "#D0E8EE00",
+                        "color": "#CDD7FF00",
                         "position": 1
                       }
                     ]
@@ -34097,15 +34151,15 @@
                     },
                     "colors": [
                       {
-                        "color": "#8AA8AD00",
+                        "color": "#878CD800",
                         "position": 0
                       },
                       {
-                        "color": "#8AA8AD2C",
+                        "color": "#878CD82C",
                         "position": 0.5
                       },
                       {
-                        "color": "#8AA8AD00",
+                        "color": "#878CD800",
                         "position": 1
                       }
                     ]
@@ -34200,7 +34254,7 @@
                         "position": 0
                       },
                       {
-                        "color": "#06070A00",
+                        "color": "#080D1C00",
                         "position": 1
                       }
                     ]
@@ -34231,22 +34285,22 @@
                     },
                     "colors": [
                       {
-                        "color": "#4952648F",
+                        "color": "#3D548E8F",
                         "position": 0
                       },
                       {
-                        "color": "#151923B0",
+                        "color": "#111D3DB0",
                         "position": 0.5
                       },
                       {
-                        "color": "#070A1090",
+                        "color": "#080E2190",
                         "position": 1
                       }
                     ]
                   },
                   "width": 482,
                   "height": 328,
-                  "stroke": "#BFC3D42B",
+                  "stroke": "#AEBFFC2B",
                   "strokeWidth": 0.5
                 },
                 {
@@ -34272,22 +34326,22 @@
                     },
                     "colors": [
                       {
-                        "color": "#65617A3B",
+                        "color": "#5A67BA3B",
                         "position": 0
                       },
                       {
-                        "color": "#29303B80",
+                        "color": "#23396980",
                         "position": 0.5
                       },
                       {
-                        "color": "#11182254",
+                        "color": "#101E3E54",
                         "position": 1
                       }
                     ]
                   },
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C8C5DB3D",
+                  "stroke": "#B6BDFF3D",
                   "strokeWidth": 0.7
                 },
                 {
@@ -34306,7 +34360,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34327,7 +34381,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34348,7 +34402,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34369,7 +34423,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34390,7 +34444,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34411,7 +34465,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34432,7 +34486,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34453,7 +34507,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34474,7 +34528,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C6CAD720",
+                  "stroke": "#9DACDB20",
                   "strokeWidth": 0.5,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34495,7 +34549,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#B7BAD045",
+                  "stroke": "#9DB6F445",
                   "strokeWidth": 0.8,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34516,7 +34570,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#C7BFE015",
+                  "stroke": "#BFA9FF15",
                   "strokeWidth": 0.6,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -34568,22 +34622,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 54,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -34603,19 +34657,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#99B3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#334D8B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#617ACB",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#14274D",
                               "position": 1
                             }
                           ]
@@ -34630,15 +34684,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -34646,7 +34700,7 @@
                       ],
                       "width": 25,
                       "height": 46,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -34672,22 +34726,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -34706,15 +34760,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -34738,15 +34792,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -34770,15 +34824,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -34792,13 +34846,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -34867,22 +34921,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 86,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -34902,19 +34956,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#99B3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#334D8B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#617ACB",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#14274D",
                               "position": 1
                             }
                           ]
@@ -34929,15 +34983,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -34945,7 +34999,7 @@
                       ],
                       "width": 25,
                       "height": 78,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -34971,22 +35025,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35005,15 +35059,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -35037,15 +35091,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -35069,15 +35123,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -35091,13 +35145,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -35166,22 +35220,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 71,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35201,19 +35255,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#99B3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#334D8B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#617ACB",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#14274D",
                               "position": 1
                             }
                           ]
@@ -35228,15 +35282,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -35244,7 +35298,7 @@
                       ],
                       "width": 25,
                       "height": 63,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35270,22 +35324,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35304,15 +35358,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -35336,15 +35390,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -35368,15 +35422,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -35390,13 +35444,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -35465,22 +35519,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 112,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35500,19 +35554,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#99B3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#334D8B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#617ACB",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#14274D",
                               "position": 1
                             }
                           ]
@@ -35527,15 +35581,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -35543,7 +35597,7 @@
                       ],
                       "width": 25,
                       "height": 104,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35569,22 +35623,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35603,15 +35657,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -35635,15 +35689,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -35667,15 +35721,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -35689,13 +35743,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -35764,22 +35818,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 97,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35799,19 +35853,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#99B3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#334D8B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#617ACB",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#14274D",
                               "position": 1
                             }
                           ]
@@ -35826,15 +35880,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -35842,7 +35896,7 @@
                       ],
                       "width": 25,
                       "height": 89,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35868,22 +35922,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -35902,15 +35956,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -35934,15 +35988,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -35966,15 +36020,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -35988,13 +36042,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -36063,22 +36117,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 138,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36098,19 +36152,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#AFA3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#51488B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#887DCF",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#25234F",
                               "position": 1
                             }
                           ]
@@ -36125,15 +36179,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -36141,7 +36195,7 @@
                       ],
                       "width": 25,
                       "height": 130,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36167,22 +36221,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36201,15 +36255,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -36233,15 +36287,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -36265,15 +36319,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -36287,13 +36341,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -36362,22 +36416,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 120,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36397,19 +36451,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#AFA3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#51488B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#887DCF",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#25234F",
                               "position": 1
                             }
                           ]
@@ -36424,15 +36478,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#B3ACD02A",
+                              "color": "#A28FFF2A",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -36440,7 +36494,7 @@
                       ],
                       "width": 25,
                       "height": 112,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36466,22 +36520,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#C8C5D4",
+                            "color": "#D8E5FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36500,15 +36554,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -36532,15 +36586,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -36564,15 +36618,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -36586,13 +36640,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#CFCDE590",
+                      "fill": "#DBE4FF90",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -36661,22 +36715,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#525269",
+                            "color": "#455FAB",
                             "position": 0
                           },
                           {
-                            "color": "#232735",
+                            "color": "#1C316A",
                             "position": 0.5
                           },
                           {
-                            "color": "#0C1019",
+                            "color": "#08142B",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 165,
-                      "stroke": "#BFC5DA18",
+                      "stroke": "#ACBCFF18",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36696,19 +36750,19 @@
                           },
                           "colors": [
                             {
-                              "color": "#898A9B",
+                              "color": "#AFA3FF",
                               "position": 0
                             },
                             {
-                              "color": "#47495B",
+                              "color": "#51488B",
                               "position": 0.3333333333333333
                             },
                             {
-                              "color": "#646878",
+                              "color": "#887DCF",
                               "position": 0.6666666666666666
                             },
                             {
-                              "color": "#1E2332",
+                              "color": "#25234F",
                               "position": 1
                             }
                           ]
@@ -36723,15 +36777,15 @@
                           },
                           "colors": [
                             {
-                              "color": "#BFB6D74D",
+                              "color": "#C1ACFF4D",
                               "position": 0
                             },
                             {
-                              "color": "#1E1E3520",
+                              "color": "#22275320",
                               "position": 0.5
                             },
                             {
-                              "color": "#04071088",
+                              "color": "#040A1D88",
                               "position": 1
                             }
                           ]
@@ -36739,7 +36793,7 @@
                       ],
                       "width": 25,
                       "height": 157,
-                      "stroke": "#B5BED02B",
+                      "stroke": "#A0B5F12B",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36765,22 +36819,22 @@
                         },
                         "colors": [
                           {
-                            "color": "#E5DFF1",
+                            "color": "#F0E9FF",
                             "position": 0
                           },
                           {
-                            "color": "#8C879E",
+                            "color": "#7D98EA",
                             "position": 0.5
                           },
                           {
-                            "color": "#B6B5C8",
+                            "color": "#B0BFFF",
                             "position": 1
                           }
                         ]
                       },
                       "width": 38,
                       "height": 8,
-                      "stroke": "#E7E3F168",
+                      "stroke": "#E6E9FF68",
                       "strokeWidth": 0.5
                     },
                     {
@@ -36799,15 +36853,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#D8D6E398",
+                            "color": "#D2E5FF98",
                             "position": 0
                           },
                           {
-                            "color": "#AFB5C645",
+                            "color": "#8EA8F045",
                             "position": 0.5
                           },
                           {
-                            "color": "#8190A329",
+                            "color": "#5575B929",
                             "position": 1
                           }
                         ]
@@ -36831,15 +36885,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#C5BAD9B0",
+                            "color": "#B8A3FFB0",
                             "position": 0
                           },
                           {
-                            "color": "#625F8280",
+                            "color": "#6755AB80",
                             "position": 0.5
                           },
                           {
-                            "color": "#2E344255",
+                            "color": "#23326C55",
                             "position": 1
                           }
                         ]
@@ -36863,15 +36917,15 @@
                         },
                         "colors": [
                           {
-                            "color": "#E0DBF01C",
+                            "color": "#D7DDFF1C",
                             "position": 0
                           },
                           {
-                            "color": "#CED5E512",
+                            "color": "#B9CCFF12",
                             "position": 0.5
                           },
                           {
-                            "color": "#CED5E500",
+                            "color": "#B9CCFF00",
                             "position": 1
                           }
                         ]
@@ -36885,13 +36939,13 @@
                       "x": 0.7,
                       "y": 8,
                       "name": "顶面前缘细光带",
-                      "fill": "#EEE6FFD9",
+                      "fill": "#F4EEFFD9",
                       "width": 24,
                       "height": 0.8,
                       "effect": {
                         "type": "shadow",
                         "shadowType": "outer",
-                        "color": "#BA9ED626",
+                        "color": "#8D7AFF26",
                         "blur": 5
                       }
                     }
@@ -36929,7 +36983,7 @@
                   "fill": "#00000000",
                   "width": 482,
                   "height": 328,
-                  "stroke": "#CAC2DF60",
+                  "stroke": "#B9BCFF60",
                   "strokeWidth": 0.7,
                   "strokeLinejoin": "round",
                   "strokeLinecap": "round"
@@ -36940,13 +36994,13 @@
                   "x": 396,
                   "y": 96,
                   "name": "最高序列聚焦端点",
-                  "fill": "#DDD6EF",
+                  "fill": "#ECE8FF",
                   "width": 4,
                   "height": 4,
                   "effect": {
                     "type": "shadow",
                     "shadowType": "outer",
-                    "color": "#D3C3E044",
+                    "color": "#BD9EFF44",
                     "blur": 8
                   }
                 }
@@ -37091,9 +37145,35 @@
           "name": "05 原生 · 两种表达一个核心",
           "width": 1440,
           "height": 520,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
+            {
+              "type": "rectangle",
+              "id": "VlbXZ",
+              "x": 0,
+              "y": 0,
+              "name": "背景动效 · 原生 · 光场呼吸与微粒",
+              "context": "装饰层位于正文之后；u_speed=0 固定代表帧，@time驱动慢漂，不绑定鼠标、不闪烁",
+              "fill": [
+                "#080D1C",
+                {
+                  "type": "shader",
+                  "enabled": true,
+                  "url": "shaders/gallery-atmosphere.glsl",
+                  "uniforms": {
+                    "u_speed": 1,
+                    "u_frame": 0,
+                    "u_mode": 2,
+                    "u_base": "#080D1C",
+                    "u_blue": "#387BFF",
+                    "u_iris": "#9164FF"
+                  }
+                }
+              ],
+              "width": 1440,
+              "height": 520
+            },
             {
               "type": "ellipse",
               "id": "B4biWP",
@@ -37738,9 +37818,35 @@
           "name": "06 流程 · 暗黑光纤路径",
           "width": 1440,
           "height": 460,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
+            {
+              "type": "rectangle",
+              "id": "tYduq",
+              "x": 0,
+              "y": 0,
+              "name": "背景动效 · 流程 · 稀疏微光与慢速光轨",
+              "context": "装饰层位于正文之后；u_speed=0 固定代表帧，@time驱动慢漂，不绑定鼠标、不闪烁",
+              "fill": [
+                "#080D1C",
+                {
+                  "type": "shader",
+                  "enabled": true,
+                  "url": "shaders/gallery-atmosphere.glsl",
+                  "uniforms": {
+                    "u_speed": 1,
+                    "u_frame": 0,
+                    "u_mode": 3,
+                    "u_base": "#080D1C",
+                    "u_blue": "#387BFF",
+                    "u_iris": "#9164FF"
+                  }
+                }
+              ],
+              "width": 1440,
+              "height": 460
+            },
             {
               "type": "ellipse",
               "id": "AnD2Q",
@@ -38293,9 +38399,35 @@
           "name": "07 行动 · 创造更多可能",
           "width": 1440,
           "height": 360,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
+            {
+              "type": "rectangle",
+              "id": "y9NFa",
+              "x": 0,
+              "y": 0,
+              "name": "背景动效 · 行动 · 收束光轨与缓慢游光",
+              "context": "装饰层位于正文之后；u_speed=0 固定代表帧，@time驱动慢漂，不绑定鼠标、不闪烁",
+              "fill": [
+                "#080D1C",
+                {
+                  "type": "shader",
+                  "enabled": true,
+                  "url": "shaders/gallery-atmosphere.glsl",
+                  "uniforms": {
+                    "u_speed": 1,
+                    "u_frame": 0,
+                    "u_mode": 4,
+                    "u_base": "#080D1C",
+                    "u_blue": "#387BFF",
+                    "u_iris": "#9164FF"
+                  }
+                }
+              ],
+              "width": 1440,
+              "height": 360
+            },
             {
               "type": "ellipse",
               "id": "VIDxk",
@@ -38514,7 +38646,7 @@
           "name": "08 页脚 · 克制留白",
           "width": 1440,
           "height": 160,
-          "fill": "#06070A",
+          "fill": "#080D1C",
           "layout": "none",
           "children": [
             {
