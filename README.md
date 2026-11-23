@@ -2,7 +2,7 @@
 
 Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资产，提供组件画廊、Vue/React 双框架 SDK、本地 CLI，以及发布与静态预览服务。
 
-管理控制台与组件画廊的可编辑 pen.dev 设计稿见 [设计说明](docs/design/management-api.md)，包含九张桌面画板与画廊预览。
+可编辑 pen.dev 设计稿分为两个独立文件：[管理控制台](docs/design/management-api.md)（六张桌面画板）与 [组件画廊](docs/design/gallery.md)（三张桌面画板及预览）。
 
 ## 主要功能
 
