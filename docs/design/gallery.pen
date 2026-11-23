@@ -3,6 +3,3348 @@
   "children": [
     {
       "type": "frame",
+      "id": "I0RAl",
+      "x": -1520,
+      "y": 0,
+      "name": "00 介绍首页 · 科技朋克 · /",
+      "context": "独立科技朋克风介绍首页；静态概念设计，未实现交互。图表数据均为设计示意。",
+      "clip": true,
+      "width": 1440,
+      "fill": "#06080E",
+      "layout": "vertical",
+      "children": [
+        {
+          "type": "frame",
+          "id": "b6FJD",
+          "name": "01 顶部导航",
+          "width": "fill_container",
+          "height": 96,
+          "stroke": "#263240",
+          "strokeWidth": {
+            "bottom": 1
+          },
+          "padding": [
+            0,
+            72
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "a7pcXn",
+              "name": "品牌字标",
+              "layout": "vertical",
+              "gap": 2,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "DxQCu",
+                  "name": "Zhinexus 字标",
+                  "fill": "#F1F5FA",
+                  "content": "ZHINEXUS",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 24,
+                  "fontWeight": "700",
+                  "letterSpacing": 3
+                },
+                {
+                  "type": "text",
+                  "id": "rfdwq",
+                  "name": "品牌说明",
+                  "fill": "#96A6B9",
+                  "content": "COMPONENT ASSET PLATFORM",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 9,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1.5
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "YczT6",
+              "name": "主导航链接",
+              "gap": 34,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "n8oOP",
+                  "name": "首页导航",
+                  "fill": "#F1F5FA",
+                  "content": "首页",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "KYdBa",
+                  "name": "组件画廊导航",
+                  "fill": "#96A6B9",
+                  "content": "组件画廊",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "text",
+                  "id": "ndJ17",
+                  "name": "接入文档导航",
+                  "fill": "#96A6B9",
+                  "content": "接入文档",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 14,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "h6acbW",
+              "name": "导航浏览入口",
+              "fill": "#06080E",
+              "cornerRadius": 3,
+              "stroke": "#263240",
+              "strokeWidth": 1,
+              "gap": 22,
+              "padding": [
+                15,
+                22
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "f5tgcR",
+                  "name": "导航浏览入口文字",
+                  "fill": "#F1F5FA",
+                  "content": "浏览组件",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 15,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "icon",
+                  "id": "i6Wb3Y",
+                  "name": "导航浏览入口箭头",
+                  "width": 18,
+                  "height": 18,
+                  "icon": "arrow-up-right",
+                  "library": "lucide",
+                  "fill": "#96A6B9"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "c594I",
+          "name": "02 首屏 · 编译灵感",
+          "width": "fill_container",
+          "height": 660,
+          "gap": 22,
+          "padding": [
+            36,
+            72,
+            32,
+            72
+          ],
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "Fx3mq",
+              "name": "首屏文案",
+              "width": 600,
+              "layout": "vertical",
+              "gap": 28,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "j6mSY",
+                  "name": "首屏平台标识",
+                  "gap": 12,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "vq0AA",
+                      "name": "青色指示灯",
+                      "fill": "#5EEBFC",
+                      "width": 6,
+                      "height": 6
+                    },
+                    {
+                      "type": "text",
+                      "id": "PZTwU",
+                      "name": "平台定位",
+                      "fill": "#5EEBFC",
+                      "content": "DESIGNED TO BUILD BEYOND",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "letterSpacing": 1.8
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "cAVXJ",
+                  "name": "主标题",
+                  "fill": "#F1F5FA",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "将灵感，\n编译成未来。",
+                  "lineHeight": 1.18,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 76,
+                  "fontWeight": "700",
+                  "letterSpacing": -3
+                },
+                {
+                  "type": "text",
+                  "id": "MmRs6",
+                  "name": "首屏价值说明",
+                  "fill": "#96A6B9",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "企业级图表与组件资产平台。\n让 Vue 与 React 共享资产，把时间留给创造。",
+                  "lineHeight": 1.8,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 19,
+                  "fontWeight": "normal"
+                },
+                {
+                  "type": "frame",
+                  "id": "P96KL4",
+                  "name": "首屏行动入口",
+                  "gap": 16,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "QEPWO",
+                      "name": "主要行动",
+                      "fill": "#5EEBFC",
+                      "cornerRadius": 3,
+                      "stroke": "#5EEBFC",
+                      "strokeWidth": 1,
+                      "gap": 22,
+                      "padding": [
+                        15,
+                        22
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "fCmbm",
+                          "name": "主要行动文字",
+                          "fill": "#06080E",
+                          "content": "进入组件画廊",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 15,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "e48dp",
+                          "name": "主要行动箭头",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "arrow-up-right",
+                          "library": "lucide",
+                          "fill": "#06080E"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "b8lQS8",
+                      "name": "次要行动",
+                      "fill": "#06080E",
+                      "cornerRadius": 3,
+                      "stroke": "#263240",
+                      "strokeWidth": 1,
+                      "gap": 22,
+                      "padding": [
+                        15,
+                        22
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "Fkwni",
+                          "name": "次要行动文字",
+                          "fill": "#F1F5FA",
+                          "content": "查看接入文档",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 15,
+                          "fontWeight": "600"
+                        },
+                        {
+                          "type": "icon",
+                          "id": "l6RAB",
+                          "name": "次要行动箭头",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "arrow-up-right",
+                          "library": "lucide",
+                          "fill": "#96A6B9"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "jJYm9",
+                  "name": "首屏技术标签",
+                  "gap": 22,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "O7C8AP",
+                      "name": "VUE + REACT标签",
+                      "fill": "#96A6B9",
+                      "content": "VUE + REACT",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.6
+                    },
+                    {
+                      "type": "text",
+                      "id": "ZTqpn",
+                      "name": "ECHARTS 6标签",
+                      "fill": "#96A6B9",
+                      "content": "ECHARTS 6",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.6
+                    },
+                    {
+                      "type": "text",
+                      "id": "c9nbzK",
+                      "name": "LOCAL-FIRST标签",
+                      "fill": "#96A6B9",
+                      "content": "LOCAL-FIRST",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal",
+                      "letterSpacing": 0.6
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "Cdq1e",
+              "name": "首屏组件矩阵",
+              "width": "fill_container",
+              "height": 556,
+              "layout": "none",
+              "children": [
+                {
+                  "type": "rectangle",
+                  "id": "fk7D2",
+                  "x": 0,
+                  "y": 20,
+                  "name": "青色光场",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "radial",
+                    "enabled": true,
+                    "rotation": 0,
+                    "size": {
+                      "width": 1,
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#0D777B4D",
+                        "position": 0
+                      },
+                      {
+                        "color": "#06080E00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 570,
+                  "height": 480
+                },
+                {
+                  "type": "rectangle",
+                  "id": "jv2Re",
+                  "x": 280,
+                  "y": 224,
+                  "name": "紫色光场",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "radial",
+                    "enabled": true,
+                    "rotation": 0,
+                    "size": {
+                      "width": 1,
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#7860ED33",
+                        "position": 0
+                      },
+                      {
+                        "color": "#06080E00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 290,
+                  "height": 300
+                },
+                {
+                  "type": "frame",
+                  "id": "NGuGY",
+                  "x": 18,
+                  "y": 12,
+                  "name": "精细坐标网格",
+                  "width": 552,
+                  "height": 516,
+                  "layout": "none",
+                  "children": [
+                    {
+                      "type": "rectangle",
+                      "id": "P0ay3",
+                      "x": 0,
+                      "y": 0,
+                      "name": "纵向网格 0",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "wIm8d",
+                      "x": 46,
+                      "y": 0,
+                      "name": "纵向网格 46",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "LzvzE",
+                      "x": 92,
+                      "y": 0,
+                      "name": "纵向网格 92",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "DSSbR",
+                      "x": 138,
+                      "y": 0,
+                      "name": "纵向网格 138",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "pRDYo",
+                      "x": 184,
+                      "y": 0,
+                      "name": "纵向网格 184",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "TXZaa",
+                      "x": 230,
+                      "y": 0,
+                      "name": "纵向网格 230",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "fiKNo",
+                      "x": 276,
+                      "y": 0,
+                      "name": "纵向网格 276",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "kPOUQ",
+                      "x": 322,
+                      "y": 0,
+                      "name": "纵向网格 322",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "U319Ty",
+                      "x": 368,
+                      "y": 0,
+                      "name": "纵向网格 368",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "roz0n",
+                      "x": 414,
+                      "y": 0,
+                      "name": "纵向网格 414",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "XsXGt",
+                      "x": 460,
+                      "y": 0,
+                      "name": "纵向网格 460",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "duFAQ",
+                      "x": 506,
+                      "y": 0,
+                      "name": "纵向网格 506",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "McEDc",
+                      "x": 551,
+                      "y": 0,
+                      "name": "纵向网格 552",
+                      "fill": "#7187A411",
+                      "width": 1,
+                      "height": 516
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "Kazpi",
+                      "x": 0,
+                      "y": 0,
+                      "name": "横向网格 0",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "ZuCpx",
+                      "x": 0,
+                      "y": 43,
+                      "name": "横向网格 43",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "lvuen",
+                      "x": 0,
+                      "y": 86,
+                      "name": "横向网格 86",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "EaTsm",
+                      "x": 0,
+                      "y": 129,
+                      "name": "横向网格 129",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "iffU6",
+                      "x": 0,
+                      "y": 172,
+                      "name": "横向网格 172",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "E0HBF",
+                      "x": 0,
+                      "y": 215,
+                      "name": "横向网格 215",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "s0uq59",
+                      "x": 0,
+                      "y": 258,
+                      "name": "横向网格 258",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "lDcnV",
+                      "x": 0,
+                      "y": 301,
+                      "name": "横向网格 301",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "xnbPF",
+                      "x": 0,
+                      "y": 344,
+                      "name": "横向网格 344",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "as5ba",
+                      "x": 0,
+                      "y": 387,
+                      "name": "横向网格 387",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "Z72u0",
+                      "x": 0,
+                      "y": 430,
+                      "name": "横向网格 430",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "J0eieD",
+                      "x": 0,
+                      "y": 473,
+                      "name": "横向网格 473",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    },
+                    {
+                      "type": "rectangle",
+                      "id": "pJKZE",
+                      "x": 0,
+                      "y": 515,
+                      "name": "横向网格 516",
+                      "fill": "#7187A411",
+                      "width": 552,
+                      "height": 1
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "YUuHw",
+                  "x": 28,
+                  "y": 18,
+                  "name": "矩阵顶部坐标",
+                  "fill": "#96A6B9",
+                  "content": "NEXUS / ASSET EXPLORER",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 10,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1.5
+                },
+                {
+                  "type": "rectangle",
+                  "id": "vZxqh",
+                  "x": 0,
+                  "y": 67,
+                  "name": "青色横向光轨",
+                  "fill": {
+                    "type": "gradient",
+                    "gradientType": "linear",
+                    "enabled": true,
+                    "rotation": 90,
+                    "size": {
+                      "height": 1
+                    },
+                    "colors": [
+                      {
+                        "color": "#5EEBFC00",
+                        "position": 0
+                      },
+                      {
+                        "color": "#5EEBFC99",
+                        "position": 0.5
+                      },
+                      {
+                        "color": "#5EEBFC00",
+                        "position": 1
+                      }
+                    ]
+                  },
+                  "width": 392,
+                  "height": 1
+                },
+                {
+                  "type": "frame",
+                  "id": "Z7Yixo",
+                  "x": 66,
+                  "y": 91,
+                  "name": "悬浮资产 · 柱状图",
+                  "width": 500,
+                  "height": 302,
+                  "fill": "#0E1520",
+                  "cornerRadius": 6,
+                  "stroke": "#4B7485",
+                  "strokeWidth": 1,
+                  "effect": {
+                    "type": "shadow",
+                    "shadowType": "outer",
+                    "color": "#00000080",
+                    "offset": {
+                      "x": 0,
+                      "y": 18
+                    },
+                    "blur": 40
+                  },
+                  "layout": "vertical",
+                  "gap": 20,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "LSQ4J",
+                      "name": "柱状图窗口标题",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "ut95t",
+                          "name": "柱状图资产编号",
+                          "fill": "#F1F5FA",
+                          "content": "01 / BAR-CHART",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "F2NFf9",
+                          "name": "框架双实现",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "id": "H0qZlo",
+                              "name": "实现标记",
+                              "fill": "#5EEBFC",
+                              "width": 5,
+                              "height": 5
+                            },
+                            {
+                              "type": "text",
+                              "id": "Ss0Bf",
+                              "name": "实现文字",
+                              "fill": "#5EEBFC",
+                              "content": "VUE · REACT",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "pJr6K",
+                      "name": "图表示意说明",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "dffe5",
+                          "name": "指标标题",
+                          "fill": "#F1F5FA",
+                          "content": "业务增长趋势",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 16,
+                          "fontWeight": "500"
+                        },
+                        {
+                          "type": "text",
+                          "id": "FIKvh",
+                          "name": "示意数据标记",
+                          "fill": "#96A6B9",
+                          "content": "DEMO DATA",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "iEMcr",
+                      "name": "可编辑柱状图",
+                      "width": "fill_container",
+                      "height": 152,
+                      "stroke": "#263240",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 16,
+                      "alignItems": "end",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "oxlWJ",
+                          "name": "柱图列 1",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "VXcI2",
+                              "name": "柱形 1",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 22
+                            },
+                            {
+                              "type": "text",
+                              "id": "WA9BB",
+                              "name": "月份 1",
+                              "fill": "#96A6B9",
+                              "content": "01",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "E70HR",
+                          "name": "柱图列 2",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "J3t2d",
+                              "name": "柱形 2",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 49
+                            },
+                            {
+                              "type": "text",
+                              "id": "jDuJ6",
+                              "name": "月份 2",
+                              "fill": "#96A6B9",
+                              "content": "02",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "j3hH7W",
+                          "name": "柱图列 3",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "LKwZS",
+                              "name": "柱形 3",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 35
+                            },
+                            {
+                              "type": "text",
+                              "id": "pcqT0",
+                              "name": "月份 3",
+                              "fill": "#96A6B9",
+                              "content": "03",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "J8c87h",
+                          "name": "柱图列 4",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "QgBB7",
+                              "name": "柱形 4",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 75
+                            },
+                            {
+                              "type": "text",
+                              "id": "c1PT3g",
+                              "name": "月份 4",
+                              "fill": "#96A6B9",
+                              "content": "04",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "FnPQk",
+                          "name": "柱图列 5",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "yNHTb",
+                              "name": "柱形 5",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 59
+                            },
+                            {
+                              "type": "text",
+                              "id": "wMLlG",
+                              "name": "月份 5",
+                              "fill": "#96A6B9",
+                              "content": "05",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "J5SOdf",
+                          "name": "柱图列 6",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "gERx5",
+                              "name": "柱形 6",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 99
+                            },
+                            {
+                              "type": "text",
+                              "id": "SuT1X",
+                              "name": "月份 6",
+                              "fill": "#96A6B9",
+                              "content": "06",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "Tv96e",
+                          "name": "柱图列 7",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "OPdWI",
+                              "name": "柱形 7",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#5EEBFC",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 81
+                            },
+                            {
+                              "type": "text",
+                              "id": "C9U0z",
+                              "name": "月份 7",
+                              "fill": "#96A6B9",
+                              "content": "07",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "VusFo",
+                          "name": "柱图列 8",
+                          "width": "fill_container",
+                          "height": "fill_container",
+                          "layout": "vertical",
+                          "gap": 10,
+                          "justifyContent": "end",
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "rectangle",
+                              "cornerRadius": [
+                                2,
+                                2,
+                                0,
+                                0
+                              ],
+                              "id": "sLXqz",
+                              "name": "柱形 8",
+                              "fill": {
+                                "type": "gradient",
+                                "gradientType": "linear",
+                                "enabled": true,
+                                "rotation": 180,
+                                "size": {
+                                  "height": 1
+                                },
+                                "colors": [
+                                  {
+                                    "color": "#ADEFFE",
+                                    "position": 0
+                                  },
+                                  {
+                                    "color": "#166474",
+                                    "position": 1
+                                  }
+                                ]
+                              },
+                              "width": "fill_container",
+                              "height": 121
+                            },
+                            {
+                              "type": "text",
+                              "id": "d1MRo",
+                              "name": "月份 8",
+                              "fill": "#96A6B9",
+                              "content": "08",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "kPTJt",
+                  "x": 20,
+                  "y": 415,
+                  "name": "悬浮资产 · 安装终端",
+                  "width": 320,
+                  "height": 122,
+                  "fill": "#0A111B",
+                  "cornerRadius": 4,
+                  "stroke": "#263240",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 10,
+                  "padding": 18,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "p04Ro",
+                      "name": "终端标题栏",
+                      "gap": 8,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "uesuR",
+                          "name": "终端图标",
+                          "width": 14,
+                          "height": 14,
+                          "icon": "terminal",
+                          "library": "lucide",
+                          "fill": "#9A80FF"
+                        },
+                        {
+                          "type": "text",
+                          "id": "RygiY",
+                          "name": "终端标题",
+                          "fill": "#96A6B9",
+                          "content": "QUICK START",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 10,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "IbdEN",
+                      "name": "安装示意",
+                      "fill": "#5EEBFC",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "$ pnpm add\n@company/charts-react@<version>",
+                      "lineHeight": 1.4,
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 11,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "ECIKj",
+                      "name": "精确版本提醒",
+                      "fill": "#96A6B9",
+                      "content": "选择资产后复制精确版本命令",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 9,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "pW5jU",
+                  "x": 358,
+                  "y": 356,
+                  "name": "悬浮资产 · 占比图",
+                  "width": 214,
+                  "height": 174,
+                  "fill": "#111425",
+                  "cornerRadius": 5,
+                  "stroke": "#594E7F",
+                  "strokeWidth": 1,
+                  "gap": 14,
+                  "padding": 18,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "ellipse",
+                      "id": "obv8w",
+                      "name": "可编辑占比环",
+                      "innerRadius": 0.78,
+                      "fill": {
+                        "type": "gradient",
+                        "gradientType": "angular",
+                        "enabled": true,
+                        "rotation": 0,
+                        "size": {
+                          "width": 1,
+                          "height": 1
+                        },
+                        "colors": [
+                          {
+                            "color": "#9A80FF",
+                            "position": 0
+                          },
+                          {
+                            "color": "#535078",
+                            "position": 0.7
+                          },
+                          {
+                            "color": "#5EEBFC",
+                            "position": 1
+                          }
+                        ]
+                      },
+                      "width": 82,
+                      "height": 82
+                    },
+                    {
+                      "type": "frame",
+                      "id": "IkG4g",
+                      "name": "占比图文字",
+                      "width": "fill_container",
+                      "layout": "vertical",
+                      "gap": 10,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "oboDe",
+                          "name": "占比图编号",
+                          "fill": "#96A6B9",
+                          "content": "02 / PIE",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "NsVo4",
+                          "name": "占比图标题",
+                          "fill": "#F1F5FA",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "多维\n洞察",
+                          "lineHeight": 1.3,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 20,
+                          "fontWeight": "600"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "VdCqv",
+          "name": "03 技术生态横带",
+          "width": "fill_container",
+          "height": 104,
+          "fill": "#0A0E15",
+          "stroke": "#263240",
+          "strokeWidth": {
+            "top": 1,
+            "bottom": 1
+          },
+          "padding": [
+            0,
+            72
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "text",
+              "id": "uft8c",
+              "name": "生态引导",
+              "fill": "#96A6B9",
+              "content": "ONE PLATFORM.\nBUILT FOR YOUR STACK.",
+              "lineHeight": 1.7,
+              "fontFamily": "IBM Plex Mono",
+              "fontSize": 10,
+              "fontWeight": "normal",
+              "letterSpacing": 1
+            },
+            {
+              "type": "frame",
+              "id": "gweiE",
+              "name": "Vue 3技术生态",
+              "layout": "vertical",
+              "gap": 4,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "g0r6Xs",
+                  "name": "Vue 3名称",
+                  "fill": "#F1F5FA",
+                  "content": "Vue 3",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 22,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "NRU7m",
+                  "name": "Vue 3说明",
+                  "fill": "#96A6B9",
+                  "content": "COMPOSITION API",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 8,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "H4Rrv",
+              "name": "React 19技术生态",
+              "layout": "vertical",
+              "gap": 4,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Q9bmyZ",
+                  "name": "React 19名称",
+                  "fill": "#F1F5FA",
+                  "content": "React 19",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 22,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "j36DZ",
+                  "name": "React 19说明",
+                  "fill": "#96A6B9",
+                  "content": "COMPONENT MODEL",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 8,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "J6Fl10",
+              "name": "ECharts 6技术生态",
+              "layout": "vertical",
+              "gap": 4,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "ba7cg",
+                  "name": "ECharts 6名称",
+                  "fill": "#F1F5FA",
+                  "content": "ECharts 6",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 22,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "aS3ZO",
+                  "name": "ECharts 6说明",
+                  "fill": "#96A6B9",
+                  "content": "DATA VISUALIZATION",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 8,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "f6WWyw",
+              "name": "TypeScript技术生态",
+              "layout": "vertical",
+              "gap": 4,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "lGICQ",
+                  "name": "TypeScript名称",
+                  "fill": "#F1F5FA",
+                  "content": "TypeScript",
+                  "fontFamily": "Space Grotesk",
+                  "fontSize": 22,
+                  "fontWeight": "500"
+                },
+                {
+                  "type": "text",
+                  "id": "P2okh",
+                  "name": "TypeScript说明",
+                  "fill": "#96A6B9",
+                  "content": "TYPED CONTRACTS",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 8,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "REW3V",
+          "name": "04 资产展示 · 复用创造力",
+          "width": "fill_container",
+          "layout": "vertical",
+          "gap": 42,
+          "padding": [
+            80,
+            72
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "T8KP8",
+              "name": "资产章节标题",
+              "width": "fill_container",
+              "gap": 80,
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "aDb4N",
+                  "name": "资产标题左栏",
+                  "width": 690,
+                  "layout": "vertical",
+                  "gap": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "XyGjL",
+                      "name": "资产章节编号",
+                      "fill": "#5EEBFC",
+                      "content": "01 / CURATED ASSETS",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "letterSpacing": 1.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "zHGVk",
+                      "name": "资产章节主标题",
+                      "fill": "#F1F5FA",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "不止是组件。\n是下一次创新的起点。",
+                      "lineHeight": 1.32,
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 42,
+                      "fontWeight": "600"
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "qpoxr",
+                  "name": "资产章节导语",
+                  "fill": "#96A6B9",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "把重复的工作沉淀为资产。\n从业务图表到数据界面，让每一次构建\n都站在团队经验之上。",
+                  "lineHeight": 1.8,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 17,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "S5kLB",
+              "name": "资产展示与能力说明",
+              "width": "fill_container",
+              "gap": 64,
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "lrf8c",
+                  "name": "资产浏览器示意",
+                  "width": 748,
+                  "fill": "#0D141E",
+                  "cornerRadius": 6,
+                  "stroke": "#293440",
+                  "strokeWidth": 1,
+                  "layout": "vertical",
+                  "gap": 24,
+                  "padding": 24,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "j4yTSG",
+                      "name": "资产浏览器顶部",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "cOmk3",
+                          "name": "资产浏览器名称",
+                          "gap": 10,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "icon",
+                              "id": "r4xNQ",
+                              "name": "资产库图标",
+                              "width": 16,
+                              "height": 16,
+                              "icon": "layers",
+                              "library": "lucide",
+                              "fill": "#5EEBFC"
+                            },
+                            {
+                              "type": "text",
+                              "id": "U1oFz",
+                              "name": "资产库名称",
+                              "fill": "#F1F5FA",
+                              "content": "ASSET COLLECTION",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 11,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "LTl9s",
+                          "name": "资产库示意提示",
+                          "fill": "#96A6B9",
+                          "content": "DESIGN PREVIEW",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 9,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "O79oBK",
+                      "name": "资产分类示意",
+                      "width": "fill_container",
+                      "stroke": "#293440",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "gap": 24,
+                      "padding": [
+                        0,
+                        0,
+                        12,
+                        0
+                      ],
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "EjCSy",
+                          "name": "数据图表分类",
+                          "fill": "#5EEBFC",
+                          "content": "数据图表",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "KysIr",
+                          "name": "指标卡片分类",
+                          "fill": "#96A6B9",
+                          "content": "指标卡片",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "text",
+                          "id": "ArK0F",
+                          "name": "数据展示分类",
+                          "fill": "#96A6B9",
+                          "content": "数据展示",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "ZmNmC",
+                      "name": "可编辑资产样例",
+                      "width": "fill_container",
+                      "gap": 20,
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "gSsHw",
+                          "name": "趋势卡资产示意",
+                          "width": 284,
+                          "fill": "#121D27",
+                          "cornerRadius": 3,
+                          "layout": "vertical",
+                          "gap": 16,
+                          "padding": 18,
+                          "children": [
+                            {
+                              "type": "frame",
+                              "id": "h2BcCY",
+                              "name": "趋势卡标题行",
+                              "width": "fill_container",
+                              "justifyContent": "space_between",
+                              "children": [
+                                {
+                                  "type": "text",
+                                  "id": "n4vMt",
+                                  "name": "趋势卡标题",
+                                  "fill": "#96A6B9",
+                                  "content": "趋势指标",
+                                  "fontFamily": "Noto Sans SC",
+                                  "fontSize": 13,
+                                  "fontWeight": "normal"
+                                },
+                                {
+                                  "type": "icon",
+                                  "id": "q1t3qq",
+                                  "name": "趋势卡箭头",
+                                  "width": 16,
+                                  "height": 16,
+                                  "icon": "move-up-right",
+                                  "library": "lucide",
+                                  "fill": "#5EEBFC"
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "Peop0",
+                              "name": "趋势卡示意数值",
+                              "fill": "#F1F5FA",
+                              "content": "24,680",
+                              "fontFamily": "Space Grotesk",
+                              "fontSize": 38,
+                              "fontWeight": "500",
+                              "letterSpacing": -1.5
+                            },
+                            {
+                              "type": "frame",
+                              "id": "j7Z5f",
+                              "name": "趋势指标图",
+                              "width": "fill_container",
+                              "height": 68,
+                              "gap": 6,
+                              "alignItems": "end",
+                              "children": [
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "wyS3h",
+                                  "name": "趋势柱 1",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 15
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "eACsg",
+                                  "name": "趋势柱 2",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 26
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "vWX1c",
+                                  "name": "趋势柱 3",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 19
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "OqLWm",
+                                  "name": "趋势柱 4",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 31
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "e8zpc",
+                                  "name": "趋势柱 5",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 29
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "jcGfX",
+                                  "name": "趋势柱 6",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 38
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "vgID0",
+                                  "name": "趋势柱 7",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 32
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "PnkVP",
+                                  "name": "趋势柱 8",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 46
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "a2rCf",
+                                  "name": "趋势柱 9",
+                                  "fill": "#256775",
+                                  "width": "fill_container",
+                                  "height": 40
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "BqLhH",
+                                  "name": "趋势柱 10",
+                                  "fill": "#5EEBFC",
+                                  "width": "fill_container",
+                                  "height": 56
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "R4UHHR",
+                                  "name": "趋势柱 11",
+                                  "fill": "#5EEBFC",
+                                  "width": "fill_container",
+                                  "height": 48
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": [
+                                    1,
+                                    1,
+                                    0,
+                                    0
+                                  ],
+                                  "id": "K4IRFR",
+                                  "name": "趋势柱 12",
+                                  "fill": "#5EEBFC",
+                                  "width": "fill_container",
+                                  "height": 66
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "dBrzX",
+                              "name": "趋势卡资产标识",
+                              "fill": "#96A6B9",
+                              "content": "TREND-CARD / DEMO",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "frame",
+                          "id": "KD96d",
+                          "name": "排行资产示意",
+                          "width": "fill_container",
+                          "fill": "#131622",
+                          "cornerRadius": 3,
+                          "layout": "vertical",
+                          "gap": 17,
+                          "padding": 18,
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "OhbfM",
+                              "name": "排行榜标题",
+                              "fill": "#96A6B9",
+                              "content": "业务排行",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 13,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "frame",
+                              "id": "obdd4",
+                              "name": "排行条目 1",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 9,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "gATd5",
+                                  "name": "排行标签行 1",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "jbKlm",
+                                      "name": "排行名称 1",
+                                      "fill": "#F1F5FA",
+                                      "content": "01  业务 A",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "v06Sd",
+                                      "name": "排行数值 1",
+                                      "fill": "#96A6B9",
+                                      "content": "180",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": 1,
+                                  "id": "jNyGt",
+                                  "name": "排行柱 1",
+                                  "fill": "#9A80FF",
+                                  "width": 180,
+                                  "height": 5
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "wKuJC",
+                              "name": "排行条目 2",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 9,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "yHpte",
+                                  "name": "排行标签行 2",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "PnO8M",
+                                      "name": "排行名称 2",
+                                      "fill": "#F1F5FA",
+                                      "content": "02  业务 B",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "O93Hx",
+                                      "name": "排行数值 2",
+                                      "fill": "#96A6B9",
+                                      "content": "142",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": 1,
+                                  "id": "J9tlQE",
+                                  "name": "排行柱 2",
+                                  "fill": "#514873",
+                                  "width": 142,
+                                  "height": 5
+                                }
+                              ]
+                            },
+                            {
+                              "type": "frame",
+                              "id": "Q0ZgCh",
+                              "name": "排行条目 3",
+                              "width": "fill_container",
+                              "layout": "vertical",
+                              "gap": 9,
+                              "children": [
+                                {
+                                  "type": "frame",
+                                  "id": "eWWU4",
+                                  "name": "排行标签行 3",
+                                  "width": "fill_container",
+                                  "justifyContent": "space_between",
+                                  "children": [
+                                    {
+                                      "type": "text",
+                                      "id": "X3Xjkf",
+                                      "name": "排行名称 3",
+                                      "fill": "#F1F5FA",
+                                      "content": "03  业务 C",
+                                      "fontFamily": "Noto Sans SC",
+                                      "fontSize": 11,
+                                      "fontWeight": "normal"
+                                    },
+                                    {
+                                      "type": "text",
+                                      "id": "aCS9L",
+                                      "name": "排行数值 3",
+                                      "fill": "#96A6B9",
+                                      "content": "106",
+                                      "fontFamily": "IBM Plex Mono",
+                                      "fontSize": 10,
+                                      "fontWeight": "normal"
+                                    }
+                                  ]
+                                },
+                                {
+                                  "type": "rectangle",
+                                  "cornerRadius": 1,
+                                  "id": "hLJWo",
+                                  "name": "排行柱 3",
+                                  "fill": "#514873",
+                                  "width": 106,
+                                  "height": 5
+                                }
+                              ]
+                            },
+                            {
+                              "type": "text",
+                              "id": "g9Rwn",
+                              "name": "排行示意标记",
+                              "fill": "#96A6B9",
+                              "content": "RANKING / DEMO",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 9,
+                              "fontWeight": "normal"
+                            }
+                          ]
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "O7rpdV",
+                      "name": "资产卡底部说明",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "R6eF5g",
+                          "name": "资产底部说明",
+                          "fill": "#96A6B9",
+                          "content": "从可视化能力，到可交付资产",
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 12,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "frame",
+                          "id": "B7Bybk",
+                          "name": "浏览全部示意入口",
+                          "gap": 8,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "tIctP",
+                              "name": "浏览全部文字",
+                              "fill": "#5EEBFC",
+                              "content": "浏览全部资产",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 12,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "U97fp",
+                              "name": "浏览全部箭头",
+                              "width": 15,
+                              "height": 15,
+                              "icon": "arrow-right",
+                              "library": "lucide",
+                              "fill": "#5EEBFC"
+                            }
+                          ]
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "f8mry",
+                  "name": "平台能力开放列表",
+                  "width": "fill_container",
+                  "layout": "vertical",
+                  "gap": 28,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "iqYMZ",
+                      "name": "发现你需要的资产能力",
+                      "width": "fill_container",
+                      "stroke": "#293440",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        0,
+                        22,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "E7Cxk",
+                          "name": "发现你需要的资产标题行",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "rAy4S",
+                              "name": "发现你需要的资产编号",
+                              "fill": "#96A6B9",
+                              "content": "01",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "wMpbN",
+                              "name": "发现你需要的资产图标",
+                              "width": 18,
+                              "height": 18,
+                              "icon": "search",
+                              "library": "lucide",
+                              "fill": "#5EEBFC"
+                            },
+                            {
+                              "type": "text",
+                              "id": "f7RkD",
+                              "name": "发现你需要的资产标题",
+                              "fill": "#F1F5FA",
+                              "content": "发现你需要的资产",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 18,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "IiKVQ",
+                          "name": "发现你需要的资产说明",
+                          "fill": "#96A6B9",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "按框架与关键词检索，快速定位适合业务的组件。",
+                          "lineHeight": 1.8,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "sbwJ4",
+                      "name": "在沙箱中，先看见效果能力",
+                      "width": "fill_container",
+                      "stroke": "#293440",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        0,
+                        22,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "unbdp",
+                          "name": "在沙箱中，先看见效果标题行",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "D1Pgy",
+                              "name": "在沙箱中，先看见效果编号",
+                              "fill": "#96A6B9",
+                              "content": "02",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "N2YcT",
+                              "name": "在沙箱中，先看见效果图标",
+                              "width": 18,
+                              "height": 18,
+                              "icon": "scan-eye",
+                              "library": "lucide",
+                              "fill": "#5EEBFC"
+                            },
+                            {
+                              "type": "text",
+                              "id": "VQPLA",
+                              "name": "在沙箱中，先看见效果标题",
+                              "fill": "#F1F5FA",
+                              "content": "在沙箱中，先看见效果",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 18,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "xmeH7",
+                          "name": "在沙箱中，先看见效果说明",
+                          "fill": "#96A6B9",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "静态资源隔离预览，让选型有依据，让接入更安心。",
+                          "lineHeight": 1.8,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "TEfdt",
+                      "name": "从资产，到你的工程能力",
+                      "width": "fill_container",
+                      "stroke": "#293440",
+                      "strokeWidth": {
+                        "bottom": 1
+                      },
+                      "layout": "vertical",
+                      "gap": 10,
+                      "padding": [
+                        0,
+                        0,
+                        22,
+                        0
+                      ],
+                      "children": [
+                        {
+                          "type": "frame",
+                          "id": "t9mvI",
+                          "name": "从资产，到你的工程标题行",
+                          "width": "fill_container",
+                          "gap": 12,
+                          "alignItems": "center",
+                          "children": [
+                            {
+                              "type": "text",
+                              "id": "mSICJ",
+                              "name": "从资产，到你的工程编号",
+                              "fill": "#96A6B9",
+                              "content": "03",
+                              "fontFamily": "IBM Plex Mono",
+                              "fontSize": 10,
+                              "fontWeight": "normal"
+                            },
+                            {
+                              "type": "icon",
+                              "id": "TxmjQ",
+                              "name": "从资产，到你的工程图标",
+                              "width": 18,
+                              "height": 18,
+                              "icon": "package",
+                              "library": "lucide",
+                              "fill": "#5EEBFC"
+                            },
+                            {
+                              "type": "text",
+                              "id": "L1yioS",
+                              "name": "从资产，到你的工程标题",
+                              "fill": "#F1F5FA",
+                              "content": "从资产，到你的工程",
+                              "fontFamily": "Noto Sans SC",
+                              "fontSize": 18,
+                              "fontWeight": "500"
+                            }
+                          ]
+                        },
+                        {
+                          "type": "text",
+                          "id": "vkjlt",
+                          "name": "从资产，到你的工程说明",
+                          "fill": "#96A6B9",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "查看 API 与检查来源，复制精确版本安装命令。",
+                          "lineHeight": 1.8,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "Q9rQR",
+          "name": "05 双框架 · 原生表达",
+          "width": "fill_container",
+          "fill": "#10101C",
+          "stroke": "#2C293C",
+          "strokeWidth": {
+            "top": 1,
+            "bottom": 1
+          },
+          "gap": 70,
+          "padding": 72,
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "f1rLug",
+              "name": "双框架文案",
+              "width": 504,
+              "layout": "vertical",
+              "gap": 22,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "lHhyc",
+                  "name": "双框架章节编号",
+                  "fill": "#9A80FF",
+                  "content": "02 / FRAMEWORK NATIVE",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1.4
+                },
+                {
+                  "type": "text",
+                  "id": "vVNg5",
+                  "name": "双框架标题",
+                  "fill": "#F1F5FA",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "同一份灵感。\n两种原生表达。",
+                  "lineHeight": 1.32,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 42,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "w8MSG",
+                  "name": "双框架介绍",
+                  "fill": "#96A6B9",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "不为框架妥协，也不重复创造。\nVue 与 React 独立实现，共享核心能力，\n用一致的资产语言连接不同技术团队。",
+                  "lineHeight": 1.9,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "LLIrC",
+              "name": "双框架架构示意",
+              "width": "fill_container",
+              "layout": "vertical",
+              "gap": 16,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "iYT77",
+                  "name": "双原生框架实现",
+                  "width": "fill_container",
+                  "gap": 16,
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "v5Ws3",
+                      "name": "Vue原生实现",
+                      "width": "fill_container",
+                      "fill": "#151724",
+                      "cornerRadius": 4,
+                      "stroke": "#36555C",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 24,
+                      "padding": 26,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "B8ipg",
+                          "name": "Vue框架标题",
+                          "fill": "#5EEBFC",
+                          "content": "Vue",
+                          "fontFamily": "Space Grotesk",
+                          "fontSize": 44,
+                          "fontWeight": "500",
+                          "letterSpacing": -2
+                        },
+                        {
+                          "type": "text",
+                          "id": "Ogyiw",
+                          "name": "Vue包名",
+                          "fill": "#F1F5FA",
+                          "content": "@company/charts-vue",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "rectangle",
+                          "id": "kMSuv",
+                          "name": "Vue分隔线",
+                          "fill": "#293440",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "text",
+                          "id": "Nlqrm",
+                          "name": "Vue独立性说明",
+                          "fill": "#96A6B9",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "原生实现\n独立检查记录",
+                          "lineHeight": 1.9,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "frame",
+                      "id": "AJi4y",
+                      "name": "React原生实现",
+                      "width": "fill_container",
+                      "fill": "#151724",
+                      "cornerRadius": 4,
+                      "stroke": "#494064",
+                      "strokeWidth": 1,
+                      "layout": "vertical",
+                      "gap": 24,
+                      "padding": 26,
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "yPAzT",
+                          "name": "React框架标题",
+                          "fill": "#9A80FF",
+                          "content": "React",
+                          "fontFamily": "Space Grotesk",
+                          "fontSize": 44,
+                          "fontWeight": "500",
+                          "letterSpacing": -2
+                        },
+                        {
+                          "type": "text",
+                          "id": "g5F6F",
+                          "name": "React包名",
+                          "fill": "#F1F5FA",
+                          "content": "@company/charts-react",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal"
+                        },
+                        {
+                          "type": "rectangle",
+                          "id": "K6TEh",
+                          "name": "React分隔线",
+                          "fill": "#293440",
+                          "width": "fill_container",
+                          "height": 1
+                        },
+                        {
+                          "type": "text",
+                          "id": "cp8Lo",
+                          "name": "React独立性说明",
+                          "fill": "#96A6B9",
+                          "textGrowth": "fixed-width",
+                          "width": "fill_container",
+                          "content": "原生实现\n独立检查记录",
+                          "lineHeight": 1.9,
+                          "fontFamily": "Noto Sans SC",
+                          "fontSize": 14,
+                          "fontWeight": "normal"
+                        }
+                      ]
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "oIWNz",
+                  "name": "共享图表核心",
+                  "width": "fill_container",
+                  "fill": "#0B0D16",
+                  "cornerRadius": 3,
+                  "stroke": "#343343",
+                  "strokeWidth": 1,
+                  "padding": [
+                    20,
+                    24
+                  ],
+                  "justifyContent": "space_between",
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "j7jgC7",
+                      "name": "核心能力文字",
+                      "gap": 12,
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "icon",
+                          "id": "jJ7xh",
+                          "name": "核心能力图标",
+                          "width": 18,
+                          "height": 18,
+                          "icon": "network",
+                          "library": "lucide",
+                          "fill": "#96A6B9"
+                        },
+                        {
+                          "type": "text",
+                          "id": "kt6S5",
+                          "name": "核心能力名称",
+                          "fill": "#F1F5FA",
+                          "content": "SHARED CORE",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 11,
+                          "fontWeight": "normal",
+                          "letterSpacing": 1
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "sOd5C",
+                      "name": "核心技术说明",
+                      "fill": "#96A6B9",
+                      "content": "ECHARTS 6 + TYPESCRIPT",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 10,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "wNioT",
+          "name": "06 接入流程 · 从发现到工程",
+          "width": "fill_container",
+          "fill": "#C7DCDD",
+          "layout": "vertical",
+          "gap": 44,
+          "padding": [
+            64,
+            72
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "FKVaF",
+              "name": "接入流程标题区",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "end",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "QNS9l",
+                  "name": "接入流程左栏",
+                  "layout": "vertical",
+                  "gap": 18,
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "I9r7v",
+                      "name": "接入流程章节编号",
+                      "fill": "#3A646C",
+                      "content": "03 / DISCOVER TO DELIVER",
+                      "fontFamily": "IBM Plex Mono",
+                      "fontSize": 12,
+                      "fontWeight": "normal",
+                      "letterSpacing": 1.5
+                    },
+                    {
+                      "type": "text",
+                      "id": "esvx4",
+                      "name": "接入流程标题",
+                      "fill": "#112028",
+                      "content": "从发现，到你的项目。",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 38,
+                      "fontWeight": "600",
+                      "letterSpacing": -1
+                    }
+                  ]
+                },
+                {
+                  "type": "text",
+                  "id": "BuFTw",
+                  "name": "接入流程导语",
+                  "fill": "#425F66",
+                  "content": "让成熟资产，成为你的创作起点。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 15,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "GPXHe",
+              "name": "四步接入流程",
+              "width": "fill_container",
+              "gap": 36,
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "tKFOp",
+                  "name": "发现资产流程",
+                  "width": "fill_container",
+                  "stroke": "#779798",
+                  "strokeWidth": {
+                    "top": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    22,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "KW9nZ",
+                      "name": "发现资产编号行",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "DhiHg",
+                          "name": "发现资产步骤编号",
+                          "fill": "#52777D",
+                          "content": "01",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 32
+                        },
+                        {
+                          "type": "icon",
+                          "id": "dc3Z4",
+                          "name": "发现资产步骤图标",
+                          "width": 24,
+                          "height": 24,
+                          "icon": "search",
+                          "library": "lucide",
+                          "fill": "#112028"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "PGZv0",
+                      "name": "发现资产步骤标题",
+                      "fill": "#112028",
+                      "content": "发现资产",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 21,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "JH0JU",
+                      "name": "发现资产步骤说明",
+                      "fill": "#425F66",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "按业务需求检索组件，\n选择 Vue 或 React 实现。",
+                      "lineHeight": 1.8,
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "X8Rfx",
+                  "name": "沙箱预览流程",
+                  "width": "fill_container",
+                  "stroke": "#779798",
+                  "strokeWidth": {
+                    "top": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    22,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "tnGbB",
+                      "name": "沙箱预览编号行",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "R3zxRZ",
+                          "name": "沙箱预览步骤编号",
+                          "fill": "#52777D",
+                          "content": "02",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 32
+                        },
+                        {
+                          "type": "icon",
+                          "id": "X7nfVa",
+                          "name": "沙箱预览步骤图标",
+                          "width": 24,
+                          "height": 24,
+                          "icon": "scan-eye",
+                          "library": "lucide",
+                          "fill": "#112028"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "G7aZw",
+                      "name": "沙箱预览步骤标题",
+                      "fill": "#112028",
+                      "content": "沙箱预览",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 21,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "AsNsJ",
+                      "name": "沙箱预览步骤说明",
+                      "fill": "#425F66",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "查看效果、API 与检查来源，\n先确认，再接入。",
+                      "lineHeight": 1.8,
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "E0EwEh",
+                  "name": "精确接入流程",
+                  "width": "fill_container",
+                  "stroke": "#779798",
+                  "strokeWidth": {
+                    "top": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    22,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "kudLO",
+                      "name": "精确接入编号行",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "u6axn",
+                          "name": "精确接入步骤编号",
+                          "fill": "#52777D",
+                          "content": "03",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 32
+                        },
+                        {
+                          "type": "icon",
+                          "id": "XRVMC",
+                          "name": "精确接入步骤图标",
+                          "width": 24,
+                          "height": 24,
+                          "icon": "package",
+                          "library": "lucide",
+                          "fill": "#112028"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "lUSNV",
+                      "name": "精确接入步骤标题",
+                      "fill": "#112028",
+                      "content": "精确接入",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 21,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "yUpCx",
+                      "name": "精确接入步骤说明",
+                      "fill": "#425F66",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "复制指定版本安装命令，\n将资产接入本地项目。",
+                      "lineHeight": 1.8,
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Uzr3c",
+                  "name": "本地验证流程",
+                  "width": "fill_container",
+                  "stroke": "#779798",
+                  "strokeWidth": {
+                    "top": 1
+                  },
+                  "layout": "vertical",
+                  "gap": 16,
+                  "padding": [
+                    22,
+                    0,
+                    0,
+                    0
+                  ],
+                  "children": [
+                    {
+                      "type": "frame",
+                      "id": "U5ffBe",
+                      "name": "本地验证编号行",
+                      "width": "fill_container",
+                      "justifyContent": "space_between",
+                      "alignItems": "center",
+                      "children": [
+                        {
+                          "type": "text",
+                          "id": "IJQv1",
+                          "name": "本地验证步骤编号",
+                          "fill": "#52777D",
+                          "content": "04",
+                          "fontFamily": "IBM Plex Mono",
+                          "fontSize": 32
+                        },
+                        {
+                          "type": "icon",
+                          "id": "b4OT0",
+                          "name": "本地验证步骤图标",
+                          "width": 24,
+                          "height": 24,
+                          "icon": "terminal",
+                          "library": "lucide",
+                          "fill": "#112028"
+                        }
+                      ]
+                    },
+                    {
+                      "type": "text",
+                      "id": "Zrbgz",
+                      "name": "本地验证步骤标题",
+                      "fill": "#112028",
+                      "content": "本地验证",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 21,
+                      "fontWeight": "600"
+                    },
+                    {
+                      "type": "text",
+                      "id": "N3iOX",
+                      "name": "本地验证步骤说明",
+                      "fill": "#425F66",
+                      "textGrowth": "fixed-width",
+                      "width": "fill_container",
+                      "content": "在开发者电脑构建与检查，\n把复用落到实际业务中。",
+                      "lineHeight": 1.8,
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 14,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "qtxlm",
+          "name": "07 最终行动 · 开始创造",
+          "width": "fill_container",
+          "gap": 60,
+          "padding": [
+            70,
+            72
+          ],
+          "justifyContent": "space_between",
+          "alignItems": "center",
+          "children": [
+            {
+              "type": "frame",
+              "id": "vAkM2",
+              "name": "最终行动文案",
+              "width": 730,
+              "layout": "vertical",
+              "gap": 20,
+              "children": [
+                {
+                  "type": "text",
+                  "id": "sPYde",
+                  "name": "最终行动标识",
+                  "fill": "#5EEBFC",
+                  "content": "YOUR NEXT STARTS HERE",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 12,
+                  "fontWeight": "normal",
+                  "letterSpacing": 2
+                },
+                {
+                  "type": "text",
+                  "id": "oSJ8T",
+                  "name": "最终行动标题",
+                  "fill": "#F1F5FA",
+                  "textGrowth": "fixed-width",
+                  "width": "fill_container",
+                  "content": "你的下一个作品，\n从这里开始。",
+                  "lineHeight": 1.3,
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 48,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "text",
+                  "id": "QZ8eq",
+                  "name": "最终行动说明",
+                  "fill": "#96A6B9",
+                  "content": "让组件沉淀为资产，让团队的创造力持续进化。",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 16,
+                  "fontWeight": "normal"
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "g8TU7L",
+              "name": "最终进入画廊入口",
+              "fill": "#5EEBFC",
+              "cornerRadius": 3,
+              "gap": 36,
+              "padding": [
+                22,
+                30
+              ],
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "tieWQ",
+                  "name": "最终进入画廊文字",
+                  "fill": "#06080E",
+                  "content": "探索组件画廊",
+                  "fontFamily": "Noto Sans SC",
+                  "fontSize": 18,
+                  "fontWeight": "600"
+                },
+                {
+                  "type": "icon",
+                  "id": "IiUEW",
+                  "name": "最终进入画廊箭头",
+                  "width": 22,
+                  "height": 22,
+                  "icon": "arrow-up-right",
+                  "library": "lucide",
+                  "fill": "#06080E"
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "type": "frame",
+          "id": "YEdlw",
+          "name": "08 页脚 · 品牌与链接",
+          "width": "fill_container",
+          "stroke": "#293440",
+          "strokeWidth": {
+            "top": 1
+          },
+          "layout": "vertical",
+          "gap": 30,
+          "padding": [
+            36,
+            72,
+            30,
+            72
+          ],
+          "children": [
+            {
+              "type": "frame",
+              "id": "dRXWN",
+              "name": "页脚链接行",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "frame",
+                  "id": "VJC5e",
+                  "name": "页脚品牌组",
+                  "gap": 26,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "nkbiD",
+                      "name": "页脚品牌",
+                      "fill": "#F1F5FA",
+                      "content": "ZHINEXUS",
+                      "fontFamily": "Space Grotesk",
+                      "fontSize": 22,
+                      "fontWeight": "700",
+                      "letterSpacing": 2
+                    },
+                    {
+                      "type": "text",
+                      "id": "vZNq9",
+                      "name": "页脚品牌说明",
+                      "fill": "#96A6B9",
+                      "content": "企业级组件资产平台",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                },
+                {
+                  "type": "frame",
+                  "id": "Ia38S",
+                  "name": "页脚导航",
+                  "gap": 30,
+                  "alignItems": "center",
+                  "children": [
+                    {
+                      "type": "text",
+                      "id": "RHiu9",
+                      "name": "组件画廊页脚链接",
+                      "fill": "#96A6B9",
+                      "content": "组件画廊",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "MZlzx",
+                      "name": "接入文档页脚链接",
+                      "fill": "#96A6B9",
+                      "content": "接入文档",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    },
+                    {
+                      "type": "text",
+                      "id": "sJUE6",
+                      "name": "管理控制台页脚链接",
+                      "fill": "#96A6B9",
+                      "content": "管理控制台",
+                      "fontFamily": "Noto Sans SC",
+                      "fontSize": 13,
+                      "fontWeight": "normal"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "type": "frame",
+              "id": "OPcJh",
+              "name": "页脚底部行",
+              "width": "fill_container",
+              "justifyContent": "space_between",
+              "alignItems": "center",
+              "children": [
+                {
+                  "type": "text",
+                  "id": "Mc9c7",
+                  "name": "品牌英文宣言",
+                  "fill": "#96A6B9",
+                  "content": "BUILD ON WHAT YOUR TEAM KNOWS.",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 9,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
+                },
+                {
+                  "type": "text",
+                  "id": "LJuxm",
+                  "name": "概念设计标记",
+                  "fill": "#6C7D91",
+                  "content": "GALLERY CONCEPT / 2026",
+                  "fontFamily": "IBM Plex Mono",
+                  "fontSize": 9,
+                  "fontWeight": "normal",
+                  "letterSpacing": 1
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "type": "frame",
       "id": "oBjp6",
       "x": 0,
       "y": 0,
