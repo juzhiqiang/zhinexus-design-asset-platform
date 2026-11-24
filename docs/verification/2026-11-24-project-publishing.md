@@ -39,6 +39,18 @@
 | `pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/project-publishing.test.ts` | 1/1 通过；真实四服务链到达 Ready |
 | `pnpm exec playwright test --config tests/browser/categories.config.ts` | 11/11 通过，使用独立 5278 端口验证构建后的后台 |
 
+## 独立审查与平台仓库路径探针
+
+独立 scoped review 覆盖 `c7d2137c..c758508d`，结论为 **Spec Compliant / Quality Approved**。审查未发现阻断项；仅记录既有根测试的 `DEP0190` 与 `localStorage` 警告为 Minor。审查没有覆盖生产 OIDC/TLS、独立域名部署、G2 生产基础设施接入和两个真实业务项目试点，这些边界仍按下文保持未完成。
+
+主控另在平台仓库根目录使用固定进程级 Node.js 26.13.0 与 pnpm 12.18.0 执行仓库路径探针：
+
+```text
+pnpm component init --project . --config <项目内临时配置> --package packages/charts-react --component line --export LineChart --export-path ./line --framework react --category charts
+```
+
+命令退出码为 0；解析结果确认 `packageDir` 为 `packages/charts-react`、框架为 `react`、导出子路径为 `./line`，执行后 Git 工作树保持干净。该探针只证明从仓库根调用 CLI 时能够选择指定子包并解析初始化参数，不证明当前 SDK 新版本已经通过 Ready 全链路验收。
+
 根测试保留两类非失败警告：`DEP0190` 来自既有测试以 `shell: true` 启动子进程；`localStorage` 实验性警告来自 Node 未指定持久化文件。两者均未产生失败或改变本轮验收结论。
 
 未设置 `A10_FROZEN_BUNDLE` 时，T10 明确跳过以下 7 个必须读取真实冻结 SDK 策略的用例，本轮未用合成策略替代，也未把跳过计为通过：
@@ -63,6 +75,27 @@
 - React-only 包：tarball `2cddb629e71a57c7f2bec547c3b3aea6b650e0d239c9d5e34e10eb85e3cfde57`；manifest `4485c7abc571989888d363470b283663fbf019683a607d51ef7b8151f563aa56`；Ready；attempt 1。
 
 三个用例均为 build 1 次、upload session 1 个、release job 1 个；恢复时首次 idempotency key 保持不变。分类停用和 API 重启后重放仍返回原成功作业，不改写历史分类快照；新作业继续按当前启用分类校验。
+
+## 本分支提交
+
+以下提交来自 `git log 4da55dcb..HEAD`，按实施顺序排列：
+
+| 提交 | 目的 |
+| --- | --- |
+| `ab3b8cfc` | 明确真实项目 CLI 发布与分类实施范围 |
+| `c3430303` | 明确普通组件发布与自动装配资格边界 |
+| `5cd33345` | 新增持久化组件分类与授权发布选项 |
+| `5493ec1e` | 支持真实项目配置与冻结消费者发布编排 |
+| `421b0194` | 明确冻结包预览的受控 Vite 验收边界 |
+| `9ce33d39` | 绑定冻结实现预览并保留首次发布幂等键 |
+| `1e902a15` | 校验冻结导出代理的真实加载入口 |
+| `6a28e65c` | 明确冻结包的完整实现选择边界 |
+| `96b9b140` | 增加后台分类管理与冻结实现发布选择 |
+| `c7d2137c` | 防止旧身份分类请求回写并清理失效发布授权 |
+| `5784da36` | 补齐真实项目发布入口与共享包完整性校验 |
+| `94f4a0b0` | 补充真实项目发布指南与验证记录 |
+| `c4600d7e` | 记录根测试条件跳过项 |
+| `c758508d` | 升级版本号至 0.1.2 |
 
 ## 边界与未完成项
 
