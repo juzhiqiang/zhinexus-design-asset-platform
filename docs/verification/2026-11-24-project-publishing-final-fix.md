@@ -13,7 +13,7 @@
 
 I1 的原缺陷测试在修复前退出码为 1，实际结果为 **2 failed、1 passed、18 skipped/filtered**。两个失败分别证明：实现没有请求原会话的完成端点，以及实现会在取得原会话的有效完成证明前拒绝。修复后的同组用例退出码为 0，结果为 3/3 通过、18 个按名称过滤。
 
-I2 没有单独保存修复前 RED 产物，本记录不补写或推断不存在的失败次数。`project-publish-green-21.json` 中“手工调用 Vue 导出但未进入框架生命周期”和“手工调用 React 导出但未进入框架生命周期”两个拒绝用例只作为修复后的覆盖证据，均为 GREEN。
+I2 在原实现过程中没有单独保存测试先行的 RED 产物，本记录不把后补验证冒充为原始 TDD 时间线。为补足回归证明，本轮随后使用 `8d66df2a` 的历史 `vite-consumer.ts` 实现隔离运行当前两个 Vue/React 生命周期拒绝用例，确认两者都会捕获缺陷；再恢复 `0ac96519` 当前实现并用完全相同的命令确认 GREEN。具体结果见下文“I2 追加历史实现回归验证”。
 
 最终结果文件保存在忽略目录 `.superpowers/sdd/2026-11-24-project-cli-publishing/final-fix-evidence/`；该目录是运行时原始证据，以下表格在持久文档中保留完整命令、退出码和摘要：
 
@@ -26,6 +26,27 @@ I2 没有单独保存修复前 RED 产物，本记录不补写或推断不存在
 | `platform-real-green-2.json` | `pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/project-publishing.test.ts tests/platform/release-sdk.test.ts` | 0；2 个文件、2/2 通过 |
 
 `i1-red.json` 保存了当时捕获的精确命令。其余专项命令按结果文件中的测试路径整理为可复现命令；结果摘要来自对应 JSON，不把整理后的命令冒充为原始 shell 逐字记录。
+
+## I2 追加历史实现回归验证
+
+本验证只针对已经存在的两个参数化负例，不改测试或产品逻辑，不重跑宽套件。运行环境先设置：
+
+```powershell
+$env:PLAYWRIGHT_BROWSERS_PATH = 'D:\project\zhinexus-design-asset-platform\.tools\playwright'
+$env:T17_MATRIX_PLAYWRIGHT_BROWSERS_PATH = $env:PLAYWRIGHT_BROWSERS_PATH
+```
+
+两轮使用的精确 focused 命令相同：
+
+```text
+pnpm exec vitest run tests/integration/project-publish.test.ts -t "rejects a manually invoked"
+```
+
+历史轮仅把工作树中的 `packages/component-cli/src/project/vite-consumer.ts` 临时写入 `8d66df2a` 对应内容，不修改 index、HEAD 或其他源文件，并在 `finally` 中恢复原字节。历史轮退出码为 1：1 个文件失败，2 failed、19 skipped；Vue 与 React 两个用例都期望 CLI 退出 1，实际收到 0，证明旧实现会把手工调用并丢弃所选导出错误视为真实框架渲染。日志为 `i2-historical-red.log`。
+
+恢复 `0ac96519` 当前实现后，同一命令退出码为 0：1 个文件通过，2 passed、19 skipped，日志为 `i2-current-green.log`。恢复前后 `vite-consumer.ts` SHA-256 均为 `A0D0239A3A5AB03C6D9493BD7B7EE30674BEB4FEA92954A30ABCD1F3D956F616`，该路径恢复后 `git status --porcelain -- packages/component-cli/src/project/vite-consumer.ts` 无输出。结构化摘要保存在忽略目录的 `i2-historical-regression.json`。
+
+这项结果是实现完成后的历史版本回归验证，只证明现有测试能够捕获 `8d66df2a` 的缺陷并由 `0ac96519` 修复；它不是原始的“先写失败测试再实现”证据。
 
 CLI 类型检查与构建通过，`pnpm verify:workspace` 通过。根 `pnpm typecheck` 结果为 15/15，其中 14 项复用缓存，`@company/component-cli:typecheck` 在本次修改后实际重新执行。以下命令按工作区脚本整理为可复现命令：
 
