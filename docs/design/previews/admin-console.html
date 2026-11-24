@@ -1,0 +1,2216 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Zhinexus 管理端 · management-api.pen 还原预览</title>
+<style>
+:root { color-scheme: dark; }
+* { box-sizing: border-box; }
+body { margin:0; background:#0b1318; color:#F4F9F8; font-family:'Noto Sans SC',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; }
+.pv-wrap { max-width: 1280px; margin: 0 auto; padding: 32px 24px 64px; }
+.pv-head h1 { font-size: 26px; margin: 0 0 6px; }
+.pv-head p { color:#7E99A1; font-size: 13px; margin: 0 0 28px; }
+.pv-board { margin-bottom: 40px; }
+.pv-board-title { font-family:'IBM Plex Mono',ui-monospace,monospace; font-size: 12px; letter-spacing:.08em; color:#A3D2FF; margin: 0 0 10px; }
+.pv-frame { border:1px solid #DAF2F316; border-radius:16px; overflow:hidden; background:#111A20; }
+.pv-frame > main { display:flex; flex-direction:column; gap:18px; padding:24px 32px 32px; }
+/*
+ * 管理端设计系统：按 docs/design/management-api.pen 还原。
+ *
+ * `:root` 的 26 个变量与 app/lib/design/tokens.ts 逐值对应，
+ * tests/admin/design-system.test.ts 同时断言两边。
+ *
+ * 文件分四段：
+ *   1. 令牌与基础
+ *   2. 外壳（侧栏 / 顶栏 / 主体 / Aurora）
+ *   3. 设计原语（按钮 / 字段 / 徽章 / 卡片 / 表格 / 指标 / 标签页 / 步骤器 / 时间线）
+ *   4. 兼容层：既有页面与控制台测试依赖的类名（.filter-btn、.access-*、.spec-table、.match-* 等）
+ */
+
+/* ============================== 1. 令牌与基础 ============================== */
+
+:root {
+  color-scheme: dark;
+
+  /* --- .pen variables：23 色 --- */
+  --zn-bg: #111A20;
+  --zn-surface: #1A2D35C2;
+  --zn-sidebar: #121F27E3;
+  --zn-sidebar-raised: #20343EBF;
+  --zn-text: #F4F9F8;
+  --zn-muted: #B6C8CC;
+  --zn-subtle: #7E99A1;
+  --zn-border: #DAF2F316;
+  --zn-border-strong: #D6F2F333;
+  --zn-accent: #A3D2FF;
+  --zn-accent-soft: #315B756B;
+  --zn-success: #79E7BF;
+  --zn-success-soft: #2457486B;
+  --zn-warning: #FFC98A;
+  --zn-warning-soft: #6047285C;
+  --zn-danger: #FF8E95;
+  --zn-danger-soft: #662E385C;
+  --zn-gold: #B5D0F7;
+  --zn-gold-soft: #38516F66;
+  --zn-table-alt: #20343D9C;
+  --zn-glass: #1B2E37A8;
+  --zn-glass-strong: #243B45CA;
+  --zn-grid: #8CCFFF08;
+
+  /* --- .pen variables：3 字体 --- */
+  --zn-font: 'Noto Sans SC';
+  --zn-mono: 'IBM Plex Mono';
+  --zn-display: 'Manrope';
+
+  /* --- 本地优先字体栈（不引入外网字体） --- */
+  --zn-font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --zn-font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --zn-font-display: 'Manrope', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+
+  /* --- 由 .pen 派生 --- */
+  --zn-panel: linear-gradient(145deg, rgba(215, 247, 244, 0.067) 0%, rgba(163, 210, 255, 0.031) 48%, rgba(121, 231, 191, 0.043) 100%), #172832A3;
+  --zn-metric: linear-gradient(145deg, rgba(239, 255, 255, 0.075) 0%, rgba(163, 210, 255, 0.031) 52%, rgba(121, 231, 191, 0.043) 100%), #203741B5;
+  --zn-sidebar-bg: radial-gradient(130% 90% at 18% 12%, rgba(140, 207, 255, 0.122) 0%, rgba(17, 29, 39, 0) 72%),
+    radial-gradient(110% 80% at 75% 88%, rgba(120, 231, 194, 0.078) 0%, rgba(17, 29, 39, 0) 72%), #121F27E3;
+  --zn-primary: linear-gradient(105deg, #9AD7FF 0%, #7BE4C6 100%);
+  --zn-avatar: linear-gradient(135deg, #9DD8FF 0%, #79E2C4 100%);
+  --zn-rail: linear-gradient(180deg, rgba(140, 207, 255, 0) 0%, rgba(140, 207, 255, 0.439) 38%, rgba(120, 231, 194, 0.376) 72%, rgba(120, 231, 194, 0) 100%);
+  --zn-on-primary: #04131B;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+body {
+  background: var(--zn-bg);
+  color: var(--zn-text);
+  font-family: var(--zn-font-sans);
+  font-size: 13px;
+  line-height: 1.6;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 700;
+  color: var(--zn-text);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--zn-accent);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: #cbe6ff;
+}
+
+code,
+pre,
+kbd {
+  font-family: var(--zn-font-mono);
+}
+
+:focus-visible {
+  outline: 2px solid var(--zn-accent);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.zn-sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================== 2. 外壳 ============================== */
+
+.zn-shell {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  min-height: 100vh;
+  isolation: isolate;
+}
+
+.zn-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  flex: 0 0 232px;
+  width: 232px;
+  height: 100vh;
+  overflow-y: auto;
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--zn-sidebar-bg);
+  border-radius: 16px;
+  scrollbar-width: thin;
+}
+
+.zn-sidebar-rail {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 2px;
+  background: var(--zn-rail);
+  opacity: 0.25;
+  pointer-events: none;
+}
+
+.zn-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  height: 42px;
+  padding: 0 8px;
+}
+
+.zn-brand-mark {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 16px;
+  background: var(--zn-accent-soft);
+  border: 1px solid #D7F3F238;
+  color: var(--zn-text);
+  font-family: var(--zn-font-mono);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.zn-brand-name {
+  font-family: var(--zn-font-mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--zn-text);
+}
+
+.zn-workspace-label {
+  font-family: var(--zn-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--zn-subtle);
+  padding: 0 2px;
+}
+
+.zn-link-pulse {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  height: 38px;
+  padding: 0 10px;
+  border-radius: 18px;
+  background: var(--zn-accent-soft);
+  border: 1px solid #BFE9EA1F;
+}
+
+.zn-link-status {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.zn-live-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: var(--zn-success);
+}
+
+.zn-link-label {
+  font-family: var(--zn-font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.8px;
+  color: var(--zn-text);
+  white-space: nowrap;
+}
+
+.zn-link-latency {
+  font-family: var(--zn-font-mono);
+  font-size: 8px;
+  font-weight: 700;
+  color: var(--zn-accent);
+  white-space: nowrap;
+}
+
+.zn-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 6px;
+}
+
+.zn-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 16px;
+  color: var(--zn-muted);
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.zn-nav-item:hover {
+  background: rgba(163, 210, 255, 0.07);
+  color: var(--zn-text);
+}
+
+.zn-nav-item[aria-current='page'] {
+  background: var(--zn-accent-soft);
+  color: var(--zn-text);
+  font-weight: 650;
+}
+
+.zn-nav-item[aria-current='page'] .zn-nav-icon {
+  color: var(--zn-accent);
+}
+
+.zn-nav-icon {
+  flex: 0 0 17px;
+  color: #7D8796;
+}
+
+.zn-nav-order {
+  font-variant-numeric: tabular-nums;
+}
+
+.zn-sidebar-spacer {
+  flex: 1 1 auto;
+  min-height: 12px;
+}
+
+.zn-env {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 13px;
+  border-radius: 24px;
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+}
+
+.zn-env-label {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  color: var(--zn-subtle);
+}
+
+.zn-env-value {
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  color: var(--zn-text);
+  word-break: break-all;
+}
+
+.zn-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.zn-aurora {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0.82;
+}
+
+.zn-aurora svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* .pen Glacier Aurora Field：540×540 @ (620,48)，opacity .78 */
+.zn-aurora-glacier {
+  position: absolute;
+  left: 51.3%;
+  top: 4.3%;
+  width: 44.7%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0.78;
+  filter: blur(28px);
+  background:
+    radial-gradient(circle at 70% 68%, rgba(113, 229, 192, 0.169) 0%, rgba(113, 229, 192, 0) 72%),
+    radial-gradient(circle at 28% 28%, rgba(166, 206, 255, 0.369) 0%, rgba(130, 191, 255, 0.125) 48%, rgba(130, 191, 255, 0) 82%);
+}
+
+/* .pen Mint Aurora Field：340×340 @ (84,770)，opacity .7 */
+.zn-aurora-mint {
+  position: absolute;
+  left: 7%;
+  top: 68.8%;
+  width: 28.1%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0.7;
+  filter: blur(24px);
+  background:
+    radial-gradient(circle at 72% 32%, rgba(168, 211, 255, 0.141) 0%, rgba(168, 211, 255, 0) 72%),
+    radial-gradient(circle at 42% 42%, rgba(113, 229, 192, 0.29) 0%, rgba(113, 229, 192, 0.078) 46%, rgba(113, 229, 192, 0) 80%);
+}
+
+.zn-quick-search-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: none;
+  color: var(--zn-text);
+  font: inherit;
+  font-size: 12px;
+  padding: 0;
+}
+
+.zn-quick-search-input::placeholder {
+  color: var(--zn-subtle);
+}
+
+.zn-quick-search-input:focus {
+  outline: none;
+}
+
+.zn-quick-search:focus-within {
+  border-color: #A3D2FF66;
+}
+
+.zn-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 64px;
+  padding: 0 28px;
+  background: rgba(17, 26, 32, 0.72);
+  backdrop-filter: blur(18px);
+  border-bottom: 1px solid var(--zn-border);
+}
+
+.zn-topbar-context {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.zn-topbar-section {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--zn-muted);
+  white-space: nowrap;
+}
+
+.zn-topbar-divider {
+  flex: 0 0 14px;
+  color: var(--zn-subtle);
+}
+
+.zn-topbar-page {
+  font-size: 13px;
+  font-weight: 650;
+  color: var(--zn-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zn-topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.zn-quick-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 210px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: #1D303C88;
+  border: 1px solid #C6EEF221;
+  color: var(--zn-subtle);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.zn-quick-search:hover {
+  border-color: #C6EEF244;
+  color: var(--zn-muted);
+}
+
+.zn-quick-search-icon {
+  flex: 0 0 15px;
+}
+
+.zn-quick-search-hint {
+  flex: 1 1 auto;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.zn-quick-search kbd {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  color: var(--zn-muted);
+}
+
+.zn-avatar {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 999px;
+  background: var(--zn-avatar);
+  border: 1px solid #E9FFFF66;
+  color: var(--zn-bg);
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.zn-content {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 32px 32px;
+}
+
+/* ============================== 3. 设计原语 ============================== */
+
+.zn-panel {
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+  border-radius: 24px;
+}
+
+.zn-panel-raised {
+  background: var(--zn-metric);
+  border: 1px solid #FFFFFF0E;
+  border-radius: 28px;
+}
+
+.zn-page-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  min-height: 112px;
+  padding: 22px 26px;
+}
+
+.zn-header-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+
+.zn-eyebrow {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--zn-accent);
+}
+
+.zn-page-title {
+  font-size: 42px;
+  font-weight: 750;
+  line-height: 1.08;
+  letter-spacing: -1px;
+  color: var(--zn-text);
+}
+
+.zn-page-description {
+  font-size: 12px;
+  color: var(--zn-muted);
+  max-width: 720px;
+}
+
+.zn-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zn-identity {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--zn-gold-soft);
+  border: 1px solid var(--zn-gold);
+}
+
+.zn-identity-dot {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 50%;
+  background: var(--zn-success);
+}
+
+.zn-identity-text {
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--zn-text);
+}
+
+.zn-identity-role {
+  font-family: var(--zn-font-mono);
+  font-size: 9px;
+  letter-spacing: 0.5px;
+  color: var(--zn-muted);
+}
+
+.zn-motif {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 378px;
+  height: 112px;
+  pointer-events: none;
+  opacity: 0.9;
+  overflow: hidden;
+  border-radius: 24px;
+}
+
+.zn-motif-panel {
+  position: absolute;
+  inset: 0;
+  border: 1px solid #CDEFF222;
+  border-radius: 24px;
+}
+
+.zn-motif-svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.zn-motif-label {
+  position: absolute;
+  left: 14px;
+  top: 13px;
+  font-family: var(--zn-font-mono);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 1.1px;
+  color: var(--zn-subtle);
+}
+
+/* --- 按钮 --- */
+
+.zn-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid #D3F2F229;
+  background: #20333F96;
+  color: var(--zn-text);
+  font-family: var(--zn-font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.zn-btn:hover:not(:disabled) {
+  border-color: #D3F2F24d;
+  filter: brightness(1.12);
+}
+
+.zn-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.zn-btn-primary {
+  background: var(--zn-primary);
+  border-color: #EFFFFF73;
+  color: var(--zn-on-primary);
+  font-weight: 750;
+}
+
+.zn-btn-danger {
+  background: var(--zn-danger-soft);
+  border-color: #FFB1B541;
+  color: var(--zn-danger);
+}
+
+.zn-btn-block {
+  width: 100%;
+}
+
+.zn-btn-tall {
+  height: 40px;
+}
+
+/* --- 字段 --- */
+
+.zn-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.zn-field-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--zn-text);
+}
+
+.zn-input {
+  width: 100%;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-text);
+  font-family: var(--zn-font-sans);
+  font-size: 13px;
+  transition: border-color 0.15s ease;
+}
+
+.zn-input::placeholder {
+  color: var(--zn-subtle);
+}
+
+.zn-input:focus {
+  border-color: #A3D2FF66;
+  outline: none;
+}
+
+.zn-input-mono {
+  font-family: var(--zn-font-mono);
+}
+
+textarea.zn-input {
+  height: auto;
+  min-height: 40px;
+  padding: 10px 12px;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+select.zn-input {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--zn-muted) 50%),
+    linear-gradient(135deg, var(--zn-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 17px, calc(100% - 13px) 17px;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 32px;
+}
+
+.zn-field-row {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.zn-field-row > .zn-field {
+  flex: 1 1 240px;
+}
+
+.zn-hint {
+  font-size: 11px;
+  color: var(--zn-subtle);
+}
+
+/* --- 徽章 --- */
+
+.zn-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #FFFFFF24;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.zn-badge-dot {
+  width: 6px;
+  height: 6px;
+  flex: 0 0 6px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.zn-badge-success {
+  background: var(--zn-success-soft);
+  color: var(--zn-success);
+}
+
+.zn-badge-warning {
+  background: var(--zn-warning-soft);
+  color: var(--zn-warning);
+}
+
+.zn-badge-danger {
+  background: var(--zn-danger-soft);
+  color: var(--zn-danger);
+}
+
+.zn-badge-accent {
+  background: var(--zn-accent-soft);
+  color: var(--zn-accent);
+}
+
+/* --- 指标卡 --- */
+
+.zn-metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 12px;
+}
+
+.zn-metric {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: var(--zn-metric);
+  border: 1px solid #E8FFFF12;
+}
+
+.zn-metric-rail {
+  width: 4px;
+  height: 34px;
+  flex: 0 0 4px;
+  border-radius: 2px;
+  background: var(--zn-accent);
+}
+
+.zn-metric-rail-gold {
+  background: var(--zn-gold);
+}
+
+.zn-metric-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.zn-metric-value {
+  font-family: var(--zn-font-mono);
+  font-size: 21px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--zn-text);
+}
+
+.zn-metric-value-sm {
+  font-size: 11px;
+}
+
+.zn-metric-label {
+  font-family: var(--zn-font-mono);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--zn-muted);
+}
+
+/* --- 卡片 / 分区 --- */
+
+.zn-card {
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+  border-radius: 24px;
+  padding: 18px 22px;
+}
+
+.zn-card-raised {
+  background: var(--zn-metric);
+  border: 1px solid #FFFFFF0E;
+  border-radius: 28px;
+}
+
+.zn-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+
+.zn-card-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--zn-text);
+}
+
+.zn-card-subtitle {
+  font-size: 11px;
+  color: var(--zn-muted);
+}
+
+.zn-grid-2 {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.zn-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zn-stack-sm {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.zn-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.zn-row-between {
+  justify-content: space-between;
+}
+
+/* --- 表格 --- */
+
+.zn-table-scroll {
+  overflow-x: auto;
+  border-radius: 28px;
+  background: var(--zn-metric);
+  border: 1px solid #FFFFFF0E;
+}
+
+.zn-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.zn-table thead th {
+  position: sticky;
+  top: 0;
+  background: #20364088;
+  color: var(--zn-text);
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  text-align: left;
+  padding: 12px 14px;
+  white-space: nowrap;
+}
+
+.zn-table tbody td {
+  padding: 11px 14px;
+  border-top: 1px solid var(--zn-border);
+  color: var(--zn-muted);
+  vertical-align: middle;
+}
+
+.zn-table tbody tr:nth-child(odd) td {
+  background: #17293264;
+}
+
+.zn-table tbody tr:nth-child(even) td {
+  background: #1C30387A;
+}
+
+.zn-table tbody tr:hover td {
+  background: var(--zn-accent-soft);
+}
+
+.zn-table-cell-strong {
+  color: var(--zn-text);
+  font-weight: 550;
+}
+
+.zn-table-cell-mono {
+  font-family: var(--zn-font-mono);
+}
+
+/* --- 标签页 --- */
+
+.zn-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--zn-border-strong);
+}
+
+.zn-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: none;
+  color: var(--zn-muted);
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.zn-tab[aria-selected='true'] {
+  border-bottom-color: var(--zn-accent);
+  color: var(--zn-text);
+  font-weight: 700;
+}
+
+.zn-tab[aria-selected='true'] .zn-tab-icon {
+  color: var(--zn-accent);
+}
+
+.zn-tab-icon {
+  flex: 0 0 15px;
+  color: var(--zn-muted);
+}
+
+/* --- 步骤器（发布作业） --- */
+
+.zn-stepper {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.zn-step {
+  flex: 1 1 0;
+  min-width: 132px;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid #CDEFF212;
+  border-right-width: 1px;
+  background: transparent;
+}
+
+.zn-step:last-child {
+  border-right-width: 1px;
+}
+
+.zn-step-state {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.zn-step-icon {
+  flex: 0 0 14px;
+}
+
+.zn-step-status {
+  font-family: var(--zn-font-mono);
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.zn-step-name {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--zn-text);
+  word-break: break-all;
+}
+
+.zn-step-done {
+  background: rgba(121, 231, 191, 0.05);
+}
+
+.zn-step-done .zn-step-icon,
+.zn-step-done .zn-step-status {
+  color: var(--zn-success);
+}
+
+.zn-step-current {
+  background: var(--zn-gold-soft);
+}
+
+.zn-step-current .zn-step-icon {
+  color: var(--zn-accent);
+}
+
+.zn-step-current .zn-step-status {
+  color: var(--zn-warning);
+  font-weight: 800;
+}
+
+.zn-step-current .zn-step-name {
+  font-weight: 800;
+}
+
+.zn-step-todo .zn-step-icon,
+.zn-step-todo .zn-step-status {
+  color: var(--zn-muted);
+}
+
+/* --- 进度条 --- */
+
+.zn-progress {
+  position: relative;
+  height: 7px;
+  border-radius: 24px;
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+  overflow: hidden;
+}
+
+.zn-progress-value {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 24px;
+  background: var(--zn-accent);
+  transition: width 0.2s ease;
+}
+
+/* --- 检查清单 / 时间线 --- */
+
+.zn-checks {
+  display: flex;
+  flex-direction: column;
+}
+
+.zn-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 42px;
+  padding: 8px 0;
+  border-bottom: 1px solid #CDEFF212;
+}
+
+.zn-check:last-child {
+  border-bottom: 0;
+}
+
+.zn-check-group {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 0;
+}
+
+.zn-check-icon {
+  flex: 0 0 15px;
+}
+
+.zn-check-label {
+  font-size: 12px;
+  color: var(--zn-text);
+}
+
+.zn-check-status {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.zn-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.zn-event {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.zn-event-dot {
+  width: 8px;
+  height: 8px;
+  flex: 0 0 8px;
+  margin-top: 5px;
+  border-radius: 50%;
+  background: var(--zn-accent);
+}
+
+.zn-event-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.zn-event-label {
+  font-size: 12px;
+  font-weight: 550;
+  color: var(--zn-text);
+}
+
+.zn-event-time {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  color: var(--zn-muted);
+}
+
+/* --- 提示条 --- */
+
+.zn-notice {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 14px;
+  min-height: 42px;
+  border-radius: 16px;
+  background: var(--zn-warning-soft);
+  border-left: 3px solid var(--zn-warning);
+  color: var(--zn-warning);
+  font-size: 11px;
+}
+
+.zn-notice-icon {
+  flex: 0 0 15px;
+  color: var(--zn-accent);
+}
+
+.zn-notice-block {
+  align-items: flex-start;
+  padding: 14px;
+}
+
+/* ============================== 4. 兼容层 ==============================
+ * 既有页面与控制台 Playwright 依赖的类名：语义不变，视觉并入设计系统。
+ * ---------------------------------------------------------------------- */
+
+.eyebrow {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  color: var(--zn-accent);
+}
+
+/*
+ * `.pipeline-step` 是 tests/browser/manual-release.spec.ts 的契约钩子
+ * （断言 `.pipeline-step` 恰好 7 个），必须与 `.zn-step` 同在同一个元素上。
+ */
+.pipeline-step {
+  min-width: 0;
+}
+
+.lead {
+  font-size: 12px;
+  color: var(--zn-muted);
+}
+
+.filter-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 32px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid #D3F2F229;
+  background: #20333F96;
+  color: var(--zn-text);
+  font-family: var(--zn-font-sans);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s ease, border-color 0.15s ease;
+}
+
+a.filter-btn {
+  text-decoration: none;
+}
+
+.filter-btn:hover:not(:disabled) {
+  border-color: #D3F2F24d;
+  filter: brightness(1.12);
+}
+
+.filter-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.filter-btn.active,
+.filter-btn.primary {
+  background: var(--zn-primary);
+  border-color: #EFFFFF73;
+  color: var(--zn-on-primary);
+  font-weight: 750;
+}
+
+.access-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 22px 26px;
+  border-radius: 24px;
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+}
+
+.access-heading h1,
+.access-panel h1 {
+  font-size: 32px;
+  font-weight: 750;
+  line-height: 1.15;
+  letter-spacing: -0.6px;
+}
+
+.access-panel {
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+  border-radius: 24px;
+  padding: 18px 22px;
+}
+
+.access-panel > h2,
+.access-panel > .access-title h2 {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--zn-text);
+}
+
+.access-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.access-badge {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  color: var(--zn-subtle);
+}
+
+.access-hint {
+  font-size: 11px;
+  color: var(--zn-subtle);
+}
+
+.access-error,
+.access-message {
+  padding: 12px 16px;
+  border-radius: 16px;
+  font-size: 12px;
+}
+
+.access-error {
+  background: var(--zn-danger-soft);
+  border: 1px solid #FFB1B541;
+  color: var(--zn-danger);
+}
+
+.access-message {
+  background: var(--zn-success-soft);
+  border: 1px solid #FFFFFF24;
+  color: var(--zn-success);
+}
+
+.access-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.access-columns > aside {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.access-tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--zn-border-strong);
+}
+
+.access-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.access-fields > label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--zn-text);
+}
+
+.access-fields input,
+.access-fields select,
+.access-fields textarea {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-text);
+  font-family: var(--zn-font-sans);
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.access-fields textarea {
+  padding: 10px 12px;
+  line-height: 1.5;
+}
+
+.access-fields fieldset {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+
+.access-fields legend {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--zn-text);
+  padding: 0;
+}
+
+.access-fields label > input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  min-height: 16px;
+  accent-color: #7BE4C6;
+}
+
+.access-active {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: var(--zn-panel);
+  border: 1px solid #CDEFF222;
+  margin-bottom: 14px;
+  font-size: 11px;
+  color: var(--zn-muted);
+}
+
+.access-active strong {
+  font-size: 12px;
+  color: var(--zn-text);
+}
+
+.access-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.access-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.access-checks li {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 38px;
+  padding: 6px 0;
+  border-bottom: 1px solid #CDEFF212;
+  font-size: 12px;
+  color: var(--zn-text);
+}
+
+.access-checks li:last-child {
+  border-bottom: 0;
+}
+
+.access-check {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #FFFFFF24;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.access-check.passed {
+  background: var(--zn-success-soft);
+  color: var(--zn-success);
+}
+
+.access-check.failed {
+  background: var(--zn-danger-soft);
+  color: var(--zn-danger);
+}
+
+.access-check.pending {
+  background: var(--zn-warning-soft);
+  color: var(--zn-warning);
+}
+
+.access-history {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-bottom: 1px solid #CDEFF212;
+  font-size: 11px;
+  color: var(--zn-muted);
+}
+
+.access-history code,
+.access-command {
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  color: var(--zn-accent);
+  background: rgba(163, 210, 255, 0.08);
+  border-radius: 8px;
+  padding: 4px 8px;
+  word-break: break-all;
+}
+
+.access-comparison {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.access-comparison pre {
+  margin: 6px 0 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-muted);
+  font-size: 11px;
+  overflow-x: auto;
+}
+
+.access-audit {
+  overflow-x: auto;
+}
+
+.access-audit table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.access-audit th {
+  text-align: left;
+  padding: 10px 12px;
+  color: var(--zn-text);
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  border-bottom: 1px solid #CDEFF222;
+  white-space: nowrap;
+}
+
+.access-audit td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--zn-border);
+  color: var(--zn-muted);
+  white-space: nowrap;
+}
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 480px;
+}
+
+.auth-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--zn-text);
+}
+
+.auth-form input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-text);
+  font-family: var(--zn-font-mono);
+  font-size: 13px;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 22px;
+  padding: 0 9px;
+  border-radius: 999px;
+  border: 1px solid #FFFFFF24;
+  background: var(--zn-warning-soft);
+  color: var(--zn-warning);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-ready {
+  background: var(--zn-success-soft);
+  color: var(--zn-success);
+}
+
+.tag-framework-vue {
+  background: var(--zn-success-soft);
+  color: var(--zn-success);
+}
+
+.tag-framework-react {
+  background: var(--zn-accent-soft);
+  color: var(--zn-accent);
+}
+
+.code-badge {
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  color: var(--zn-text);
+  background: rgba(163, 210, 255, 0.08);
+  border-radius: 8px;
+  padding: 3px 8px;
+  word-break: break-all;
+}
+
+.spec-table-container {
+  border-radius: 28px;
+  background: var(--zn-metric);
+  border: 1px solid #FFFFFF0E;
+  overflow: hidden;
+}
+
+.spec-table-container > div:first-child {
+  padding: 16px 18px;
+  border-bottom: 1px solid #CDEFF222;
+}
+
+.spec-table-container h2 {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--zn-text);
+}
+
+.spec-table {
+  width: 100%;
+  min-width: 720px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.spec-table th {
+  text-align: left;
+  padding: 12px 14px;
+  background: #20364088;
+  color: var(--zn-text);
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.spec-table td {
+  padding: 11px 14px;
+  border-top: 1px solid var(--zn-border);
+  color: var(--zn-muted);
+  vertical-align: middle;
+}
+
+.spec-table tbody tr.variant-shot-card:nth-child(odd) td {
+  background: #17293264;
+}
+
+.spec-table tbody tr.variant-shot-card:nth-child(even) td {
+  background: #1C30387A;
+}
+
+.blocker-alert {
+  padding: 16px;
+  background: var(--zn-danger-soft);
+  border-bottom: 1px solid #FFB1B541;
+  color: var(--zn-danger);
+  font-size: 12px;
+}
+
+.blocker-alert ul {
+  margin: 8px 0 0;
+  padding-left: 20px;
+}
+
+.resume-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 16px;
+  border-radius: 20px;
+  background: var(--zn-gold-soft);
+  border: 1px solid var(--zn-gold);
+  color: var(--zn-text);
+  font-size: 12px;
+}
+
+.resume-card strong {
+  font-size: 13px;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.status-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px 18px;
+  border-radius: 20px;
+  background: var(--zn-metric);
+  border: 1px solid #E8FFFF12;
+}
+
+.status-card .label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--zn-muted);
+}
+
+.status-card .value {
+  font-family: var(--zn-font-mono);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--zn-text);
+  word-break: break-all;
+}
+
+.status-card .value.ready {
+  color: var(--zn-success);
+}
+
+.breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  color: var(--zn-subtle);
+}
+
+/* --- 匹配页（.match-* / .candidate-* / .plan-* / .requirement-*） --- */
+
+.match-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--zn-warning-soft);
+  border-left: 3px solid var(--zn-warning);
+  color: var(--zn-warning);
+  font-size: 11px;
+}
+
+.match-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+}
+
+.match-field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.match-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--zn-text);
+}
+
+.match-control {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 12px;
+  border-radius: 16px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-text);
+  font-family: var(--zn-font-sans);
+  font-size: 13px;
+}
+
+.match-hint {
+  font-size: 11px;
+  color: var(--zn-subtle);
+}
+
+.match-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+}
+
+.match-requirement-add {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.match-requirement-add .match-control {
+  flex: 1 1 220px;
+}
+
+.requirement-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: var(--zn-accent-soft);
+  border: 1px solid #CDEFF212;
+  font-size: 12px;
+  color: var(--zn-text);
+}
+
+.requirement-text {
+  min-width: 0;
+  word-break: break-all;
+}
+
+.match-success,
+.match-errors {
+  padding: 16px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.match-success {
+  background: var(--zn-success-soft);
+  border: 1px solid #FFFFFF24;
+  color: var(--zn-success);
+}
+
+.match-errors {
+  background: var(--zn-danger-soft);
+  border: 1px solid #FFB1B541;
+  color: var(--zn-danger);
+}
+
+.match-success strong,
+.match-errors strong {
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.match-json {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 12px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-muted);
+  font-size: 11px;
+  overflow-x: auto;
+}
+
+.match-note {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--zn-muted);
+}
+
+.match-errors ul {
+  margin: 6px 0 0;
+  padding-left: 20px;
+}
+
+.field-error {
+  font-size: 11px;
+  color: var(--zn-danger);
+}
+
+.candidate-table {
+  overflow-x: auto;
+  border-radius: 16px;
+  border: 1px solid var(--zn-border-strong);
+}
+
+.candidate-table table {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.candidate-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #20364088;
+  color: var(--zn-text);
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+}
+
+.candidate-table td {
+  padding: 11px 12px;
+  border-top: 1px solid var(--zn-border);
+  color: var(--zn-muted);
+  vertical-align: middle;
+}
+
+.candidate-row:nth-child(odd) td {
+  background: #17293264;
+}
+
+.candidate-row:nth-child(even) td {
+  background: #1C30387A;
+}
+
+.candidate-identity {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.candidate-icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border-radius: 8px;
+  background: var(--zn-accent);
+  color: #FFFFFF;
+}
+
+.candidate-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.candidate-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--zn-text);
+}
+
+.candidate-id {
+  font-family: var(--zn-font-mono);
+  font-size: 10px;
+  color: var(--zn-muted);
+}
+
+.plan-panel,
+.design-panel,
+.query-panel {
+  margin-top: 18px;
+  padding: 18px;
+  border-radius: 28px;
+  background: var(--zn-metric);
+  border: 1px solid #FFFFFF0E;
+}
+
+.plan-panel h3,
+.design-panel h3,
+.query-panel h3 {
+  font-family: var(--zn-font-mono);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  color: var(--zn-text);
+  margin-bottom: 4px;
+}
+
+.plan-json,
+.query-json {
+  margin: 8px 0 0;
+  padding: 12px;
+  border-radius: 16px;
+  background: #1D303CA8;
+  border: 1px solid #D0EDF026;
+  color: var(--zn-muted);
+  font-size: 11px;
+  overflow-x: auto;
+}
+
+/* ============================== 5. 响应式 ============================== */
+
+@media (max-width: 1180px) {
+  .zn-grid-2,
+  .access-columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .zn-motif {
+    width: 300px;
+    opacity: 0.55;
+  }
+}
+
+@media (max-width: 960px) {
+  .zn-shell {
+    flex-direction: column;
+  }
+
+  .zn-sidebar {
+    position: static;
+    flex: 0 0 auto;
+    width: 100%;
+    height: auto;
+    border-radius: 0;
+    padding: 14px 16px;
+    gap: 6px;
+  }
+
+  .zn-sidebar-rail {
+    display: none;
+  }
+
+  .zn-sidebar-spacer {
+    display: none;
+  }
+
+  .zn-nav {
+    flex-direction: row;
+    overflow-x: auto;
+    padding-bottom: 4px;
+  }
+
+  .zn-nav-item {
+    flex: 0 0 auto;
+  }
+
+  .zn-env {
+    display: none;
+  }
+
+  .zn-content {
+    padding: 18px 16px 28px;
+  }
+
+  .zn-page-header {
+    padding: 18px;
+  }
+
+  .zn-motif {
+    display: none;
+  }
+
+  .zn-page-title {
+    font-size: 30px;
+    letter-spacing: -0.4px;
+  }
+}
+
+@media (max-width: 640px) {
+  .zn-topbar {
+    padding: 0 14px;
+  }
+
+  .zn-quick-search {
+    width: 40px;
+    padding: 0 10px;
+  }
+
+  .zn-quick-search-hint,
+  .zn-quick-search kbd {
+    display: none;
+  }
+
+  .access-heading h1,
+  .access-panel h1 {
+    font-size: 24px;
+  }
+
+  .zn-page-title {
+    font-size: 26px;
+  }
+
+  .zn-stepper {
+    flex-direction: column;
+  }
+
+  .zn-step {
+    min-width: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}
+
+</style></head>
+<body><div class="pv-wrap">
+<div class="pv-head"><h1>Zhinexus 管理端 · management-api.pen 还原预览</h1>
+<p>由 apps/admin 真实组件 renderToStaticMarkup 产出；外壳（侧栏/顶栏）未包含，仅六个业务画板内容。深色主题、玻璃面板与 Command Motif 均来自设计稿。</p></div>
+<section class="pv-board" id="pv-upload"><h2 class="pv-board-title">01 上传发布 · /upload</h2><div class="pv-frame"><main><div class="zn-page-header access-heading"><div class="zn-header-copy"><p class="eyebrow">01 / RELEASE MANIFEST</p><h1>资产发布工作区 (Manual Release)</h1><p class="lead">装配预构建产物与双框架截图，校验通过后创建不可变发布作业。</p><p class="lead">当前登录身份：<strong>web-developer-alice</strong> · 权限: <code>publisher, maintainer</code> · 渠道: <code>web</code> · API 服务: <code id="active-api-url">http://127.0.0.1:3000</code></p></div><div class="zn-motif zn-motif" data-motif-board="01" aria-hidden="true"><svg class="zn-motif-svg" viewBox="0 0 378 112" width="378" height="112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-motif-board="01" style="pointer-events:none;display:block"><defs><linearGradient id="zn-rule-01" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0.72"></stop></linearGradient><linearGradient id="zn-beam-01" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="50%" stop-color="#65F5FF" stop-opacity="1"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0"></stop></linearGradient></defs><rect x="14" y="30" width="128" height="1" fill="url(#zn-rule-01)" opacity="0.25"></rect><ellipse cx="258" cy="56" rx="54" ry="54" fill="none" stroke="#A8E5EB42" stroke-width="1" opacity="0.42"></ellipse><ellipse cx="261" cy="57" rx="39" ry="39" fill="none" stroke="#A8E5EB42" stroke-width="1" opacity="0.42"></ellipse><ellipse cx="261" cy="57" rx="23" ry="23" fill="none" stroke="#A8E5EB42" stroke-width="1" opacity="0.42"></ellipse><ellipse cx="247.5" cy="19.5" rx="3.5" ry="3.5" fill="#65F5FF"></ellipse><ellipse cx="318.5" cy="57.5" rx="3.5" ry="3.5" fill="#7CA8FF"></ellipse><ellipse cx="265.5" cy="87.5" rx="3.5" ry="3.5" fill="#B4A6FF"></ellipse></svg><span class="zn-motif-label">INGEST ORBIT / 01</span></div><div class="zn-identity"><span class="zn-identity-dot"></span><span class="zn-identity-text">web-developer-alice</span><span class="zn-identity-role">publisher / maintainer · web</span></div><button type="button" class="filter-btn">退出登录</button></div><div class="zn-metrics"><div class="zn-metric"><span class="zn-metric-rail"></span><span class="zn-metric-copy"><span class="zn-metric-value">0</span><span class="zn-metric-label">已装配文件</span></span></div><div class="zn-metric"><span class="zn-metric-rail"></span><span class="zn-metric-copy"><span class="zn-metric-value">14 / 14</span><span class="zn-metric-label">有效截图</span></span></div><div class="zn-metric"><span class="zn-metric-rail zn-metric-rail-gold"></span><span class="zn-metric-copy"><span class="zn-metric-value">0</span><span class="zn-metric-label">待补充</span></span></div><div class="zn-metric"><span class="zn-metric-rail"></span><span class="zn-metric-copy"><span class="zn-metric-value zn-metric-value-sm">manual-upload</span><span class="zn-metric-label">来源渠道</span></span></div></div><div class="zn-card zn-row" style="padding:14px 18px"><div class="zn-stack-sm" style="gap:2px"><h2 class="zn-card-title">实现截图清单</h2><p class="zn-card-subtitle">每个逻辑组件的 Vue / React 实现必须分别关联有效截图</p></div><div class="zn-row" style="margin-left:auto"><label class="filter-btn" style="cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><path d="M17 8l-5-5-5 5"></path><path d="M12 3v12"></path></svg>导入 Manifest<input id="import-manifest-input" type="file" accept=".json,application/json" style="display:none"/></label><label class="filter-btn" style="cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m7.5 4.27 9 5.15"></path><path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path><path d="m3.3 7 8.7 5 8.7-5"></path><path d="M12 22V12"></path></svg>批量导入<input id="import-files-input" type="file" multiple="" webkitdirectory="" directory="" style="display:none"/></label><label class="filter-btn active" style="cursor:pointer"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-on-primary)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>选择截图<input id="import-screenshots-input" type="file" multiple="" webkitdirectory="" directory="" accept="image/png,image/jpeg" style="display:none"/></label></div></div><section class="spec-table-container" aria-label="逐实现截图关联检查"><div style="padding:16px 18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><h2>逐实现截图关联与必检清单 (7 组件 14 实现)</h2><p style="margin:4px 0 0;font-size:12px;color:var(--zn-subtle)">每个待发布逻辑组件的每个框架实现（Vue / React）至少关联一张有效截图；文件大小与真实哈希严格匹配；来源强制固定为 manual-upload。</p></div><span class="tag tag" style="font-size:12px">未就绪: 缺图 0 项 / 异常 0 项</span></div><div id="missing-screenshots-alert" class="blocker-alert"><strong>阻断发布：存在未关联有效截图的组件实现 (SCREENSHOT_REQUIRED / 框架错配):</strong><ul></ul></div><div style="overflow-x:auto"><table class="spec-table"><thead><tr><th style="width:18%">逻辑组件</th><th style="width:18%">框架实现</th><th style="width:22%">关联包与版本</th><th style="width:22%">截图状态与摘要</th><th style="width:20%">操作与替换</th></tr></thead><tbody><tr class="variant-shot-card"><td><strong>line</strong> (LineChart)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">line-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="line-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>line</strong> (LineChart)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">line-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="line-react" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>bar</strong> (BarChart)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">bar-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="bar-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>bar</strong> (BarChart)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">bar-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="bar-react" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>pie</strong> (PieChart)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">pie-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="pie-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>pie</strong> (PieChart)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">pie-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="pie-react" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>scatter</strong> (ScatterChart)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">scatter-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="scatter-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>scatter</strong> (ScatterChart)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">scatter-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="scatter-react" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>trend-card</strong> (TrendCard)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">trend-card-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="trend-card-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>trend-card</strong> (TrendCard)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">trend-card-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="trend-card-react" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>ranking</strong> (Ranking)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">ranking-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="ranking-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>ranking</strong> (Ranking)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">ranking-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="ranking-react" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>proportion</strong> (Proportion)</td><td><span class="tag tag-framework-vue">Vue 3</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">proportion-vue</span></td><td><span class="code-badge">@company/charts-vue@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="proportion-vue" style="display:none"/></label></td></tr><tr class="variant-shot-card"><td><strong>proportion</strong> (Proportion)</td><td><span class="tag tag-framework-react">React 19</span><span style="margin-left:6px;font-size:12px;color:var(--zn-subtle)">proportion-react</span></td><td><span class="code-badge">@company/charts-react@0.0.6</span></td><td><span style="color:var(--zn-danger);font-weight:600;display:flex;align-items:center;gap:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-danger)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg> 缺少有效展示截图</span></td><td><label class="filter-btn active" style="cursor:pointer">上传有效截图<input type="file" accept="image/png,image/jpeg" data-upload-shot="proportion-react" style="display:none"/></label></td></tr></tbody></table></div></section><div class="zn-notice zn-notice-block"><svg class="zn-notice-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--zn-warning)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"></path><path d="M12 9v4"></path><path d="M12 17h.01"></path></svg><div class="zn-stack-sm" style="gap:2px;flex:1 1 auto"><strong style="font-family:var(--zn-font-mono);font-size:12px">发布前检查未通过</strong><span style="font-size:11px">请补充缺失的截图，然后重新运行校验。</span></div><button type="button" class="filter-btn" style="padding:10px 24px;font-size:14px;font-weight:600" disabled="">确认并提交发布</button></div><div class="zn-row" style="font-size:12px;color:var(--zn-subtle)"><span>渠道: <code>web (manual-upload)</code> · 已装配文件: <strong>0</strong> 项</span></div></main></div></section>
+<section class="pv-board" id="pv-jobs"><h2 class="pv-board-title">02 发布作业 · /jobs/[jobId]</h2><div class="pv-frame"><main><nav class="breadcrumb" aria-label="面包屑"><a href="/upload">发布控制台</a><span>/</span><span>作业跟踪</span></nav><div class="zn-page-header access-heading"><div class="zn-header-copy"><p class="eyebrow">02 / RELEASE JOB · job-web-manual-001</p><h1>发布作业流水线状态跟踪</h1><p class="lead">跟踪不可变产物从对象冻结到可用性确认的完整流水线。作业编号：<span style="font-family:var(--zn-font-mono);font-size:16px">job-web-manual-001</span></p></div><div class="zn-motif zn-motif" data-motif-board="02" aria-hidden="true"><svg class="zn-motif-svg" viewBox="0 0 378 112" width="378" height="112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-motif-board="02" style="pointer-events:none;display:block"><defs><linearGradient id="zn-rule-02" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0.72"></stop></linearGradient><linearGradient id="zn-beam-02" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="50%" stop-color="#65F5FF" stop-opacity="1"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0"></stop></linearGradient></defs><rect x="14" y="30" width="128" height="1" fill="url(#zn-rule-02)" opacity="0.25"></rect><rect x="152" y="56" width="196" height="1" fill="#65F5FF66" opacity="0.25"></rect><ellipse cx="157.5" cy="56.5" rx="5.5" ry="5.5" fill="#79E7BF" stroke="#79E7BF" stroke-width="1"></ellipse><ellipse cx="206.5" cy="56.5" rx="5.5" ry="5.5" fill="#79E7BF" stroke="#79E7BF" stroke-width="1"></ellipse><ellipse cx="255.5" cy="56.5" rx="5.5" ry="5.5" fill="#79E7BF" stroke="#79E7BF" stroke-width="1"></ellipse><ellipse cx="304.5" cy="56.5" rx="5.5" ry="5.5" fill="#FFC98A" stroke="#FFC98A" stroke-width="1"></ellipse><ellipse cx="353.5" cy="56.5" rx="5.5" ry="5.5" fill="#0A1D2A" stroke="#D6F2F333" stroke-width="1"></ellipse><text x="151" y="74" fill="#7E99A1" font-size="7" font-weight="400" font-family="&quot;IBM Plex Mono&quot;, ui-monospace, monospace">01</text><text x="200" y="74" fill="#7E99A1" font-size="7" font-weight="400" font-family="&quot;IBM Plex Mono&quot;, ui-monospace, monospace">02</text><text x="249" y="74" fill="#7E99A1" font-size="7" font-weight="400" font-family="&quot;IBM Plex Mono&quot;, ui-monospace, monospace">03</text><text x="298" y="74" fill="#7E99A1" font-size="7" font-weight="400" font-family="&quot;IBM Plex Mono&quot;, ui-monospace, monospace">04</text><text x="347" y="74" fill="#7E99A1" font-size="7" font-weight="400" font-family="&quot;IBM Plex Mono&quot;, ui-monospace, monospace">05</text></svg><span class="zn-motif-label">SEQUENCE LOCK / 04</span></div><div class="zn-header-actions"><button class="filter-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>刷新状态</button></div></div><section class="zn-card-raised zn-stack" aria-label="推进阶段"><div class="zn-card-head" style="margin-bottom:0"><div><h2 class="zn-card-title">推进阶段</h2><p class="zn-card-subtitle">自动轮询 · 1000 ms</p></div><span class="zn-badge zn-badge-warning"><span class="zn-badge-dot"></span>PENDING</span></div><div class="zn-stepper"><div class="zn-step zn-step-current pipeline-step" data-step="PENDING"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg><span class="zn-step-status">进行中</span></div><div class="zn-step-name">PENDING</div></div><div class="zn-step zn-step-todo pipeline-step" data-step="FINALIZE_OBJECTS"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg><span class="zn-step-status">待执行</span></div><div class="zn-step-name">FINALIZE_OBJECTS</div></div><div class="zn-step zn-step-todo pipeline-step" data-step="ENSURE_PACKAGES"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg><span class="zn-step-status">待执行</span></div><div class="zn-step-name">ENSURE_PACKAGES</div></div><div class="zn-step zn-step-todo pipeline-step" data-step="REGISTER_ASSETS"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg><span class="zn-step-status">待执行</span></div><div class="zn-step-name">REGISTER_ASSETS</div></div><div class="zn-step zn-step-todo pipeline-step" data-step="CHECK_AVAILABILITY"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg><span class="zn-step-status">待执行</span></div><div class="zn-step-name">CHECK_AVAILABILITY</div></div><div class="zn-step zn-step-todo pipeline-step" data-step="READY_TX"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg><span class="zn-step-status">待执行</span></div><div class="zn-step-name">READY_TX</div></div><div class="zn-step zn-step-todo pipeline-step" data-step="READY"><div class="zn-step-state"><svg class="zn-step-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg><span class="zn-step-status">待执行</span></div><div class="zn-step-name">READY</div></div></div></section><div class="status-grid"><div class="status-card"><span class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.25.25 0 0 1-.48 0L9.24 2.18a.25.25 0 0 0-.48 0l-2.35 8.36A2 2 0 0 1 4.49 12H2"></path></svg>作业状态 (State)</span><span class="value ">PENDING</span></div><div class="status-card"><span class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"></circle><line x1="3" y1="12" x2="6" y2="12"></line><line x1="15" y1="12" x2="18" y2="12"></line></svg>当前推进点 (Stage)</span><span class="value">INITIALIZING</span></div><div class="status-card"><span class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"></path><path d="M3 3v5h5"></path></svg>重试计数 (Attempt)</span><span class="value">0</span></div><div class="status-card"><span class="label"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="14" r="8"></circle><line x1="10" y1="2" x2="14" y2="2"></line><line x1="12" y1="14" x2="15" y2="11"></line></svg>轮询建议间隔</span><span class="value">1000 ms</span></div></div><div class="zn-grid-2"><section class="zn-card-raised zn-stack" aria-label="当前操作"><div class="zn-card-head" style="margin-bottom:0"><div class="zn-row" style="gap:10px"><span class="zn-motif" style="position:static;width:34px;height:34px;opacity:1;background:var(--zn-accent-soft);border-radius:10px;display:grid;place-items:center"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 7V5a2 2 0 0 1 2-2h2"></path><path d="M17 3h2a2 2 0 0 1 2 2v2"></path><path d="M21 17v2a2 2 0 0 1-2 2h-2"></path><path d="M7 21H5a2 2 0 0 1-2-2v-2"></path><path d="M7 12h10"></path></svg></span><div><h2 class="zn-card-title">正在检查产物可达性</h2><p class="zn-card-subtitle">检查冻结文件、预览入口及已登记的 npm 包</p></div></div><span class="zn-badge zn-badge-warning"><span class="zn-badge-dot"></span>进行中</span></div><div class="zn-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><span class="zn-progress-value" style="width:0%"></span></div><div class="zn-checks"><div class="zn-check"><span class="zn-check-group"><svg class="zn-check-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4-2"></path></svg><span class="zn-check-label">冻结对象摘要</span></span><span class="zn-check-status" style="color:var(--zn-muted)">等待中</span></div><div class="zn-check"><span class="zn-check-group"><svg class="zn-check-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4-2"></path></svg><span class="zn-check-label">Verdaccio 包版本</span></span><span class="zn-check-status" style="color:var(--zn-muted)">等待中</span></div><div class="zn-check"><span class="zn-check-group"><svg class="zn-check-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4-2"></path></svg><span class="zn-check-label">静态预览入口</span></span><span class="zn-check-status" style="color:var(--zn-muted)">等待中</span></div><div class="zn-check"><span class="zn-check-group"><svg class="zn-check-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="10"></circle><path d="M12 6v6l4-2"></path></svg><span class="zn-check-label">PostgreSQL 事务</span></span><span class="zn-check-status" style="color:var(--zn-muted)">等待中</span></div></div></section><section class="zn-card-raised zn-stack" aria-label="作业动态"><h2 class="zn-card-title" style="margin-bottom:0">作业动态</h2><div class="zn-timeline"><div class="zn-event"><span class="zn-event-dot" style="background:var(--zn-success)"></span><span class="zn-event-copy"><span class="zn-event-label">PENDING</span><span class="zn-event-time">完成</span></span></div></div></section></div></main></div></section>
+<section class="pv-board" id="pv-access-oidc"><h2 class="pv-board-title">03 接入设置 · 公司登录</h2><div class="pv-frame"><main><div class="access-heading zn-page-header"><div class="zn-header-copy"><p class="eyebrow">03 / ACCESS REGISTRY</p><h1>接入设置</h1><p class="lead">管理公司登录与预览入口。保存草稿，完成实际验证后再启用。</p></div><div class="zn-motif zn-motif" data-motif-board="03" aria-hidden="true"><span class="zn-motif-panel" style="background:linear-gradient(145deg, rgba(215, 247, 244, 0.067) 0%, rgba(163, 210, 255, 0.031) 48%, rgba(121, 231, 191, 0.043) 100%), #172832A3"></span><svg class="zn-motif-svg" viewBox="0 0 378 112" width="378" height="112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-motif-board="03" style="pointer-events:none;display:block"><defs><linearGradient id="zn-rule-03" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0.72"></stop></linearGradient><linearGradient id="zn-beam-03" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="50%" stop-color="#65F5FF" stop-opacity="1"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0"></stop></linearGradient></defs><rect x="14" y="30" width="128" height="1" fill="url(#zn-rule-03)" opacity="0.25"></rect><path d="M0 31l48-31 56 36 52-28 36 34" transform="translate(156 32)" fill="none" stroke="#65F5FF55" stroke-width="1"></path><ellipse cx="157" cy="62" rx="4" ry="4" fill="#243B45CA" stroke="#A3D2FF" stroke-width="1"></ellipse><ellipse cx="205" cy="31" rx="4" ry="4" fill="#243B45CA" stroke="#A3D2FF" stroke-width="1"></ellipse><ellipse cx="261" cy="67" rx="4" ry="4" fill="#243B45CA" stroke="#A3D2FF" stroke-width="1"></ellipse><ellipse cx="313" cy="39" rx="4" ry="4" fill="#243B45CA" stroke="#A3D2FF" stroke-width="1"></ellipse><ellipse cx="349" cy="73" rx="4" ry="4" fill="#243B45CA" stroke="#A3D2FF" stroke-width="1"></ellipse></svg><span class="zn-motif-label">IDENTITY MESH / OIDC</span></div><div class="zn-header-actions"><a class="filter-btn" href="http://127.0.0.1:3000/v1/auth/oidc/start?target=admin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="15.5" cy="8.5" r="1.2"></circle><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.811-.811a6.5 6.5 0 1 0-4-4z"></path></svg>账号登录</a><button class="filter-btn" disabled=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>刷新配置</button></div></div><div role="tablist" aria-label="接入配置分区" class="access-tabs zn-tabs"><button role="tab" aria-selected="true" class="filter-btn active zn-tab"><svg class="zn-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="15.5" cy="8.5" r="1.2"></circle><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.811-.811a6.5 6.5 0 1 0-4-4z"></path></svg>01  公司登录（OIDC）</button><button role="tab" aria-selected="false" class="filter-btn zn-tab"><svg class="zn-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>02  预览入口</button></div><div class="access-columns zn-grid-2"><section class="access-panel" role="tabpanel"><div class="access-title"><h2>公司登录</h2><span class="access-badge">活动代数 0</span></div><div class="access-active"><strong>尚未启用后台版本</strong><p>首次启用前沿用部署配置。</p></div><form><fieldset disabled="" class="access-fields"><label>Issuer<input value=""/></label><label>Audience<input value=""/></label><label>Web Client ID<input value=""/></label><label>CLI Client ID<input value=""/></label><label>Web 回调地址<input placeholder="http://127.0.0.1:3000/v1/auth/oidc/callback" value=""/></label><label>CLI 回调地址<input value=""/></label><label>角色 Claim<input value=""/></label><label>密钥引用（可选）<input value=""/></label><label>reader 映射<input value=""/></label><label>publisher 映射<input value=""/></label><label>maintainer 映射<input value=""/></label><label>附加 scope（空格分隔）<input value=""/></label><p class="access-hint">密钥仅填写部署引用。实际 Web、CLI 登录和角色检查通过后可以启用；公司撤权证据按 G2 验收。</p></fieldset><div class="access-actions"><button class="filter-btn active" type="submit" disabled="">保存草稿</button><button class="filter-btn" type="button" disabled="">运行检查</button><button class="filter-btn" type="button" disabled="">启用此版本</button></div></form></section><aside><section class="access-panel"><h2>策略验证台</h2><p class="access-hint">保存草稿后运行检查。</p><p class="access-badge">00 / 07 VERIFIED</p><ul class="access-checks"><li data-testid="check-discovery"><span>身份服务元数据</span><span class="access-check pending">待验证</span></li><li data-testid="check-secret"><span>密钥引用</span><span class="access-check pending">待验证</span></li><li data-testid="check-webLogin"><span>网页登录</span><span class="access-check pending">待验证</span></li><li data-testid="check-cliLogin"><span>CLI 登录</span><span class="access-check pending">待验证</span></li><li data-testid="check-roles"><span>业务角色</span><span class="access-check pending">待验证</span></li><li data-testid="check-revocation"><span>公司撤权</span><span class="access-check pending">待验证</span></li><li data-testid="check-adminLogin"><span>管理员登录</span><span class="access-check pending">待验证</span></li></ul></section><section class="access-panel"><h2>版本恢复策略</h2><p class="access-hint">恢复前重新检查入口；公司登录恢复需先验证管理员登录。</p><p class="access-hint">暂无可恢复版本。</p></section></aside></div><section class="access-panel" role="region" aria-label="变更审计"><div class="access-title"><h2>变更审计台账</h2><span class="access-badge">查看全部</span></div><p class="access-hint">暂无变更记录。</p></section></main></div></section>
+<section class="pv-board" id="pv-access-preview"><h2 class="pv-board-title">04 接入设置 · 预览入口</h2><div class="pv-frame"><main><div class="access-heading zn-page-header"><div class="zn-header-copy"><p class="eyebrow">04 / PREVIEW GATEWAY</p><h1>预览入口</h1><p class="lead">配置隔离预览地址与访问边界，验证凭证过滤和短期路径授权。</p></div><div class="zn-motif zn-motif" data-motif-board="04" aria-hidden="true"><svg class="zn-motif-svg" viewBox="0 0 378 112" width="378" height="112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-motif-board="04" style="pointer-events:none;display:block"><defs><linearGradient id="zn-rule-04" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0.72"></stop></linearGradient><linearGradient id="zn-beam-04" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="50%" stop-color="#65F5FF" stop-opacity="1"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0"></stop></linearGradient></defs><rect x="14" y="30" width="128" height="1" fill="url(#zn-rule-04)" opacity="0.25"></rect><rect x="166" y="24" width="176" height="72" rx="14 3 14 3" fill="none" stroke="#65F5FF66" stroke-width="1"></rect><rect x="181" y="33" width="146" height="54" rx="14 3 14 3" fill="none" stroke="#7CA8FF66" stroke-width="1"></rect><rect x="196" y="42" width="116" height="36" rx="14 3 14 3" fill="none" stroke="#B4A6FF66" stroke-width="1"></rect><rect x="211" y="51" width="86" height="18" rx="14 3 14 3" fill="none" stroke="#59F2B077" stroke-width="1"></rect><rect x="202" y="55" width="116" height="2" fill="url(#zn-beam-04)"></rect></svg><span class="zn-motif-label">GATE APERTURE / TLS</span></div><div class="zn-header-actions"><button class="filter-btn" disabled=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>刷新配置</button></div></div><div role="tablist" aria-label="接入配置分区" class="access-tabs zn-tabs"><button role="tab" aria-selected="false" class="filter-btn zn-tab"><svg class="zn-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="15.5" cy="8.5" r="1.2"></circle><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.811-.811a6.5 6.5 0 1 0-4-4z"></path></svg>01  公司登录（OIDC）</button><button role="tab" aria-selected="true" class="filter-btn active zn-tab"><svg class="zn-tab-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M15 3h6v6"></path><path d="M10 14 21 3"></path><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path></svg>02  预览入口</button></div><div class="access-columns zn-grid-2"><section class="access-panel" role="tabpanel"><div class="access-title"><h2>预览入口</h2><span class="access-badge">活动代数 0</span></div><div class="access-active"><strong>尚未启用后台版本</strong><p>首次启用前沿用部署配置。</p></div><form><fieldset disabled="" class="access-fields"><label>隔离方式<select><option value="ip-port" selected="">同 IP 分 HTTPS 端口</option><option value="domain">独立预览域</option></select></label><label>预览地址<input placeholder="https://预览入口" value=""/></label><p class="access-hint">独立域检查至少两个已发布实现的主机。IP 入口需要独立端口、可信 IP SAN 证书和凭证过滤。</p></fieldset><div class="access-actions"><button class="filter-btn active" type="submit" disabled="">保存草稿</button><button class="filter-btn" type="button" disabled="">运行检查</button><button class="filter-btn" type="button" disabled="">启用此版本</button></div></form></section><aside><section class="access-panel"><h2>网关策略验证台</h2><p class="access-hint">保存草稿后运行检查。</p><p class="access-badge">00 / 04 VERIFIED</p><ul class="access-checks"><li data-testid="check-dns"><span>DNS 解析</span><span class="access-check pending">待验证</span></li><li data-testid="check-tls"><span>TLS 证书</span><span class="access-check pending">待验证</span></li><li data-testid="check-routing"><span>入口路由</span><span class="access-check pending">待验证</span></li><li data-testid="check-gateway"><span>网关与凭证过滤</span><span class="access-check pending">待验证</span></li></ul></section><section class="access-panel"><h2>版本恢复策略</h2><p class="access-hint">恢复前重新检查预览入口与凭证过滤。</p><p class="access-hint">暂无可恢复版本。</p></section></aside></div><section class="access-panel" role="region" aria-label="变更审计"><div class="access-title"><h2>变更审计台账</h2><span class="access-badge">查看全部</span></div><p class="access-hint">暂无变更记录。</p></section></main></div></section>
+<section class="pv-board" id="pv-users"><h2 class="pv-board-title">05 用户与权限 · /users</h2><div class="pv-frame"><main><div class="access-heading zn-page-header"><div class="zn-header-copy"><p class="eyebrow">05 / IDENTITY LEDGER</p><h1>用户与权限</h1><p class="lead">管理成员身份、业务角色与资产授权，敏感操作均保留审计轨迹。</p></div><div class="zn-motif zn-motif" data-motif-board="05" aria-hidden="true"><svg class="zn-motif-svg" viewBox="0 0 378 112" width="378" height="112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-motif-board="05" style="pointer-events:none;display:block"><defs><linearGradient id="zn-rule-05" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0.72"></stop></linearGradient><linearGradient id="zn-beam-05" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="50%" stop-color="#65F5FF" stop-opacity="1"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0"></stop></linearGradient></defs><rect x="14" y="30" width="128" height="1" fill="url(#zn-rule-05)" opacity="0.25"></rect><path d="M8 50l40-38 48 26 40-34 54 26-38 28-56-20-48-26" transform="translate(152 28)" fill="none" stroke="#7CA8FF55" stroke-width="1"></path><ellipse cx="160" cy="79" rx="4" ry="4" fill="#59F2B0"></ellipse><ellipse cx="200" cy="41" rx="4" ry="4" fill="#65F5FF"></ellipse><ellipse cx="248" cy="67" rx="4" ry="4" fill="#B4A6FF"></ellipse><ellipse cx="288" cy="33" rx="4" ry="4" fill="#65F5FF"></ellipse><ellipse cx="342" cy="59" rx="4" ry="4" fill="#FFB661"></ellipse><ellipse cx="304" cy="87" rx="4" ry="4" fill="#59F2B0"></ellipse></svg><span class="zn-motif-label">ACCESS CONSTELLATION / RBAC</span></div><div class="zn-header-actions"><a class="filter-btn" href="http://127.0.0.1:3000/v1/auth/oidc/start?target=admin"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="15.5" cy="8.5" r="1.2"></circle><path d="M2.586 17.414A2 2 0 0 0 2 18.828V21a1 1 0 0 0 1 1h3a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h1a1 1 0 0 0 1-1v-1a1 1 0 0 1 1-1h.172a2 2 0 0 0 1.414-.586l.811-.811a6.5 6.5 0 1 0-4-4z"></path></svg>账号登录</a><button class="filter-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path><path d="M21 3v5h-5"></path><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path><path d="M3 21v-5h5"></path></svg>刷新列表</button></div></div><div class="zn-metrics"><div class="zn-metric"><span class="zn-metric-rail"></span><span class="zn-metric-copy"><span class="zn-metric-label">成员账号</span><span class="zn-metric-value">0</span><span class="zn-hint">全部成员</span></span></div><div class="zn-metric"><span class="zn-metric-rail"></span><span class="zn-metric-copy"><span class="zn-metric-label">已启用</span><span class="zn-metric-value">0</span><span class="zn-hint">0%</span></span></div><div class="zn-metric"><span class="zn-metric-rail zn-metric-rail-gold"></span><span class="zn-metric-copy"><span class="zn-metric-label">待首次改密</span><span class="zn-metric-value">0</span><span class="zn-hint">需处理</span></span></div><div class="zn-metric"><span class="zn-metric-rail"></span><span class="zn-metric-copy"><span class="zn-metric-label">最近同步</span><span class="zn-metric-value">—</span><span class="zn-hint">—</span></span></div></div><div class="zn-grid-2"><div class="zn-stack"><section class="zn-card" aria-label="成员身份目录"><div class="zn-card-head"><div><h2 class="zn-card-title">成员身份目录</h2><p class="zn-card-subtitle">选择成员后在右侧管理账号与权限</p></div><div class="zn-row"><span class="zn-quick-search" style="width:220px"><svg class="zn-quick-search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg><input class="zn-quick-search-input" type="search" placeholder="搜索用户名或显示名" aria-label="搜索用户名或显示名" value=""/></span><select class="zn-input" style="width:150px;height:34px" aria-label="账号状态筛选"><option value="all" selected="">全部状态</option><option value="enabled">仅启用</option><option value="disabled">仅停用</option></select></div></div><div class="zn-table-scroll"><table class="zn-table" style="min-width:760px"><thead><tr><th style="width:150px">用户名</th><th style="width:120px">显示名</th><th>角色</th><th style="width:92px">状态</th><th style="width:110px">密码</th><th style="width:96px">同步</th><th style="width:84px">操作</th></tr></thead><tbody><tr><td colSpan="7">暂无成员。</td></tr></tbody></table></div></section><section class="zn-card" aria-label="新成员登记"><div class="zn-card-head"><div><h2 class="zn-card-title">新成员登记</h2><p class="zn-card-subtitle">用户名创建后不可修改，按 ASCII 小写规范化。</p></div></div><form class="zn-stack-sm"><div class="zn-field-row"><label class="zn-field"><span class="zn-field-label">用户名</span><input class="zn-input" autoComplete="off" value=""/></label><label class="zn-field"><span class="zn-field-label">显示名</span><input class="zn-input" value=""/></label></div><div class="zn-field"><span class="zn-field-label">业务角色</span><div class="zn-row"><button type="button" class="filter-btn active" aria-pressed="true"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 6 9 17l-5-5"></path></svg>reader</button><button type="button" class="filter-btn" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg>publisher</button><button type="button" class="filter-btn" aria-pressed="false"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-subtle)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"></circle></svg>maintainer</button></div></div><div class="zn-field-row"><label class="zn-field"><span class="zn-field-label">组件授权（每行一个组件 ID，逗号分隔发布/维护）</span><textarea class="zn-input zn-input-mono"></textarea></label><label class="zn-field"><span class="zn-field-label">包授权（每行一个 npm 包名）</span><textarea class="zn-input zn-input-mono"></textarea></label></div><div class="zn-row"><button class="filter-btn active" type="submit"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-on-primary)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>创建账号</button></div></form></section><section class="zn-card" aria-label="身份操作记录"><div class="zn-card-head"><h2 class="zn-card-title">身份操作记录</h2><button class="filter-btn">读取记录</button></div><p class="access-hint">尚未读取操作记录。</p></section></div><div class="zn-card-raised"><section class="zn-card" aria-label="成员详情"><h2 class="zn-card-title">成员详情</h2><p class="access-hint">在左侧目录中选择一名成员，即可管理账号与权限。</p></section></div></div></main></div></section>
+<section class="pv-board" id="pv-match"><h2 class="pv-board-title">06 项目上下文匹配 · /match</h2><div class="pv-frame"><main><div class="zn-page-header access-heading"><div class="zn-header-copy"><p class="eyebrow">06 / PROJECT INTELLIGENCE</p><h1>项目上下文匹配</h1><p class="lead">结合框架、版本与设计规则，在授权范围内定位可用组件资产。</p><p class="lead">当前登录身份：<strong>web-developer-alice</strong> · 渠道: <code>web</code></p></div><div class="zn-motif zn-motif" data-motif-board="06" aria-hidden="true"><svg class="zn-motif-svg" viewBox="0 0 378 112" width="378" height="112" preserveAspectRatio="xMidYMid meet" aria-hidden="true" focusable="false" data-motif-board="06" style="pointer-events:none;display:block"><defs><linearGradient id="zn-rule-06" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0.72"></stop></linearGradient><linearGradient id="zn-beam-06" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#65F5FF" stop-opacity="0"></stop><stop offset="50%" stop-color="#65F5FF" stop-opacity="1"></stop><stop offset="100%" stop-color="#65F5FF" stop-opacity="0"></stop></linearGradient></defs><rect x="14" y="30" width="128" height="1" fill="url(#zn-rule-06)" opacity="0.25"></rect><ellipse cx="270" cy="57" rx="54" ry="54" fill="none" stroke="#A8E5EB42" stroke-width="1" opacity="0.42"></ellipse><ellipse cx="270" cy="57" rx="41" ry="41" fill="none" stroke="#A8E5EB42" stroke-width="2" opacity="0.42"></ellipse><rect x="188" y="56" width="166" height="1" fill="#65F5FF55" opacity="0.25"></rect><rect x="269" y="10" width="1" height="94" fill="#65F5FF55" opacity="0.25"></rect><ellipse cx="269.5" cy="56.5" rx="4.5" ry="4.5" fill="#A3D2FF"></ellipse></svg><span class="zn-motif-label">VECTOR MATCH / 0.94</span></div><div class="zn-identity"><span class="zn-avatar" style="width:24px;height:24px;flex:0 0 24px;font-size:9px;background:var(--zn-panel);color:var(--zn-accent)">WE</span><span class="zn-stack-sm" style="gap:1px"><span class="zn-identity-text">web-developer-alice</span><span class="zn-identity-role">web 渠道</span></span><button type="button" class="filter-btn">退出登录</button></div></div><div class="zn-notice" role="note"><svg class="zn-notice-icon" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"></path></svg><span><strong style="font-family:var(--zn-font-mono);font-size:11px;letter-spacing:0.3px">权限边界 / 本地项目保持私有</strong> — 仅提交你填写的项目上下文与查询条件；平台不会读取或修改本地项目。</span><span class="zn-badge zn-badge-accent" style="margin-left:auto"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--zn-accent)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M12 17v4"></path><path d="M7 11V7a5 5 0 0 1 10 0v4"></path><path d="M3 11h18v10H3z"></path></svg>READ-ONLY QUERY</span></div><div class="match-banner" role="note">文本检索仅覆盖已发布元数据（组件、实现、导出名、包名、分类），不提供用途/视觉评分；检索结果不构成兼容性证明。</div><section class="zn-card-raised" aria-label="项目上下文登记"><div class="zn-card-head"><div><h2 class="zn-card-title">项目上下文登记</h2><p class="zn-card-subtitle">版本使用精确 x.y.z，便于判断运行时兼容性。</p></div><span class="zn-badge zn-badge-success"><span class="zn-badge-dot"></span>上下文待校验</span></div><div class="match-form"><div class="match-field"><label class="match-label" for="framework-select">目标框架</label><select id="framework-select" class="match-control"><option value="" selected="">请选择框架</option><option value="vue">Vue 3</option><option value="react">React 19</option></select></div><div class="match-field"><label class="match-label" for="framework-version-input">框架版本（精确 x.y.z）</label><input id="framework-version-input" class="match-control" type="text" placeholder="例如 3.5.45 / 19.3.1" value=""/><span class="match-hint">未输入时不猜测默认版本；须为精确语义化版本，拒绝范围号。</span></div><div class="match-field"><label class="match-label" for="echarts-version-input">ECharts 版本（可选）</label><input id="echarts-version-input" class="match-control" type="text" placeholder="留空表示省略" value=""/><span class="match-hint">留空将在校验前省略该可选字段。</span></div><div class="match-field"><label class="match-label" for="package-manager-select">包管理器</label><select id="package-manager-select" class="match-control"><option value="" selected="">请选择包管理器</option><option value="npm">npm</option><option value="pnpm">pnpm</option></select></div><div class="match-field"><label class="match-label" for="requirement-input">项目需求（可留空）</label><div class="match-requirement-add"><input id="requirement-input" class="match-control" type="text" placeholder="输入一条需求后点击添加" value=""/><button type="button" class="filter-btn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--zn-muted)" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="M5 12h14"></path><path d="M12 5v14"></path></svg>添加需求</button></div><div id="requirements-list"></div></div><div class="match-actions"><button type="button" id="context-submit" class="filter-btn active">校验项目上下文</button></div></div></section><section class="zn-card-raised" aria-label="文本检索"><div class="zn-card-head"><div><h2 class="zn-card-title">自然语言候选检索</h2><p class="zn-card-subtitle">先按自然语言召回候选，再进行版本与权限判断。</p></div><button type="button" id="search-submit" class="filter-btn active">检索候选</button></div><div class="match-form"><div class="match-field"><label class="match-label" for="search-query-input">检索内容</label><input id="search-query-input" class="match-control" type="text" placeholder="例如 折线图 / 排行榜 / 占比" value=""/><span class="match-hint">仅检索已发布元数据，不做文档全文或语义检索。</span></div><div class="match-field"><label class="match-label" for="react-dom-version-input">React DOM 版本（可选）</label><input id="react-dom-version-input" class="match-control" type="text" placeholder="例如 19.3.1；留空表示不提供" value=""/><span class="match-hint">须为精确语义化版本；不能由 React 版本推断，未提供则不发送。</span></div></div></section><div class="zn-grid-2"><section id="component-query" aria-label="组件标识精确查询" style="margin-top:32px"><h2 style="margin:0 0 12px;font-size:20px;color:var(--zn-text)">组件标识精确查询</h2><div class="match-banner" role="note">按平台组件标识与精确版本直接查询已发布实现：只读检索，不创建发布、映射或索引； matched 仅表示目标材料可读，不代表业务绑定、兼容性或自动接入已通过。</div><div class="match-form"><div class="match-field"><label class="match-label" for="cq-component-id">组件 ID（componentId）</label><input id="cq-component-id" class="match-control" type="text" placeholder="例如 line" value=""/><span class="match-hint">平台逻辑组件 ID，原值精确比较：不去空格、不转大小写。</span></div><div class="match-field"><label class="match-label" for="cq-framework">目标框架（framework）</label><select id="cq-framework" class="match-control"><option value="" selected="">请选择框架</option><option value="vue">Vue 3</option><option value="react">React 19</option></select><span class="match-hint">两个实现分别定位与校验，一个实现通过不代表另一个通过。</span></div><div class="match-field"><label class="match-label" for="cq-package-version">包版本（packageVersion，精确 x.y.z）</label><input id="cq-package-version" class="match-control" type="text" placeholder="例如 0.0.12" value=""/><span class="match-hint">必须是目标框架包的精确版本，拒绝 latest 与范围号。</span></div><div class="match-field"><label class="match-label" for="cq-package-name">包名（packageName，可选）</label><input id="cq-package-name" class="match-control" type="text" placeholder="例如 @company/charts-vue；留空表示不指定" value=""/><span class="match-hint">同一版本跨多个包时留空会返回歧义冲突，指定后可唯一命中。</span></div><div class="match-field"><label class="match-label" for="cq-framework-version">框架版本（frameworkVersion，精确 x.y.z）</label><input id="cq-framework-version" class="match-control" type="text" placeholder="例如 3.5.45 / 19.3.1" value=""/><span class="match-hint">使用侧宿主的框架精确版本，不猜测默认值。</span></div><div class="match-field"><label class="match-label" for="cq-echarts-version">ECharts 版本（echartsVersion，精确 x.y.z）</label><input id="cq-echarts-version" class="match-control" type="text" placeholder="例如 6.1.0" value=""/><span class="match-hint">使用侧宿主的 ECharts 精确版本。</span></div><div class="match-actions"><button type="button" id="cq-submit" class="filter-btn active">查询组件</button></div></div></section><section id="design-match" aria-label="设计 ID 规则匹配" style="margin-top:32px"><h2 style="margin:0 0 12px;font-size:20px;color:var(--zn-text)">设计 ID 规则匹配</h2><div class="match-banner" role="note">依据显式配置的设计 ID 定位精确发布，不依赖文本相似度，也不依据截图或图片内容匹配； 用户提交的配置不充当权限、就绪状态或兼容性证据。</div><div class="match-form"><div class="match-field"><label class="match-label" for="design-mapping-input">设计规则 JSON（DesignIdMappingV1）</label><textarea id="design-mapping-input" class="match-control" rows="8" placeholder="{
+  &quot;schemaVersion&quot;: 1,
+  &quot;ruleSetId&quot;: &quot;design-library&quot;,
+  &quot;revision&quot;: &quot;draft-1&quot;,
+  &quot;entries&quot;: [
+    { &quot;designId&quot;: &quot;图表/Line&quot;, &quot;framework&quot;: &quot;react&quot;, &quot;variantReleaseId&quot;: &quot;&lt;发布 ID&gt;&quot; }
+  ]
+}" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px"></textarea><span class="match-hint">ID 为不透明字符串，按原值精确比较：不切分、不去空格、不转大小写，也不按正则或路径解释。</span></div><div class="match-field"><label class="match-label" for="design-instance-input">元素清单（instanceId + designId）</label><div class="match-requirement-add"><input id="design-instance-input" class="match-control" type="text" placeholder="实例 ID，例如 node-1" value=""/><input id="design-design-id-input" class="match-control" type="text" placeholder="设计 ID，例如 图表/Line" value=""/><button type="button" class="filter-btn">添加元素</button></div><div id="design-elements-list"></div><span class="match-hint">同一 designId 可被多个实例引用；instanceId 在一次输入内必须唯一。未知 designId 不会被本地拒绝，由服务端返回缺口。</span></div><div class="match-field"><label class="match-label" for="design-bindings-input">绑定 JSON（可选，ElementBindings[]）</label><textarea id="design-bindings-input" class="match-control" rows="5" placeholder="[
+  {
+    &quot;instanceId&quot;: &quot;node-1&quot;,
+    &quot;props&quot;: [{ &quot;name&quot;: &quot;data&quot;, &quot;source&quot;: &quot;sales&quot; }],
+    &quot;events&quot;: [{ &quot;name&quot;: &quot;onPointClick&quot;, &quot;handler&quot;: &quot;showDetail&quot; }],
+    &quot;layout&quot;: &quot;grid cell 1&quot;
+  }
+]" style="font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;font-size:12px"></textarea><span class="match-hint">可留空。绑定的实例必须存在于元素清单，字段名在单条绑定内唯一；引用与说明仅作为数据，不执行。</span></div><div class="match-actions"><button type="button" id="design-submit" class="filter-btn active">生成装配方案</button></div></div><div id="design-unconfigured" class="match-banner" role="note" style="margin-top:16px">尚未配置设计规则或元素清单。完成配置后可生成装配方案；空配置不视为已完成匹配。</div></section></div></main></div></section>
+</div></body></html>
