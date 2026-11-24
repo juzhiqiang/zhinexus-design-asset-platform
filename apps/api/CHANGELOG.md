@@ -1,5 +1,15 @@
 # @company/platform-api 更新日志
 
+## [0.1.1] - 2026-11-24
+
+### 新增
+
+- 新增平台自研本地身份服务模块（`apps/api/src/identity/local/*`）与迁移 `013_local_credentials.sql`，在 `PLATFORM_IDENTITY_MODE=local` 下由平台自行签发 ES256 访问令牌、托管密码哈希与首次改密、处理单次授权码与 PKCE S256 校验，并挂载 `/identity` 端点。
+
+### 修复
+
+- 修复本地身份回调 URI 校验拒绝带路径回调的问题，默认 Web 回调改由 `PLATFORM_API_ORIGIN` 推导 `/v1/auth/oidc/callback` 以适配公开画廊与内网管理端双入口；补齐 `rollbackEmptyRegistry` 对 `local_credentials`、`local_authorization_codes`、`local_signing_keys` 的清理。
+
 ## [0.0.12] - 2026-11-22
 
 ### 新增

@@ -1,5 +1,16 @@
 # 更新日志
 
+## [0.1.1] - 2026-11-24
+
+### 新增
+
+- 集成平台自研本地身份服务（`PLATFORM_IDENTITY_MODE=local`），提供迁移 `013_local_credentials.sql`、scrypt 密码哈希与首次改密、ES256 签名密钥与 JWKS 轮换、单次授权码 + PKCE S256 校验，以及 `/identity` 下的 discovery、authorize、token、jwks、password 端点。
+- 合并画廊与管理后台设计稿资产（`docs/design/gallery.pen`、`management-api.pen` 及 shader/预览图），并完成设计验证与 T16 brief 汇编精简。
+
+### 修复
+
+- 修复本地身份配置校验拒绝带路径回调 URI 的问题，默认 Web 回调对齐公开画廊与内网管理端共享的 `${PLATFORM_API_ORIGIN}/v1/auth/oidc/callback`，并同步补齐 `rollbackEmptyRegistry` 对新增三张本地身份表的空库回滚支持。
+
 ## [0.1.0] - 2026-11-24
 
 ### 新增
