@@ -43,7 +43,7 @@ export async function runProjectCommand(command: string, args: readonly string[]
       const packageDir = options['--package']!; const { pkg } = await readProjectPackage(root, packageDir);
       if (!pkg.scripts?.build) throw new Error('BUILD_COMMAND_REQUIRED: 组件包必须提供 build script');
       const frameworks = framework === 'all' ? ['vue', 'react'] as const : [framework as 'vue' | 'react'];
-      const config: ProjectConfig = { schemaVersion: 1, packageDir, build: { program: 'pnpm', args: ['run', 'build'] }, dev: {}, variants: frameworks.map(framework => ({ componentId: options['--component']!, framework, category, exportName: options['--export']!, exportPath: options['--export-path'] ?? '.', api: `api/${options['--component']}-${framework}.json`, docs: `docs/${options['--component']}-${framework}.md`, consumer: { templateDir: `consumers/${framework}`, build: { program: 'pnpm', args: ['run', 'build'] }, previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } })) };
+      const config: ProjectConfig = { schemaVersion: 1, packageDir, build: { program: 'pnpm', args: ['run', 'build'] }, dev: {}, variants: frameworks.map(framework => ({ componentId: options['--component']!, framework, category, exportName: options['--export']!, exportPath: options['--export-path'] ?? '.', api: `api/${options['--component']}-${framework}.json`, docs: `docs/${options['--component']}-${framework}.md`, consumer: { templateDir: `consumers/${framework}`, adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } })) };
       if (pkg.scripts.dev) for (const framework of frameworks) config.dev[framework] = { program: 'pnpm', args: ['run', 'dev'] };
       validateProjectConfig(config);
       await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
@@ -72,7 +72,7 @@ export async function runProjectCommand(command: string, args: readonly string[]
           if (pointer && !explicitBundle && await manifestDigest(prepared.manifest) !== pointer.manifestDigest) throw new Error('FROZEN_MANIFEST_MISMATCH');
           log('恢复原冻结发布材料，复用原会话: ' + bundleDir);
           const { executeReleaseCommand } = await import('../local/release.js');
-          const result = await executeReleaseCommand({ bundleDir, apiUrl: options['--api-url'], token: options['--token'], timeoutMs, onProgress: log });
+          const result = await executeReleaseCommand({ bundleDir, apiUrl: options['--api-url'], token: options['--token'], timeoutMs, idempotencyKey: options['--key'] ?? options['--idempotency-key'], onProgress: log });
           return { exitCode: result.ok ? 0 : 1, stdout: JSON.stringify({ bundleDir, ...result }) + '\n', stderr: result.ok ? '' : (result.error ?? 'RELEASE_FAILED') + '\n' };
         }
         if (pointer && !explicitBundle) throw new Error('FROZEN_BUNDLE_MISSING: ' + relative);

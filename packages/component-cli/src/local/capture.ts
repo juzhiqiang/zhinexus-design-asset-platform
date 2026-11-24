@@ -28,6 +28,8 @@ export type CaptureOptions = {
   renderer?: Renderer;
   /** Generic project consumers select their own rendered host and measure the actual browser. */
   readySelector?: string;
+  /** Only the CLI-injected selected-export wrapper calls this browser binding. */
+  implementationBinding?: string;
 };
 
 export type CaptureResult = {
@@ -87,6 +89,8 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
 
     const page = await context.newPage();
     const pageErrors: string[] = [];
+    let implementationUsed = false;
+    if (options.implementationBinding) await page.exposeFunction(options.implementationBinding, () => { implementationUsed = true; });
 
     page.on('pageerror', (err: Error) => {
       pageErrors.push(err.message);
@@ -228,6 +232,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       await page.evaluate(async () => {
         await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
       });
+      if (options.implementationBinding && !implementationUsed) throw new Error('PREVIEW_IMPLEMENTATION_UNUSED: 就绪预览没有执行所选冻结实现');
 
       const shotFileName = `${options.variantId}-${stateName}.png`;
       const shotPath = path.join(options.outputDir, shotFileName);

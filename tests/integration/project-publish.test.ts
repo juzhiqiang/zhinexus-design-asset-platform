@@ -19,14 +19,15 @@ async function fixture() {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'project-publish-real-')); roots.push(root);
   await fs.cp(path.resolve('tests/consumers/project'), root, { recursive: true });
   await fs.mkdir(path.join(root, 'api')); await fs.mkdir(path.join(root, 'docs'));
-  const variants = ['vue', 'react'].map(framework => ({ componentId: 'badge', framework, category: 'general', exportName: framework === 'vue' ? 'BadgeVue' : 'BadgeReact', exportPath: './' + framework, api: `api/${framework}.json`, docs: `docs/${framework}.md`, consumer: { templateDir: `consumers/${framework}`, build: { program: 'pnpm', args: ['run', 'build'] }, previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } }));
+  const variants = ['vue', 'react'].map(framework => ({ componentId: 'badge', framework, category: 'general', exportName: framework === 'vue' ? 'BadgeVue' : 'BadgeReact', exportPath: './' + framework, api: `api/${framework}.json`, docs: `docs/${framework}.md`, consumer: { templateDir: `consumers/${framework}`, adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } }));
   for (const v of variants) {
     await fs.writeFile(path.join(root, v.api), JSON.stringify({ schemaVersion: 1, componentId: v.componentId, framework: v.framework, exportName: v.exportName, exportPath: v.exportPath, props: [], events: [], notes: ['Developer maintained generic component'] }));
     await fs.writeFile(path.join(root, v.docs), '# Developer maintained badge\n');
   }
   const config = { schemaVersion: 1, packageDir: 'component', build: { program: process.execPath, args: ['build.mjs'] }, dev: {}, variants };
   await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(config));
-  const uploaded = new Map<string, Buffer>(); let origin = ''; let categoriesEnabled = true; let uploadCreates = 0;
+  const uploaded = new Map<string, Buffer>(); let origin = ''; let categoriesEnabled = true; let uploadCreates = 0; let rejectUpload = false;
+  const releaseKeys: string[] = [];
   const server = createServer(async (req, res) => {
     res.setHeader('content-type', 'application/json');
     if (req.url === '/v1/auth/oidc/session') res.end(JSON.stringify({ authenticated: true, subject: 'developer', roles: ['publisher'] }));
@@ -34,6 +35,7 @@ async function fixture() {
     else if (req.url === '/v1/uploads') {
       const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
       const body = JSON.parse(Buffer.concat(chunks).toString()); uploadCreates++;
+      if (rejectUpload) { res.writeHead(400).end('{}'); return; }
       res.end(JSON.stringify({ uploadSessionId: 'project-upload', files: body.files.map((file: { path: string }) => ({ path: file.path, uploadUrl: origin + '/objects/' + encodeURIComponent(file.path), expiresAt: new Date(Date.now() + 60_000).toISOString() })) }));
     } else if (req.method === 'PUT') {
       const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk)); uploaded.set(decodeURIComponent(req.url!.slice('/objects/'.length)), Buffer.concat(chunks)); res.end();
@@ -42,13 +44,75 @@ async function fixture() {
       const { computeBufferSha256 } = await import('../../packages/component-cli/src/local/digest.js');
       for (const file of files) file.sha256 = computeBufferSha256(uploaded.get(file.path)!);
       res.end(JSON.stringify({ status: 'complete', verifiedFiles: files }));
-    } else if (req.url === '/v1/releases') res.end(JSON.stringify({ jobId: 'project-job', state: 'VALIDATING' }));
+    } else if (req.url === '/v1/releases') {
+      for await (const _chunk of req) { /* consume the real request body */ }
+      releaseKeys.push(String(req.headers['idempotency-key']));
+      res.end(JSON.stringify({ jobId: 'project-job', state: 'VALIDATING' }));
+    }
     else res.end(JSON.stringify({ state: 'READY', stage: 'READY', attempt: 0, missingArtifacts: [], pollAfterMs: 1 }));
   }); servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
   origin = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
-  return { root, config, origin, uploaded, uploadCreates: () => uploadCreates, disableCategory: () => { categoriesEnabled = false; } };
+  return { root, config, origin, uploaded, releaseKeys, uploadCreates: () => uploadCreates, rejectUploads: (reject: boolean) => { rejectUpload = reject; }, disableCategory: () => { categoriesEnabled = false; } };
 }
 describe('project frozen consumer publication', () => {
+  it.each(['--idempotency-key', '--key'])('honors %s on the first release of prepared materials and keeps the original session key on resume', async flag => {
+    const { root, origin, rejectUploads, releaseKeys } = await fixture();
+    const prepared = await runCli(['release', '--prepare-only', '--framework', 'vue', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(prepared.exitCode, prepared.stderr).toBe(0);
+    const { bundleDir } = JSON.parse(prepared.stdout);
+    rejectUploads(true);
+    const first = await runCli(['release', flag, 'review-explicit-key', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(first.exitCode).toBe(1);
+    expect((await loadReleaseSession(bundleDir))?.idempotencyKey).toBe('review-explicit-key');
+    rejectUploads(false);
+    const resumed = await runCli(['release', flag, 'different-resume-key', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(resumed.exitCode, resumed.stderr).toBe(0);
+    expect(releaseKeys).toEqual(['review-explicit-key']);
+    expect((await loadReleaseSession(bundleDir))?.idempotencyKey).toBe('review-explicit-key');
+    expect(await fs.readFile(path.join(root, 'component/build-count'), 'utf8')).toBe('build\n');
+  }, 180_000);
+  it('rejects a React preview declared as Vue even when the configured Vue API and export exist', async () => {
+    const { root, origin } = await fixture();
+    await fs.copyFile(path.join(root, 'consumers/react/main.js'), path.join(root, 'consumers/vue/main.js'));
+    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(result.exitCode, result.stderr).toBe(1);
+    expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
+    await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
+    await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
+  }, 180_000);
+  it('rejects the actual quoted Vite alias resolving a frozen export to a consumer-external substitute', async () => {
+    const { root, origin } = await fixture();
+    const substitute = path.join(root, 'substitute.mjs').replace(/\\/g, '/');
+    await fs.writeFile(substitute, "export const BadgeVue = { render() { return 'Vue frozen badge'; } };\n");
+    await fs.writeFile(path.join(root, 'consumers/vue/vite.config.js'), `export default { resolve: { "alias": { "@fixture/project-badge/vue": ${JSON.stringify(substitute)} } } };\n`);
+    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(result.exitCode, result.stderr).toBe(1);
+    expect(result.stderr).toContain('CONSUMER_SOURCE_LINK');
+    await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
+    await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
+  }, 180_000);
+  it('rejects importing the selected export without rendering it even when developer readiness checks claim success', async () => {
+    const { root, origin } = await fixture();
+    await fs.writeFile(path.join(root, 'consumers/vue/main.js'), `import { BadgeVue } from '@fixture/project-badge/vue';\nconsole.log(BadgeVue); document.querySelector('#app').textContent = 'unrelated preview';\nwindow.__COMPONENT_EXAMPLE__ = { ready: Promise.resolve(), states: ['default'], async runState() {}, getChecks() { return [{ name: 'developer-render', status: 'passed' }]; } };\n`);
+    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(result.exitCode, result.stderr).toBe(1); expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
+    await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
+  }, 180_000);
+  it('preserves Vue setup expose and React memo forwardRef handles, props and events during actual rendering', async () => {
+    const { root, origin } = await fixture();
+    await fs.writeFile(path.join(root, 'component/src/vue.mjs'), `import { h } from 'vue';\nexport const BadgeVue = { props: ['label'], emits: ['selected'], setup(props, { emit, expose }) { expose({ ready: Promise.resolve() }); return () => h('button', { onClick: () => emit('selected', props.label) }, props.label); } };\n`);
+    await fs.writeFile(path.join(root, 'consumers/vue/main.js'), `import { createApp, h, ref, nextTick } from 'vue'; import { BadgeVue } from '@fixture/project-badge/vue';\nconst instance = ref(); let selected; createApp({ render: () => h(BadgeVue, { ref: instance, label: 'Vue props', onSelected: value => { selected = value; } }) }).mount('#app');\nconst ready = nextTick().then(() => instance.value.ready); window.__COMPONENT_EXAMPLE__ = { ready, states: ['default'], async runState() { await ready; document.querySelector('button').click(); await nextTick(); }, getChecks() { return [{ name: 'vue-props-event-ref-ready', status: selected === 'Vue props' && document.querySelector('button').textContent === 'Vue props' ? 'passed' : 'failed' }]; } };\n`);
+    await fs.writeFile(path.join(root, 'component/src/react.mjs'), `import { createElement, memo, forwardRef, useImperativeHandle } from 'react';\nexport const BadgeReact = memo(forwardRef(function Badge({ label, onSelected }, ref) { useImperativeHandle(ref, () => ({ ready: Promise.resolve() }), []); return createElement('button', { onClick: () => onSelected(label) }, label); }));\n`);
+    await fs.writeFile(path.join(root, 'consumers/react/main.js'), `import { createElement, createRef } from 'react'; import { createRoot } from 'react-dom/client'; import { BadgeReact } from '@fixture/project-badge/react';\nconst instance = createRef(); let selected; createRoot(document.querySelector('#app')).render(createElement(BadgeReact, { ref: instance, label: 'React props', onSelected: value => { selected = value; } }));\nconst ready = (async () => { while (!instance.current) await new Promise(requestAnimationFrame); await instance.current.ready; })(); window.__COMPONENT_EXAMPLE__ = { ready, states: ['default'], async runState() { await ready; document.querySelector('button').click(); }, getChecks() { return [{ name: 'react-props-event-ref-ready', status: selected === 'React props' && document.querySelector('button').textContent === 'React props' ? 'passed' : 'failed' }]; } };\n`);
+    const result = await runCli(['prepare-release', '--framework', 'all', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(result.exitCode, result.stderr).toBe(0);
+    const material = JSON.parse(result.stdout);
+    for (const variant of material.manifest.variants) {
+      const report = JSON.parse(await fs.readFile(path.join(material.bundleDir, `reports/${variant.variantId}.json`), 'utf8'));
+      expect(report.checks).toContainEqual({ name: 'frozen-export-render', status: 'passed' });
+      expect(report.checks.every((check: { status: string }) => check.status === 'passed')).toBe(true);
+    }
+  }, 180_000);
   it('resumes the original upload plan after a real socket disconnect and sends every missing file before complete', async () => {
     const root = await fs.mkdtemp(path.join(os.tmpdir(), 'project-publish-upload-')); roots.push(root);
     const fixture = makeFixture('cli');

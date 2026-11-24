@@ -11,7 +11,7 @@ const variantSchema = z.strictObject({
   componentId: identifier, framework: z.enum(['vue', 'react']), category: identifier,
   exportName: z.string().regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/), exportPath: z.string().regex(/^\.(?:\/[A-Za-z0-9_-]+)*$/),
   api: relativePath, docs: relativePath,
-  consumer: z.strictObject({ templateDir: relativePath, build: commandSchema, previewDir: relativePath, previewEntry: relativePath }),
+  consumer: z.strictObject({ adapter: z.literal('vite'), templateDir: relativePath, previewDir: relativePath, previewEntry: relativePath }),
   readiness: z.strictObject({ selector: z.string().min(1), states: z.array(identifier).min(1), width: z.number().int().positive().max(4096), height: z.number().int().positive().max(4096), renderer: z.enum(['canvas', 'svg']), theme: z.enum(['light', 'dark']) }),
 });
 const projectSchema = z.strictObject({
@@ -19,6 +19,14 @@ const projectSchema = z.strictObject({
   dev: z.strictObject({ vue: commandSchema.optional(), react: commandSchema.optional() }), variants: z.array(variantSchema).min(1),
 });
 export function validateProjectConfig(input: unknown): ProjectConfig {
+  if (input && typeof input === 'object' && 'variants' in input && Array.isArray(input.variants)) {
+    for (const variant of input.variants) {
+      if (variant && typeof variant === 'object' && 'consumer' in variant && variant.consumer && typeof variant.consumer === 'object' &&
+        (!('adapter' in variant.consumer) || variant.consumer.adapter !== 'vite' || 'build' in variant.consumer)) {
+        throw new Error('CONSUMER_ADAPTER_REQUIRED: 发布消费者必须配置 adapter: "vite"，移除 consumer.build；组件 build/dev 命令继续保留');
+      }
+    }
+  }
   const checked = projectSchema.safeParse(input);
   if (!checked.success) throw new Error('CONFIG_INVALID: ' + checked.error.issues.map(issue => issue.path.join('.') + ': ' + issue.message).join('; '));
   return checked.data;

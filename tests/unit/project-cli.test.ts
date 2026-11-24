@@ -23,7 +23,7 @@ async function config(root: string) {
   await fs.writeFile(path.join(root, 'api/badge-react.json'), JSON.stringify({ schemaVersion: 1, componentId: 'badge', framework: 'react', exportName: 'Badge', exportPath: '.', props: [], events: [], notes: [] }));
   await fs.writeFile(path.join(root, 'docs/badge-react.md'), '# Badge');
   await fs.writeFile(path.join(root, 'consumer/package.json'), JSON.stringify({ name: 'badge-consumer', private: true, type: 'module', dependencies: { react: '19.3.1', 'react-dom': '19.3.1' } }));
-  const value = { schemaVersion: 1, packageDir: 'component', build: { program: process.execPath, args: ['-e', "require('fs').writeFileSync('built','yes')"] }, dev: { react: { program: process.execPath, args: ['-e', "require('fs').writeFileSync('dev-started','yes')"] } }, variants: [{ componentId: 'badge', framework: 'react', category: 'general', exportName: 'Badge', exportPath: '.', api: 'api/badge-react.json', docs: 'docs/badge-react.md', consumer: { templateDir: 'consumer', build: { program: 'pnpm', args: ['run', 'build'] }, previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } }] };
+  const value = { schemaVersion: 1, packageDir: 'component', build: { program: process.execPath, args: ['-e', "require('fs').writeFileSync('built','yes')"] }, dev: { react: { program: process.execPath, args: ['-e', "require('fs').writeFileSync('dev-started','yes')"] } }, variants: [{ componentId: 'badge', framework: 'react', category: 'general', exportName: 'Badge', exportPath: '.', api: 'api/badge-react.json', docs: 'docs/badge-react.md', consumer: { templateDir: 'consumer', adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } }] };
   await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
   return value;
 }
@@ -39,6 +39,16 @@ async function api(overrides: { status?: number; roles?: string[]; categories?: 
 }
 
 describe('real project CLI configuration', () => {
+  it('rejects legacy arbitrary consumer build commands with an explicit Vite adapter migration error before building', async () => {
+    const root = await project(); const value = await config(root);
+    const legacy = JSON.parse(JSON.stringify(value));
+    legacy.variants[0].consumer.build = { program: process.execPath, args: ['-e', "require('fs').writeFileSync('consumer-built','yes')"] };
+    delete legacy.variants[0].consumer.adapter;
+    await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(legacy));
+    const result = await runCli(['prepare-release', '--project', root, '--framework', 'react', '--api-url', await api(), '--token', 'test-token'], '0.0.27');
+    expect(result.exitCode).toBe(1); expect(result.stderr).toContain('CONSUMER_ADAPTER_REQUIRED');
+    await expect(fs.stat(path.join(root, 'component/built'))).rejects.toThrow();
+  });
   it('initializes only a configuration for an explicitly selected existing package, without overwriting files', async () => {
     const root = await project();
     const before = await fs.readFile(path.join(root, 'component/package.json'), 'utf8');

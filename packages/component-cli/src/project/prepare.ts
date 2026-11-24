@@ -10,6 +10,7 @@ import { validateReleaseBundle } from '../contracts/bundle.js';
 import type { ArtifactRef, ReleaseManifestV1 } from '../contracts/release-manifest.js';
 import { inside, projectPath, readVariantApi, type LoadedProject, type ProjectVariant } from './config.js';
 import { installProjectConsumer } from './consumer.js';
+import { buildProjectConsumer } from './vite-consumer.js';
 import { runLocal } from './process.js';
 
 export async function loadProjectBundle(bundleDir: string) {
@@ -88,7 +89,7 @@ export async function prepareProject(project: LoadedProject, variants: ProjectVa
       if (inside(project.root, consumer) || inside(process.cwd(), consumer)) throw new Error('CONSUMER_INSIDE_WORKSPACE');
       const installed = await installProjectConsumer(project, variant, frozen, consumer, log, timeoutMs); await verify(frozen);
       log('实际安装解析: ' + JSON.stringify({ variantId, packageSha256: frozen.sha256, ...installed }));
-      await runLocal(variant.consumer.build, consumer, log, timeoutMs);
+      const provenance = await buildProjectConsumer(consumer, variant, installed.installedEntry, frozen.packageName + variant.exportPath.slice(1), log, timeoutMs);
       const built = await projectPath(consumer, variant.consumer.previewDir);
       const previewRelative = 'preview/' + variantId;
       const previewRoot = path.join(bundleDir, previewRelative);
@@ -99,11 +100,11 @@ export async function prepareProject(project: LoadedProject, variants: ProjectVa
       const server = await staticPreview(previewRoot);
       let capture;
       try {
-        capture = await captureExample({ url: server.origin + '/' + variant.consumer.previewEntry.replace(/\\/g, '/'), states: variant.readiness.states, outputDir: path.join(bundleDir, 'screenshots'), baseDir: bundleDir, framework: variant.framework, frameworkVersion: installed.frameworkVersion, echartsVersion: installed.echartsVersion, variantId, exampleId, packageSha256: frozen.sha256, packageVersion: frozen.version, timeoutMs, viewport: { width: variant.readiness.width, height: variant.readiness.height }, readySelector: variant.readiness.selector, renderer: variant.readiness.renderer, theme: variant.readiness.theme });
+        capture = await captureExample({ url: server.origin + '/' + variant.consumer.previewEntry.replace(/\\/g, '/'), states: variant.readiness.states, outputDir: path.join(bundleDir, 'screenshots'), baseDir: bundleDir, framework: variant.framework, frameworkVersion: installed.frameworkVersion, echartsVersion: installed.echartsVersion, variantId, exampleId, packageSha256: frozen.sha256, packageVersion: frozen.version, timeoutMs, viewport: { width: variant.readiness.width, height: variant.readiness.height }, readySelector: variant.readiness.selector, implementationBinding: provenance.binding, renderer: variant.readiness.renderer, theme: variant.readiness.theme });
       } finally { await server.close(); }
       await verify(frozen);
       const reportId = 'report-' + variantId; const screenshots = capture.screenshots.map(s => ({ ...s, id: s.id + '-' + variantId, reportId }));
-      const report = buildCheckReport({ id: reportId, toolVersion: version, variantId, exampleId, packageSha256: frozen.sha256, environment: capture.environment, environmentKey: capture.environmentKey, checks: [{ name: 'frozen-package-import', status: 'passed' }, { name: 'consumer-build', status: 'passed' }, ...capture.checks], screenshots });
+      const report = buildCheckReport({ id: reportId, toolVersion: version, variantId, exampleId, packageSha256: frozen.sha256, environment: capture.environment, environmentKey: capture.environmentKey, checks: [{ name: 'frozen-package-import', status: 'passed' }, { name: 'consumer-build', status: 'passed' }, { name: 'frozen-export-render', status: 'passed' }, ...capture.checks], screenshots });
       for (const dir of ['api', 'docs', 'reports']) await fs.mkdir(path.join(bundleDir, dir), { recursive: true });
       const apiRelative = 'api/' + variantId + '.json'; const docsRelative = 'docs/' + variantId + '.md'; const reportRelative = 'reports/' + variantId + '.json';
       await fs.writeFile(path.join(bundleDir, apiRelative), JSON.stringify(await readVariantApi(project, variant), null, 2) + '\n');
