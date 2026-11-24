@@ -85,6 +85,8 @@ Vue-only 与 React-only 的独立包可各自 `--framework vue`/`react` 发布�
 
 重复运行项目 `release` 自动读取 `.component-release.json`，校验冻结清单/文件并复用 `.release-session.json` 的 uploadSessionId、jobId 和首次 idempotencyKey；后续传入的新 key 不替换原 key，也不重新 build/pack。API/worker 重启后仍沿同一持久作业继续。已创建成功的原作业重放不因分类后来停用而改写历史快照；新作业仍验证当前分类。
 
+旧版 `.release-session.json` 如果只有 `uploadSessionId`、尚无 `jobId`、上传计划和 `uploadComplete:true`，CLI 会先对原会话调用 `POST /v1/uploads/:id/complete`。只有服务端返回符合契约的完成证明后，CLI 才以原 uploadSessionId 和首次 idempotencyKey 提交发布作业。原会话缺少文件、服务端拒绝完成或响应无法验证时，CLI 以 `UPLOAD_COMPLETION_UNPROVEN` 失败关闭，并保留原 uploadSessionId、幂等键、manifest 摘要和冻结文件，不创建替代上传会话。旧会话已有 `jobId` 时不重复要求上传证明，直接继续轮询原作业。
+
 配置发生变化时自动恢复报 `CONFIG_CHANGED`。可显式 `--bundle-dir <原冻结目录>` 恢复原材料；新产物应升级组件版本并准备新目录。原上传签名过期且还有未传文件时失败关闭，保留材料和会话，需要平台续签同一会话授权，当前 CLI 不自动新建替代会话。
 
 无项目配置时旧 SDK/Bundle 入口继续可用，`--bundle-dir` 可指向既有完整材料，旧 category-absent 清单保持兼容：

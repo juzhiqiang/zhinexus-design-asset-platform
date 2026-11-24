@@ -116,7 +116,7 @@ pnpm test:browser
 
 - [本地开发与运维准备](docs/guides/quickstart.md)
 - [发布与恢复操作](docs/guides/publishing.md)
-- [从真实项目发布已有组件](docs/guides/project-publishing.md)
+- [从真实项目发布已有组件](docs/guides/project-publishing.md)与[最终修复验证补录](docs/verification/2026-11-24-project-publishing-final-fix.md)
 - [运维说明](docs/guides/operations.md)与[上线验收](docs/guides/release-acceptance.md)
 - [组件精确查询 API](docs/phases/phase2/component-query-api.md)
 - [本地接入计划](docs/phases/phase3/integration-plan.md)、[应用与恢复](docs/phases/phase3/local-project-apply.md)、[验证、有限修复与 MCP](docs/phases/phase3/local-project-verification.md)

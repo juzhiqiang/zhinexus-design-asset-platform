@@ -107,3 +107,11 @@ pnpm component init --project . --config <项目内临时配置> --package packa
 - `Ready` 只表示包与预览资源可达，不推断视觉基线、检查来源或检索索引状态。
 
 原始架构文档只读核验 SHA-256 为 `E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723`，字节未改变。
+
+## 最终整分支审查修复补录
+
+整分支审查在上述历史记录之后发现两项重要问题：旧格式上传会话可能在没有服务端完成证明时提交发布作业；消费者可能只调用选中导出，却没有让它进入 Vue/React 的真实挂载生命周期。修复提交 `0ac96519` 已使旧会话先核验原 `POST /v1/uploads/:id/complete`，并要求选中导出真实进入 Vue mount 或 React commit 后才允许生成发布材料。完成证明无效时以 `UPLOAD_COMPLETION_UNPROVEN` 失败关闭，保留原会话身份、首次幂等键、manifest 摘要与冻结文件；已有 jobId 的旧会话继续轮询原作业。
+
+最终专项结果为：旧会话修复用例 3/3、项目发布集 21/21、相关回归 51/51、真实平台发布与旧 SDK 发布 2/2。最终真实平台证据重新打包并在工作区外安装 CLI tarball，其 SHA-256 为 `7f26d0fa01a35f772c759c3ba387a45f7649e4865335bb3406f79e174f9b8bb0`；共享、Vue-only、React-only 三组作业均达到 Ready，具体 job、tarball 与 manifest 摘要见[独立最终修复验证补录](2026-11-24-project-publishing-final-fix.md)。
+
+精确 `pnpm build --force` 因根脚本展开的 `--cache=local:rw` 与 Turborepo 2.11.10 的 `--force` 互斥而退出 1，本轮没有改写根脚本，也不把该命令记为通过。等价直接命令 `pnpm exec turbo run build --force` 实际强制构建 11/11 成功、0 缓存。首次根测试因未设置专用 `T17_MATRIX_PLAYWRIGHT_BROWSERS_PATH` 而有 14 个 T17 环境失败；设置通用和专用变量均指向现有 Chromium 缓存后，focused T17 为 22/22，最终根测试退出 0：T10 为 161 passed、7 skipped，Vitest 为 146/146 文件、2473 passed、2 skipped。失败与成功日志均保留，未覆盖边界仍以上文和独立补录为准。
