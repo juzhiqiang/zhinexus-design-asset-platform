@@ -122,6 +122,18 @@ const vueQuery = { componentId: 'line', framework: 'vue' as const, packageVersio
 const reactQuery = { componentId: 'line', framework: 'react' as const, packageVersion: '0.0.10', frameworkVersion: '19.3.1', echartsVersion: '6.1.0', reactDomVersion: '19.3.1' };
 
 describe('GET /v1/matching/components：精确查询与材料校验', () => {
+  it.each(['styleExport', 'readyMethod'] as const)('普通组件缺少 %s 时返回 API_UNSUPPORTED，不构造非法 target', async field => {
+    const h = harness(); const api = componentApiFixture(); delete api[field];
+    const bytes = new TextEncoder().encode(JSON.stringify(api));
+    const snapshot = h.rows[0]!.snapshot; const path = snapshot.variant!.api.path;
+    snapshot.variant!.api = { path, sha256: digest(bytes), bytes: bytes.length };
+    snapshot.candidate.evidence[0]!.sha256 = digest(bytes);
+    const original = h.store.artifact;
+    h.store.artifact = (id, requested) => requested === path ? Promise.resolve(bytes) : original(id, requested);
+    const result = await queryComponentMatch(vueQuery, h.store, 'alice');
+    expect(result.status).toBe('gap'); expect(result.gaps.map(gap => gap.code)).toEqual(['API_UNSUPPORTED']);
+    expect(result).not.toHaveProperty('target'); expect(result).not.toHaveProperty('api'); expect(result.exactDependencies).toEqual([]);
+  });
   it('Vue 精确匹配返回 target/api/精确依赖，并保留 COMPATIBILITY_UNVERIFIED', async () => {
     const h = harness();
     const result = await queryComponentMatch(vueQuery, h.store, 'alice');

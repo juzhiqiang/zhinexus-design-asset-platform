@@ -5,7 +5,7 @@ import { array, choice, object, text, validateSchema } from './schema.js';
 export type ComponentApiV1 = {
   schemaVersion: 1; componentId: string; framework: 'vue'|'react'; exportName: string; exportPath: string;
   props: {name:string;type:string;required:boolean}[]; events: {name:string;payload:string}[];
-  styleExport: string; readyMethod: string; notes: string[];
+  styleExport?: string; readyMethod?: string; notes: string[];
 };
 export const memberName = { ...text, pattern: '^[A-Za-z_$][A-Za-z0-9_$-]*$' };
 export const exportNameSchema = { ...text, pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$' };
@@ -16,7 +16,7 @@ export const eventSchema = object({name:memberName,payload:text});
 export const componentApiSchema = object({
   schemaVersion:{type:'integer',const:1}, componentId:text, framework:choice('vue','react'), exportName:exportNameSchema, exportPath:exportPathSchema,
   props:array(propSchema),events:array(eventSchema),styleExport:styleExportSchema,readyMethod:exportNameSchema,notes:array(text),
-});
+}, ['styleExport', 'readyMethod']);
 export function duplicateIssues(values: readonly string[], path: string, field: string): ValidationIssue[] {
   const seen = new Set<string>(); const issues: ValidationIssue[] = [];
   values.forEach((value,i)=> { if(seen.has(value) && issues.length<100) issues.push({code:'DUPLICATE_ID',path:`${path}/${i}/${field}`,message:'Duplicate identifier'}); seen.add(value); });

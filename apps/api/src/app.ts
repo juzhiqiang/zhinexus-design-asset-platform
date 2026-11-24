@@ -16,12 +16,13 @@ import type { ServerResponse } from 'node:http';
 import { AccessSettingsController } from './access/routes.js';
 import { CompanyAuthController } from './access/auth-routes.js';
 import { ManagedAccountsController } from './accounts/routes.js';
+import { CategoriesController } from './categories/routes.js';
 import { LocalIdentityController } from './identity/local/controller.js';
 import { audit } from './db/access.js';
 
 export async function buildServer(options: PlatformOptions = environmentOptions()): Promise<INestApplication> {
   const platform = new Platform(options);
-  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController, AccessSettingsController, CompanyAuthController, ManagedAccountsController, LocalIdentityController], providers: [{ provide: Platform, useValue: platform }] })
+  @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController, AccessSettingsController, CompanyAuthController, ManagedAccountsController, CategoriesController, LocalIdentityController], providers: [{ provide: Platform, useValue: platform }] })
   class ConfiguredModule {}
   try {
     await platform.requireAccessConfiguration();

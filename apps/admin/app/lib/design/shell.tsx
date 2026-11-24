@@ -129,6 +129,13 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
               </span>
             </Link>
           ))}
+          <Link
+            href="/categories"
+            className="zn-nav-item"
+            aria-current={pathname.startsWith('/categories') ? 'page' : undefined}
+          >
+            组件分类
+          </Link>
         </nav>
         <div className="zn-sidebar-spacer" />
         <div className="zn-env">

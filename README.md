@@ -9,6 +9,7 @@ Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资�
 - **组件画廊**：浏览和检索组件，查看组件详情、API、检查报告与隔离预览。
 - **双框架 SDK**：提供折线图、柱状图、饼图、散点图、趋势卡、排行榜和占比图的 Vue/React 实现。
 - **资产发布**：支持 CLI 提交冻结 Bundle，以及网页上传预构建产物和手动截图；由独立 worker 协调包、预览资源与发布状态。
+- **真实项目发布**：CLI 登记已有组件子包，选择实际框架与稳定分类，本地冻结、工作区外验证并恢复原发布会话；后台管理分类与原组件/包授权。
 - **组件查询与装配**：按组件 ID、框架和精确包版本查询，通过显式设计 ID 映射生成装配方案；文本检索用于人工发现候选。
 - **本地项目接入**：支持工程识别、接入计划、受控应用与恢复、本地验证、有限修复和 stdio MCP。
 
@@ -115,6 +116,7 @@ pnpm test:browser
 
 - [本地开发与运维准备](docs/guides/quickstart.md)
 - [发布与恢复操作](docs/guides/publishing.md)
+- [从真实项目发布已有组件](docs/guides/project-publishing.md)与[最终修复验证补录](docs/verification/2026-11-24-project-publishing-final-fix.md)
 - [运维说明](docs/guides/operations.md)与[上线验收](docs/guides/release-acceptance.md)
 - [组件精确查询 API](docs/phases/phase2/component-query-api.md)
 - [本地接入计划](docs/phases/phase3/integration-plan.md)、[应用与恢复](docs/phases/phase3/local-project-apply.md)、[验证、有限修复与 MCP](docs/phases/phase3/local-project-verification.md)

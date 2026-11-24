@@ -16,6 +16,8 @@ export type PackageRef = {
 };
 export type VariantRef = {
   componentId: string; variantId: string; framework: Framework;
+  /** Stable category ID chosen for this immutable release; omitted by older materials. */
+  category?: string;
   packageName: string; packageVersion: string;
   exportPath: string; exportName: string;
   api: ArtifactRef; docs: ArtifactRef; examples: ExampleRef[];

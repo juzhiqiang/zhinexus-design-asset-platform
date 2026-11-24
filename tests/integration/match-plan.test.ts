@@ -26,6 +26,15 @@ function fixture() {
 }
 const codes = (plan: Awaited<ReturnType<typeof assembleMatchPlan>>) => plan.elements.flatMap(e => e.gaps.map(g => g.code));
 describe('设计 ID 确定性装配：真实 dist + 注入冻结材料仓库', () => {
+  it.each(['styleExport', 'readyMethod'] as const)('普通组件缺少 %s 时明确拒绝自动装配，不生成非法 target', async field => {
+    const f = fixture(); const api = componentApiFixture(); delete api[field];
+    const bytes = new TextEncoder().encode(JSON.stringify(api));
+    f.f.files.set(f.current.variant!.api.path, bytes);
+    f.current.variant!.api.sha256 = digest(bytes); f.current.variant!.api.bytes = bytes.length; f.current.candidate.evidence[0]!.sha256 = digest(bytes);
+    const plan = await assembleMatchPlan(matchRequestFixture(), f.repo);
+    expect(codes(plan)).toEqual(['API_UNSUPPORTED']);
+    expect(plan.elements[0]).not.toHaveProperty('target'); expect(plan.exactDependencies).toEqual([]);
+  });
   it('不依赖索引，保留多实例并绑定完整请求摘要、精确依赖和材料', async () => {
     const f = fixture(); const request: MatchPlanRequest = matchRequestFixture();
     request.design.elements.push({ instanceId: 'node-2', designId: '设计/Line' });

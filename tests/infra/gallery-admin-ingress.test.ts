@@ -248,6 +248,16 @@ describe('画廊 / 管理端入口的真实代理行为', () => {
   const spoof = { 'x-forwarded-for': '203.0.113.7', forwarded: 'for=203.0.113.7', 'x-real-ip': '203.0.113.7' };
   const json = { 'content-type': 'application/json' };
 
+  it.skipIf(!docker)('分类管理和发布选项沿用可信网络管理路由且拒绝公网伪造来源', async () => {
+    for (const [method, path] of [['GET', '/v1/categories'], ['POST', '/v1/categories'], ['POST', '/v1/categories/general/update'], ['GET', '/v1/publishing/options']] as [string, string][]) {
+      const before = hitsFor(API_HOST).length;
+      expect(await call('untrusted', 'public443', API_HOST, path, { method, headers: { ...json, ...spoof } }), path).toBe(403);
+      expect(hitsFor(API_HOST).length).toBe(before);
+      expect(await call('trusted', 'public443', API_HOST, path, { method, headers: json }), path).toBe(200);
+      expect(await call('trusted', 'internal8443', API_HOST, path, { method, headers: json }), path).toBe(200);
+    }
+  });
+
   it.skipIf(!docker)('公网入口放行浏览 / 登录 / 预览，查询串里的百分号编码值不受影响', async () => {
     const allowed: [string, string][] = [
       ['GET', '/healthz'], ['GET', '/v1/components'], ['GET', '/v1/me/components'],

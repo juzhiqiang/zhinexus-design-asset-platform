@@ -82,6 +82,7 @@ async function seedSession(h: Harness, withJob = false): Promise<string> {
   await saveReleaseSession(h.bundleDir, {
     manifestDigest: await manifestDigest(h.fixture.manifest),
     idempotencyKey: 'preserved-key', uploadSessionId: 'upload-valid',
+    uploadComplete: true,
     ...(withJob ? { jobId: 'job-valid' } : {}), state: 'VALIDATING', updatedAt: '',
   });
   return fs.readFileSync(sessionPath(h), 'utf8');

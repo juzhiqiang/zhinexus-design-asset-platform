@@ -40,6 +40,7 @@ export function resolveActiveNavKey(pathname: string): AdminNavKey {
 /** 顶栏两段式标题：固定「管理平台」+ 当前页面名。 */
 export function resolveTopbarPage(pathname: string): string {
   if (pathname.startsWith('/jobs')) return '发布作业';
+  if (pathname.startsWith('/categories')) return '组件分类';
   if (pathname.startsWith('/match')) return '项目上下文匹配';
   if (pathname.startsWith('/access-settings')) return '接入设置';
   if (pathname.startsWith('/users')) return '用户与权限';

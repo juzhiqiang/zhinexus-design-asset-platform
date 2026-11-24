@@ -22,6 +22,7 @@ import { LocalIdentityService, type LocalIdentityOptions } from './identity/loca
 import { LocalIdentityStore } from './identity/local/store.js';
 import { LocalSigningKeys } from './identity/local/keys.js';
 import { LocalIdentityAdapter } from './identity/local/adapter.js';
+import { CategoryService } from './categories/service.js';
 
 export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter;localIdentity?: LocalIdentityOptions };
 function validateWebOrigin(value: string): string {
@@ -217,6 +218,18 @@ export class Platform {
     }
   }
   async onApplicationShutdown(): Promise<void> { this.identityWorker?.stop(); this.store?.close(); await this.db?.close(); }
+  async runCategories<T>(authorization: string | undefined, requestId: string, operation: (service: CategoryService, context: RequestContext) => Promise<T>): Promise<T> {
+    let principal: Principal | undefined;
+    try {
+      principal = await this.authenticate(authorization);
+      if (!this.db) throw new PlatformError('INFRA_UNAVAILABLE');
+      return await operation(new CategoryService(this.db, this.access, this.accounts?.selfManagedIssuer), { principal, requestId });
+    } catch (error) {
+      const code = error instanceof Error && 'code' in error ? error.code : undefined;
+      if (code === 'UNAUTHENTICATED' || code === 'FORBIDDEN') await this.db?.query('SELECT 1').then(() => audit(this.db!, principal?.subject, 'AUTH_DENIED', 'categories', { code }, requestId)).catch(() => {});
+      throw error;
+    }
+  }
   /** Member management: the directory itself decides administrator authority, not a business role. */
   async runManaged<T>(authorization: string | undefined, requestId: string, operation: (service: ManagedAccountsService, context: RequestContext) => Promise<T>): Promise<T> {
     let principal: Principal | undefined;

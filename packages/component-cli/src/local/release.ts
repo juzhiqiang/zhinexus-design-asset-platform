@@ -13,6 +13,9 @@ export type ReleaseSession = {
   uploadSessionId?: string;
   jobId?: string;
   state?: string;
+  uploadPlan?: ApiMessages['createUploadResponse'];
+  uploadedFiles?: string[];
+  uploadComplete?: boolean;
   updatedAt: string;
 };
 
@@ -134,7 +137,37 @@ export async function executeReleaseCommand(
   const timeoutMs = options.timeoutMs ?? 120_000;
   const deadline = Date.now() + timeoutMs;
 
+  if (session.uploadSessionId && !session.jobId && !session.uploadPlan && session.uploadComplete !== true) {
+    log(`旧格式会话缺少本地完成标记，正在核验原上传会话 ${session.uploadSessionId}...`);
+    let completeRes: Response;
+    try {
+      completeRes = await fetch(`${apiUrl}/v1/uploads/${session.uploadSessionId}/complete`, {
+        method: 'POST',
+        redirect: 'error', headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ parts: [] }),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 无法核验原上传会话；已保留原 uploadSessionId、幂等键与冻结材料 (${error instanceof Error ? error.message : String(error)})`);
+    }
+    if (!completeRes.ok) {
+      const errBody = await completeRes.text();
+      throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 原上传会话未通过完成核验；已保留原 uploadSessionId、幂等键与冻结材料 (${completeRes.status}): ${errBody}`);
+    }
+    try {
+      await readApiResponse(completeRes, 'completeUploadResponse');
+    } catch (error) {
+      throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 原上传会话缺少有效完成证明；已保留原 uploadSessionId、幂等键与冻结材料 (${error instanceof Error ? error.message : String(error)})`);
+    }
+    session.uploadComplete = true;
+    await saveReleaseSession(bundleDir, session);
+  }
+
   // 1. 上传文件会话
+  const continuingUpload = !!session.uploadPlan;
   if (!session.uploadSessionId) {
     log('正在向平台创建上传会话 (POST /v1/uploads)...');
     const uploadReqRes = await fetch(`${apiUrl}/v1/uploads`, {
@@ -157,10 +190,19 @@ export async function executeReleaseCommand(
 
     const plan = await readApiResponse(uploadReqRes, 'createUploadResponse');
     session.uploadSessionId = plan.uploadSessionId;
+    session.uploadPlan = plan;
+    session.uploadedFiles = [];
+    session.uploadComplete = false;
     await saveReleaseSession(bundleDir, session);
-
-    log(`上传计划已就绪，共有 ${plan.files.length} 个文件待传输...`);
+  }
+  if (session.uploadPlan && !session.uploadComplete) {
+    const checked = validateApiMessage('createUploadResponse', session.uploadPlan);
+    if (!checked.ok || checked.value.uploadSessionId !== session.uploadSessionId) throw new Error('UPLOAD_PLAN_INVALID');
+    const plan = checked.value;
+    log(`复用原上传计划，共有 ${plan.files.length} 个文件...`);
     for (const filePlan of plan.files) {
+      if (session.uploadedFiles?.includes(filePlan.path)) continue;
+      if (continuingUpload && Date.parse(filePlan.expiresAt) <= Date.now()) throw new Error('UPLOAD_PLAN_EXPIRED: 原上传授权已过期，冻结材料与会话已保留；需要平台为同一会话续签后才能补传');
       const fileBytes = filesMap.get(filePlan.path);
       if (!fileBytes) {
         throw new Error(`BUNDLE_FILE_MISSING: Bundle 缺少待上传文件: ${filePlan.path}`);
@@ -178,6 +220,8 @@ export async function executeReleaseCommand(
       if (!putRes.ok) {
         throw new Error(`FILE_UPLOAD_FAILED: 文件上传失败 ${filePlan.path} (${putRes.status})`);
       }
+      session.uploadedFiles = [...(session.uploadedFiles ?? []), filePlan.path];
+      await saveReleaseSession(bundleDir, session);
     }
 
     log('所有文件传输完成，正在通知服务端执行字节与摘要核对 (POST /v1/uploads/:id/complete)...');
@@ -196,8 +240,12 @@ export async function executeReleaseCommand(
       throw new Error(`COMPLETE_UPLOAD_FAILED: 完成上传核验失败 (${completeRes.status}): ${errBody}`);
     }
     await readApiResponse(completeRes, 'completeUploadResponse');
+    session.uploadComplete = true;
+    delete session.uploadPlan;
+    delete session.uploadedFiles;
+    await saveReleaseSession(bundleDir, session);
   } else {
-    log(`复用已完成的上传会话: ${session.uploadSessionId}`);
+    log(session.jobId ? `已有发布作业，保留原上传会话: ${session.uploadSessionId}` : `复用已完成的上传会话: ${session.uploadSessionId}`);
   }
 
   // 2. 提交发布作业

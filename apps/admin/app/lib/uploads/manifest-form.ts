@@ -1,6 +1,7 @@
 import type {
   ArtifactRef,
   ApiMessages,
+  ComponentCategory,
   PackageRef,
   ReleaseManifestV1,
   VariantRef,
@@ -80,6 +81,48 @@ export function sanitizeWebManifest(input: ReleaseManifestV1): ReleaseManifestV1
     reports: [], // 手动提交无自动检测报告
     files,
   };
+}
+
+/** Select existing implementations; their framework, package and artifact identities remain frozen. */
+export type PublishingManifestResult =
+  | { ok: true; value: ReleaseManifestV1 }
+  | { ok: false; issues: Array<{ code: string; path: string; message: string }> };
+export function buildPublishingManifest(
+  input: ReleaseManifestV1,
+  selectedVariantIds: readonly string[],
+  categories: readonly ComponentCategory[],
+): PublishingManifestResult {
+  const issues: Array<{ code: string; path: string; message: string }> = [];
+  const ids = new Set(selectedVariantIds);
+  if (!ids.size) issues.push({ code: 'VARIANT_REQUIRED', path: '/variants', message: '请至少选择一个实际存在的框架实现。' });
+  for (const id of ids) {
+    if (!input.variants.some(variant => variant.variantId === id)) issues.push({ code: 'REFERENCE_NOT_FOUND', path: '/variants', message: `清单中不存在实现 ${id}，请导入对应框架的真实产物。` });
+  }
+  const variants = input.variants.filter(variant => ids.has(variant.variantId));
+  const packages = new Set(variants.map(variant => variant.packageName));
+  // Keep candidate dependencies (for example charts-core) without repacking any tarball.
+  for (const name of packages) {
+    const pkg = input.packages.find(item => item.name === name);
+    for (const dependency of Object.keys(pkg?.dependencies ?? {})) {
+      if (input.packages.some(item => item.name === dependency)) packages.add(dependency);
+    }
+  }
+  for (const variant of input.variants) {
+    if (packages.has(variant.packageName) && !ids.has(variant.variantId)) issues.push({ code: 'PACKAGE_IMPLEMENTATIONS_REQUIRED', path: '/variants', message: `冻结包 ${variant.packageName} 还包含 ${variant.variantId}，必须同时选择该包全部实现。` });
+  }
+  const componentCategories = new Map<string, string>();
+  for (const variant of variants) {
+    if (variant.category === undefined) continue; // Older category-absent bundles remain valid.
+    const category = categories.find(item => item.id === variant.category);
+    if (!category) issues.push({ code: 'REFERENCE_NOT_FOUND', path: `/variants/${variant.variantId}/category`, message: `${variant.componentId} 的分类 ${variant.category} 未知或已停用，请刷新并重新选择启用分类。` });
+    else if (!category.enabled) issues.push({ code: 'CATEGORY_DISABLED', path: `/variants/${variant.variantId}/category`, message: `${variant.componentId} 的分类 ${category.name} 已停用，请重新选择。` });
+    const previous = componentCategories.get(variant.componentId);
+    if (previous !== undefined && previous !== variant.category) issues.push({ code: 'CATEGORY_CONFLICT', path: `/variants/${variant.variantId}/category`, message: `${variant.componentId} 的不同框架实现必须选择同一分类。` });
+    componentCategories.set(variant.componentId, variant.category);
+  }
+  if (issues.length) return { ok: false, issues };
+
+  return { ok: true, value: sanitizeWebManifest({ ...input, variants, packages: input.packages.filter(pkg => packages.has(pkg.name)) }) };
 }
 
 /**

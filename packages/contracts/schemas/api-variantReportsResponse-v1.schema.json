@@ -138,8 +138,7 @@
               "width",
               "height",
               "theme",
-              "frameworkVersion",
-              "echartsVersion"
+              "frameworkVersion"
             ],
             "additionalProperties": false
           },

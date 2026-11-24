@@ -15,6 +15,7 @@ export * from './bundle.js';
 export * from './api.js';
 export * from './access-settings.js';
 export * from './managed-accounts.js';
+export * from './categories.js';
 export * from './project-context.js';
 export * from './search.js';
 export * from './design-id.js';

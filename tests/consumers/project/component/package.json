@@ -1,0 +1,10 @@
+{
+  "name": "@fixture/project-badge",
+  "version": "0.1.0",
+  "private": false,
+  "type": "module",
+  "files": ["dist"],
+  "exports": { "./vue": { "import": "./dist/vue.mjs" }, "./react": { "import": "./dist/react.mjs" } },
+  "scripts": { "build": "node build.mjs", "preinstall": "node -e \"require('fs').writeFileSync('INSTALL_SCRIPT_RAN','unsafe')\"" },
+  "peerDependencies": { "vue": "3.5.45", "react": "19.3.1", "react-dom": "19.3.1" }
+}

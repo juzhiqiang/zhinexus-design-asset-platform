@@ -1,6 +1,11 @@
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import type { ProjectCliContext } from './commands/project.js';
+
 export async function runCli(
   args: readonly string[],
   version: string,
+  context: ProjectCliContext = {},
 ): Promise<{ exitCode: number; stdout: string; stderr: string }> {
   if (args.length === 1 && args[0] === '--version') {
     return { exitCode: 0, stdout: `${version}\n`, stderr: '' };
@@ -13,6 +18,11 @@ export async function runCli(
 用法:
   component login --api-url <origin> [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
   component check [--framework vue|react|all] [--staging-dir <dir>]
+  component init --package <relative-dir> --component <id> --export <name> --framework vue|react|all --category <id> [--project <root>]
+  component dev --framework vue|react [--project <root>]
+  component doctor --framework vue|react|all [--project <root>] [--api-url <origin>]
+  component prepare-release --framework vue|react|all [--project <root>] [--bundle-dir <relative-dir>]
+  component release --framework vue|react|all [--project <root>] [--api-url <origin>]
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
   component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]
@@ -35,7 +45,8 @@ export async function runCli(
   baseline         管理与确认本地自动验证产生的视觉回归基线
   integrate        只读识别目标项目（inspect）、生成可审查的只读接入计划（plan），
                    或按显式授权执行受控应用（apply）与保留用户编辑的恢复（rollback）
-  init/dev/release/status  (部分开发中)
+  init/dev/doctor   读取 component.config.json，初始化与开发已有组件包，校验身份/ACL/分类
+  release/status   上传冻结材料与原会话恢复；项目恢复自动复用 .component-release.json
 
 发布、状态与基线命令按 --token、环境凭证、已保存登录的顺序选择认证。
 保存的凭证只用于完全匹配的 API origin，过期后需重新登录；自定义登录文件可通过
@@ -53,6 +64,11 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   }
 
   const [command, ...rest] = args;
+  if (['init', 'dev', 'doctor', 'prepare-release', 'release'].includes(command ?? '') &&
+    (['init', 'dev', 'doctor'].includes(command ?? '') || rest.includes('--project') || rest.includes('--config') || existsSync(join(context.cwd ?? process.cwd(), 'component.config.json')))) {
+    const { runProjectCommand } = await import('./commands/project.js');
+    return runProjectCommand(command!, rest, version, context);
+  }
   if (command === 'login') {
     try {
       const options:Record<string,string> = {};
@@ -222,6 +238,7 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
         token,
         idempotencyKey,
         timeoutMs,
+        onProgress: context.onProgress,
       });
 
       if (!result.ok) {

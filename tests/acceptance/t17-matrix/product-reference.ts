@@ -6,6 +6,7 @@ import type { T17PositiveScenario } from '../../fixtures/t17-matrix/scenarios.js
 
 /** Hand-authored expectation adapter. It never reads target generated files or CLI generators. */
 export function independentReferenceComponent(api: ComponentApiV1, packageName: string): string {
+  if (!api.styleExport) throw new Error('Independent chart reference requires an authoritative style export.');
   const source = JSON.stringify(packageName + api.exportPath.slice(1));
   const style = JSON.stringify(packageName + api.styleExport.slice(1));
   const registries = api.props.map(prop => prop.name + 'Sources');
