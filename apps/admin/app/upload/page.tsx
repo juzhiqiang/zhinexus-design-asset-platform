@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { manifestDigest, type PackageRef, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
+import { manifestDigest, type PackageRef, type PublishingOptionsResponse, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
 import { getStoredSession, saveSession, clearSession, loadCompanySession,companyLoginUrl,platformApiOrigin,type UserSession } from '../lib/auth';
+import { readPublishingOptions } from '../lib/categories-client';
 import {
   validateVariantScreenshots,
   createManualScreenshotRef,
@@ -20,6 +21,7 @@ import {
   parseAndValidateImportedManifest,
   attachLocalFile,
   submitReleaseJob,
+  buildPublishingManifest,
 } from '../lib/uploads/manifest-form';
 
 const LOCAL_STORAGE_WEB_RELEASE = 'zhinexus_web_release_session';
@@ -35,6 +37,13 @@ export default function WebUploadConsole() {
   const [initialData] = useState(() => createEmptySevenComponentsDraft('0.0.6'));
   const [manifest, setManifest] = useState<ReleaseManifestV1>(initialData.manifest);
   const [filesMap, setFilesMap] = useState<Map<string, Uint8Array>>(initialData.filesMap);
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>(initialData.manifest.variants.map(variant => variant.variantId));
+  const [publishingOptions, setPublishingOptions] = useState<PublishingOptionsResponse | null>(null);
+  const [optionsError, setOptionsError] = useState('');
+  const [optionsLoading, setOptionsLoading] = useState(false);
+  const [optionsRefresh, setOptionsRefresh] = useState(0);
+  const selection = useMemo(() => buildPublishingManifest(manifest, selectedVariantIds, publishingOptions?.categories ?? []), [manifest, selectedVariantIds, publishingOptions]);
+  const validationManifest = selection.ok ? selection.value : manifest;
 
   const [validation, setValidation] = useState<ScreenshotValidationResult>({
     ok: false,
@@ -80,6 +89,19 @@ export default function WebUploadConsole() {
       }
     }
   }, []);
+
+  useEffect(() => {
+    setPublishingOptions(null); setOptionsError('');
+    if (!session) return;
+    const controller = new AbortController();
+    setOptionsLoading(true);
+    void readPublishingOptions({ apiUrl, token: session.token, signal: controller.signal }).then(value => {
+      if (!controller.signal.aborted) setPublishingOptions(value);
+    }).catch(failure => {
+      if (!controller.signal.aborted) setOptionsError(failure instanceof Error ? failure.message : '读取发布选项失败。');
+    }).finally(() => { if (!controller.signal.aborted) setOptionsLoading(false); });
+    return () => controller.abort();
+  }, [apiUrl, session, optionsRefresh]);
 
   // 1.1 动态断点恢复资格核验：当 session.subject 或 apiUrl 变更时严格 fail-closed 检查
   useEffect(() => {
@@ -145,13 +167,13 @@ export default function WebUploadConsole() {
 
   // 2. 变体截图与文件完整性校验（含代际取消保护与校验中提交禁用）
   useEffect(() => {
-    const res = validateVariantScreenshots(manifest.variants, manifest.packages);
+    const res = validateVariantScreenshots(validationManifest.variants, validationManifest.packages);
     setValidation(res);
 
     let cancelled = false;
     setIsValidatingFiles(true);
 
-    validateUploadFiles(manifest, filesMap)
+    validateUploadFiles(validationManifest, filesMap)
       .then((fRes) => {
         if (!cancelled) {
           setFileIssues(fRes.issues);
@@ -174,7 +196,7 @@ export default function WebUploadConsole() {
     return () => {
       cancelled = true;
     };
-  }, [manifest, filesMap]);
+  }, [validationManifest, filesMap]);
 
   // 3. 发布作业轮询
   useEffect(() => {
@@ -371,6 +393,7 @@ export default function WebUploadConsole() {
       const res = parseAndValidateImportedManifest(text);
       if (res.ok && res.manifest) {
         setManifest(res.manifest);
+        setSelectedVariantIds(res.manifest.variants.map(variant => variant.variantId));
         setStatusMessage(`成功导入外部 Manifest 清单 (${res.manifest.variants.length} 实现，${res.manifest.files.length} 文件)`);
       } else {
         setStatusMessage(`导入 Manifest 失败: ${res.error}`);
@@ -513,15 +536,28 @@ export default function WebUploadConsole() {
     setStatusMessage('正在执行提交前最终快照完整性核验...');
 
     try {
+      // Freeze selections from the current draft and recheck explicit categories against the real API.
+      let categories = publishingOptions?.categories ?? [];
+      if (manifest.variants.some(variant => selectedVariantIds.includes(variant.variantId) && variant.category !== undefined)) {
+        const latestOptions = await readPublishingOptions({ apiUrl, token: session.token });
+        setPublishingOptions(latestOptions);
+        categories = latestOptions.categories;
+      }
+      const finalSelection = buildPublishingManifest(manifest, selectedVariantIds, categories);
+      if (!finalSelection.ok) {
+        setStatusMessage(`发布选择未通过: ${finalSelection.issues.map(issue => issue.message).join('；')}`);
+        return;
+      }
+      const finalManifest = finalSelection.value;
       // 核心门禁：即使 UI 状态未显示异常，也必须对当前 manifest 与 filesMap 快照同步重跑真实校验
-      const finalScreenshotRes = validateVariantScreenshots(manifest.variants, manifest.packages);
+      const finalScreenshotRes = validateVariantScreenshots(finalManifest.variants, finalManifest.packages);
       if (!finalScreenshotRes.ok) {
         setValidation(finalScreenshotRes);
         setStatusMessage('提交前变体截图核验未通过，阻断发布');
         return;
       }
 
-      const finalFileRes = await validateUploadFiles(manifest, filesMap);
+      const finalFileRes = await validateUploadFiles(finalManifest, filesMap);
       if (!finalFileRes.ok || finalFileRes.issues.length > 0) {
         setFileIssues(finalFileRes.issues);
         setStatusMessage(
@@ -530,7 +566,7 @@ export default function WebUploadConsole() {
         return;
       }
 
-      if (manifest.variants.length === 0 || manifest.files.length === 0) {
+      if (finalManifest.variants.length === 0 || finalManifest.files.length === 0) {
         setStatusMessage('发布清单变体或产物文件列表不能为空，阻断发布');
         return;
       }
@@ -542,7 +578,7 @@ export default function WebUploadConsole() {
       const result = await executeWebUploadWorkflow({
         apiUrl: targetApiUrl,
         token: session.token,
-        manifest,
+        manifest: finalManifest,
         filesMap,
         subject: session.subject,
         onProgress: (step, percent) => {
@@ -608,6 +644,7 @@ export default function WebUploadConsole() {
   }
 
   const canSubmit =
+    selection.ok &&
     validation.ok &&
     fileIssues.length === 0 &&
     manifest.variants.length > 0 &&
@@ -629,6 +666,30 @@ export default function WebUploadConsole() {
           退出登录
         </button>
       </div>
+
+      <section className="catalog-toolbar" aria-label="发布实现与分类选择" style={{ display: 'block' }}>
+        <h2 style={{ fontSize: 16 }}>选择实际框架实现与分类</h2>
+        <p className="match-hint">只选择当前清单中已有的实现。框架由预构建产物、API 与截图确定；发布另一框架请导入它的真实产物。</p>
+        <p className="match-note">同一冻结包的全部实现一起选择，保留 tarball 与导出的完整对应关系。</p>
+        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label>待发布框架 <select className="search-box" disabled={isSubmitting} value={
+            selectedVariantIds.length === manifest.variants.length ? 'all'
+              : selectedVariantIds.length && manifest.variants.filter(variant => selectedVariantIds.includes(variant.variantId)).every(variant => variant.framework === 'vue') ? 'vue'
+                : selectedVariantIds.length && manifest.variants.filter(variant => selectedVariantIds.includes(variant.variantId)).every(variant => variant.framework === 'react') ? 'react' : 'custom'
+          } onChange={event => setSelectedVariantIds(manifest.variants.filter(variant => event.target.value === 'all' || variant.framework === event.target.value).map(variant => variant.variantId))}>
+            <option value="all">全部现有实现</option>
+            <option value="vue" disabled={!manifest.variants.some(variant => variant.framework === 'vue')}>仅 Vue 3</option>
+            <option value="react" disabled={!manifest.variants.some(variant => variant.framework === 'react')}>仅 React 19</option>
+            <option value="custom" disabled>逐实现选择</option>
+          </select></label>
+          <button type="button" className="filter-btn" disabled={optionsLoading || isSubmitting} onClick={() => setOptionsRefresh(value => value + 1)}>刷新发布选项</button>
+          <span role="status">{optionsLoading ? '正在读取发布选项…' : `已选择 ${selectedVariantIds.length} / ${manifest.variants.length} 个实现`}</span>
+        </div>
+        {optionsError && <p className="field-error" role="alert">{optionsError} 分类选择暂不可用；旧清单未指定分类时继续兼容。</p>}
+        {publishingOptions && <p className="match-note">当前发布授权：组件 {publishingOptions.components.map(item => item.componentId).join('、') || '无'} · 包 {publishingOptions.packages.join('、') || '无'}。最终权限由 API 校验。</p>}
+        {publishingOptions?.components.filter(item => !publishingOptions.categories.some(category => category.id === item.category && category.enabled) && manifest.variants.some(variant => variant.componentId === item.componentId)).map(item => <p key={item.componentId} className="field-error">{item.componentId} 当前分类 {item.category} 未知或已停用</p>)}
+        {!selection.ok && <div id="publishing-selection-alert" className="match-errors" role="alert">阻断发布：{selection.issues.map(issue => issue.message).join('；')}</div>}
+      </section>
 
       {/* 断点恢复卡片（当检测到上次未完成的发布会话时展示） */}
       {pendingResumeKey && (
@@ -721,13 +782,13 @@ export default function WebUploadConsole() {
       <section className="spec-table-container" style={{ marginBottom: '32px' }} aria-label="逐实现截图关联检查">
         <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>逐实现截图关联与必检清单 (7 组件 14 实现)</h2>
+            <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>逐实现截图关联与必检清单 ({new Set(validationManifest.variants.map(variant => variant.componentId)).size} 组件 {validationManifest.variants.length} 实现)</h2>
             <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
               每个待发布逻辑组件的每个框架实现（Vue / React）至少关联一张有效截图；文件大小与真实哈希严格匹配；来源强制固定为 manual-upload。
             </p>
           </div>
           <span className={`tag ${canSubmit ? 'tag-ready' : 'tag'}`} style={{ fontSize: '12px' }}>
-            {canSubmit ? '全部 14 实现就绪' : `未就绪: 缺图 ${validation.missingVariantIds.length} 项 / 异常 ${validation.issues.length + fileIssues.length} 项`}
+            {canSubmit ? `全部 ${validationManifest.variants.length} 实现就绪` : `未就绪: 缺图 ${validation.missingVariantIds.length} 项 / 异常 ${validation.issues.length + fileIssues.length} 项`}
           </span>
         </div>
 
@@ -763,11 +824,7 @@ export default function WebUploadConsole() {
         <table className="spec-table">
           <thead>
             <tr>
-              <th style={{ width: '18%' }}>逻辑组件</th>
-              <th style={{ width: '18%' }}>框架实现</th>
-              <th style={{ width: '22%' }}>关联包与版本</th>
-              <th style={{ width: '22%' }}>截图状态与摘要</th>
-              <th style={{ width: '20%' }}>操作与替换</th>
+              <th>逻辑组件</th><th>分类</th><th>框架实现</th><th>关联包与版本</th><th>截图状态与摘要</th><th>操作与替换</th>
             </tr>
           </thead>
           <tbody>
@@ -777,7 +834,25 @@ export default function WebUploadConsole() {
               return (
                 <tr key={v.variantId} className="variant-shot-card">
                   <td>
+                    <label><input type="checkbox" aria-label={`发布 ${v.variantId}`} disabled={isSubmitting} checked={selectedVariantIds.includes(v.variantId)} onChange={event => {
+                      const packageIds = manifest.variants.filter(variant => variant.packageName === v.packageName).map(variant => variant.variantId);
+                      setSelectedVariantIds(current => event.target.checked ? [...new Set([...current, ...packageIds])] : current.filter(id => !packageIds.includes(id)));
+                    }} /> 发布 </label>
                     <strong>{v.componentId}</strong> ({v.exportName})
+                  </td>
+                  <td>
+                    <select aria-label={`${v.variantId} 分类`} value={v.category ?? ''} disabled={!publishingOptions || optionsLoading || isSubmitting} style={{ maxWidth: 180 }} onChange={event => {
+                      const category = event.target.value;
+                      setManifest(current => ({ ...current, variants: current.variants.map(variant => {
+                        if (variant.componentId !== v.componentId) return variant;
+                        const updated = { ...variant }; if (category) updated.category = category; else delete updated.category;
+                        return updated;
+                      }) }));
+                    }}>
+                      <option value="">未指定（旧清单兼容）</option>
+                      {v.category && !publishingOptions?.categories.some(category => category.id === v.category) && <option value={v.category} disabled>{v.category}（未知或已停用）</option>}
+                      {publishingOptions?.categories.map(category => <option key={category.id} value={category.id} disabled={!category.enabled}>{category.name} · {category.id}{category.enabled ? '' : '（已停用）'}</option>)}
+                    </select>
                   </td>
                   <td>
                     <span className={`tag ${v.framework === 'vue' ? 'tag-framework-vue' : 'tag-framework-react'}`}>
