@@ -217,7 +217,7 @@ export class ManagedAccountsService {
       await this.generation(context, sql);
       try {
         await sql.query(`INSERT INTO managed_accounts(id,issuer,subject,platform_subject,username,display_name,roles,awaiting_activation)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,true)`, [id, this.options.issuer, subject, managedPlatformSubject(this.options.issuer, subject), value.username, value.displayName, JSON.stringify(value.roles)]);
+          VALUES ($1,$2,$3,$4,$5,$6,$7,true)`, [id, this.options.issuer, subject, managedPlatformSubject(this.options.issuer, subject), value.username, value.displayName, value.roles]);
       } catch (error) { if ((error as { code?: string }).code === '23505') throw new PlatformError('CONFLICT'); throw error; }
       const created = (await sql.query<AccountRow>('SELECT * FROM managed_accounts WHERE id=$1', [id])).rows[0]!;
       await this.record(sql, created, 'create', 'passed', context);
@@ -240,7 +240,7 @@ export class ManagedAccountsService {
       // Removals and reductions are revoked locally before anything reaches the identity service.
       const tightened = await this.tighten(sql, current, {
         ...(value.displayName !== undefined ? { display_name: value.displayName } : {}),
-        ...(value.roles !== undefined ? { roles: JSON.stringify(value.roles) } : {}),
+        ...(value.roles !== undefined ? { roles: value.roles } : {}),
       });
       await this.reduceGrants(sql, tightened, value.componentGrants, value.packageGrants);
       await this.record(sql, tightened, 'update', 'passed', context, { revoked: true });

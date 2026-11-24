@@ -1,6 +1,8 @@
 import { expect, it } from 'vitest';
+import { randomUUID } from 'node:crypto';
 import { platformHarness, type Harness } from './http-support.js';
 import type { IdentityAdapter, RemoteAccount } from '../../apps/api/dist/identity/adapter.js';
+import { managedPlatformSubject } from '../../apps/api/dist/accounts/service.js';
 
 const issuer = 'https://issuer.t05.test';
 const adminSubject = 'platform-admin';
@@ -51,13 +53,32 @@ function fakeIdentity() {
 
 const access = { apiOrigin: 'https://api.example.com', administrators: [{ issuer, subject: adminSubject }], outbound: [{ hostname: '127.0.0.1', port: 443, networks: ['127.0.0.1/32'] }] };
 const managed = { issuer, realm: 'zhinexus' };
-const row = async (h: Harness, id: string) => (await h.db.query('SELECT * FROM managed_accounts WHERE id=$1', [id])).rows[0] as { version: string; auth_time_floor: string; subject: string; desired_revision: string };
-const read = async (h: Harness, id: string, admin: string) => ((await (await h.request(`/v1/managed-accounts/${id}`, undefined, admin, 'GET')).json()) as { account: Record<string, unknown> }).account;
-const drain = async (h: Harness) => { for (const operation of (await h.db.query('SELECT * FROM identity_operations ORDER BY created_at')).rows) await h.platform().accounts!.processOperation(operation as never); };
+async function managedHarness(identityAdapter: IdentityAdapter) {
+  const h = await platformHarness({
+    access, managedAccounts: managed, identityAdapter,
+    identity: { baseUrl: 'https://127.0.0.1/realms/zhinexus', realm: 'zhinexus', adminClientId: 'test-admin', adminClientSecret: 'test-only' },
+  });
+  // Explicit ticks keep assertions independent of the background poll interval.
+  h.platform().identityWorker!.stop();
+  for (const subject of [adminSubject, 'intruder']) await h.db.query(
+    'INSERT INTO managed_accounts(id,issuer,subject,platform_subject,username,display_name,roles,enabled,administrator) VALUES ($1,$2,$3,$4,$3,$3,$5,true,$6)',
+    [randomUUID(), issuer, subject, managedPlatformSubject(issuer, subject), ['maintainer'], subject === adminSubject]);
+  await h.db.query("INSERT INTO components(id) VALUES ('bar')");
+  return { ...h, token: (subject = adminSubject, roles = ['maintainer'], client = 'web', expiration = '5m', claims: Record<string, unknown> = {}) =>
+    h.token(subject, roles, client, expiration, { platform_account_version: '0', auth_time: 1, ...claims }) };
+}
+async function detail(response: Response, status = 200) {
+  const body = await response.json();
+  expect(response.status, JSON.stringify(body)).toBe(status);
+  return body as import('@company/contracts').ManagedAccountDetail;
+}
+const row = async (h: Harness, id: string) => (await h.db.query('SELECT * FROM managed_accounts WHERE id=$1', [id])).rows[0] as { version: string; auth_time_floor: string; subject: string; platform_subject: string; desired_revision: string };
+const read = async (h: Harness, id: string, admin: string) => detail(await h.request(`/v1/managed-accounts/${id}`, undefined, admin, 'GET'));
+const drain = async (h: Harness) => h.platform().identityWorker!.tick();
 
 it('self-managed accounts revoke before the remote call, widen only after it confirms, and fail closed on every claim', async () => {
   const identity = fakeIdentity();
-  const h = await platformHarness({ galleryOrigin: 'https://gallery.example.com', access, managedAccounts: managed, identityAdapter: identity });
+  const h = await managedHarness(identity);
   try {
     const admin = await h.token(adminSubject, ['maintainer']);
 
@@ -68,9 +89,8 @@ it('self-managed accounts revoke before the remote call, widen only after it con
 
     // --- creation stays closed until directory, role, version and password are all complete -------
     const created = await h.request('/v1/managed-accounts', { username: 'Lin.Wei', displayName: '林伟', roles: ['reader'], componentGrants: [{ componentId: 'bar', canPublish: true, canMaintain: false }] }, admin);
-    expect(created.status, JSON.stringify(await created.json())).toBe(201);
-    const id = ((await created.json()) as { account: { id: string } }).account.id;
-    expect(await read(h, id, admin)).toMatchObject({ username: 'lin.wei', enabled: false, credentialState: 'unset', syncState: 'pending', accountVersion: '1', desiredRevision: '1' });
+    const id = (await detail(created, 201)).id;
+    expect(await read(h, id, admin)).toMatchObject({ username: 'lin.wei', roles: ['reader'], enabled: false, credentialState: 'unset', syncState: 'pending', accountVersion: '0', desiredRevision: '0' });
     expect((await h.request('/v1/managed-accounts', { username: 'LIN.WEI', displayName: '重名', roles: ['reader'] }, admin)).status).toBe(409);
     expect((await h.request('/v1/managed-accounts', { username: 'ab', displayName: 'x', roles: ['reader'], packageGrants: ['*'] }, admin)).status).toBe(400);
     expect((await h.request('/v1/managed-accounts', { username: 'ok.user', displayName: '越权', roles: ['reader'], administrator: true } as never, admin)).status).toBe(400);
@@ -88,36 +108,40 @@ it('self-managed accounts revoke before the remote call, widen only after it con
     expect((await h.db.query('SELECT 1 FROM component_permissions WHERE component_id=$1', ['bar'])).rowCount).toBe(0);
 
     // --- password setting revokes first, then confirms only on an explicit remote answer ---------
-    const password = await h.request(`/v1/managed-accounts/${id}/password`, { expectedRevision: '1', password: 'temporary-passphrase-1' }, admin);
+    const password = await h.request(`/v1/managed-accounts/${id}/password`, { expectedRevision: '0', password: 'temporary-passphrase-1' }, admin);
     expect(password.status, JSON.stringify(await password.json())).toBe(200);
     expect(identity.calls).toContain('password');
-    expect(await read(h, id, admin)).toMatchObject({ enabled: true, credentialState: 'set', accountVersion: '2' });
+    expect(await read(h, id, admin)).toMatchObject({ enabled: true, credentialState: 'set', accountVersion: '1' });
     const remote = [...identity.users.values()][0]!;
     expect(remote.password).toBe('temporary-passphrase-1');
-    expect(remote.version).toBe('2');
+    expect(remote.version).toBe('1');
     // An update widens the withheld component grant only in its closing transaction.
-    const updated = await h.request(`/v1/managed-accounts/${id}/update`, { expectedRevision: '2', componentGrants: [{ componentId: 'bar', canPublish: true, canMaintain: false }] }, admin);
+    const updated = await h.request(`/v1/managed-accounts/${id}/update`, { expectedRevision: '1', roles: ['reader', 'publisher'], componentGrants: [{ componentId: 'bar', canPublish: true, canMaintain: false }] }, admin);
     expect(updated.status).toBe(200);
     expect((await h.db.query('SELECT 1 FROM component_permissions WHERE component_id=$1', ['bar'])).rowCount).toBe(0);
     await drain(h);
     expect((await h.db.query('SELECT 1 FROM managed_account_component_grants WHERE component_id=$1', ['bar'])).rowCount).toBe(1);
-    expect((await h.db.query('SELECT 1 FROM component_permissions WHERE subject=$1 AND component_id=$2', ['oidc:' + (await h.db.query('SELECT platform_subject FROM managed_accounts WHERE id=$1', [id])).rows[0].platform_subject, 'bar'])).rowCount).toBe(1);
-    expect((await h.request(`/v1/managed-accounts/${id}/update`, { expectedRevision: '2', displayName: '重复提交' }, admin)).status).toBe(409);
+    expect((await h.db.query('SELECT 1 FROM component_permissions WHERE subject=$1 AND component_id=$2', [(await row(h, id)).platform_subject, 'bar'])).rowCount).toBe(1);
+    expect(await read(h, id, admin)).toMatchObject({ roles: ['reader', 'publisher'] });
+    expect(remote.roles).toEqual(['reader', 'publisher']);
+    expect((await h.request(`/v1/managed-accounts/${id}/update`, { expectedRevision: '1', displayName: '重复提交' }, admin)).status).toBe(409);
 
     // --- the member authenticates with the current signed version and authentication time --------
     const current = await row(h, id);
-    const live = await h.token(current.subject, ['reader'], 'web', '5m', { platform_account_version: current.version, auth_time: Number(current.auth_time_floor) + 1 });
+    const authTime = Number(current.auth_time_floor) + 1;
+    await new Promise(resolve => setTimeout(resolve, Math.max(0, authTime * 1000 - Date.now())));
+    const live = await h.token(current.subject, ['reader'], 'web', '5m', { platform_account_version: current.version, auth_time: authTime });
     expect((await h.request('/v1/auth/oidc/session', undefined, live, 'GET')).status).toBe(200);
-    for (const claims of [{ platform_account_version: '1' }, { platform_account_version: '2' }, { auth_time: Number(current.auth_time_floor) }, {}, { platform_account_version: String(Number(current.version) + 1), auth_time: Number(current.auth_time_floor) + 1 }]) {
-      const stale = await h.token(current.subject, ['reader'], 'web', '5m', { auth_time: Number(current.auth_time_floor) + 1, ...claims });
+    for (const claims of [{ platform_account_version: '0' }, { platform_account_version: '1' }, { auth_time: Number(current.auth_time_floor) }, { platform_account_version: undefined }, { auth_time: undefined }, { platform_account_version: String(Number(current.version) + 1) }]) {
+      const stale = await h.token(current.subject, ['reader'], 'web', '5m', { platform_account_version: current.version, auth_time: authTime, ...claims });
       expect((await h.request('/v1/auth/oidc/session', undefined, stale, 'GET')).status).toBe(401);
     }
 
     // --- disable retires the live credential and the preview grant -------------------------------
-    expect((await h.request('/v1/preview-grants', { variantReleaseId: '00000000-0000-4000-8000-000000000000' }, live)).status).toBe(401);
     const disabled = await h.request(`/v1/managed-accounts/${id}/disable`, { expectedRevision: (await read(h, id, admin)).desiredRevision as string }, admin);
     expect(disabled.status).toBe(200);
-    expect((await h.request('/v1/auth/oidc/session', undefined, live, 'GET')).status).toBe(401);
+    expect((await h.request('/v1/auth/oidc/session', undefined, live, 'GET')).status).toBe(403);
+    expect((await h.request('/v1/preview-grants', { variantReleaseId: '00000000-0000-4000-8000-000000000000' }, live)).status).toBe(403);
     expect((await h.db.query('SELECT 1 FROM oidc_sessions')).rowCount).toBe(0);
     await drain(h);
     expect(identity.calls.filter(call => call === 'revoke').length).toBeGreaterThan(0);
@@ -134,26 +158,39 @@ it('self-managed accounts revoke before the remote call, widen only after it con
 it('a same-named remote user is never adopted without this account marker, and an uncertain outcome keeps the denial', async () => {
   const orphan = fakeIdentity();
   orphan.users.set('kc-orphan.user', { id: 'kc-orphan.user', username: 'orphan.user', enabled: true, roles: ['maintainer'], revocations: 0 });
-  const h = await platformHarness({ access, managedAccounts: managed, identityAdapter: orphan });
+  const h = await managedHarness(orphan);
   try {
     const admin = await h.token(adminSubject, ['maintainer']);
     const created = await h.request('/v1/managed-accounts', { username: 'orphan.user', displayName: '陌生人', roles: ['reader'] }, admin);
-    const id = ((await created.json()) as { account: { id: string } }).account.id;
+    const id = (await detail(created, 201)).id;
     await drain(h);
     expect(await read(h, id, admin)).toMatchObject({ enabled: false, syncState: 'failed' });
-    expect(orphan.users.get('kc-orphan.user')).toMatchObject({ enabled: true, managedUserId: undefined });
+    expect(orphan.users.get('kc-orphan.user')).toMatchObject({ enabled: true });
+    expect(orphan.users.get('kc-orphan.user')).not.toHaveProperty('managedUserId');
     expect(orphan.users.get('kc-orphan.user')!.roles).toEqual(['maintainer']);
   } finally { await h.close(); }
 
   const failing: IdentityAdapter = { ...fakeIdentity(), setTemporaryPassword: async () => { throw new Error('identity service unreachable'); } };
-  const flaky = await platformHarness({ access, managedAccounts: managed, identityAdapter: failing });
+  const flaky = await managedHarness(failing);
   try {
     const admin = await flaky.token(adminSubject, ['maintainer']);
     const created = await flaky.request('/v1/managed-accounts', { username: 'flaky.user', displayName: '不确定', roles: ['reader'] }, admin);
-    const id = ((await created.json()) as { account: { id: string } }).account.id;
+    const id = (await detail(created, 201)).id;
     await drain(flaky);
-    expect(await read(flaky, id, admin)).toMatchObject({ enabled: false, credentialState: 'unset', syncState: 'pending' });
+    expect(await read(flaky, id, admin)).toMatchObject({ enabled: false, credentialState: 'unset', syncState: 'synced' });
+    expect((await flaky.request(`/v1/managed-accounts/${id}/password`, { expectedRevision: '0', password: 'temporary-passphrase-1' }, admin)).status).toBe(503);
+    expect(await read(flaky, id, admin)).toMatchObject({ enabled: false, credentialState: 'uncertain', syncState: 'failed', accountVersion: '1' });
     // No automatic retry and no concurrent second password while the outcome is unknown.
-    expect((await flaky.request(`/v1/managed-accounts/${id}/password`, { expectedRevision: '2', password: 'another-passphrase-99' }, admin)).status).toBe(409);
+    expect((await flaky.request(`/v1/managed-accounts/${id}/password`, { expectedRevision: '1', password: 'another-passphrase-99' }, admin)).status).toBe(409);
   } finally { await flaky.close(); }
+});
+
+it('persists a role update as a PostgreSQL array for an existing account', async () => {
+  const h = await managedHarness(fakeIdentity());
+  try {
+    const admin = await h.token();
+    const id = (await h.db.query<{ id: string }>('SELECT id FROM managed_accounts WHERE subject=$1', ['intruder'])).rows[0]!.id;
+    await detail(await h.request(`/v1/managed-accounts/${id}/update`, { expectedRevision: '0', roles: ['reader', 'publisher'] }, admin));
+    expect(await read(h, id, admin)).toMatchObject({ roles: ['reader', 'publisher'], accountVersion: '1', desiredRevision: '1' });
+  } finally { await h.close(); }
 });
