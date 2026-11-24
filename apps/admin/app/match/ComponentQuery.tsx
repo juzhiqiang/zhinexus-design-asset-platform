@@ -199,7 +199,7 @@ export function ComponentQuery({ session, apiUrl, onSessionExpired }: ComponentQ
 
   return (
     <section id="component-query" aria-label="组件标识精确查询" style={{ marginTop: 32 }}>
-      <h2 style={{ margin: '0 0 12px', fontSize: 20, color: '#0f172a' }}>组件标识精确查询</h2>
+      <h2 style={{ margin: '0 0 12px', fontSize: 20, color: 'var(--zn-text)' }}>组件标识精确查询</h2>
       <div className="match-banner" role="note">
         按平台组件标识与精确版本直接查询已发布实现：只读检索，不创建发布、映射或索引；
         matched 仅表示目标材料可读，不代表业务绑定、兼容性或自动接入已通过。
@@ -408,7 +408,7 @@ function QueryResult({ response }: { response: ComponentMatchResponseV1 }) {
           <p className="match-note">缺口：</p>
           <div id="cq-result-gaps">
             {response.gaps.map((gap, i) => (
-              <span className="plan-gap" key={`${gap.code}-${i}`} style={{ display: 'block', fontSize: 12, color: '#991b1b' }}>
+              <span className="plan-gap" key={`${gap.code}-${i}`} style={{ display: 'block', fontSize: 12, color: 'var(--zn-danger)' }}>
                 <code>{gap.code}</code> — {gap.message}
               </span>
             ))}

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import type { ProjectContext, SearchCandidatesResponse, ValidationResult } from '@company/contracts';
 import { getStoredSession, saveSession, clearSession,loadCompanySession,companyLoginUrl,type UserSession } from '../lib/auth';
 import { buildProjectContext } from '../lib/project-context-form';
@@ -8,6 +9,23 @@ import { searchCandidates } from '../lib/search-client';
 import { CandidateResults } from './CandidateResults';
 import { ComponentQuery } from './ComponentQuery';
 import { DesignIdMatch } from './DesignIdMatch';
+import { ZnIcon } from '../lib/design/icons';
+import { COMMAND_MOTIFS, ZnCommandMotif } from '../lib/design/motifs';
+
+const MOTIF = COMMAND_MOTIFS[5]!;
+
+/**
+ * 顶栏 ⌘K 检索入口落地同步：外壳把查询放到 `/match?q=`，这里读取并预填检索框。
+ * 单独拆出组件是为了让 `useSearchParams()` 位于 `<Suspense>` 边界内（Next 静态渲染要求）。
+ */
+function SearchQuerySync({ onQuery }: { onQuery: (query: string) => void }) {
+  const params = useSearchParams();
+  const query = params.get('q') ?? '';
+  useEffect(() => {
+    if (query) onQuery(query);
+  }, [query, onQuery]);
+  return null;
+}
 
 /**
  * 二期 B1 + B3 + ID 规则匹配 + P1 组件精确查询：`/match` 项目上下文本地校验 + 文本检索接入 +
@@ -293,27 +311,35 @@ export default function ProjectContextMatchPage() {
   if (!session) {
     return (
       <main>
-        <p className="eyebrow">Zhinexus 工作区</p>
-        <h1>登录后开放</h1>
-        <p><a className="filter-btn active" href={companyLoginUrl}>账号登录</a></p>
-        <p className="lead">项目上下文匹配需要登录。请输入开发者凭证（OIDC Bearer Token）以继续：</p>
-        <form onSubmit={handleLogin} className="auth-form" style={{ maxWidth: 480, marginTop: 24 }}>
-          <div style={{ marginBottom: 16 }}>
-            <label htmlFor="token-input" style={{ display: 'block', fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 6 }}>
-              开发者 Bearer Token (或测试凭证):
-            </label>
-            <input
-              id="token-input"
-              type="text"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
-              style={{ width: '100%', padding: '8px 12px', borderRadius: 6, border: '1px solid #cbd5e1', fontSize: 13, fontFamily: 'monospace' }}
-            />
+        <div className="zn-page-header access-heading">
+          <div className="zn-header-copy">
+            <p className="eyebrow">06 / PROJECT INTELLIGENCE</p>
+            <h1>登录后开放</h1>
+            <p className="lead">项目上下文匹配需要登录。请输入开发者凭证（OIDC Bearer Token）以继续：</p>
           </div>
-          <button type="submit" className="filter-btn active">凭证登录</button>
-          {statusMessage && <p style={{ color: '#dc2626', fontSize: 13, marginTop: 12 }}>{statusMessage}</p>}
-        </form>
+          <ZnCommandMotif motif={MOTIF} className="zn-motif" />
+          <div className="zn-header-actions">
+            <a className="filter-btn active" href={companyLoginUrl}><ZnIcon name="key-round" size={15} color="var(--zn-on-primary)" />账号登录</a>
+          </div>
+        </div>
+        <section className="access-panel">
+          <form onSubmit={handleLogin} className="auth-form">
+            <label htmlFor="token-input">
+              开发者 Bearer Token (或测试凭证):
+              <input
+                id="token-input"
+                type="text"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+              />
+            </label>
+            <div className="zn-row">
+              <button type="submit" className="filter-btn active">凭证登录</button>
+            </div>
+            {statusMessage && <p className="access-error" role="alert">{statusMessage}</p>}
+          </form>
+        </section>
       </main>
     );
   }
@@ -331,144 +357,201 @@ export default function ProjectContextMatchPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-        <div>
-          <p className="eyebrow">Zhinexus 组件资产平台 · 项目上下文匹配</p>
-          <h1>项目上下文</h1>
-          <p className="lead" style={{ marginBottom: 0 }}>
+      <Suspense fallback={null}>
+        <SearchQuerySync onQuery={onSearchQuery} />
+      </Suspense>
+
+      <div className="zn-page-header access-heading">
+        <div className="zn-header-copy">
+          <p className="eyebrow">06 / PROJECT INTELLIGENCE</p>
+          <h1>项目上下文匹配</h1>
+          <p className="lead">结合框架、版本与设计规则，在授权范围内定位可用组件资产。</p>
+          <p className="lead">
             当前登录身份：<strong>{session.subject}</strong> · 渠道: <code>{session.channel}</code>
           </p>
         </div>
-        <button type="button" className="filter-btn" onClick={handleLogout}>退出登录</button>
+        <ZnCommandMotif motif={MOTIF} className="zn-motif" />
+        <div className="zn-identity">
+          <span className="zn-avatar" style={{ width: 24, height: 24, flex: '0 0 24px', fontSize: 9, background: 'var(--zn-panel)', color: 'var(--zn-accent)' }}>
+            {session.subject.slice(0, 2).toUpperCase()}
+          </span>
+          <span className="zn-stack-sm" style={{ gap: 1 }}>
+            <span className="zn-identity-text">{session.subject}</span>
+            <span className="zn-identity-role">{session.channel} 渠道</span>
+          </span>
+          <button type="button" className="filter-btn" onClick={handleLogout}>退出登录</button>
+        </div>
+      </div>
+
+      <div className="zn-notice" role="note">
+        <ZnIcon name="shield" size={17} color="var(--zn-accent)" className="zn-notice-icon" />
+        <span>
+          <strong style={{ fontFamily: 'var(--zn-font-mono)', fontSize: 11, letterSpacing: '0.3px' }}>权限边界 / 本地项目保持私有</strong>
+          {' — '}
+          仅提交你填写的项目上下文与查询条件；平台不会读取或修改本地项目。
+        </span>
+        <span className="zn-badge zn-badge-accent" style={{ marginLeft: 'auto' }}>
+          <ZnIcon name="lock-keyhole" size={13} color="var(--zn-accent)" />
+          READ-ONLY QUERY
+        </span>
       </div>
 
       <div className="match-banner" role="note">
         文本检索仅覆盖已发布元数据（组件、实现、导出名、包名、分类），不提供用途/视觉评分；检索结果不构成兼容性证明。
       </div>
 
-      <div className="match-form">
-        <div className="match-field">
-          <label className="match-label" htmlFor="framework-select">目标框架</label>
-          <select
-            id="framework-select"
-            className="match-control"
-            value={framework}
-            onChange={(e) => onFramework(e.target.value)}
-            aria-invalid={frameworkError ? true : undefined}
-            aria-describedby={frameworkError ? frameworkError.id : undefined}
-          >
-            <option value="">请选择框架</option>
-            <option value="vue">Vue 3</option>
-            <option value="react">React 19</option>
-          </select>
-          {frameworkError && <span id={frameworkError.id} className="field-error" role="alert">{frameworkError.message}</span>}
+      {/* 项目上下文登记 */}
+      <section className="zn-card-raised" aria-label="项目上下文登记">
+        <div className="zn-card-head">
+          <div>
+            <h2 className="zn-card-title">项目上下文登记</h2>
+            <p className="zn-card-subtitle">版本使用精确 x.y.z，便于判断运行时兼容性。</p>
+          </div>
+          <span className="zn-badge zn-badge-success">
+            <span className="zn-badge-dot" />
+            {result?.ok ? '上下文有效' : '上下文待校验'}
+          </span>
         </div>
 
-        <div className="match-field">
-          <label className="match-label" htmlFor="framework-version-input">框架版本（精确 x.y.z）</label>
-          <input
-            id="framework-version-input"
-            className="match-control"
-            type="text"
-            value={frameworkVersion}
-            onChange={(e) => onFrameworkVersion(e.target.value)}
-            placeholder="例如 3.5.45 / 19.3.1"
-            aria-invalid={frameworkVersionError ? true : undefined}
-            aria-describedby={frameworkVersionError ? frameworkVersionError.id : undefined}
-          />
-          <span className="match-hint">未输入时不猜测默认版本；须为精确语义化版本，拒绝范围号。</span>
-          {frameworkVersionError && <span id={frameworkVersionError.id} className="field-error" role="alert">{frameworkVersionError.message}</span>}
-        </div>
+        <div className="match-form">
+          <div className="match-field">
+            <label className="match-label" htmlFor="framework-select">目标框架</label>
+            <select
+              id="framework-select"
+              className="match-control"
+              value={framework}
+              onChange={(e) => onFramework(e.target.value)}
+              aria-invalid={frameworkError ? true : undefined}
+              aria-describedby={frameworkError ? frameworkError.id : undefined}
+            >
+              <option value="">请选择框架</option>
+              <option value="vue">Vue 3</option>
+              <option value="react">React 19</option>
+            </select>
+            {frameworkError && <span id={frameworkError.id} className="field-error" role="alert">{frameworkError.message}</span>}
+          </div>
 
-        <div className="match-field">
-          <label className="match-label" htmlFor="echarts-version-input">ECharts 版本（可选）</label>
-          <input
-            id="echarts-version-input"
-            className="match-control"
-            type="text"
-            value={echartsVersion}
-            onChange={(e) => onEchartsVersion(e.target.value)}
-            placeholder="留空表示省略"
-            aria-invalid={echartsVersionError ? true : undefined}
-            aria-describedby={echartsVersionError ? echartsVersionError.id : undefined}
-          />
-          <span className="match-hint">留空将在校验前省略该可选字段。</span>
-          {echartsVersionError && <span id={echartsVersionError.id} className="field-error" role="alert">{echartsVersionError.message}</span>}
-        </div>
-
-        <div className="match-field">
-          <label className="match-label" htmlFor="package-manager-select">包管理器</label>
-          <select
-            id="package-manager-select"
-            className="match-control"
-            value={packageManager}
-            onChange={(e) => onPackageManager(e.target.value)}
-            aria-invalid={packageManagerError ? true : undefined}
-            aria-describedby={packageManagerError ? packageManagerError.id : undefined}
-          >
-            <option value="">请选择包管理器</option>
-            <option value="npm">npm</option>
-            <option value="pnpm">pnpm</option>
-          </select>
-          {packageManagerError && <span id={packageManagerError.id} className="field-error" role="alert">{packageManagerError.message}</span>}
-        </div>
-
-        <div className="match-field">
-          <label className="match-label" htmlFor="requirement-input">项目需求（可留空）</label>
-          <div className="match-requirement-add">
+          <div className="match-field">
+            <label className="match-label" htmlFor="framework-version-input">框架版本（精确 x.y.z）</label>
             <input
-              id="requirement-input"
+              id="framework-version-input"
               className="match-control"
               type="text"
-              value={requirementInput}
-              onChange={(e) => onRequirementInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRequirement(); } }}
-              placeholder="输入一条需求后点击添加"
-              aria-describedby={requirementsError ? requirementsError.id : undefined}
+              value={frameworkVersion}
+              onChange={(e) => onFrameworkVersion(e.target.value)}
+              placeholder="例如 3.5.45 / 19.3.1"
+              aria-invalid={frameworkVersionError ? true : undefined}
+              aria-describedby={frameworkVersionError ? frameworkVersionError.id : undefined}
             />
-            <button type="button" className="filter-btn" onClick={addRequirement}>添加需求</button>
+            <span className="match-hint">未输入时不猜测默认版本；须为精确语义化版本，拒绝范围号。</span>
+            {frameworkVersionError && <span id={frameworkVersionError.id} className="field-error" role="alert">{frameworkVersionError.message}</span>}
           </div>
-          <div id="requirements-list">
-            {requirements.map((req, index) => (
-              <div key={`${index}-${req}`} className="requirement-row">
-                <span className="requirement-text">{req}</span>
-                <button type="button" className="filter-btn" onClick={() => removeRequirement(index)}>删除</button>
-              </div>
-            ))}
+
+          <div className="match-field">
+            <label className="match-label" htmlFor="echarts-version-input">ECharts 版本（可选）</label>
+            <input
+              id="echarts-version-input"
+              className="match-control"
+              type="text"
+              value={echartsVersion}
+              onChange={(e) => onEchartsVersion(e.target.value)}
+              placeholder="留空表示省略"
+              aria-invalid={echartsVersionError ? true : undefined}
+              aria-describedby={echartsVersionError ? echartsVersionError.id : undefined}
+            />
+            <span className="match-hint">留空将在校验前省略该可选字段。</span>
+            {echartsVersionError && <span id={echartsVersionError.id} className="field-error" role="alert">{echartsVersionError.message}</span>}
           </div>
-          {requirementsError && <span id={requirementsError.id} className="field-error" role="alert">{requirementsError.message}</span>}
+
+          <div className="match-field">
+            <label className="match-label" htmlFor="package-manager-select">包管理器</label>
+            <select
+              id="package-manager-select"
+              className="match-control"
+              value={packageManager}
+              onChange={(e) => onPackageManager(e.target.value)}
+              aria-invalid={packageManagerError ? true : undefined}
+              aria-describedby={packageManagerError ? packageManagerError.id : undefined}
+            >
+              <option value="">请选择包管理器</option>
+              <option value="npm">npm</option>
+              <option value="pnpm">pnpm</option>
+            </select>
+            {packageManagerError && <span id={packageManagerError.id} className="field-error" role="alert">{packageManagerError.message}</span>}
+          </div>
+
+          <div className="match-field">
+            <label className="match-label" htmlFor="requirement-input">项目需求（可留空）</label>
+            <div className="match-requirement-add">
+              <input
+                id="requirement-input"
+                className="match-control"
+                type="text"
+                value={requirementInput}
+                onChange={(e) => onRequirementInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addRequirement(); } }}
+                placeholder="输入一条需求后点击添加"
+                aria-describedby={requirementsError ? requirementsError.id : undefined}
+              />
+              <button type="button" className="filter-btn" onClick={addRequirement}><ZnIcon name="plus" size={15} color="var(--zn-muted)" />添加需求</button>
+            </div>
+            <div id="requirements-list">
+              {requirements.map((req, index) => (
+                <div key={`${index}-${req}`} className="requirement-row">
+                  <span className="requirement-text">{req}</span>
+                  <button type="button" className="filter-btn" onClick={() => removeRequirement(index)}>删除</button>
+                </div>
+              ))}
+            </div>
+            {requirementsError && <span id={requirementsError.id} className="field-error" role="alert">{requirementsError.message}</span>}
+          </div>
+
+          <div className="match-actions">
+            <button type="button" id="context-submit" className="filter-btn active" onClick={handleValidate}>校验项目上下文</button>
+            {statusMessage && <span className="match-hint">{statusMessage}</span>}
+          </div>
         </div>
 
-        <div className="match-actions">
-          <button type="button" id="context-submit" className="filter-btn active" onClick={handleValidate}>校验项目上下文</button>
-          {statusMessage && <span style={{ fontSize: 13, color: '#64748b' }}>{statusMessage}</span>}
-        </div>
-      </div>
+        {result?.ok && (
+          <div id="context-success" className="match-success" role="status" style={{ marginTop: 16 }}>
+            <strong>本地校验通过</strong>
+            <pre className="match-json">{JSON.stringify(result.value, null, 2)}</pre>
+            <p className="match-note">以上仅为项目上下文形状校验结果；点击「搜索候选」才会发起检索请求。</p>
+          </div>
+        )}
 
-      {result?.ok && (
-        <div id="context-success" className="match-success" role="status">
-          <strong>本地校验通过</strong>
-          <pre className="match-json">{JSON.stringify(result.value, null, 2)}</pre>
-          <p className="match-note">以上仅为项目上下文形状校验结果；点击「搜索候选」才会发起检索请求。</p>
-        </div>
-      )}
-
-      {result && !result.ok && (
-        <div id="context-errors" className="match-errors" role="alert">
-          <strong>本地校验未通过：</strong>
-          <ul>
-            {result.issues.map((issue, i) => (
-              <li key={`${issue.path}-${i}`}>
-                <code>{issue.path || '/'}</code> — {issue.message}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+        {result && !result.ok && (
+          <div id="context-errors" className="match-errors" role="alert" style={{ marginTop: 16 }}>
+            <strong>本地校验未通过：</strong>
+            <ul>
+              {result.issues.map((issue, i) => (
+                <li key={`${issue.path}-${i}`}>
+                  <code>{issue.path || '/'}</code> — {issue.message}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </section>
 
       {/* B3：文本检索（独立按钮，只有显式点击才 POST） */}
-      <section aria-label="文本检索" style={{ marginTop: 32 }}>
-        <h2 style={{ margin: '0 0 12px', fontSize: 20, color: '#0f172a' }}>文本检索</h2>
+      <section className="zn-card-raised" aria-label="文本检索">
+        <div className="zn-card-head">
+          <div>
+            <h2 className="zn-card-title">自然语言候选检索</h2>
+            <p className="zn-card-subtitle">先按自然语言召回候选，再进行版本与权限判断。</p>
+          </div>
+          <button
+            type="button"
+            id="search-submit"
+            className="filter-btn active"
+            onClick={handleSearch}
+            disabled={searchState.kind === 'loading'}
+          >
+            {searchState.kind === 'loading' ? '正在检索…' : '检索候选'}
+          </button>
+        </div>
+
         <div className="match-form">
           <div className="match-field">
             <label className="match-label" htmlFor="search-query-input">检索内容</label>
@@ -495,20 +578,9 @@ export default function ProjectContextMatchPage() {
             />
             <span className="match-hint">须为精确语义化版本；不能由 React 版本推断，未提供则不发送。</span>
           </div>
-
-          <div className="match-actions">
-            <button
-              type="button"
-              id="search-submit"
-              className="filter-btn active"
-              onClick={handleSearch}
-              disabled={searchState.kind === 'loading'}
-            >
-              {searchState.kind === 'loading' ? '正在检索…' : '搜索候选'}
-            </button>
-            {searchState.kind === 'loading' && <span id="search-loading" style={{ fontSize: 13, color: '#64748b' }}>正在检索…</span>}
-          </div>
         </div>
+
+        {searchState.kind === 'loading' && <p id="search-loading" className="match-hint" style={{ marginTop: 12 }}>正在检索…</p>}
 
         {searchState.kind === 'empty' && (
           <div id="search-empty" className="match-success" role="status" style={{ marginTop: 16 }}>
@@ -537,22 +609,22 @@ export default function ProjectContextMatchPage() {
         )}
       </section>
 
-      {/* 二期 ID 规则匹配：显式规则 JSON + 元素清单 + 可选绑定，独立按钮才 POST */}
-      <DesignIdMatch
-        session={session}
-        contextCheck={contextCheck}
-        reactDomVersion={reactDomVersion}
-        requirementDraft={requirementInput}
-        apiUrl={DEFAULT_API_ORIGIN}
-        onSessionExpired={invalidateSession}
-      />
-
-      {/* 二期 P1 组件标识精确查询：显式点击才 GET，独立表单，不回写设计规则 */}
-      <ComponentQuery
-        session={session}
-        apiUrl={DEFAULT_API_ORIGIN}
-        onSessionExpired={invalidateSession}
-      />
+      {/* 精确匹配区：A 组件标识精确查询 + B 设计规则解析引擎 */}
+      <div className="zn-grid-2">
+        <ComponentQuery
+          session={session}
+          apiUrl={DEFAULT_API_ORIGIN}
+          onSessionExpired={invalidateSession}
+        />
+        <DesignIdMatch
+          session={session}
+          contextCheck={contextCheck}
+          reactDomVersion={reactDomVersion}
+          requirementDraft={requirementInput}
+          apiUrl={DEFAULT_API_ORIGIN}
+          onSessionExpired={invalidateSession}
+        />
+      </div>
     </main>
   );
 }

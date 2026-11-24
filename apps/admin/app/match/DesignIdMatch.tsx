@@ -220,7 +220,7 @@ export function DesignIdMatch({ session, contextCheck, reactDomVersion, requirem
 
   return (
     <section id="design-match" aria-label="设计 ID 规则匹配" style={{ marginTop: 32 }}>
-      <h2 style={{ margin: '0 0 12px', fontSize: 20, color: '#0f172a' }}>设计 ID 规则匹配</h2>
+      <h2 style={{ margin: '0 0 12px', fontSize: 20, color: 'var(--zn-text)' }}>设计 ID 规则匹配</h2>
       <div className="match-banner" role="note">
         依据显式配置的设计 ID 定位精确发布，不依赖文本相似度，也不依据截图或图片内容匹配；
         用户提交的配置不充当权限、就绪状态或兼容性证据。
@@ -414,7 +414,7 @@ function PlanView({ plan, digest }: { plan: MatchPlanV1; digest: string }) {
             {element.events.map(event=><div key={event.name}><code>{event.name}</code> · {event.payload} · 处理引用：{event.handler??'未绑定'}</div>)}
           </div>}
           {element.gaps.map((gap, i) => (
-            <span className="plan-gap" key={`${gap.code}-${i}`} style={{ display: 'block', fontSize: 12, color: '#991b1b' }}>
+            <span className="plan-gap" key={`${gap.code}-${i}`} style={{ display: 'block', fontSize: 12, color: 'var(--zn-danger)' }}>
               <code>{gap.code}</code> — {gap.message}
             </span>
           ))}

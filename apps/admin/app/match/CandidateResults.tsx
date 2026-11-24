@@ -21,17 +21,17 @@ import type { Candidate, SearchCandidatesResponse } from '@company/contracts';
 
 const sectionStyle: React.CSSProperties = { display: 'flex', flexDirection: 'column', gap: 20 };
 const cardStyle: React.CSSProperties = {
-  background: '#ffffff', border: '1px solid #e2e8f0', borderRadius: 12, padding: 20,
+  background: 'var(--zn-panel)', border: '1px solid var(--zn-border-strong)', borderRadius: 12, padding: 20,
   display: 'flex', flexDirection: 'column', gap: 12,
 };
 const rowStyle: React.CSSProperties = { display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'baseline' };
-const nameStyle: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: '#0f172a' };
-const metaStyle: React.CSSProperties = { fontSize: 12, color: '#64748b', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' };
-const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: '#475569' };
-const pathStyle: React.CSSProperties = { fontSize: 12, color: '#334155', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', wordBreak: 'break-all' };
+const nameStyle: React.CSSProperties = { fontSize: 18, fontWeight: 700, color: 'var(--zn-text)' };
+const metaStyle: React.CSSProperties = { fontSize: 12, color: 'var(--zn-muted)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace' };
+const labelStyle: React.CSSProperties = { fontSize: 12, fontWeight: 600, color: 'var(--zn-muted)' };
+const pathStyle: React.CSSProperties = { fontSize: 12, color: 'var(--zn-muted)', fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', wordBreak: 'break-all' };
 const emptyStyle: React.CSSProperties = {
-  margin: 0, padding: 32, textAlign: 'center', color: '#64748b', fontSize: 14,
-  background: '#ffffff', border: '1px dashed #cbd5e1', borderRadius: 12,
+  margin: 0, padding: 32, textAlign: 'center', color: 'var(--zn-muted)', fontSize: 14,
+  background: 'var(--zn-panel)', border: '1px dashed var(--zn-border-strong)', borderRadius: 12,
 };
 
 function CandidateCard({ candidate }: { candidate: Candidate }) {
@@ -46,7 +46,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
         </span>
       </div>
 
-      <div style={{ ...rowStyle, fontSize: 12, color: '#64748b' }}>
+      <div style={{ ...rowStyle, fontSize: 12, color: 'var(--zn-muted)' }}>
         <span>{`组件：${candidate.componentId}`}</span>
         <span>{`实现：${candidate.variantId}`}</span>
         <span>{`发布：${candidate.variantReleaseId}`}</span>
@@ -57,7 +57,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
           {verified ? '已验证' : '未验证'}
         </span>
         {verified && candidate.compatibility.recordIds.length > 0 && (
-          <span style={{ fontSize: 12, color: '#475569' }}>
+          <span style={{ fontSize: 12, color: 'var(--zn-muted)' }}>
             {`记录：${candidate.compatibility.recordIds.join('、')}`}
           </span>
         )}
@@ -67,7 +67,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
         <span style={labelStyle}>证据</span>
         <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2 }}>
           {candidate.evidence.map((item, index) => (
-            <li key={`${index}-${item.path}`} style={{ fontSize: 12, color: '#475569' }}>
+            <li key={`${index}-${item.path}`} style={{ fontSize: 12, color: 'var(--zn-muted)' }}>
               <span style={labelStyle}>{`${item.kind}：`}</span>
               <span style={pathStyle}>{item.path}</span>
               {item.source ? <span style={{ ...pathStyle, marginLeft: 8 }}>{`（来源：${item.source}）`}</span> : null}
@@ -76,13 +76,13 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
         </ul>
       </div>
 
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, color: '#334155' }}>
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, fontSize: 13, color: 'var(--zn-muted)' }}>
         <span>{`文本评分：${candidate.ranking.text}`}</span>
         {candidate.ranking.usage !== undefined ? <span>{`用途评分：${candidate.ranking.usage}`}</span> : null}
         {candidate.ranking.visual !== undefined ? (
           <span>{`视觉评分：${candidate.ranking.visual}`}</span>
         ) : (
-          <span style={{ color: '#92400e' }}>未提供视觉评分</span>
+          <span style={{ color: 'var(--zn-warning)' }}>未提供视觉评分</span>
         )}
       </div>
 
@@ -91,7 +91,7 @@ function CandidateCard({ candidate }: { candidate: Candidate }) {
           <span style={labelStyle}>缺口</span>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {candidate.gaps.map((gap, index) => (
-              <li key={`${index}-${gap}`} style={{ fontSize: 12, color: '#991b1b' }}>{gap}</li>
+              <li key={`${index}-${gap}`} style={{ fontSize: 12, color: 'var(--zn-danger)' }}>{gap}</li>
             ))}
           </ul>
         </div>
@@ -120,7 +120,7 @@ export function CandidateResults({ response }: { response: SearchCandidatesRespo
           <span style={labelStyle}>整体缺口</span>
           <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 2 }}>
             {response.gaps.map((gap, index) => (
-              <li key={`${index}-${gap}`} style={{ fontSize: 12, color: '#991b1b' }}>{gap}</li>
+              <li key={`${index}-${gap}`} style={{ fontSize: 12, color: 'var(--zn-danger)' }}>{gap}</li>
             ))}
           </ul>
         </div>

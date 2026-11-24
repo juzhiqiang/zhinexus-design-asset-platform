@@ -21,10 +21,15 @@ import {
   attachLocalFile,
   submitReleaseJob,
 } from '../lib/uploads/manifest-form';
+import { ZnIcon } from '../lib/design/icons';
+import { COMMAND_MOTIFS, ZnCommandMotif } from '../lib/design/motifs';
 
 const LOCAL_STORAGE_WEB_RELEASE = 'zhinexus_web_release_session';
 const LOCAL_STORAGE_PENDING_RELEASE = 'zhinexus_pending_release';
 const LOCAL_STORAGE_ACTIVE_SESSION = 'zhinexus_active_session_id';
+
+/** 画板 01 的 Command Motif（INGEST ORBIT / 01）。 */
+const MOTIF = COMMAND_MOTIFS[0]!;
 
 export default function WebUploadConsole() {
   const [session, setSession] = useState<UserSession | null>(null);
@@ -566,43 +571,36 @@ export default function WebUploadConsole() {
   if (!session) {
     return (
       <main>
-        <p className="eyebrow">Zhinexus 工作区</p>
-        <h1>登录后开放</h1>
-        <p><a className="filter-btn active" href={companyLoginUrl}>账号登录</a></p>
-        <p className="lead">身份与权限服务接入后，此处提供组件发布功能。请输入开发者发布凭证（OIDC Bearer Token）登录控制台：</p>
+        <div className="zn-page-header access-heading">
+          <div className="zn-header-copy">
+            <p className="eyebrow">01 / RELEASE MANIFEST</p>
+            <h1>登录后开放</h1>
+            <p className="lead">身份与权限服务接入后，此处提供组件发布功能。请输入开发者发布凭证（OIDC Bearer Token）登录控制台：</p>
+          </div>
+          <ZnCommandMotif motif={MOTIF} className="zn-motif" />
+          <div className="zn-header-actions">
+            <a className="filter-btn active" href={companyLoginUrl}><ZnIcon name="key-round" size={15} color="var(--zn-on-primary)" />账号登录</a>
+          </div>
+        </div>
 
-        <form onSubmit={handleLogin} className="auth-form" style={{ maxWidth: '480px', marginTop: '24px' }}>
-          <div style={{ marginBottom: '16px' }}>
-            <label htmlFor="token-input" style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '6px' }}>
+        <section className="access-panel">
+          <form onSubmit={handleLogin} className="auth-form">
+            <label htmlFor="token-input">
               开发者 Bearer Token (或测试凭证):
+              <input
+                id="token-input"
+                type="text"
+                value={tokenInput}
+                onChange={(e) => setTokenInput(e.target.value)}
+                placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
+              />
             </label>
-            <input
-              id="token-input"
-              type="text"
-              value={tokenInput}
-              onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
-              style={{
-                width: '100%',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                border: '1px solid #cbd5e1',
-                fontSize: '13px',
-                fontFamily: 'monospace',
-              }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-            <button type="submit" className="filter-btn active">
-              凭证登录
-            </button>
-          </div>
-
-          {statusMessage && (
-            <p style={{ color: '#dc2626', fontSize: '13px', marginTop: '12px' }}>{statusMessage}</p>
-          )}
-        </form>
+            <div className="zn-row">
+              <button type="submit" className="filter-btn active">凭证登录</button>
+            </div>
+            {statusMessage && <p className="access-error" role="alert">{statusMessage}</p>}
+          </form>
+        </section>
       </main>
     );
   }
@@ -617,112 +615,127 @@ export default function WebUploadConsole() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
-        <div>
-          <p className="eyebrow">Zhinexus 组件资产平台 · 发布控制台</p>
+      <div className="zn-page-header access-heading">
+        <div className="zn-header-copy">
+          <p className="eyebrow">01 / RELEASE MANIFEST</p>
           <h1>资产发布工作区 (Manual Release)</h1>
+          <p className="lead">装配预构建产物与双框架截图，校验通过后创建不可变发布作业。</p>
           <p className="lead">
             当前登录身份：<strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code> · API 服务: <code id="active-api-url">{apiUrl}</code>
           </p>
         </div>
-        <button type="button" className="filter-btn" onClick={handleLogout}>
-          退出登录
-        </button>
+        <ZnCommandMotif motif={MOTIF} className="zn-motif" />
+        <div className="zn-identity">
+          <span className="zn-identity-dot" />
+          <span className="zn-identity-text">{session.subject}</span>
+          <span className="zn-identity-role">{session.roles.join(' / ') || 'publisher'} · {session.channel}</span>
+        </div>
+        <button type="button" className="filter-btn" onClick={handleLogout}>退出登录</button>
+      </div>
+
+      <div className="zn-metrics">
+        <div className="zn-metric">
+          <span className="zn-metric-rail" />
+          <span className="zn-metric-copy">
+            <span className="zn-metric-value">{filesMap.size}</span>
+            <span className="zn-metric-label">已装配文件</span>
+          </span>
+        </div>
+        <div className="zn-metric">
+          <span className="zn-metric-rail" />
+          <span className="zn-metric-copy">
+            <span className="zn-metric-value">{manifest.variants.length - validation.missingVariantIds.length} / {manifest.variants.length}</span>
+            <span className="zn-metric-label">有效截图</span>
+          </span>
+        </div>
+        <div className="zn-metric">
+          <span className="zn-metric-rail zn-metric-rail-gold" />
+          <span className="zn-metric-copy">
+            <span className="zn-metric-value">{validation.missingVariantIds.length}</span>
+            <span className="zn-metric-label">待补充</span>
+          </span>
+        </div>
+        <div className="zn-metric">
+          <span className="zn-metric-rail" />
+          <span className="zn-metric-copy">
+            <span className="zn-metric-value zn-metric-value-sm">manual-upload</span>
+            <span className="zn-metric-label">来源渠道</span>
+          </span>
+        </div>
       </div>
 
       {/* 断点恢复卡片（当检测到上次未完成的发布会话时展示） */}
       {pendingResumeKey && (
-        <div
-          id="resume-session-card"
-          className="resume-card"
-          style={{
-            padding: '16px',
-            background: '#eff6ff',
-            border: '1px solid #bfdbfe',
-            borderRadius: '8px',
-            marginBottom: '24px',
-          }}
-        >
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <div>
-              <strong style={{ color: '#1e40af', fontSize: '14px' }}>检测到未完成的发布请求</strong>
-              <span style={{ marginLeft: '8px', fontSize: '12px', fontFamily: 'monospace', color: '#2563eb' }}>
-                {pendingResumeKey}
-              </span>
-              <p style={{ margin: '4px 0 0', fontSize: '12px', color: '#4b5563' }}>
-                系统已持久化原幂等键及上传会话，若上次网络中断可直接点击恢复提交，绝不更换 key 重复占位。
-              </p>
-            </div>
-            <div style={{ display: 'flex', gap: '8px' }}>
-              <button
-                type="button"
-                className="filter-btn active"
-                style={{ fontSize: '12px', padding: '4px 12px' }}
-                onClick={handleResumePendingRelease}
-                disabled={isSubmitting}
-              >
-                恢复提交
-              </button>
-              <button
-                type="button"
-                className="filter-btn"
-                style={{ fontSize: '12px', padding: '4px 12px' }}
-                onClick={() => {
-                  localStorage.removeItem(LOCAL_STORAGE_PENDING_RELEASE);
-                  localStorage.removeItem(LOCAL_STORAGE_ACTIVE_SESSION);
-                  setPendingResumeKey(null);
-                }}
-              >
-                放弃草稿
-              </button>
-            </div>
+        <div id="resume-session-card" className="resume-card">
+          <div>
+            <strong>检测到未完成的发布请求</strong>
+            <span style={{ marginLeft: '8px', fontFamily: 'var(--zn-font-mono)', fontSize: '12px', color: 'var(--zn-accent)' }}>
+              {pendingResumeKey}
+            </span>
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--zn-muted)' }}>
+              系统已持久化原幂等键及上传会话，若上次网络中断可直接点击恢复提交，绝不更换 key 重复占位。
+            </p>
+          </div>
+          <div className="zn-row">
+            <button type="button" className="filter-btn active" onClick={handleResumePendingRelease} disabled={isSubmitting}>恢复提交</button>
+            <button
+              type="button"
+              className="filter-btn"
+              onClick={() => {
+                localStorage.removeItem(LOCAL_STORAGE_PENDING_RELEASE);
+                localStorage.removeItem(LOCAL_STORAGE_ACTIVE_SESSION);
+                setPendingResumeKey(null);
+              }}
+            >
+              放弃草稿
+            </button>
           </div>
         </div>
       )}
 
       {/* 导入外部 Manifest 与本地预构建产物操作栏 */}
-      <div style={{ display: 'flex', gap: '12px', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap' }}>
-        <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
-          📄 导入外部 Manifest 清单 (manifest.json)
-          <input
-            id="import-manifest-input"
-            type="file"
-            accept=".json,application/json"
-            style={{ display: 'none' }}
-            onChange={handleImportManifest}
-          />
-        </label>
-        <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
-          📦 批量导入构建产物目录或文件 (.tgz / preview / docs / api)
-          <input
-            id="import-files-input"
-            type="file"
-            multiple
-            {...({ webkitdirectory: '', directory: '' } as any)}
-            style={{ display: 'none' }}
-            onChange={handleImportFiles}
-          />
-        </label>
-        <label className="filter-btn" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '13px' }}>
-          🖼️ 批量关联本地截图目录或文件 (screenshots/*.png)
-          <input
-            id="import-screenshots-input"
-            type="file"
-            multiple
-            {...({ webkitdirectory: '', directory: '' } as any)}
-            accept="image/png,image/jpeg"
-            style={{ display: 'none' }}
-            onChange={handleBatchScreenshots}
-          />
-        </label>
+      <div className="zn-card zn-row" style={{ padding: '14px 18px' }}>
+        <div className="zn-stack-sm" style={{ gap: 2 }}>
+          <h2 className="zn-card-title">实现截图清单</h2>
+          <p className="zn-card-subtitle">每个逻辑组件的 Vue / React 实现必须分别关联有效截图</p>
+        </div>
+        <div className="zn-row" style={{ marginLeft: 'auto' }}>
+          <label className="filter-btn" style={{ cursor: 'pointer' }}>
+            <ZnIcon name="upload" size={15} color="var(--zn-muted)" />导入 Manifest
+            <input id="import-manifest-input" type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={handleImportManifest} />
+          </label>
+          <label className="filter-btn" style={{ cursor: 'pointer' }}>
+            <ZnIcon name="package" size={15} color="var(--zn-muted)" />批量导入
+            <input
+              id="import-files-input"
+              type="file"
+              multiple
+              {...({ webkitdirectory: '', directory: '' } as any)}
+              style={{ display: 'none' }}
+              onChange={handleImportFiles}
+            />
+          </label>
+          <label className="filter-btn active" style={{ cursor: 'pointer' }}>
+            <ZnIcon name="plus" size={15} color="var(--zn-on-primary)" />选择截图
+            <input
+              id="import-screenshots-input"
+              type="file"
+              multiple
+              {...({ webkitdirectory: '', directory: '' } as any)}
+              accept="image/png,image/jpeg"
+              style={{ display: 'none' }}
+              onChange={handleBatchScreenshots}
+            />
+          </label>
+        </div>
       </div>
 
       {/* 逐实现截图关联必检区域（动态覆盖全部 7 组件 14 实现） */}
-      <section className="spec-table-container" style={{ marginBottom: '32px' }} aria-label="逐实现截图关联检查">
-        <div style={{ padding: '16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <section className="spec-table-container" aria-label="逐实现截图关联检查">
+        <div style={{ padding: '16px 18px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>逐实现截图关联与必检清单 (7 组件 14 实现)</h2>
-            <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#64748b' }}>
+            <h2>逐实现截图关联与必检清单 (7 组件 14 实现)</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '12px', color: 'var(--zn-subtle)' }}>
               每个待发布逻辑组件的每个框架实现（Vue / React）至少关联一张有效截图；文件大小与真实哈希严格匹配；来源强制固定为 manual-upload。
             </p>
           </div>
@@ -733,19 +746,9 @@ export default function WebUploadConsole() {
 
         {/* 缺图与错配报警区 (blocks_submit_when_any_variant_has_no_image) */}
         {(!validation.ok || fileIssues.length > 0) && (
-          <div
-            id="missing-screenshots-alert"
-            className="blocker-alert"
-            style={{
-              padding: '16px',
-              background: '#fef2f2',
-              borderBottom: '1px solid #fecaca',
-              color: '#991b1b',
-              fontSize: '14px',
-            }}
-          >
+          <div id="missing-screenshots-alert" className="blocker-alert">
             <strong>阻断发布：存在未关联有效截图的组件实现 (SCREENSHOT_REQUIRED / 框架错配):</strong>
-            <ul style={{ margin: '8px 0 0', paddingLeft: '20px' }}>
+            <ul>
               {validation.issues.map((issue, idx) => (
                 <li key={`v-${idx}`} style={{ marginBottom: '4px' }}>
                   <strong>[{issue.code}]</strong> {issue.message}
@@ -760,82 +763,76 @@ export default function WebUploadConsole() {
           </div>
         )}
 
-        <table className="spec-table">
-          <thead>
-            <tr>
-              <th style={{ width: '18%' }}>逻辑组件</th>
-              <th style={{ width: '18%' }}>框架实现</th>
-              <th style={{ width: '22%' }}>关联包与版本</th>
-              <th style={{ width: '22%' }}>截图状态与摘要</th>
-              <th style={{ width: '20%' }}>操作与替换</th>
-            </tr>
-          </thead>
-          <tbody>
-            {manifest.variants.map((v) => {
-              const hasShot = v.screenshots && v.screenshots.length > 0;
-              const shot = v.screenshots?.[0];
-              return (
-                <tr key={v.variantId} className="variant-shot-card">
-                  <td>
-                    <strong>{v.componentId}</strong> ({v.exportName})
-                  </td>
-                  <td>
-                    <span className={`tag ${v.framework === 'vue' ? 'tag-framework-vue' : 'tag-framework-react'}`}>
-                      {v.framework === 'vue' ? 'Vue 3' : 'React 19'}
-                    </span>
-                    <span style={{ marginLeft: '6px', fontSize: '12px', color: '#64748b' }}>{v.variantId}</span>
-                  </td>
-                  <td>
-                    <span className="code-badge">{v.packageName}@{v.packageVersion}</span>
-                  </td>
-                  <td>
-                    {hasShot && shot ? (
-                      <div>
-                        <div style={{ color: '#16a34a', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
-                          <span>✓</span> 已关联 ({shot.source})
-                        </div>
-                        <div style={{ fontSize: '11px', color: '#64748b', marginTop: '2px', fontFamily: 'monospace' }}>
-                          {shot.image.bytes} 字节 · {shot.image.sha256.slice(0, 8)}...
-                        </div>
-                      </div>
-                    ) : (
-                      <span style={{ color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <span>✗</span> 缺少有效展示截图
+        <div style={{ overflowX: 'auto' }}>
+          <table className="spec-table">
+            <thead>
+              <tr>
+                <th style={{ width: '18%' }}>逻辑组件</th>
+                <th style={{ width: '18%' }}>框架实现</th>
+                <th style={{ width: '22%' }}>关联包与版本</th>
+                <th style={{ width: '22%' }}>截图状态与摘要</th>
+                <th style={{ width: '20%' }}>操作与替换</th>
+              </tr>
+            </thead>
+            <tbody>
+              {manifest.variants.map((v) => {
+                const hasShot = v.screenshots && v.screenshots.length > 0;
+                const shot = v.screenshots?.[0];
+                return (
+                  <tr key={v.variantId} className="variant-shot-card">
+                    <td>
+                      <strong>{v.componentId}</strong> ({v.exportName})
+                    </td>
+                    <td>
+                      <span className={`tag ${v.framework === 'vue' ? 'tag-framework-vue' : 'tag-framework-react'}`}>
+                        {v.framework === 'vue' ? 'Vue 3' : 'React 19'}
                       </span>
-                    )}
-                  </td>
-                  <td>
-                    {hasShot && shot ? (
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <button
-                          type="button"
-                          className="filter-btn"
-                          data-remove-shot={v.variantId}
-                          style={{ padding: '2px 8px', fontSize: '11px', color: '#dc2626' }}
-                          onClick={() => handleRemoveScreenshot(v.variantId)}
-                        >
-                          删除截图
-                        </button>
-                        <label
-                          className="filter-btn"
-                          style={{ padding: '2px 8px', fontSize: '11px', cursor: 'pointer' }}
-                        >
-                          替换截图
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg"
-                            data-upload-shot={v.variantId}
-                            style={{ display: 'none' }}
-                            onChange={(e) => handleFileChange(v.variantId, e)}
-                          />
-                        </label>
-                      </div>
-                    ) : (
-                      <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                        <label
-                          className="filter-btn active"
-                          style={{ padding: '2px 8px', fontSize: '11px', cursor: 'pointer' }}
-                        >
+                      <span style={{ marginLeft: '6px', fontSize: '12px', color: 'var(--zn-subtle)' }}>{v.variantId}</span>
+                    </td>
+                    <td>
+                      <span className="code-badge">{v.packageName}@{v.packageVersion}</span>
+                    </td>
+                    <td>
+                      {hasShot && shot ? (
+                        <div>
+                          <div style={{ color: 'var(--zn-success)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px', fontSize: '13px' }}>
+                            <ZnIcon name="check" size={13} color="var(--zn-success)" /> 已关联 ({shot.source})
+                          </div>
+                          <div style={{ fontSize: '11px', color: 'var(--zn-subtle)', marginTop: '2px', fontFamily: 'var(--zn-font-mono)' }}>
+                            {shot.image.bytes} 字节 · {shot.image.sha256.slice(0, 8)}...
+                          </div>
+                        </div>
+                      ) : (
+                        <span style={{ color: 'var(--zn-danger)', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <ZnIcon name="triangle-alert" size={13} color="var(--zn-danger)" /> 缺少有效展示截图
+                        </span>
+                      )}
+                    </td>
+                    <td>
+                      {hasShot && shot ? (
+                        <div className="zn-row" style={{ gap: 6 }}>
+                          <button
+                            type="button"
+                            className="filter-btn"
+                            data-remove-shot={v.variantId}
+                            style={{ color: 'var(--zn-danger)' }}
+                            onClick={() => handleRemoveScreenshot(v.variantId)}
+                          >
+                            删除截图
+                          </button>
+                          <label className="filter-btn" style={{ cursor: 'pointer' }}>
+                            替换截图
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg"
+                              data-upload-shot={v.variantId}
+                              style={{ display: 'none' }}
+                              onChange={(e) => handleFileChange(v.variantId, e)}
+                            />
+                          </label>
+                        </div>
+                      ) : (
+                        <label className="filter-btn active" style={{ cursor: 'pointer' }}>
                           上传有效截图
                           <input
                             type="file"
@@ -845,42 +842,48 @@ export default function WebUploadConsole() {
                             onChange={(e) => handleFileChange(v.variantId, e)}
                           />
                         </label>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </section>
 
-      {/* 提交操作区 */}
-      <div style={{ display: 'flex', gap: '16px', alignItems: 'center', marginBottom: '24px' }}>
+      {/* 发布前检查结论与提交操作区 */}
+      <div className="zn-notice zn-notice-block" style={validation.ok && fileIssues.length === 0 ? { background: 'var(--zn-success-soft)', borderLeftColor: 'var(--zn-success)', color: 'var(--zn-success)' } : undefined}>
+        <ZnIcon name={validation.ok && fileIssues.length === 0 ? 'circle-check-big' : 'triangle-alert'} size={17} color="var(--zn-warning)" className="zn-notice-icon" />
+        <div className="zn-stack-sm" style={{ gap: 2, flex: '1 1 auto' }}>
+          <strong style={{ fontFamily: 'var(--zn-font-mono)', fontSize: 12 }}>
+            {validation.ok && fileIssues.length === 0 ? '发布前检查已通过' : '发布前检查未通过'}
+          </strong>
+          <span style={{ fontSize: 11 }}>
+            {validation.ok && fileIssues.length === 0
+              ? '全部 14 个实现均已关联有效截图，可以创建不可变发布作业。'
+              : `请补充${validation.missingVariantIds.map(id => manifest.variants.find(v => v.variantId === id)?.componentId).filter(Boolean).join('、') || '缺失'}的截图，然后重新运行校验。`}
+          </span>
+        </div>
         <button
           type="button"
-          className={`filter-btn ${canSubmit ? 'active' : ''}`}
+          className={canSubmit ? 'filter-btn active' : 'filter-btn'}
           style={{ padding: '10px 24px', fontSize: '14px', fontWeight: 600 }}
           disabled={!canSubmit}
           onClick={handleSubmitRelease}
         >
           {isSubmitting ? '正在执行上传流水线...' : '确认并提交发布'}
         </button>
-        <div style={{ fontSize: '13px', color: '#64748b' }}>
-          渠道: <code>web (manual-upload)</code> · 已装配文件: <strong>{filesMap.size}</strong> 项
-        </div>
+      </div>
+
+      <div className="zn-row" style={{ fontSize: '12px', color: 'var(--zn-subtle)' }}>
+        <span>渠道: <code>web (manual-upload)</code> · 已装配文件: <strong>{filesMap.size}</strong> 项</span>
       </div>
 
       {/* 进度条展示 */}
       {uploadProgress !== null && (
-        <div style={{ marginBottom: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#64748b', marginBottom: '4px' }}>
-            <span>上传与核验进度</span>
-            <span>{uploadProgress}%</span>
-          </div>
-          <div style={{ width: '100%', height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
-            <div style={{ width: `${uploadProgress}%`, height: '100%', background: '#0284c7', transition: 'width 0.2s' }}></div>
-          </div>
+        <div className="zn-progress" role="progressbar" aria-valuenow={uploadProgress} aria-valuemin={0} aria-valuemax={100}>
+          <span className="zn-progress-value" style={{ width: `${uploadProgress}%` }} />
         </div>
       )}
 
@@ -888,7 +891,7 @@ export default function WebUploadConsole() {
       {statusMessage && (
         <div
           id="upload-status-message"
-          style={{ padding: '12px 16px', borderRadius: '8px', background: '#f8fafc', border: '1px solid #cbd5e1', fontSize: '14px', marginBottom: '24px' }}
+          className="access-message"
         >
           {statusMessage}
         </div>
@@ -897,17 +900,17 @@ export default function WebUploadConsole() {
       {/* 活跃作业轮询看板 */}
       {activeJobId && (
         <section className="spec-table-container" style={{ padding: '20px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+          <div className="zn-row zn-row-between" style={{ marginBottom: '16px' }}>
             <h2 style={{ margin: 0, fontSize: '18px' }}>发布作业轮询状态机</h2>
-            <Link href={`/jobs/${activeJobId}`} className="card-link">
+            <Link href={`/jobs/${activeJobId}`} className="filter-btn">
               在新页面打开跟踪 →
             </Link>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '16px', marginBottom: '20px' }}>
+          <div className="status-grid" style={{ marginBottom: '20px' }}>
             <div className="status-card">
               <span className="label">当前作业编号</span>
-              <span className="value" style={{ fontSize: '13px', fontFamily: 'monospace' }}>
+              <span className="value" style={{ fontSize: '13px', fontFamily: 'var(--zn-font-mono)' }}>
                 {activeJobId}
               </span>
             </div>
@@ -928,20 +931,20 @@ export default function WebUploadConsole() {
           </div>
 
           {jobState?.state === 'READY' && (
-            <div style={{ padding: '16px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '6px', color: '#166534' }}>
-              <strong>🎉 发布成功！</strong> 版本状态已原子写入 Ready。可前往组件画廊或通过注册表安装使用。
+            <div className="access-message" style={{ marginBottom: 12 }}>
+              <strong>发布成功！</strong> 版本状态已原子写入 Ready。可前往组件画廊或通过注册表安装使用。
             </div>
           )}
 
           {jobState?.state === 'CONFLICT' && (
-            <div style={{ padding: '16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b' }}>
-              <strong>⚠️ 版本冲突 (CONFLICT):</strong> 该包版本已发布过不同内容，不可变性保证禁止覆盖。
+            <div className="access-error" style={{ marginBottom: 12 }}>
+              <strong>版本冲突 (CONFLICT):</strong> 该包版本已发布过不同内容，不可变性保证禁止覆盖。
             </div>
           )}
 
           {jobState?.state === 'REJECTED' && (
-            <div style={{ padding: '16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '6px', color: '#991b1b' }}>
-              <strong>❌ 发布被拒绝 (REJECTED):</strong> 产物校验或依赖未通过平台合规检查。
+            <div className="access-error" style={{ marginBottom: 12 }}>
+              <strong>发布被拒绝 (REJECTED):</strong> 产物校验或依赖未通过平台合规检查。
             </div>
           )}
         </section>
