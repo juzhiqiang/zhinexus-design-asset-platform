@@ -26,6 +26,9 @@ export function validateDeployment(input: unknown, env?: Record<string,string|un
     if (name in commands && s.environment?.PLATFORM_PREVIEW_MODE !== previewModeParameter) {
       errors.push(`${name}: shared preview mode configuration required`);
     }
+    if (['api', 'worker'].includes(name) && !parameter(s.environment?.PLATFORM_ADMIN_ORIGIN)) {
+      errors.push(`${name}: internal admin origin configuration required`);
+    }
     const assigned = Array.isArray(s.networks) ? s.networks : Object.keys(s.networks??{});
     if (JSON.stringify([...assigned].sort())!==JSON.stringify([...(networks[name]??[])].sort())) errors.push(`${name}: unexpected network access`);
     for (const [key,value] of Object.entries(s.environment??{})) {
@@ -37,6 +40,11 @@ export function validateDeployment(input: unknown, env?: Record<string,string|un
     const raw = JSON.stringify(config);
     for (const match of raw.matchAll(/\$\{([A-Z][A-Z0-9_]*):\?[^}]+\}/g)) if (!env[match[1]!]?.trim()) errors.push(`Missing ${match[1]}`);
     for (const key of ['PLATFORM_API_IMAGE','PLATFORM_PREVIEW_IMAGE','PLATFORM_MINIO_IMAGE']) if (!pinned(env[key])) errors.push(`Invalid ${key} digest`);
+    try {
+      const value = env.PLATFORM_ADMIN_ORIGIN ?? '';
+      const url = new URL(value);
+      if (url.protocol !== 'https:' || url.username || url.password || url.hostname.includes('*') || value !== url.origin) throw new Error();
+    } catch { errors.push('Invalid PLATFORM_ADMIN_ORIGIN HTTPS origin'); }
     for (const key of ['PLATFORM_S3_ENDPOINT','PLATFORM_REGISTRY_ORIGIN','PLATFORM_OIDC_ISSUER','PLATFORM_OIDC_JWKS_URI']) {
       try { const value=env[key]??''; const u=new URL(value); if(/[\s\\\u0000-\u001f\u007f]/u.test(value)||u.protocol!=='https:'||u.username||u.password||u.search||u.hash) throw new Error(); }
       catch {errors.push(`Invalid ${key} HTTPS configuration`);}

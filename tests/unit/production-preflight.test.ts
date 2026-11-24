@@ -17,6 +17,7 @@ function environment(): Record<string, string> {
     PLATFORM_OIDC_JWKS_URI: 'https://identity.example.com/realm/keys',
     PLATFORM_OIDC_WEB_CLIENT_IDS: 'gallery', PLATFORM_OIDC_CLI_CLIENT_IDS: 'component-cli',
     PLATFORM_GALLERY_ORIGIN: 'https://gallery.example.com', PLATFORM_API_ORIGIN: 'https://api.example.com',
+    PLATFORM_ADMIN_ORIGIN: 'https://admin.example.com',
     PLATFORM_PREVIEW_ORIGIN: 'https://preview.example-assets.net',
     PLATFORM_METRICS_TOKEN: 'm'.repeat(48), PLATFORM_REGISTRY_ORIGIN: 'https://registry.example.com',
     PLATFORM_REGISTRY_TOKEN: 'private-publishing-token', PLATFORM_EDGE_NETWORK: 'managed-edge',
@@ -24,6 +25,15 @@ function environment(): Record<string, string> {
     MINIO_USER_FILE: '/private/minio-user', MINIO_PASSWORD_FILE: '/private/minio-password',
   };
 }
+
+it('requires exact HTTPS admin origins in production', () => {
+  for (const origin of ['http://127.0.0.1:5177', 'https://admin.example.com/', 'https://admin.example.com/path', 'https://*.example.com', 'https://user:password@admin.example.com']) {
+    expect(validateDeployment(template, { ...environment(), PLATFORM_ADMIN_ORIGIN: origin })).toContain('Invalid PLATFORM_ADMIN_ORIGIN HTTPS origin');
+  }
+  const invalid = structuredClone(template);
+  delete invalid.services.api.environment.PLATFORM_ADMIN_ORIGIN;
+  expect(validateDeployment(invalid)).toContain('api: internal admin origin configuration required');
+});
 
 it('rejects identity configuration that the actual OIDC verifier cannot use', () => {
   expect(validateDeployment(template, environment())).toEqual([]);
