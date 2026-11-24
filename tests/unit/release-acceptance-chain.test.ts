@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   validateVariantScreenshots,
-} from '../../apps/gallery/app/lib/uploads/screenshot-validation.js';
+} from '../../apps/admin/app/lib/uploads/screenshot-validation.js';
 import type {
   PackageRef,
   VariantRef,

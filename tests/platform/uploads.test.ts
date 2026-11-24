@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it, vi } from 'vitest';
 import { platformHarness } from './http-support.js';
-import { uploadPartBytes } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+import { uploadPartBytes } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 
 const bytes = Buffer.from('valid upload');
 const ref = { path: 'docs/note.txt', sha256: createHash('sha256').update(bytes).digest('hex'), bytes: bytes.length };

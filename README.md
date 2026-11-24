@@ -24,7 +24,8 @@ Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资�
 
 ```text
 apps/api                 身份、上传、目录、基线 API 与独立发布 worker
-apps/gallery             组件画廊与发布、查询控制台
+apps/gallery             公开画廊与登录后的授权资产目录
+apps/admin               内网发布、任务、账号和配置管理端
 apps/preview-gateway     短期授权的静态预览网关
 packages/contracts       私有运行时契约、错误码与 JSON Schema
 packages/charts-core     图表核心与兼容策略
@@ -59,7 +60,8 @@ $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
 
 | 入口 | 地址 / 命令 |
 | --- | --- |
-| 画廊 | `http://127.0.0.1:5173` |
+| 公开画廊 / 授权资产库 | `http://127.0.0.1:5173` / `/library` |
+| 内网后台 | `http://127.0.0.1:5177` |
 | Vue 示例 | `http://127.0.0.1:5174` |
 | React 示例 | `http://127.0.0.1:5175` |
 | API 存活检查 | `http://127.0.0.1:3000/healthz` |
@@ -70,6 +72,8 @@ API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还�
 
 正式构建画廊时，`NEXT_PUBLIC_SITE_URL` 应设置为站点公开 origin，用于 sitemap 与 metadata；`NEXT_PUBLIC_PLATFORM_API_URL` 应指向管理 API，API 需允许画廊的精确 Origin。仅使用 IPv4 时，可以为画廊、API 和预览配置不同 HTTPS 端口，见 [IP 分端口部署](docs/guides/preview-ip-port.md)。
 
+画廊原有的 `/upload`、`/jobs/*`、`/match`、`/users`、`/access-settings` 已迁至管理端，同路径在公开画廊返回 404。API 配置 `PLATFORM_GALLERY_ORIGIN` 与 `PLATFORM_ADMIN_ORIGIN` 两个精确来源。两端的 `NEXT_PUBLIC_PLATFORM_API_URL` 指向同一 API origin，维持 host-only 会话 Cookie；公网只开放目录、登录与预览必需接口，管理接口按可信网络来源限制。真实部署需要 VPN/防火墙、TLS 和源站网络隔离，见 [双入口部署](docs/guides/gallery-admin-deployment.md)。
+
 ## 常用验证命令
 
 ```powershell
@@ -79,7 +83,7 @@ API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还�
 .\scripts\pnpm.ps1 test:browser
 ```
 
-浏览器测试消费构建后的产物，运行前先执行 `build`，并关闭占用 5173–5176 端口的开发服务。构建和浏览器测试使用相同的 `NEXT_PUBLIC_SITE_URL`。根 `typecheck` 与 `test` 会先构建后端服务。
+浏览器测试消费构建后的产物，运行前先执行 `build`，并关闭占用 5173–5177 端口的开发服务。构建和浏览器测试使用相同的 `NEXT_PUBLIC_SITE_URL`。根 `typecheck` 与 `test` 会先构建后端服务。
 
 | 命令（仓库根目录） | 用途 |
 | --- | --- |
@@ -91,7 +95,7 @@ API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还�
 | `.\scripts\pnpm.ps1 test:infra` | 验证三存储读写、权限与备份恢复 |
 | `.\scripts\pnpm.ps1 test:platform` | 自建隔离三存储，验证上传、发布与恢复；需要 Docker 和本机锁定镜像 |
 
-`build`、`typecheck` 使用本地缓存，画廊构建输出不进入 Turbo 缓存；测试、消费者安装、截图、发布和基线更新不进入 Turbo 缓存。平台测试与浏览器测试应顺序执行，避免重建产物相互影响。
+`build`、`typecheck` 使用本地缓存，画廊和管理端构建输出不进入 Turbo 缓存；测试、消费者安装、截图、发布和基线更新不进入 Turbo 缓存。平台测试与浏览器测试应顺序执行，避免重建产物相互影响。
 
 ## 发布与运行边界
 

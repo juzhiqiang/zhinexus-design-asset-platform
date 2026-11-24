@@ -49,10 +49,10 @@
 
 ## 核心架构约束
 
-- 工作区固定管理 10 个成员：`apps/api`、`apps/gallery`、`apps/preview-gateway`、`packages/contracts`、`packages/charts-core`、`packages/charts-vue`、`packages/charts-react`、`packages/component-cli`、`examples/vue`、`examples/react`。
+- 工作区固定管理 11 个成员：`apps/api`、`apps/gallery`、`apps/admin`、`apps/preview-gateway`、`packages/contracts`、`packages/charts-core`、`packages/charts-vue`、`packages/charts-react`、`packages/component-cli`、`examples/vue`、`examples/react`。2026-11-24 用户授权拆分公开画廊与内网后台，边界见 `docs/plans/2026-11-24-gallery-admin-split.md`。
 - 服务端依赖白名单：`@company/platform-api` 与 `@company/preview-gateway` 的依赖闭包仅允许包含自身与 `@company/contracts`，严禁依赖图表运行时、画廊、CLI 或示例包（由 `scripts/verify-workspace.ts` 与 `pnpm build:services` 强制保障）。
 - 公开包与私有包边界：仅 `@company/charts-core`、`@company/charts-vue`、`@company/charts-react`、`@company/component-cli` 为公开包（`private: false`），其余成员均为 `private: true`。公开包的运行时 `dependencies` 严禁依赖私有包 `@company/contracts`（CLI 引入契约校验时须在构建产物中内联）。
-- 模块间只通过包名与 `exports` 引用，禁止跨包通过相对路径导入其他包的 `src/`；前端画廊 `apps/gallery` 通过 HTTP 接口和 `@company/contracts` 契约与后端交互，不得导入 NestJS 服务端模块。
+- 模块间只通过包名与 `exports` 引用，禁止跨包通过相对路径导入其他包的 `src/`；前端 `apps/gallery`、`apps/admin` 通过 HTTP 接口和 `@company/contracts` 契约与后端交互，不得导入 NestJS 服务端模块或相互导入源码。后台及管理 API 只允许内网入口；登录画廊不自动获得全部私有资产权限。
 - Turborepo 只负责仓库内 `build`、`typecheck`、`dev` 任务编排；`test`、`test:browser`、`component`、外部消费者安装、截图、基线更新与线上发布作业严禁进入 Turbo 缓存。
 - 详细边界见 `rules/architecture.md` 和 `rules/platform.md`。
 

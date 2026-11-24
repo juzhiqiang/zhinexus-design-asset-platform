@@ -7,6 +7,7 @@ import { parse } from 'yaml';
 const root = fileURLToPath(new URL('../', import.meta.url));
 const expected = new Map([
   ['apps/api', '@company/platform-api'], ['apps/gallery', '@company/gallery'],
+  ['apps/admin', '@company/admin'],
   ['apps/preview-gateway', '@company/preview-gateway'], ['packages/contracts', '@company/contracts'],
   ['packages/charts-core', '@company/charts-core'], ['packages/charts-vue', '@company/charts-vue'],
   ['packages/charts-react', '@company/charts-react'], ['packages/component-cli', '@company/component-cli'],

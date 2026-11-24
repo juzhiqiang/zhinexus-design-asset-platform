@@ -33,7 +33,7 @@ it('applies an unrecorded earlier migration even when a later version has alread
     await migrateRegistry(db);
     await migrateRegistry(db);
     expect((await db.query('SELECT version FROM registry_migrations WHERE version>=12 ORDER BY version')).rows).toEqual([{version:12},{version:14}]);
-    expect((await db.query("SELECT to_regclass('managed_accounts') AS name")).rows[0].name).toBe('managed_accounts');
+    expect((await db.query("SELECT to_regclass('managed_accounts') AS name")).rows[0]?.name).toBe('managed_accounts');
     expect((await db.query('SELECT state_hash,web_target FROM oidc_attempts ORDER BY state_hash')).rows).toEqual([
       {state_hash:'old-candidate',web_target:'admin'}, {state_hash:'old-gallery',web_target:'gallery'},
     ]);

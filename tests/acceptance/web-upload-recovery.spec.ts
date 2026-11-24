@@ -2,11 +2,11 @@ import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { manifestDigest, validateManifest, type ReleaseManifestV1 } from '@company/contracts';
-import { sanitizeWebManifest } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+import { sanitizeWebManifest } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 
 // Browser storage/recovery checks with an explicitly mocked API. These do not
 // replace the separate real PostgreSQL/MinIO/Verdaccio end-to-end suite.
-const origin = process.env.WEB_UPLOAD_ORIGIN ?? `http://127.0.0.1:${process.env.WEB_UPLOAD_PORT ?? 5173}`;
+const origin = process.env.WEB_UPLOAD_ORIGIN ?? `http://127.0.0.1:${process.env.WEB_UPLOAD_PORT ?? 5177}`;
 const apiUrl = 'https://web-recovery.test';
 const subject = 'acceptance-alice';
 const storageKeys = ['zhinexus_pending_release', 'zhinexus_active_session_id',

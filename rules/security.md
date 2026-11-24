@@ -26,3 +26,10 @@
 - Verdaccio 严格分离平台发布服务专用的写入账号与开发者/业务项目的只读消费凭证；客户端不直接持有 PostgreSQL、MinIO 或 Verdaccio 的写凭证。
 - 数据库密码、MinIO 密钥、Verdaccio Token、OIDC Client Secret、Cookie 等敏感值只能通过环境变量或密钥管理注入，严禁写入代码、配置文件、`docs/verification/` 日志、检查报告或 Git 提交。
 - 发布状态变更、视觉基线创建/更新（含操作者与理由）、版本废弃（`POST /v1/variant-releases/:id/deprecate`）及鉴权拒绝均须记录到 `audit_events` 表。
+
+## 公开画廊与内网管理端
+
+- 公开画廊与管理端独立部署；公网入口只允许目录、登录与预览所需的精确 API 路径。管理端页面、上传、发布、账号、配置和管理查询接口仅从公司网络/VPN 进入；CORS 或隐藏导航不能代替网络限制。
+- 两个前端使用同一 API origin 承载 host-only 会话 Cookie。API 对两端精确 origin 执行 CORS 与 Cookie 写请求 CSRF 校验；入口的网络限制依据真实连接来源，不信任用户提供的转发头。源站服务不得直接暴露公网。
+- OIDC target 仅接受 gallery/admin 两个固定值，服务端持久化绑定；禁止任意 return URL。候选配置登录固定回内网管理端。私有目录仍使用逐组件 catalog_can_read 权限，不因登录自动授权。
+- 私有目录不进入公开 HTML、metadata、sitemap 或共享缓存；登出、会话失效和权限拒绝时清除页面中的私有数据。配置模板和生产网络/TLS 验收分别记录，不能把本机通过等同已部署。

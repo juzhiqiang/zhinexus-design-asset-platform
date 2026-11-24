@@ -8,11 +8,11 @@ import {
   parseAndValidateImportedManifest,
   attachLocalFile,
   type WebUploadWorkflowStorage,
-} from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+} from '../../apps/admin/app/lib/uploads/manifest-form.js';
 import {
   validateVariantScreenshots,
   createManualScreenshotRef,
-} from '../../apps/gallery/app/lib/uploads/screenshot-validation.js';
+} from '../../apps/admin/app/lib/uploads/screenshot-validation.js';
 import { pngBytes } from '../fixtures/t05-artifacts.js';
 
 const ALL_SEVEN_COMPONENTS = [

@@ -3,9 +3,9 @@ import { tmpdir } from 'node:os';
 import { join, relative, resolve } from 'node:path';
 import { expect, test } from '@playwright/test';
 import { validateManifest } from '@company/contracts';
-import { sanitizeWebManifest } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+import { sanitizeWebManifest } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 
-const origin = process.env.WEB_UPLOAD_ORIGIN ?? `http://127.0.0.1:${process.env.WEB_UPLOAD_PORT ?? 5173}`;
+const origin = process.env.WEB_UPLOAD_ORIGIN ?? `http://127.0.0.1:${process.env.WEB_UPLOAD_PORT ?? 5177}`;
 
 test('older valid digest result cannot enable submission of newer corrupt files', async ({ page }) => {
   test.setTimeout(60_000);

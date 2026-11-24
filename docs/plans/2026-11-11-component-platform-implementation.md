@@ -1,5 +1,7 @@
 # 图表与组件资产平台 Implementation Plan
 
+2026-11-24 用户授权公开画廊与内网管理端拆分：新增私有工作区 apps/admin（5177），gallery（5173）保留公开页面及按账号权限读取的 /library；管理 API（3000）在统一身份来源下按内网入口隔离，预览网关（3001）保持独立。工作区当前边界改为 11 成员。本次分工、接口和验收以 [拆分计划](2026-11-24-gallery-admin-split.md) 为准，不追改以下历史验收结论。
+
 2026-11-21 部署调整（T07、T12）。暂无域名时，可按用户授权显式启用同 IPv4 分 HTTPS 端口预览。独立域保持默认，正式 G2 的 DNS/TLS 仍走独立域验收。见 [分端口实施计划](docs/plans/2026-11-21-preview-ip-port.md)。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.

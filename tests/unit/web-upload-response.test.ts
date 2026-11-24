@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   completeUploadSession, createMemoryStorage, createUploadSession, executeWebUploadWorkflow, fetchReleaseJob,
   sanitizeWebManifest, submitReleaseJob, uploadPartBytes,
-} from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+} from '../../apps/admin/app/lib/uploads/manifest-form.js';
 import { makeApiFixtures } from '../fixtures/releases/g1/api.js';
 import { makeFixture } from '../fixtures/releases/g1/factory.js';
 
