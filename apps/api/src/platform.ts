@@ -18,13 +18,27 @@ import { ManagedAccountsService, type ManagedAccountsOptions } from './accounts/
 import { KeycloakIdentityAdapter, type KeycloakOptions } from './identity/keycloak.js';
 import type { IdentityAdapter } from './identity/adapter.js';
 import { IdentityWorker } from './identity/worker.js';
+import { LocalIdentityService, type LocalIdentityOptions } from './identity/local/service.js';
+import { LocalIdentityStore } from './identity/local/store.js';
+import { LocalSigningKeys } from './identity/local/keys.js';
+import { LocalIdentityAdapter } from './identity/local/adapter.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter;localIdentity?: LocalIdentityOptions };
 function validateWebOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
   const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
   if ((!localHttp && url.protocol !== 'https:') || url.username || url.password || url.hostname.includes('*') || value !== url.origin) throw new PlatformError('INVALID_SCHEMA');
+  return value;
+}
+function validateLocalRedirectUri(value: string, channel: 'web' | 'cli'): string {
+  if (/[\\?#]/u.test(value)) throw new PlatformError('INVALID_SCHEMA');
+  let url: URL;
+  try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
+  const cliLoopback = channel === 'cli' && url.protocol === 'http:' && url.hostname === '127.0.0.1' && Number(url.port) >= 1024;
+  if ((url.protocol !== 'https:' && !cliLoopback) || url.username || url.password || url.hostname.includes('*') || url.pathname === '/' || url.href !== value) {
+    throw new PlatformError('INVALID_SCHEMA');
+  }
   return value;
 }
 export function environmentOptions(): PlatformOptions {
@@ -54,14 +68,40 @@ export function environmentOptions(): PlatformOptions {
     // The self-managed issuer and realm are deployment configuration, never taken from a request.
     const base = new URL(env.PLATFORM_SELF_MANAGED_ISSUER);
     if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash) throw new PlatformError('INVALID_SCHEMA');
-    const realm = /^\/realms\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/.exec(base.pathname)?.[1];
-    if (!realm || !env.PLATFORM_IDENTITY_BASE_URL || !env.PLATFORM_IDENTITY_ADMIN_CLIENT_ID || !env.PLATFORM_IDENTITY_ADMIN_SECRET_REF) throw new PlatformError('INVALID_SCHEMA');
-    const secret = process.env['PLATFORM_IDENTITY_ADMIN_SECRET_' + env.PLATFORM_IDENTITY_ADMIN_SECRET_REF];
-    if (!secret) throw new PlatformError('INVALID_SCHEMA');
-    const identityBase = new URL(env.PLATFORM_IDENTITY_BASE_URL);
-    if (identityBase.protocol !== 'https:' || identityBase.username || identityBase.password || identityBase.search || identityBase.hash || !identityBase.pathname.startsWith('/realms/')) throw new PlatformError('INVALID_SCHEMA');
-    result.managedAccounts = { issuer: env.PLATFORM_SELF_MANAGED_ISSUER, realm };
-    result.identity = { baseUrl: env.PLATFORM_IDENTITY_BASE_URL, realm, adminClientId: env.PLATFORM_IDENTITY_ADMIN_CLIENT_ID, adminClientSecret: secret };
+    const mode = env.PLATFORM_IDENTITY_MODE ?? 'keycloak';
+    if (mode === 'local') {
+      // Both public gallery and internal admin logins return to the API OIDC callback first,
+      // then CompanyOidc redirects to galleryOrigin/library or adminOrigin/upload by web_target.
+      const list = (value: string | undefined, fallback: string[]): string[] => {
+        const parsed = (value ?? '').split(',').map(item => item.trim()).filter(Boolean);
+        return parsed.length ? parsed : fallback;
+      };
+      const apiOrigin = env.PLATFORM_API_ORIGIN?.replace(/\/$/, '');
+      const webRedirects = list(env.PLATFORM_IDENTITY_WEB_REDIRECT_URIS, apiOrigin ? [`${apiOrigin}/v1/auth/oidc/callback`] : []);
+      const cliRedirects = list(env.PLATFORM_IDENTITY_CLI_REDIRECT_URIS, []);
+      if (!webRedirects.length || !cliRedirects.length) throw new PlatformError('INVALID_SCHEMA');
+      webRedirects.forEach(uri => validateLocalRedirectUri(uri, 'web'));
+      cliRedirects.forEach(uri => validateLocalRedirectUri(uri, 'cli'));
+      result.managedAccounts = { issuer: env.PLATFORM_SELF_MANAGED_ISSUER, realm: 'local' };
+      result.localIdentity = {
+        issuer: env.PLATFORM_SELF_MANAGED_ISSUER,
+        audience: env.PLATFORM_IDENTITY_AUDIENCE ?? env.PLATFORM_API_ORIGIN ?? env.PLATFORM_SELF_MANAGED_ISSUER,
+        webClientId: env.PLATFORM_IDENTITY_WEB_CLIENT_ID ?? 'zhinexus-web',
+        cliClientId: env.PLATFORM_IDENTITY_CLI_CLIENT_ID ?? 'zhinexus-cli',
+        webRedirectUris: webRedirects,
+        cliRedirectUris: cliRedirects,
+      };
+    } else {
+      if (mode !== 'keycloak') throw new PlatformError('INVALID_SCHEMA');
+      const realm = /^\/realms\/([A-Za-z0-9][A-Za-z0-9._-]{0,63})$/.exec(base.pathname)?.[1];
+      if (!realm || !env.PLATFORM_IDENTITY_BASE_URL || !env.PLATFORM_IDENTITY_ADMIN_CLIENT_ID || !env.PLATFORM_IDENTITY_ADMIN_SECRET_REF) throw new PlatformError('INVALID_SCHEMA');
+      const secret = process.env['PLATFORM_IDENTITY_ADMIN_SECRET_' + env.PLATFORM_IDENTITY_ADMIN_SECRET_REF];
+      if (!secret) throw new PlatformError('INVALID_SCHEMA');
+      const identityBase = new URL(env.PLATFORM_IDENTITY_BASE_URL);
+      if (identityBase.protocol !== 'https:' || identityBase.username || identityBase.password || identityBase.search || identityBase.hash || !identityBase.pathname.startsWith('/realms/')) throw new PlatformError('INVALID_SCHEMA');
+      result.managedAccounts = { issuer: env.PLATFORM_SELF_MANAGED_ISSUER, realm };
+      result.identity = { baseUrl: env.PLATFORM_IDENTITY_BASE_URL, realm, adminClientId: env.PLATFORM_IDENTITY_ADMIN_CLIENT_ID, adminClientSecret: secret };
+    }
   }
   return result;
 }
@@ -79,8 +119,15 @@ export class Platform {
   readonly companyOidc?: CompanyOidc;
   readonly accounts?: ManagedAccountsService;
   readonly identityWorker?: IdentityWorker;
+  /** Present when the platform issues its own tokens instead of delegating to Keycloak. */
+  readonly localIdentity?: LocalIdentityService;
   constructor(options: PlatformOptions) {
     if (options.access) validateAccessOptions(options.access);
+    if (options.localIdentity) {
+      if (!options.localIdentity.webRedirectUris.length || !options.localIdentity.cliRedirectUris.length) throw new PlatformError('INVALID_SCHEMA');
+      options.localIdentity.webRedirectUris.forEach(uri => validateLocalRedirectUri(uri, 'web'));
+      options.localIdentity.cliRedirectUris.forEach(uri => validateLocalRedirectUri(uri, 'cli'));
+    }
     this.events = options.events ?? new PlatformEvents();
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
     this.metricsToken = options.metricsToken;
@@ -103,9 +150,17 @@ export class Platform {
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
     if (this.db && options.access) {
       this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : probePreview(this.db!,this.access!,this.companyOidc!.network,config as import('@company/contracts').PreviewAccessConfig),this.adminOrigin);
-      if (options.managedAccounts && options.identity) {
+      if (options.managedAccounts && (options.identity || options.localIdentity)) {
         const network = new RestrictedHttps(options.access.outbound, options.access.ca, options.accessLookup);
-        this.accounts = new ManagedAccountsService(this.db, this.access, options.managedAccounts, options.identityAdapter ?? new KeycloakIdentityAdapter(network, options.identity!));
+        if (options.localIdentity) {
+          const store = new LocalIdentityStore(this.db);
+          this.localIdentity = new LocalIdentityService(store, new LocalSigningKeys(this.db), options.localIdentity);
+          this.accounts = new ManagedAccountsService(this.db, this.access, options.managedAccounts,
+            options.identityAdapter ?? new LocalIdentityAdapter(store, { issuer: options.managedAccounts.issuer }));
+        } else {
+          this.accounts = new ManagedAccountsService(this.db, this.access, options.managedAccounts,
+            options.identityAdapter ?? new KeycloakIdentityAdapter(network, options.identity!));
+        }
       }
       this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts);
       if (this.accounts) this.identityWorker = new IdentityWorker(this.accounts);
