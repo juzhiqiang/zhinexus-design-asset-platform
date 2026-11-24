@@ -15,7 +15,7 @@ I1 的原缺陷测试在修复前退出码为 1，实际结果为 **2 failed、1
 
 I2 在原实现过程中没有单独保存测试先行的 RED 产物，本记录不把后补验证冒充为原始 TDD 时间线。为补足回归证明，本轮随后使用 `8d66df2a` 的历史 `vite-consumer.ts` 实现隔离运行当前两个 Vue/React 生命周期拒绝用例，确认两者都会捕获缺陷；再恢复 `0ac96519` 当前实现并用完全相同的命令确认 GREEN。具体结果见下文“I2 追加历史实现回归验证”。
 
-最终结果文件保存在忽略目录 `.superpowers/sdd/2026-11-24-project-cli-publishing/final-fix-evidence/`；该目录是运行时原始证据，以下表格在持久文档中保留完整命令、退出码和摘要：
+最终结果文件已归档到忽略目录 `test-results/project-publishing-final-fix/final-fix-evidence/`；这些文件是运行时原始证据，不随 Git 发布。以下表格在持久文档中保留完整命令、退出码和摘要：
 
 | 证据 | 命令 | 退出码与结果 |
 | --- | --- | --- |
@@ -93,7 +93,63 @@ CLI 类型检查与构建通过，`pnpm verify:workspace` 通过。根 `pnpm typ
 
 ## 复审状态
 
-本补录修正后仍需一次仅覆盖持久验证文档的 scoped rereview。复审结论将在取得后追加到本节；当前不提前记录“通过”。
+最终定向复审覆盖 `8d66df2a..03f19fc6` 中的 I1/I2 产品控制流、对应回归测试、验证证据及修复 diff 是否引入新破坏，不把本轮范围扩大为对原分支全部功能的重新审查。
+
+- I1 **ADDRESSED**：`packages/component-cli/src/local/release.ts:140-166` 对只有旧 `uploadSessionId`、没有 `jobId`/`uploadPlan` 且尚无完成证明的会话，先向原会话调用完成端点；网络失败、非 2xx 或不合约响应均以 `UPLOAD_COMPLETION_UNPROVEN` 失败关闭。只有有效证明持久化后，`:251-264` 才使用原会话、首次幂等键与原摘要提交发布。`tests/integration/project-publish.test.ts:204-295` 覆盖失败关闭、原会话完成后发布和已有 `jobId` 仅继续轮询。
+- I2 **ADDRESSED**：`packages/component-cli/src/project/vite-consumer.ts:43-77` 只在所选冻结 React 导出完成 `useLayoutEffect` commit 或所选冻结 Vue 导出完成 `onMounted` 后触发绑定；`packages/component-cli/src/local/capture.ts:92-93,235` 在截图前拒绝未触发生命周期的页面。`tests/integration/project-publish.test.ts:127-173` 同时覆盖手工调用后丢弃的 Vue/React 负例和真实 mount/commit 正例。
+- 新破坏：没有 Critical/Important。唯一 Minor 是本节此前把复审范围错写成“仅覆盖持久验证文档”；本次补录已按真实范围修正。
+- 规格结论：**PASS（仅限本次 scoped findings）**。原整分支审查的两项 Important 均已关闭。
+- 质量结论：**PASS WITH MINOR DOCUMENTATION NOTE**。产品修复失败关闭，相关负例、顺序、身份保持、正常框架语义和真实平台回归均有证据；上述 Minor 文案已修正。
+
+复审实际核对了 `project-publish-green-21.json`（21/21）、`related-green-51.json`（4 文件、10 suites、51/51）、`platform-real-green-2.json`（2/2）、强制构建等价命令（11/11、0 cached）、最终根测试（146/146 文件、2473 passed、2 skipped）和类型检查（15/15）。复审未重跑产品门禁，也未审查修复 diff 未触及的产品代码。
+
+I2 的历史 RED 是实现完成后的隔离历史版本回归。本轮能核对保留日志、结构化摘要、当前源码哈希和恢复后的干净状态，但无法仅凭静态产物逐步重建当时每一次临时替换动作；这不改变当前负例与完整目标集的 GREEN 结论。生产 OIDC/TLS、独立预览域名、G2/T11、两个真实业务项目试点及其他明确保留范围仍未验收，不能由本地 Ready 或本报告推断完成。
+
+完整复审原文已复制到本地忽略证据目录 `test-results/project-publishing-final-fix/final-fix-scoped-review.md`。该目录用于保留运行生成证据，不随 Git 提交发布。
+
+## 提交范围
+
+`8d66df2a..03f19fc6` 新增提交如下；本次 docs-only 收尾提交的哈希应在提交完成后通过 `git log` 查询，不在提交自身内容中预填。
+
+| 提交 | 目的 |
+| --- | --- |
+| `0ac96519` | 收紧真实框架生命周期证明，并要求旧上传会话先取得原会话完成证明。 |
+| `1f738cd1` | 补录最终修复验证、根测试、构建限制与最新 Ready 证据。 |
+| `03f19fc6` | 补录 I2 历史实现回归，明确其为事后证据而非原始 TDD 时间线。 |
+
+本轮版本保持 CLI `0.0.28`、根 API `0.1.2`、Admin `0.0.2`；docs-only 收尾不触发版本升级。
+
+## 决策账本
+
+以下 23 项按本地归档 `test-results/project-publishing-final-fix/progress.md` 中 `Ruling:` 的出现顺序逐字保留，包含每项原因与错误代价，不新增或合并决策：
+
+1. Execute implementers sequentially with fresh task reviewers — subagent-driven-development requires this and shared contracts must be reviewed first — cost if wrong: longer turnaround than safe independent parallel work.
+2. Optional ECharts/styleExport/readyMethod fields for ordinary components, strict if present — real project support must not invent chart capabilities — cost if wrong: downstream consumers need guards around optional fields; full graph verification required.
+3. Use apps/admin/app/lib for admin clients — actual repository structure differs from plan shorthand — cost if wrong: path-only rework.
+4. Permit migration registry/rollback and narrow stale historical migration test updates in Task 1 — a new migration must register safely and existing migration 013 already invalidates old assumptions — cost if wrong: migration tests could miss regressions; retain rollback intent and record baseline.
+5. Use existing isolated Node 26.13.0 with pnpm 12.18.0 — Node 24.6.0 failed the frozen @angular-devkit/core 22.2.6 engine check — cost if wrong: validation differs from global Node; no dependency rollback or global environment mutation.
+6. implement short network interruption recovery via persisted validated upload plan/file checkpoints/uploadComplete; expired URLs fail closed while preserving frozen materials and original session, no unapproved C API change — frozen interfaces only support this recovery boundary — cost if wrong: longer interruptions need a later same-session renewal API; Task4 must report precise recovery limitation and assess any existing safe renewal path.
+7. Restrict publication consumers to CLI-controlled Vite adapter with actual installed exact Vite/config, real module provenance and selected export execution marker; keep arbitrary component build/dev — arbitrary opaque consumer commands cannot prove screenshot provenance and reviewer reproduced wrong framework/outside alias — cost if wrong: developers using other consumer compilers need a dedicated Vite consumer or later adapter. Temporary wrappers must preserve Props/events/ref/ready API and not modify installed package/tarball. Config must clearly represent this adapter; no silently ignored consumer.build command.
+8. Ordinary components publish with optional API fields, while existing chart assembly returns API_UNSUPPORTED when it lacks required style/ready metadata — low-code/automatic generic integration is a later delivery, and current MatchTarget must remain valid — cost if wrong: some ordinary components need future assembly compatibility work before automatic insertion.
+9. Keep Vite/config plugins inside the developer local execution trust boundary and fail closed for browser-conditional entry differing from the checked Node ESM entry; document both limits rather than adding an unapproved compiler plugin whitelist — legitimate compilation requires developer adapters and this feature is provenance validation, not a malicious-local-process sandbox — cost if wrong: more consumer adapters/transform controls will be needed before claiming stronger attestation or supporting alternate browser entries.
+10. Task4 C may fix the already-confirmed category-name NUL validation gap with contract+realHTTP RED/GREEN and schema/vendor sync — PostgreSQL cannot store NUL names and current503 misclassifies client input — cost if wrong: stricter name validation rejects previously syntactically accepted but unstorable inputs; verify create/update and inline CLI contracts stay aligned.
+11. Preserve existing package-completeness contract and link admin selections by package; separate Vue/React publication uses separate packages, dual-framework shared package submits all implementations — published npm version is atomic and cannot be repacked after screenshots — cost if wrong: developers must split packages or supply all implementation materials when they want independent framework releases.
+12. Continue Task4 with fresh higher-capability implementer because original provider quota prevents its next request — preserve all edits/results and recover pending checks, no restart of completed tasks — cost if wrong: replacement needs context reconciliation and may repeat narrow checks.
+13. C may update stale bootstrap future-command expectation and establish independent worktree-local exact toolchain for existing path-bound acceptance — newCLI commands invalidate old placeholder and existing tests demand local executables — cost if wrong: test expectation could hide CLI regression; retain semantic argument checks and actual installed-bin evidence, original toolchain untouched.
+14. Accept declined review boundary: malicious local Vite config/plugin process sandbox remains outside this iteration — local developer trust boundary is explicitly documented — cost if wrong: hostile local transforms require a separate stronger attestation design.
+15. Accept declined review boundary: other compilers and differing browser/Node conditional exports remain unsupported — only current controlled Vite adapter is verified — cost if wrong: affected projects need dedicated adapters.
+16. Accept declined review boundary: no automatic same-session URL renewal — platform has no such interface and original session must remain preserved — cost if wrong: expired partial uploads require a later platform endpoint.
+17. Accept declined review boundary: Zip upload remains follow-up — approved spec explicitly defers it — cost if wrong: developers still prepare individual frozen materials.
+18. Accept declined review boundary: complete history download/page-version binding remains follow-up — current precise consumer support is not a download UI — cost if wrong: users need a later version-download feature.
+19. Accept declined review boundary: generic low-code adapter/editor metadata remains follow-up — ordinary npm imports are independent of chart assembly qualification — cost if wrong: generic automatic insertion requires later adapters.
+20. Accept declined review boundary: productionOIDC/TLS/independent domain/G2/T11 remain unaccepted — local signatures and isolated stores cannot prove external deployment — cost if wrong: production launch still needs those acceptance gates.
+21. Accept declined review boundary: arbitrary business projects are not universally validated — fixture and clean consumer evidence cover measured routes — cost if wrong: real projects may need compatibility fixes during pilots.
+22. Use the equivalent direct Turbo forced-build command for final fix verification and preserve the pnpm build --force failure — current root build script explicitly supplies --cache=local:rw which conflicts with --force — cost if wrong: equivalence omits the explicit cache-mode option; require complete11/11 zero-cache evidence and do not alter root script or rewrite prior verification. Controller confirmed platform-real2/2, rootbuild11/11zerocached and typecheck15/15(14cached); root test pending.
+23. Record a late isolated historical-implementation I2 RED/GREEN probe as regression evidence, not as original TDD chronology — the original I2 RED artifact is unavailable and evidence must not be invented — cost if wrong: the first test-before-implementation execution order remains unauditable; the appended probe must still prove both regressions and restore identical product bytes.
+
+## 原始证据本地归档
+
+`final-fix-evidence/` 的 15 个原始结果文件，以及 `final-review.md`、`final-fix-scoped-review.md`、`final-fix-report.md`、`progress.md`，均复制到本地忽略目录 `test-results/project-publishing-final-fix/`。复制后 19/19 个文件的源/目标 SHA-256 一致，并生成 `SHA256SUMS.txt`；该清单 SHA-256 为 `51EC2D3FD023D0CCF68BB8A8DA2372AF0D9E52EB830AB70999DDD7EEC4F86BFC`。这些运行生成文件不会随 Git 发布；即使后续清理计划 scratch，本地归档仍保留本轮原始输出。
 
 ## 保留边界
 
