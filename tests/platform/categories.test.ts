@@ -16,6 +16,17 @@ async function createCategory(h: Harness, id = 'charts') {
 const update = (h: Harness, id: string, body: unknown, token: string) => h.request(`/v1/categories/${id}/update`, body, token);
 
 describe('persistent category and publishing HTTP', () => {
+  it('rejects category names containing NUL with 400 and leaves stored categories unchanged', async () => {
+    const h = await harness();
+    try {
+      const token = await h.token('admin', ['reader']);
+      const created = await h.request('/v1/categories', { id: 'bad', name: 'bad\u0000name' }, token);
+      await createCategory(h);
+      const updated = await update(h, 'charts', { name: 'bad\u0000name', enabled: true, expectedRevision: '0' }, token);
+      expect([created.status, updated.status]).toEqual([400, 400]);
+      expect((await h.db.query('SELECT id,name,revision FROM component_categories ORDER BY id')).rows).toEqual([{ id: 'charts', name: '图表', revision: '0' }]);
+    } finally { await h.close(); }
+  });
   it('allows only real administrators to create, rename and disable, with persistent optimistic revisions and audit', async () => {
     const h = await harness();
     try {

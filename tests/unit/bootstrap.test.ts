@@ -1,4 +1,7 @@
 import { describe, expect, it } from 'vitest';
+import { mkdtemp, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { runCli } from '../../packages/component-cli/src/cli.js';
 import { buildServer } from '../../apps/api/dist/app.js';
 import { buildServer as buildPreviewServer } from '../../apps/preview-gateway/dist/app.js';
@@ -7,11 +10,24 @@ describe('bootstrap entry points', () => {
   it('reports the supplied CLI version', async () => {
     expect(await runCli(['--version'], '0.0.0')).toEqual({ exitCode: 0, stdout: '0.0.0\n', stderr: '' });
   });
-  it('does not pretend future commands are implemented', async () => {
-    for (const command of ['init', 'dev', '--unknown']) {
-      const result = await runCli([command], '0.0.0');
-      expect(result.exitCode).not.toBe(0);
-      expect(result.stderr).toContain('尚未实现');
+  it('validates implemented project commands and still rejects unknown commands', async () => {
+    const root = await mkdtemp(join(tmpdir(), 'component-bootstrap-'));
+    try {
+      expect(await runCli(['init'], '0.0.0', { cwd: root })).toEqual({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'ARGUMENT_REQUIRED: --package\n',
+      });
+      expect(await runCli(['dev'], '0.0.0', { cwd: root })).toEqual({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'PROJECT_FILE_MISSING: component.config.json\n',
+      });
+      const unknown = await runCli(['--unknown'], '0.0.0');
+      expect(unknown.exitCode).toBe(1);
+      expect(unknown.stderr).toContain('尚未实现');
+    } finally {
+      await rm(root, { recursive: true, force: true });
     }
   });
   it('reports integrate as implemented when its subcommand is missing', async () => {

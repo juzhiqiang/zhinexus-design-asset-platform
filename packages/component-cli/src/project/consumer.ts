@@ -41,7 +41,7 @@ export async function consumerTemplate(project: LoadedProject, variant: ProjectV
   await walk(root);
   return { root, pkg, files };
 }
-export async function installProjectConsumer(project: LoadedProject, variant: ProjectVariant, frozen: FrozenArtifact, target: string, log: (message: string) => void, timeoutMs: number) {
+export async function installProjectConsumer(project: LoadedProject, variant: ProjectVariant, frozen: FrozenArtifact, target: string, log: (message: string) => void, timeoutMs: number, selectedVariants: ProjectVariant[]) {
   const template = await consumerTemplate(project, variant);
   for (const relative of template.files) {
     await fs.mkdir(path.dirname(path.join(target, relative)), { recursive: true });
@@ -71,6 +71,11 @@ export async function installProjectConsumer(project: LoadedProject, variant: Pr
   if (!inside(target, installedPackageRoot)) throw new Error('CONSUMER_SOURCE_LINK: frozen package root');
   const installedPkg = JSON.parse(await fs.readFile(path.join(installedPackageRoot, 'package.json'), 'utf8'));
   if (installedPkg.name !== frozen.packageName || installedPkg.version !== frozen.version) throw new Error('INSTALLED_PACKAGE_MISMATCH');
+  const exports = installedPkg.exports;
+  const subpaths = exports && typeof exports === 'object' && !Array.isArray(exports) ? exports : {};
+  const containsJavaScript = (value: unknown): boolean => typeof value === 'string' ? /\.(?:[cm]?js)$/i.test(value) : value !== null && typeof value === 'object' && Object.values(value).some(containsJavaScript);
+  const missing = Object.entries(subpaths).filter(([subpath, targets]) => subpath.startsWith('./') && containsJavaScript(targets) && !selectedVariants.some(selected => selected.exportPath === subpath)).map(([subpath]) => subpath);
+  if (missing.length) throw new Error('PACKAGE_IMPLEMENTATIONS_INCOMPLETE: 冻结包包含未选择的实现 ' + missing.join(', ') + '；请使用 --framework all 并配置全部实现，或拆分为独立框架包后重新构建和验证。');
   const verifyPath = path.join(target, '.verify-export.mjs');
   await fs.writeFile(verifyPath, `import { writeFile } from 'node:fs/promises';\nconst exports = await import(${JSON.stringify(moduleName)}); if (exports[${JSON.stringify(variant.exportName)}] == null) throw new Error('EXPORT_MISSING');\nawait writeFile('.installed-export.json', JSON.stringify({ entry: import.meta.resolve(${JSON.stringify(moduleName)}) }));\n`);
   await runLocal({ program: process.execPath, args: [verifyPath] }, target, log, timeoutMs);

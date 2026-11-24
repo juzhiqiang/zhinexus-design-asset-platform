@@ -69,9 +69,21 @@ export default {
   if (includeOriginal) await fs.appendFile(path.join(root, 'consumers/vue/main.js'), "\nimport * as unusedOriginal from '@fixture/project-badge/vue?original-probe'; console.log(unusedOriginal.BadgeVue);\n");
 }
 describe('project frozen consumer publication', () => {
+  it('rejects partial implementation selection from a shared frozen package before consumer build, screenshots or upload', async () => {
+    const { root, origin, uploadCreates } = await fixture(); const progress: string[] = [];
+    const result = await runCli(['prepare-release', '--framework', 'react', '--bundle-dir', 'partial-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root, onProgress: message => progress.push(message) });
+    expect(result.exitCode, result.stderr).toBe(1);
+    expect(result.stderr).toContain('PACKAGE_IMPLEMENTATIONS_INCOMPLETE');
+    expect(result.stderr).toContain('--framework all');
+    expect(result.stderr).toContain('独立框架包');
+    expect(progress.some(message => message.includes('静态预览与截图完成'))).toBe(false);
+    expect(uploadCreates()).toBe(0);
+    await expect(fs.stat(path.join(root, 'partial-bundle/screenshots'))).rejects.toThrow();
+    await expect(fs.stat(path.join(root, 'partial-bundle/manifest.json'))).rejects.toThrow();
+  }, 180_000);
   it.each(['--idempotency-key', '--key'])('honors %s on the first release of prepared materials and keeps the original session key on resume', async flag => {
     const { root, origin, rejectUploads, releaseKeys } = await fixture();
-    const prepared = await runCli(['release', '--prepare-only', '--framework', 'vue', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    const prepared = await runCli(['release', '--prepare-only', '--framework', 'all', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
     expect(prepared.exitCode, prepared.stderr).toBe(0);
     const { bundleDir } = JSON.parse(prepared.stdout);
     rejectUploads(true);
@@ -88,7 +100,7 @@ describe('project frozen consumer publication', () => {
   it('rejects a React preview declared as Vue even when the configured Vue API and export exist', async () => {
     const { root, origin } = await fixture();
     await fs.copyFile(path.join(root, 'consumers/react/main.js'), path.join(root, 'consumers/vue/main.js'));
-    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    const result = await runCli(['prepare-release', '--framework', 'all', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
     expect(result.exitCode, result.stderr).toBe(1);
     expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
     await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
@@ -99,7 +111,7 @@ describe('project frozen consumer publication', () => {
     const substitute = path.join(root, 'substitute.mjs').replace(/\\/g, '/');
     await fs.writeFile(substitute, "export const BadgeVue = { render() { return 'Vue frozen badge'; } };\n");
     await fs.writeFile(path.join(root, 'consumers/vue/vite.config.js'), `export default { resolve: { "alias": { "@fixture/project-badge/vue": ${JSON.stringify(substitute)} } } };\n`);
-    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    const result = await runCli(['prepare-release', '--framework', 'all', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
     expect(result.exitCode, result.stderr).toBe(1);
     expect(result.stderr).toContain('CONSUMER_SOURCE_LINK');
     await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
@@ -108,14 +120,14 @@ describe('project frozen consumer publication', () => {
   it('rejects importing the selected export without rendering it even when developer readiness checks claim success', async () => {
     const { root, origin } = await fixture();
     await fs.writeFile(path.join(root, 'consumers/vue/main.js'), `import { BadgeVue } from '@fixture/project-badge/vue';\nconsole.log(BadgeVue); document.querySelector('#app').textContent = 'unrelated preview';\nwindow.__COMPONENT_EXAMPLE__ = { ready: Promise.resolve(), states: ['default'], async runState() {}, getChecks() { return [{ name: 'developer-render', status: 'passed' }]; } };\n`);
-    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    const result = await runCli(['prepare-release', '--framework', 'all', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
     expect(result.exitCode, result.stderr).toBe(1); expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
     await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
   }, 180_000);
   it.each([false, true])('rejects a second alias of the facade absolute installed entry even with an unrelated original-entry import (%s)', async includeOriginal => {
     const { root, origin } = await fixture();
     await aliasFacadeEntry(root, includeOriginal);
-    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    const result = await runCli(['prepare-release', '--framework', 'all', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
     expect(result.exitCode, result.stderr).toBe(1); expect(result.stderr).toContain('CONSUMER_SOURCE_LINK');
     await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
     await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
@@ -251,7 +263,7 @@ describe('project frozen consumer publication', () => {
     expect(await computeFileSha256(path.join(material.bundleDir, packageRef.tarball.path))).toBe(packageRef.tarball.sha256);
     expect(uploaded.get(packageRef.tarball.path)).toEqual(await fs.readFile(path.join(material.bundleDir, packageRef.tarball.path)));
     const rejected = await fixture(); await aliasFacadeEntry(rejected.root, true);
-    await expect(execute(process.execPath, [bin, 'prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', rejected.origin, '--token', 'test-token'], { ...options, cwd: rejected.root })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('CONSUMER_SOURCE_LINK') });
+    await expect(execute(process.execPath, [bin, 'prepare-release', '--framework', 'all', '--bundle-dir', 'rejected-bundle', '--api-url', rejected.origin, '--token', 'test-token'], { ...options, cwd: rejected.root })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('CONSUMER_SOURCE_LINK') });
     await expect(fs.stat(path.join(rejected.root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
     const evidence = { evidence: 'INDEPENDENT_CLI_REAL_INSTALL', cliVersion: installedPkg.version, cliTarballSha256: packed.sha256, cliTarballPath: packed.tarballPath, installedRoot, commands: ['init', 'dev', 'doctor', 'prepare-release', 'release', 'release (resume)', 'prepare-release (absolute entry alias rejected)'], componentTarballSha256: packageRef.tarball.sha256, frameworkVariants: material.manifest.variants.map((variant: { framework: string }) => variant.framework), buildCount: 1, uploadCreates: uploadCreates(), state: JSON.parse(release.stdout).state, retainedArtifacts: '' };
     if (process.env.PROJECT_CLI_EVIDENCE) {
@@ -283,7 +295,7 @@ describe('project frozen consumer publication', () => {
   it('rejects source aliases and missing named exports rather than capturing a substitute implementation', async () => {
     const { root, config, origin } = await fixture();
     await fs.writeFile(path.join(root, 'consumers/vue/vite.config.js'), "export default { resolve: { alias: { '@fixture/project-badge/vue': '../../../component/src/vue.mjs' } } };");
-    const args = ['prepare-release', '--project', root, '--framework', 'vue', '--api-url', origin, '--token', 'test-token'];
+    const args = ['prepare-release', '--project', root, '--framework', 'all', '--api-url', origin, '--token', 'test-token'];
     const linked = await runCli(args, '0.0.27'); expect(linked.exitCode).toBe(1); expect(linked.stderr).toContain('CONSUMER_SOURCE_LINK');
     await fs.rm(path.join(root, 'consumers/vue/vite.config.js'));
     config.variants[0]!.exportName = 'MissingVueExport';

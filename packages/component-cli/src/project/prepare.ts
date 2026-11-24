@@ -87,7 +87,7 @@ export async function prepareProject(project: LoadedProject, variants: ProjectVa
       const variantId = variant.componentId + '-' + variant.framework; const exampleId = 'example-' + variantId;
       const consumer = await fs.mkdtemp(path.join(os.tmpdir(), 'component-project-consumer-')); consumers.push(consumer);
       if (inside(project.root, consumer) || inside(process.cwd(), consumer)) throw new Error('CONSUMER_INSIDE_WORKSPACE');
-      const installed = await installProjectConsumer(project, variant, frozen, consumer, log, timeoutMs); await verify(frozen);
+      const installed = await installProjectConsumer(project, variant, frozen, consumer, log, timeoutMs, variants); await verify(frozen);
       log('实际安装解析: ' + JSON.stringify({ variantId, packageSha256: frozen.sha256, ...installed }));
       const provenance = await buildProjectConsumer(consumer, variant, installed.installedEntry, frozen.packageName + variant.exportPath.slice(1), log, timeoutMs);
       const built = await projectPath(consumer, variant.consumer.previewDir);

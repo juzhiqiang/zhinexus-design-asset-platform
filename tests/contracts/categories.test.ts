@@ -3,6 +3,13 @@ import * as contracts from '@company/contracts';
 import { makeFixture, replaceReport } from '../fixtures/releases/g1/factory.js';
 
 describe('category snapshots and ordinary component materials', () => {
+  it('rejects NUL in category create, update and response names before PostgreSQL storage', () => {
+    for (const name of ['\u0000', 'bad\u0000name']) {
+      expect(contracts.validateCreateComponentCategory({ id: 'general', name }).ok).toBe(false);
+      expect(contracts.validateUpdateComponentCategory({ name, enabled: true, expectedRevision: '0' }).ok).toBe(false);
+      expect(contracts.validateComponentCategory({ id: 'general', name, enabled: true, revision: '0' }).ok).toBe(false);
+    }
+  });
   it('validates category administration and publishing wire inputs without trusting extra authority fields', () => {
     const category = { id: 'charts', name: '图表', enabled: true, revision: '0' };
     expect(contracts.validateComponentCategory(category).ok).toBe(true);

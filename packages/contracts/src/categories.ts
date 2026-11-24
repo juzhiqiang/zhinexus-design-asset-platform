@@ -12,7 +12,7 @@ export type PublishingOptionsResponse = {
 };
 
 export const categoryIdSchema = { ...text, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]*$' };
-const name = { ...text, maxLength: 128, pattern: '^\\S(?:[\\s\\S]*\\S)?$' };
+const name = { ...text, maxLength: 128, pattern: '^(?![\\s\\S]*\\u0000)\\S(?:[\\s\\S]*\\S)?$' };
 const revision = { type: 'string' as const, pattern: '^(0|[1-9][0-9]{0,18})$' };
 export const componentCategorySchema = object({ id: categoryIdSchema, name, enabled: { type: 'boolean' }, revision });
 export const componentCategoryListSchema = object({ items: array(componentCategorySchema) });
