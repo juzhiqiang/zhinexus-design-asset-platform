@@ -1,5 +1,5 @@
 import { expect, it } from 'vitest';
-import { summarizeRequests } from '../../scripts/capacity-metrics.js';
+import { summarizeRequests } from '../platform/capacity-metrics.js';
 
 it('uses nearest-rank p95 and includes failed request latencies and counts', () => {
   const samples = Array.from({ length: 20 }, (_, i) => ({ durationMs: i + 1, ok: i !== 19 }));

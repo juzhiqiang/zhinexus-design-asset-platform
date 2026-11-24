@@ -4,7 +4,7 @@
 
 2026-11-22 新增 [G2 五项逐项实测记录](../docs/verification/gates-infra.md)：隔离本机三存储三轮完成真实写读、权限、精确安装、进程重启与恢复，OIDC/目标预览仍未配置。共享凭证缺失时可通过 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts` 创建自有隔离环境验收，须先执行 `build:services`，不会改动共享 Compose 数据。每轮脱敏报告位于 `.tools/operations/g2-acceptance/<runId>/report.json`，同目录 `.npmrc` 含消费凭证，不得整体分享。
 
-暂无公司资源时，可先运行 `.\scripts\pnpm.ps1 preflight:production` 完成离线模板预检。报告列出缺失变量与外部待验收项，始终 `productionAcceptance:false`；资源缺失的报告退出码为 2，pnpm 包装的外层退出码为 1。配置齐全后加 `--environment` 校验实际环境变量；该命令仍不发出网络请求。两个服务导出后运行 `verify:service-staging <staging>` 检查实际发布材料。完整命令、退出码和适用边界见 [运维部署准备](../docs/guides/operations.md#部署准备)。
+暂无公司资源时，可先运行 `pnpm preflight:production` 完成离线模板预检。报告列出缺失变量与外部待验收项，始终 `productionAcceptance:false`；资源缺失的报告退出码为 2，pnpm 包装的外层退出码为 1。配置齐全后加 `--environment` 校验实际环境变量；该命令仍不发出网络请求。两个服务导出后运行 `verify:service-staging <staging>` 检查实际发布材料。完整命令、退出码和适用边界见 [运维部署准备](../docs/guides/operations.md#部署准备)。
 
 ## 独立平台专项（2026-11-14）
 
@@ -13,9 +13,9 @@
 干净工作树缺少 `.tools/g2-local/images.json` 时，只探测 `versions.json` 指定的本机 MinIO 标签，核对 `linux/amd64` 及源码 revision、release、source 标签，然后以不可变 image ID 原子登记。已有登记优先使用且同样核查；坏登记或不匹配镜像失败关闭，不覆盖已有记录。此检查核对本机镜像元数据，不是供应链签名证明。缺少镜像时先执行 `infra:up` 构建锁定源码；这一步会启动共享本地设施，平台专项本身不会隐式执行它。
 
 ```powershell
-.\scripts\pnpm.ps1 test:platform
-.\scripts\pnpm.ps1 rehearse:recovery
-.\scripts\pnpm.ps1 rehearse:backup
+pnpm test:platform
+pnpm rehearse:recovery
+pnpm rehearse:backup
 ```
 
 ## 启动与验证
@@ -23,12 +23,12 @@
 要求 Windows x64、Docker Desktop 的 Linux 容器、项目固定工具链和冻结依赖。首次构建需访问 Docker Hub、GitHub codeload 与 Go 模块源，可能耗时数分钟。
 
 ```powershell
-.\scripts\pnpm.ps1 install --frozen-lockfile
-.\scripts\pnpm.ps1 infra:up
-.\scripts\pnpm.ps1 test:infra
-.\scripts\pnpm.ps1 infra:check-access
+pnpm install --frozen-lockfile
+pnpm infra:up
+pnpm test:infra
+pnpm infra:check-access
 # 需要停止时执行；保留数据和凭证
-.\scripts\pnpm.ps1 infra:stop
+pnpm infra:stop
 ```
 
 | 设施 | 本机地址 | 固定版本 / 用途 |
@@ -85,7 +85,7 @@
 
 ```powershell
 $env:G2_ACCESS_CONFIG = '.tools/g2-local/access.json'
-.\scripts\pnpm.ps1 infra:check-access
+pnpm infra:check-access
 Remove-Item Env:G2_ACCESS_CONFIG
 ```
 

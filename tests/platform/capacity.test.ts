@@ -6,7 +6,7 @@ import { expect, it } from 'vitest';
 import { validateApiMessage, type ApiMessages } from '@company/contracts';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { PlatformEvents } from '../../apps/api/dist/observability/events.js';
-import { summarizeRequests, type RequestSample } from '../../scripts/capacity-metrics.js';
+import { summarizeRequests, type RequestSample } from './capacity-metrics.js';
 import { platformHarness } from './http-support.js';
 import { workerHarness, realRegistry } from './t06-support.js';
 
