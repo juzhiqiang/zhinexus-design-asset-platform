@@ -8,8 +8,8 @@ import type {
   ValidationIssue,
   ValidationResult,
 } from '@company/contracts';
-import { getStoredSession, type UserSession } from '../../lib/auth';
-import { requestMatchPlan } from '../../lib/match-plan-client';
+import { getStoredSession, type UserSession } from '../lib/auth';
+import { requestMatchPlan } from '../lib/match-plan-client';
 import { buildDesignForm } from './design-id-input';
 
 /**

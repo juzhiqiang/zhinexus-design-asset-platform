@@ -2,8 +2,8 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getStoredSession,loadCompanySession,platformApiOrigin } from '../../../lib/auth';
-import { fetchReleaseJob } from '../../../lib/uploads/manifest-form';
+import { getStoredSession,loadCompanySession,platformApiOrigin } from '../../lib/auth';
+import { fetchReleaseJob } from '../../lib/uploads/manifest-form';
 
 export default function JobDetailPage({
   params,
@@ -163,8 +163,8 @@ export default function JobDetailPage({
           <p style={{ margin: '0 0 16px 0', fontSize: '14px' }}>
             所有 NPM 包已在注册表上线，只读静态预览已同步就绪，元数据已原子写入。
           </p>
-          <Link href="/components" className="filter-btn active" style={{ display: 'inline-block' }}>
-            返回画廊查看已发布资产 →
+          <Link href="/upload" className="filter-btn active" style={{ display: 'inline-block' }}>
+            返回发布控制台 →
           </Link>
         </div>
       )}

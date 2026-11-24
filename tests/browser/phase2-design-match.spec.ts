@@ -31,7 +31,7 @@ import { manifestDigest } from '@company/contracts';
  * HTTP 200，避免被 404 页面自带内容误判为通过。
  */
 
-const MATCH_URL = 'http://127.0.0.1:5173/match';
+const MATCH_URL = 'http://127.0.0.1:5177/match';
 const PLAN_PATH = '/v1/matching/plans';
 const AUTH_KEY = 'zhinexus_console_auth';
 

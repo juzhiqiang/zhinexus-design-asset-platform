@@ -1,8 +1,8 @@
 'use client';
 import { useEffect,useState } from 'react';
 import { ACCESS_CHECKS,validateAccessConfig,type AccessAction,type AccessSection,type AccessSettingsView,type OidcAccessConfig,type PreviewAccessConfig } from '@company/contracts';
-import { companyLoginUrl,loadCompanySession,platformApiOrigin,saveSession } from '../../lib/auth';
-import { accessSettings,startCandidateWebLogin } from '../../lib/access-settings-client';
+import { companyLoginUrl,loadCompanySession,platformApiOrigin,saveSession } from '../lib/auth';
+import { accessSettings,startCandidateWebLogin } from '../lib/access-settings-client';
 import './settings.css';
 
 const emptyOidc:OidcAccessConfig={issuer:'',audience:'',webClientId:'',cliClientId:'',webRedirectUri:'',cliRedirectUri:'',roleClaim:'',roleMapping:{reader:'',publisher:'',maintainer:''}};

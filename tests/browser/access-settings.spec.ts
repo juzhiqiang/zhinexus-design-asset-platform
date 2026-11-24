@@ -18,7 +18,7 @@ test('administrator edits, saves and validates a preview draft with visible vers
     }
     await route.fulfill({json:view});
   });
-  await page.goto('http://127.0.0.1:5173/access-settings');
+  await page.goto('http://127.0.0.1:5177/access-settings');
   await expect(page.getByRole('heading',{name:'接入设置',exact:true})).toBeVisible();
   await page.getByRole('tab',{name:'预览入口'}).click();
   await page.getByLabel('隔离方式').selectOption('ip-port');
@@ -45,11 +45,11 @@ test('administrator edits, saves and validates a preview draft with visible vers
 test('ordinary users cannot see configuration and the console offers company login',async({page})=>{
   await page.route('**/v1/auth/oidc/session',route=>route.fulfill({status:401,json:{code:'UNAUTHENTICATED'}}));
   await page.route('**/v1/access-settings',route=>route.fulfill({status:403,json:{code:'FORBIDDEN'}}));
-  await page.goto('http://127.0.0.1:5173/access-settings');
-  await expect(page.getByRole('link',{name:'使用公司账号登录'})).toBeVisible();
+  await page.goto('http://127.0.0.1:5177/access-settings');
+  await expect(page.getByRole('link',{name:'账号登录'})).toBeVisible();
   await expect(page.getByLabel('issuer')).toHaveCount(0);
-  await page.goto('http://127.0.0.1:5173/upload');
-  await expect(page.getByRole('link',{name:'使用公司账号登录'})).toBeVisible();
+  await page.goto('http://127.0.0.1:5177/upload');
+  await expect(page.getByRole('link',{name:'账号登录'})).toBeVisible();
 });
 test('explicit administrators can enter candidate Web login and see historical CLI verification',async({page})=>{
   const token='header.'+Buffer.from(JSON.stringify({sub:'operator',roles:['reader']})).toString('base64url')+'.signature';
@@ -65,7 +65,7 @@ test('explicit administrators can enter candidate Web login and see historical C
     await route.fulfill({json:{ticket:'a'.repeat(43)}});
   });
   await page.route('**/v1/auth/oidc/candidate?ticket=*',route=>route.fulfill({contentType:'text/html; charset=utf-8',body:'<h1>公司验证入口</h1>'}));
-  await page.goto('http://127.0.0.1:5173/access-settings');
+  await page.goto('http://127.0.0.1:5177/access-settings');
   await expect(page.getByText('component login --api-url', {exact:false}).filter({hasText:historical})).toBeVisible();
   await page.getByRole('button',{name:'验证候选网页登录'}).click();
   await expect(page.getByRole('heading',{name:'公司验证入口'})).toBeVisible();
@@ -78,7 +78,7 @@ test('a company Cookie session takes precedence over a stale saved token for con
     expect(route.request().headers().authorization).toBeUndefined();
     return route.fulfill({json:{authenticated:true,administrator:true,subject:'company-user',roles:['publisher']}});
   });
-  await page.goto('http://127.0.0.1:5173/upload');
+  await page.goto('http://127.0.0.1:5177/upload');
   await expect(page.getByText('company-user',{exact:true})).toBeVisible();
   await expect(page.getByText('old-user',{exact:true})).toHaveCount(0);
 });
@@ -90,7 +90,7 @@ test('manual job retries carry the explicit token without unrelated platform coo
   const job={state:'REJECTED',stage:'ENSURE_PACKAGES',attempt:2,lastError:{code:'INFRA_UNAVAILABLE',message:'Synthetic unavailable',details:[],requestId:'synthetic'},missingArtifacts:[],pollAfterMs:1000};
   await page.route('**/v1/releases/job-cookie-test',route=>route.fulfill({json:job}));
   await page.route('**/v1/releases/job-cookie-test/retry',route=>route.fulfill({json:{jobId:'job-cookie-test',state:'PENDING'}}));
-  await page.goto('http://127.0.0.1:5173/jobs/job-cookie-test');
+  await page.goto('http://127.0.0.1:5177/jobs/job-cookie-test');
   const requested=page.waitForRequest('**/v1/releases/job-cookie-test/retry');
   await page.getByRole('button',{name:'重试作业 (Retry Job)'}).click();
   const request=await requested;

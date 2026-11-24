@@ -12,7 +12,7 @@ import { ArtifactStore } from '../../apps/api/dist/storage/artifact-store.js';
 import { ReleaseWorker } from '../../apps/api/dist/releases/worker.js';
 import { RegistryClient } from '../../apps/api/dist/releases/registry-client.js';
 import { createRecoveryStack, type RecoveryStack } from '../../infra/scripts/recovery-stack.js';
-import { sanitizeWebManifest } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+import { sanitizeWebManifest } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 
 test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
   // 设置合理超时时间（覆盖独立随机端口三存储启动与 14 实现真实流转）
@@ -65,7 +65,7 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
       },
       { tokenVal: authToken, apiVal: targetApi },
     );
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
   }
 
   async function importCompleteRealMaterials(page: Page, tempManifestPath: string) {
@@ -174,7 +174,7 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
       storage: storageConfig,
       oidc: oidcConfig,
       keyResolver: createLocalJWKSet({ keys: [jwk] }),
-      galleryOrigin: 'http://127.0.0.1:5173',
+      galleryOrigin: 'http://127.0.0.1:5177',
     });
     await app.listen(0, '127.0.0.1');
     const apiOrigin = await app.getUrl();

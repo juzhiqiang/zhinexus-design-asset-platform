@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { manifestDigest } from '@company/contracts';
-import { sanitizeWebManifest } from '../../apps/gallery/app/lib/uploads/manifest-form.js';
+import { sanitizeWebManifest } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 
 const CURRENT_SDK_DIR = 'D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/69443f97-8b73-4ecb-91aa-d8835a0b58dc';
 
@@ -19,7 +19,7 @@ async function devLogin(page: Page) {
 
 test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   test('未登录用户访问发布工作区渲染登录后开放且带有 noindex 保护', async ({ page }) => {
-    const response = await page.goto('http://127.0.0.1:5173/upload');
+    const response = await page.goto('http://127.0.0.1:5177/upload');
     expect(response).not.toBeNull();
     expect(response!.status()).toBe(200);
 
@@ -30,7 +30,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('模拟登录后展示发布工作区与逐实现必检清单', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
 
     // 输入开发者凭据登录
     await devLogin(page);
@@ -46,7 +46,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('缺图阻断：任意变体缺图时禁止提交并展示明确错误提示 (blocks_submit_when_any_variant_has_no_image)', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
@@ -86,7 +86,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('框架错配拦截：导入错配框架截图时前置阻断 (SCREENSHOT_VARIANT_MISMATCH)', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
@@ -123,7 +123,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('独立作业状态机页面支持 7 阶段步骤器展示与状态轮询', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/jobs/job-web-manual-001');
+    await page.goto('http://127.0.0.1:5177/jobs/job-web-manual-001');
 
     await expect(page.locator('h1')).toContainText('发布作业流水线状态跟踪');
     await expect(page.locator('body')).toContainText('作业编号：job-web-manual-001');
@@ -145,7 +145,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     const digest = await manifestDigest(clean);
 
     // 预置符合当前 fail-closed 契约的完整三元组与合法摘要
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await page.evaluate(
       ({ digestVal, manifestVal }) => {
         localStorage.setItem(
@@ -165,7 +165,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     );
 
     // 重新进入并模拟登录
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
 
     // 验证出现恢复卡片
@@ -184,7 +184,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('支持界面选择本地图片替换截图并动态更新大小与摘要', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
 
     // 针对 line-vue 变体，触发文件选择
@@ -202,7 +202,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('上传接口失败时阻断提交流程并展示清晰错误提示', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
 
     // 1. 导入完整合法外部清单
@@ -239,7 +239,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('提交前最终快照校验触发 WebCrypto 异常时必须恢复提交按钮可用状态并提示错误', async ({ page }) => {
-    await page.goto('http://127.0.0.1:5173/upload');
+    await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
 
     // 1. 导入完整合法外部清单与目录文件直至可提交状态

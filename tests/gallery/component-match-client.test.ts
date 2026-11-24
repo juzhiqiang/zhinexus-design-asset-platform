@@ -5,7 +5,7 @@ import { componentMatchGapFixture, componentMatchQueryFixture, componentMatchRes
 import {
   COMPONENT_MATCH_PATH, buildComponentMatchQuery, requestComponentMatch, requestComponentMatchWithOutcome,
   type ComponentMatchOutcome,
-} from '../../apps/gallery/app/lib/component-match-client.js';
+} from '../../apps/admin/app/lib/component-match-client.js';
 
 /**
  * 二期 P1：组件标识精确查询 HTTP 客户端测试。

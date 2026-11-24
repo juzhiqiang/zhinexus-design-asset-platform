@@ -12,8 +12,8 @@ import {
   CREDENTIAL_LABELS,
   SYNC_LABELS,
   type ManagedAccountDraft,
-} from '../../lib/managed-accounts-client';
-import { companyLoginUrl, loadCompanySession, type UserSession } from '../../lib/auth';
+} from '../lib/managed-accounts-client';
+import { companyLoginUrl, loadCompanySession, type UserSession } from '../lib/auth';
 import type { ManagedAccountDetail, ManagedAccountRole } from '@company/contracts';
 
 const emptyDraft: ManagedAccountDraft = { username: '', displayName: '', roles: ['reader'], componentGrants: [], packageGrants: [] };

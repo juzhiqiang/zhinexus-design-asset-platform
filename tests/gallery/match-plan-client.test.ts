@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { ElementBindings, MatchPlanRequest, MatchPlanV1 } from '@company/contracts';
 import { manifestDigest } from '@company/contracts';
 import { matchPlanFixture, matchRequestFixture } from '../fixtures/match-plan.js';
-import { requestMatchPlan } from '../../apps/gallery/app/lib/match-plan-client.js';
+import { requestMatchPlan } from '../../apps/admin/app/lib/match-plan-client.js';
 
 /**
  * 二期 ID 规则匹配：装配方案 HTTP 客户端的 RED 基线测试

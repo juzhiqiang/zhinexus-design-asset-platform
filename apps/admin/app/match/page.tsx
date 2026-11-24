@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ProjectContext, SearchCandidatesResponse, ValidationResult } from '@company/contracts';
-import { getStoredSession, saveSession, clearSession,loadCompanySession,companyLoginUrl,type UserSession } from '../../lib/auth';
-import { buildProjectContext } from '../../lib/project-context-form';
-import { searchCandidates } from '../../lib/search-client';
+import { getStoredSession, saveSession, clearSession,loadCompanySession,companyLoginUrl,type UserSession } from '../lib/auth';
+import { buildProjectContext } from '../lib/project-context-form';
+import { searchCandidates } from '../lib/search-client';
 import { CandidateResults } from './CandidateResults';
 import { ComponentQuery } from './ComponentQuery';
 import { DesignIdMatch } from './DesignIdMatch';

@@ -24,7 +24,7 @@ import { validateComponentMatchResponse } from '@company/contracts';
  * HTTP 200，避免被 404 页面自带内容误判为通过。实现完成后已转 GREEN。
  */
 
-const MATCH_URL = 'http://127.0.0.1:5173/match';
+const MATCH_URL = 'http://127.0.0.1:5177/match';
 const COMPONENT_MATCH_PATH = '/v1/matching/components';
 const AUTH_KEY = 'zhinexus_console_auth';
 

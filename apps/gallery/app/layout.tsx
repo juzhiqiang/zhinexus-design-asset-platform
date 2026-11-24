@@ -24,9 +24,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
               <span>Zhinexus</span>
               <span className="site-badge">资产画廊</span>
             </Link>
-            <nav className="nav-links">
+            <nav className="nav-links" aria-label="画廊导航">
               <Link href="/components">浏览组件</Link>
-              <Link href="/upload" style={{ color: '#64748b' }}>资产发布控制台</Link>
+              <Link href="/library">我的资产库</Link>
             </nav>
           </div>
         </header>

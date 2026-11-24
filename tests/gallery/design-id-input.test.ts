@@ -5,7 +5,7 @@ import {
   buildDesignIdInput,
   groupElementsByDesignId,
   parseMappingJson,
-} from '../../apps/gallery/app/(console)/match/design-id-input.js';
+} from '../../apps/admin/app/match/design-id-input.js';
 
 /**
  * 二期 ID 规则匹配：设计 ID 配置/元素清单输入的 RED 基线测试

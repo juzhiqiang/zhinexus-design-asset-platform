@@ -9,11 +9,10 @@ export const metadata: Metadata = {
 
 export default async function CatalogPage() {
   const initialItems = await getCatalogComponents();
-  const fallbackItems = await getCatalogComponents({ allowFallback: true });
 
   return (
     <main>
-      <CatalogViewer initialItems={initialItems} fallbackItems={fallbackItems} />
+      <CatalogViewer initialItems={initialItems} />
     </main>
   );
 }

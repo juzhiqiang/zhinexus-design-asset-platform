@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { ComponentMatchQueryV1, ComponentMatchResponseV1, ValidationIssue } from '@company/contracts';
-import { getStoredSession, type UserSession } from '../../lib/auth';
-import { buildComponentMatchQuery, requestComponentMatchWithOutcome } from '../../lib/component-match-client';
+import { getStoredSession, type UserSession } from '../lib/auth';
+import { buildComponentMatchQuery, requestComponentMatchWithOutcome } from '../lib/component-match-client';
 
 /**
  * 二期 P1：`/match` 的组件标识精确查询表单（`GET /v1/matching/components`）。

@@ -10,22 +10,26 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
   variant: ComponentVariantMeta;
   refresh: () => void;
 }) {
-  const { framework, variantId, frameworkName, previewUrl } = variant;
+  const { framework, variantId, variantReleaseId, frameworkName } = variant;
   const [grant, setGrant] = useState<PreviewGrant | null | undefined>(undefined);
   const request = useRef<AbortController | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
     request.current = controller;
-    requestComponentPreview(componentId, variantId, framework, controller.signal).then(result => {
+    setGrant(undefined);
+    const promise = variantReleaseId
+      ? requestPreviewGrant(variantReleaseId, controller.signal)
+      : requestComponentPreview(componentId, variantId, framework, controller.signal);
+    promise.then((result) => {
       if (!controller.signal.aborted) setGrant(result);
     });
     return () => controller.abort();
-  }, [componentId, variantId, framework]);
+  }, [componentId, variantId, variantReleaseId, framework]);
 
   const opaque = grant ? grant.isolation === 'ip-port' : ipPreviewMode;
   const sandbox = opaque ? 'allow-scripts' : 'allow-scripts allow-same-origin';
-  const url = grant?.url ?? (opaque ? null : previewUrl);
+  const url = grant?.url ?? null;
 
   const openInNewWindow = async () => {
     if (grant?.isolation !== 'domain' || !request.current) return;
@@ -50,7 +54,7 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
     <section className="preview-section" aria-label="组件沙箱隔离预览">
       <div className="preview-toolbar">
         <div className="preview-badge-group">
-          <span className="live-indicator" title="预览服务正常"></span>
+          <span className="live-indicator" title="预览服务状态"></span>
           <strong>{frameworkName} 沙箱交互预览</strong>
           <span className="shield-badge">
             {opaque ? '沙箱安全隔离' : '独立域沙箱安全隔离'} (sandbox {sandbox})
@@ -63,15 +67,11 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
           <button type="button" className="preview-btn" onClick={refresh} title="重新加载预览沙箱">
             刷新预览
           </button>
-          {!opaque && (grant ? (
+          {!opaque && grant && (
             <button type="button" className="preview-btn" onClick={openInNewWindow} title="在独立窗口打开预览（第三方 Cookie 阻止时的降级方案）">
               独立窗口 ↗
             </button>
-          ) : (
-            <a href={previewUrl} target="_blank" rel="noopener noreferrer" className="preview-btn" style={{ textDecoration: 'none' }}>
-              独立窗口 ↗
-            </a>
-          ))}
+          )}
         </div>
       </div>
 

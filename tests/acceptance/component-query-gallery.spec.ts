@@ -9,10 +9,10 @@ import { workerHarness, realRegistry } from '../platform/t06-support.js';
 import { componentApiFixture } from '../fixtures/match-plan.js';
 import { replaceBundleArtifact } from '../fixtures/t05-artifacts.js';
 
-const galleryOrigin = process.env.PHASE2_GALLERY_ORIGIN;
-if (!galleryOrigin) throw new Error('P4 requires PHASE2_GALLERY_ORIGIN for a built Gallery instance');
-if (new URL(galleryOrigin).origin !== galleryOrigin || !['127.0.0.1', 'localhost'].includes(new URL(galleryOrigin).hostname)) {
-  throw new Error('P4 Gallery must use an explicit local origin');
+const adminOrigin = process.env.PHASE2_ADMIN_ORIGIN ?? process.env.PHASE2_GALLERY_ORIGIN;
+if (!adminOrigin) throw new Error('P4 requires PHASE2_ADMIN_ORIGIN (or PHASE2_GALLERY_ORIGIN) for a built Admin instance');
+if (new URL(adminOrigin).origin !== adminOrigin || !['127.0.0.1', 'localhost'].includes(new URL(adminOrigin).hostname)) {
+  throw new Error('P4 Admin must use an explicit local origin');
 }
 const artifacts = join(process.cwd(), 'test-results', 'phase2-query-acceptance');
 let h: Awaited<ReturnType<typeof workerHarness>> | undefined;
@@ -27,7 +27,7 @@ beforeAll(async () => {
       exportName: variant.exportName, exportPath: variant.exportPath,
     })));
     f.manifest.packages.find(pkg => pkg.peerDependencies.react)!.peerDependencies['react-dom'] = '19.3.1';
-  }, { galleryOrigin });
+  }, { galleryOrigin: adminOrigin });
   await new ReleaseWorker(h.db, h.store, await realRegistry()).runOnce(h.jobId);
   expect((await h.db.query('SELECT state FROM release_jobs WHERE id=$1', [h.jobId])).rows[0]!.state).toBe('READY');
 
@@ -70,7 +70,7 @@ async function query(): Promise<ComponentMatchResponseV1> {
 }
 
 it('真实登录与 GET 展示：输入更改和撤权清空材料，375px 可用', async () => {
-  expect((await page.goto(galleryOrigin + '/match'))?.status()).toBe(200);
+  expect((await page.goto(adminOrigin + '/match'))?.status()).toBe(200);
   await page.locator('#token-input').fill(h!.auth);
   await page.getByRole('button', { name: '凭证登录', exact: true }).click();
   const variant = h!.fixture.manifest.variants.find(v => v.componentId === 'line' && v.framework === 'vue')!;

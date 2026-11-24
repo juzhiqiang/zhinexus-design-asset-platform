@@ -15,25 +15,24 @@ export type ComponentEventSpec = {
 };
 
 export type ComponentVariantMeta = {
+  variantReleaseId: string;
   variantId: string;
   framework: Framework;
   frameworkName: string;
-  frameworkVersion: string;
+  frameworkVersion?: string;
   packageName: string;
   packageVersion: string;
   exportName: string;
   exportPath: string;
   importCode: string;
   installCommand: string;
-  previewUrl: string;
-  availability: 'Ready' | 'DEPRECATED';
-  reportSource: 'local-automatic' | 'manual-upload' | 'none';
-  baselineStatus: 'unconfirmed' | 'accepted' | 'incompatible';
-  indexStatus: 'pending' | 'indexed' | 'failed';
+  availability?: 'Ready' | 'DEPRECATED';
+  reportSource?: 'local-automatic' | 'manual-upload' | 'none';
+  baselineStatus?: 'unconfirmed' | 'accepted' | 'incompatible';
+  indexStatus?: 'pending' | 'indexed' | 'failed';
   props: ComponentPropSpec[];
   events: ComponentEventSpec[];
-  verifiedAt: string;
-  echartsVersion: string;
+  echartsVersion?: string;
 };
 
 export type ComponentCatalogItem = {
@@ -45,4 +44,3 @@ export type ComponentCatalogItem = {
   variants: ComponentVariantMeta[];
   defaultVariant: ComponentVariantMeta;
 };
-

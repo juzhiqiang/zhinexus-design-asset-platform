@@ -21,7 +21,7 @@ import { expect, test, type Page } from '@playwright/test';
  * 因此每个用例均断言 `response.status() === 200` 以消除误绿；页面实现后转 GREEN。
  */
 
-const MATCH_URL = 'http://127.0.0.1:5173/match';
+const MATCH_URL = 'http://127.0.0.1:5177/match';
 const AUTH_KEY = 'zhinexus_console_auth';
 
 /** 复用控制台既有会话门：addInitScript 注入 localStorage 会话，避免 URL 传 JWT。 */

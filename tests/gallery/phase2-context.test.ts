@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildProjectContext } from '../../apps/gallery/app/lib/project-context-form.js';
+import { buildProjectContext } from '../../apps/admin/app/lib/project-context-form.js';
 
 /**
  * 二期 B1：`/match` 项目上下文本地校验的行为测试。

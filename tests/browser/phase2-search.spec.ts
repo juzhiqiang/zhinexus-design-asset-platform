@@ -22,7 +22,7 @@ import { expect, test, type Page } from '@playwright/test';
  * 同时断言 HTTP 200，其余用例验证具体页面元素和交互。
  */
 
-const MATCH_URL = 'http://127.0.0.1:5173/match';
+const MATCH_URL = 'http://127.0.0.1:5177/match';
 const SEARCH_PATH = '/v1/search/candidates';
 const AUTH_KEY = 'zhinexus_console_auth';
 

@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { createRequire } from 'node:module';
 import type { Candidate, SearchCandidatesResponse } from '@company/contracts';
 import { candidateFixture } from '../fixtures/search.js';
-import { parseCandidateResults } from '../../apps/gallery/app/lib/candidate-results.js';
-import { CandidateResults } from '../../apps/gallery/app/(console)/match/CandidateResults.js';
+import { parseCandidateResults } from '../../apps/admin/app/lib/candidate-results.js';
+import { CandidateResults } from '../../apps/admin/app/match/CandidateResults.js';
 
 // React runtime belongs to gallery; resolve from its declared dependency boundary.
 const galleryRequire = createRequire(new URL('../../apps/gallery/package.json', import.meta.url));

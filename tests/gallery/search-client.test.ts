@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import type { SearchCandidatesRequest, SearchCandidatesResponse } from '@company/contracts';
 import { validateSearchCandidatesRequest, validateSearchCandidatesResponse } from '@company/contracts';
 import { candidateFixture } from '../fixtures/search.js';
-import { searchCandidates } from '../../apps/gallery/app/lib/search-client.js';
+import { searchCandidates } from '../../apps/admin/app/lib/search-client.js';
 
 /**
  * 二期 B3：文本检索客户端的 RED 基线测试（`search-client.ts` 尚未创建）。

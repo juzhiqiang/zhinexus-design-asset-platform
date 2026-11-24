@@ -3,12 +3,12 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { manifestDigest, type PackageRef, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
-import { getStoredSession, saveSession, clearSession, loadCompanySession,companyLoginUrl,platformApiOrigin,type UserSession } from '../../lib/auth';
+import { getStoredSession, saveSession, clearSession, loadCompanySession,companyLoginUrl,platformApiOrigin,type UserSession } from '../lib/auth';
 import {
   validateVariantScreenshots,
   createManualScreenshotRef,
   type ScreenshotValidationResult,
-} from '../../lib/uploads/screenshot-validation';
+} from '../lib/uploads/screenshot-validation';
 import {
   sanitizeWebManifest,
   createEmptySevenComponentsDraft,
@@ -20,7 +20,7 @@ import {
   parseAndValidateImportedManifest,
   attachLocalFile,
   submitReleaseJob,
-} from '../../lib/uploads/manifest-form';
+} from '../lib/uploads/manifest-form';
 
 const LOCAL_STORAGE_WEB_RELEASE = 'zhinexus_web_release_session';
 const LOCAL_STORAGE_PENDING_RELEASE = 'zhinexus_pending_release';
