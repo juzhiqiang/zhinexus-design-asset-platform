@@ -28,12 +28,12 @@ async function startBuiltAdmin(port: number) {
   }
   child.kill(); throw new Error(`Built admin did not become ready: ${output}`);
 }
-async function authenticatedPage(browser: Browser, h: Harness, subject: string, roles: string[]) {
+async function authenticatedPage(browser: Browser, h: Harness, subject: string, roles: string[], token?: string) {
   const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
   await context.addInitScript(({ token, subject, roles, apiUrl }) => {
     localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token, subject, roles, channel: 'web' }));
     localStorage.setItem('zhinexus_api_url', apiUrl);
-  }, { token: await h.token(subject, roles), subject, roles, apiUrl: h.origin() });
+  }, { token: token ?? await h.token(subject, roles), subject, roles, apiUrl: h.origin() });
   return context.newPage();
 }
 const categoryRow = (page: Page) => page.getByRole('row').filter({ has: page.getByText('charts', { exact: true }) });
@@ -93,6 +93,36 @@ it('connects the real built admin UI to category HTTP and persists exact selecte
     await browserExpect(publisher.getByLabel('line-vue 分类')).toHaveValue('charts');
     const submit = publisher.getByRole('button', { name: '确认并提交发布' }); await browserExpect(submit).toBeEnabled();
 
+    // Actual current-subject 403 must discard the old ACL before any upload session exists.
+    await h.db.query("INSERT INTO disabled_subjects(subject) VALUES ('alice')");
+    const deniedResponse = publisher.waitForResponse(response => response.url() === h!.origin() + '/v1/publishing/options');
+    await submit.click(); expect((await deniedResponse).status()).toBe(403);
+    await browserExpect(publisher.locator('#upload-status-message')).toContainText('发布失败');
+    await browserExpect(publisher.getByText('当前发布授权：', { exact: false })).toHaveCount(0);
+    await browserExpect(publisher.getByLabel('line-react 分类')).toBeDisabled(); await browserExpect(submit).toBeDisabled();
+    await browserExpect(publisher.locator('.variant-shot-card')).toHaveCount(3);
+    expect((await h.db.query('SELECT count(*) FROM upload_sessions')).rows[0]!.count).toBe('0');
+    await h.db.query("DELETE FROM disabled_subjects WHERE subject='alice'");
+    await publisher.getByRole('button', { name: '刷新发布选项' }).click(); await browserExpect(submit).toBeEnabled();
+
+    // A real signed Bearer token expires after choices load; no mocked response or arbitrary sleep.
+    await grant(h, 'expiring-publisher');
+    const expiringToken = await h.token('expiring-publisher', ['publisher'], 'web', '5s');
+    const expiring = await authenticatedPage(browser, h, 'expiring-publisher', ['publisher'], expiringToken);
+    await expiring.goto(built.origin + '/upload?apiUrl=' + encodeURIComponent(h.origin()));
+    await expiring.locator('#import-manifest-input').setInputFiles({ name: 'manifest.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fixture.manifest)) });
+    await expiring.locator('#import-files-input').setInputFiles(directory);
+    await expiring.getByLabel('待发布框架').selectOption('react'); await expiring.getByLabel('line-react 分类').selectOption('charts');
+    const expiringSubmit = expiring.getByRole('button', { name: '确认并提交发布' }); await browserExpect(expiringSubmit).toBeEnabled();
+    await expect.poll(async () => (await h!.request('/v1/publishing/options', undefined, expiringToken, 'GET')).status, { timeout: 10_000 }).toBe(401);
+    const expiredResponse = expiring.waitForResponse(response => response.url() === h!.origin() + '/v1/publishing/options');
+    await expiringSubmit.click(); expect((await expiredResponse).status()).toBe(401);
+    await browserExpect(expiring.locator('#upload-status-message')).toContainText('登录已失效');
+    await browserExpect(expiring.getByText('当前发布授权：', { exact: false })).toHaveCount(0);
+    await browserExpect(expiring.getByLabel('line-react 分类')).toBeDisabled(); await browserExpect(expiringSubmit).toBeDisabled();
+    await browserExpect(expiring.locator('.variant-shot-card')).toHaveCount(3);
+    expect((await h.db.query('SELECT count(*) FROM upload_sessions')).rows[0]!.count).toBe('0');
+
     // A category disabled after the UI loaded must fail before creating any upload session.
     await categoryRow(admin).getByRole('button', { name: '停用' }).click(); await browserExpect(categoryRow(admin)).toContainText('已停用');
     await submit.click(); await browserExpect(publisher.locator('#upload-status-message')).toContainText('发布选择未通过');
@@ -119,7 +149,7 @@ it('connects the real built admin UI to category HTTP and persists exact selecte
     await browserExpect(categoryRow(admin)).toContainText('统计图表'); await browserExpect(categoryRow(admin)).toContainText('已启用');
     expect((await h.db.query('SELECT id,name,enabled,revision::text FROM component_categories')).rows).toEqual([{ id: 'charts', name: '统计图表', enabled: true, revision: '5' }]);
     expect((await h.db.query('SELECT count(*) FROM release_jobs')).rows[0]!.count).toBe('1');
-    const evidence = { event: 'ADMIN_CATEGORIES_REAL_UI_HTTP_PG', uiOrigin: built.origin, apiOrigin: h.origin(), browser: browser.version(), categoryId: 'charts', revision: '5', staleRevisionStatus: 409, releaseState: 'PENDING', selectedVariant: 'line-react', category: 'charts', screenshotSource: 'manual-upload', tarballSha256: fixture.manifest.packages[1]!.tarball.sha256, manifestDigest: job.manifest_digest, tarballUnchanged: true, apiRestartPersisted: true, httpResponses: responses, productionOidcAcceptance: false, sdkConsumerAcceptance: false };
+    const evidence = { event: 'ADMIN_CATEGORIES_REAL_UI_HTTP_PG', uiOrigin: built.origin, apiOrigin: h.origin(), browser: browser.version(), categoryId: 'charts', revision: '5', staleRevisionStatus: 409, preflightDenials: [{ status: 403, cause: 'disabled-subject', uploadSessions: 0, oldAclCleared: true }, { status: 401, cause: 'expired-signed-bearer', uploadSessions: 0, oldAclCleared: true }], releaseState: 'PENDING', selectedVariant: 'line-react', category: 'charts', screenshotSource: 'manual-upload', tarballSha256: fixture.manifest.packages[1]!.tarball.sha256, manifestDigest: job.manifest_digest, tarballUnchanged: true, apiRestartPersisted: true, httpResponses: responses, productionOidcAcceptance: false, sdkConsumerAcceptance: false };
     await writeFile(resolve('test-results/categories-real/evidence.json'), JSON.stringify(evidence, null, 2) + '\n');
     console.log(JSON.stringify(evidence));
   } finally {
@@ -127,4 +157,4 @@ it('connects the real built admin UI to category HTTP and persists exact selecte
     if (child && child.exitCode === null) { child.kill(); await new Promise<void>(resolve => child!.once('exit', () => resolve())); }
     await h?.close(); await rm(directory, { recursive: true, force: true });
   }
-}, 90_000);
+}, 120_000);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ComponentCategory } from '@company/contracts';
 import { clearSession, companyLoginUrl, getStoredSession, loadCompanySession, platformApiOrigin, saveSession, type UserSession } from '../lib/auth';
 import { CategoryApiError, createComponentCategory, listComponentCategories, updateComponentCategory } from '../lib/categories-client';
@@ -18,43 +18,70 @@ export default function CategoriesConsole() {
   const [editing, setEditing] = useState<ComponentCategory | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const requestGeneration = useRef(0);
+  const scope = useRef<{ apiUrl: string; session: UserSession | null }>({ apiUrl: platformApiOrigin, session: null });
+
+  const clearPrivateState = () => {
+    requestGeneration.current++;
+    setItems([]); setAllowed(false); setEditing(null); setDraft({ id: '', name: '' });
+    setNotice(null); setError(null); setLoading(false); setMutating(false);
+  };
+  const changeSession = (value: UserSession | null) => {
+    if (scope.current.session?.subject !== value?.subject || scope.current.session?.token !== value?.token) clearPrivateState();
+    scope.current.session = value;
+    setSession(value);
+  };
+  const changeApiUrl = (value: string) => {
+    if (scope.current.apiUrl !== value) clearPrivateState();
+    scope.current.apiUrl = value;
+    setApiUrl(value);
+  };
 
   useEffect(() => {
-    setSession(getStoredSession());
+    let active = true;
     const query = new URLSearchParams(window.location.search).get('apiUrl');
     const stored = localStorage.getItem('zhinexus_api_url');
-    if (query || stored) setApiUrl(query || stored!);
-    void loadCompanySession().then(setSession);
+    if (query || stored) changeApiUrl(query || stored!);
+    changeSession(getStoredSession());
+    void loadCompanySession().then(value => { if (active && value) changeSession(value); });
+    return () => { active = false; requestGeneration.current++; };
   }, []);
   useEffect(() => {
     setItems([]); setAllowed(false); setError(null);
     if (!session) return;
     const controller = new AbortController();
+    const generation = requestGeneration.current;
+    const current = () => !controller.signal.aborted && generation === requestGeneration.current;
     setLoading(true);
     void listComponentCategories({ apiUrl, token: session.token, signal: controller.signal }).then(value => {
-      if (controller.signal.aborted) return;
+      if (!current()) return;
       setItems(value.items); setAllowed(true);
       setEditing(current => current ? value.items.find(item => item.id === current.id) ?? null : null);
     }).catch(failure => {
-      if (!controller.signal.aborted) setError(failure instanceof Error ? failure.message : '读取分类失败。');
-    }).finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      if (!current()) return;
+      if (failure instanceof CategoryApiError && [401, 403].includes(failure.status)) clearPrivateState();
+      setError(failure instanceof Error ? failure.message : '读取分类失败。');
+    }).finally(() => { if (current()) setLoading(false); });
     return () => controller.abort();
   }, [apiUrl, session, refresh]);
 
   const busy = loading || mutating;
   const act = async (operation: () => Promise<ComponentCategory>, message: string) => {
+    const generation = requestGeneration.current;
     setMutating(true); setError(null); setNotice(null);
     try {
       const updated = await operation();
+      if (generation !== requestGeneration.current) return false;
       setItems(current => current.some(item => item.id === updated.id) ? current.map(item => item.id === updated.id ? updated : item) : [...current, updated]);
       setEditing(current => current?.id === updated.id ? updated : current);
       setNotice(message);
       return true;
     } catch (failure) {
+      if (generation !== requestGeneration.current) return false;
+      if (failure instanceof CategoryApiError && [401, 403].includes(failure.status)) clearPrivateState();
       setError(failure instanceof Error ? failure.message : '分类操作失败，请刷新后重试。');
-      if (failure instanceof CategoryApiError && [401, 403].includes(failure.status)) { setAllowed(false); setItems([]); setEditing(null); }
       return false;
-    } finally { setMutating(false); }
+    } finally { if (generation === requestGeneration.current) setMutating(false); }
   };
   const connection = { apiUrl, token: session?.token };
 
@@ -64,12 +91,12 @@ export default function CategoriesConsole() {
     <p className="lead">维护发布时使用的分类。分类 ID 创建后保持不变，重命名与启停使用当前修订，历史发布记录保持原样。</p>
     <div className="catalog-toolbar">
       <label htmlFor="categories-api">API 服务 <input id="categories-api" className="search-box" value={apiUrl} disabled={mutating} onChange={event => {
-        setApiUrl(event.target.value); localStorage.setItem('zhinexus_api_url', event.target.value);
+        changeApiUrl(event.target.value); localStorage.setItem('zhinexus_api_url', event.target.value);
       }} /></label>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <a className="filter-btn" href={companyLoginUrl}>账号登录</a>
         {session && <><button className="filter-btn" disabled={busy} onClick={() => setRefresh(value => value + 1)}>刷新列表</button>
-          <button className="filter-btn" disabled={mutating} onClick={() => { clearSession(); setSession(null); setItems([]); setEditing(null); setAllowed(false); setNotice(null); }}>退出登录</button></>}
+          <button className="filter-btn" disabled={mutating} onClick={() => { clearSession(); changeSession(null); }}>退出登录</button></>}
       </div>
     </div>
     {error && <p className="match-errors" role="alert">{error}</p>}
@@ -78,7 +105,7 @@ export default function CategoriesConsole() {
       <h2>管理员登录</h2><p>分类管理仅允许平台管理员；业务角色不授予管理权限。</p>
       <form onSubmit={event => {
         event.preventDefault(); const saved = saveSession(token.trim());
-        if (saved) { setSession(saved); setError(null); setToken(''); }
+        if (saved) { changeSession(saved); setError(null); setToken(''); }
         else setError('Token 格式无效，无法解析身份。');
       }} style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
         <label>开发者 Bearer Token <input className="search-box" type="password" value={token} autoComplete="off" onChange={event => setToken(event.target.value)} /></label>

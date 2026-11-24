@@ -1,10 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { manifestDigest, type PackageRef, type PublishingOptionsResponse, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
 import { getStoredSession, saveSession, clearSession, loadCompanySession,companyLoginUrl,platformApiOrigin,type UserSession } from '../lib/auth';
-import { readPublishingOptions } from '../lib/categories-client';
+import { CategoryApiError, readPublishingOptions } from '../lib/categories-client';
 import {
   validateVariantScreenshots,
   createManualScreenshotRef,
@@ -42,6 +42,7 @@ export default function WebUploadConsole() {
   const [optionsError, setOptionsError] = useState('');
   const [optionsLoading, setOptionsLoading] = useState(false);
   const [optionsRefresh, setOptionsRefresh] = useState(0);
+  const optionsGeneration = useRef(0);
   const selection = useMemo(() => buildPublishingManifest(manifest, selectedVariantIds, publishingOptions?.categories ?? []), [manifest, selectedVariantIds, publishingOptions]);
   const validationManifest = selection.ok ? selection.value : manifest;
 
@@ -91,16 +92,19 @@ export default function WebUploadConsole() {
   }, []);
 
   useEffect(() => {
+    const generation = ++optionsGeneration.current;
     setPublishingOptions(null); setOptionsError('');
+    setOptionsLoading(false);
     if (!session) return;
     const controller = new AbortController();
+    const current = () => !controller.signal.aborted && generation === optionsGeneration.current;
     setOptionsLoading(true);
     void readPublishingOptions({ apiUrl, token: session.token, signal: controller.signal }).then(value => {
-      if (!controller.signal.aborted) setPublishingOptions(value);
+      if (current()) setPublishingOptions(value);
     }).catch(failure => {
-      if (!controller.signal.aborted) setOptionsError(failure instanceof Error ? failure.message : '读取发布选项失败。');
-    }).finally(() => { if (!controller.signal.aborted) setOptionsLoading(false); });
-    return () => controller.abort();
+      if (current()) setOptionsError(failure instanceof Error ? failure.message : '读取发布选项失败。');
+    }).finally(() => { if (current()) setOptionsLoading(false); });
+    return () => { controller.abort(); optionsGeneration.current++; };
   }, [apiUrl, session, optionsRefresh]);
 
   // 1.1 动态断点恢复资格核验：当 session.subject 或 apiUrl 变更时严格 fail-closed 检查
@@ -539,7 +543,19 @@ export default function WebUploadConsole() {
       // Freeze selections from the current draft and recheck explicit categories against the real API.
       let categories = publishingOptions?.categories ?? [];
       if (manifest.variants.some(variant => selectedVariantIds.includes(variant.variantId) && variant.category !== undefined)) {
-        const latestOptions = await readPublishingOptions({ apiUrl, token: session.token });
+        const generation = optionsGeneration.current;
+        let latestOptions: PublishingOptionsResponse;
+        try {
+          latestOptions = await readPublishingOptions({ apiUrl, token: session.token });
+        } catch (failure) {
+          if (generation !== optionsGeneration.current) return;
+          if (failure instanceof CategoryApiError && [401, 403].includes(failure.status)) {
+            optionsGeneration.current++;
+            setPublishingOptions(null); setOptionsError(failure.message); setOptionsLoading(false);
+          }
+          throw failure;
+        }
+        if (generation !== optionsGeneration.current) return;
         setPublishingOptions(latestOptions);
         categories = latestOptions.categories;
       }

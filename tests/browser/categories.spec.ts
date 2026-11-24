@@ -1,17 +1,133 @@
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page, type Response } from '@playwright/test';
 import { createValidBundle } from '../fixtures/t05-artifacts.js';
 
 const api = 'http://127.0.0.1:3000';
 const category = { id: 'charts', name: '图表', enabled: true, revision: '0' };
+function gate() { let open!: () => void; const promise = new Promise<void>(resolve => { open = resolve; }); return { promise, open }; }
+async function finishResponse(page: Page, pending: ReturnType<typeof gate>, match: (response: Response) => boolean) {
+  const response = page.waitForResponse(match);
+  pending.open(); await (await response).finished();
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+}
 async function login(page: Page) {
   await page.route('**/v1/auth/oidc/session', route => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
   await page.addInitScript(() => localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token: 'local-ui-test', subject: 'operator', roles: ['reader'], channel: 'web' })));
 }
 
 test.describe('built admin controls with mocked API responses (not persistence evidence)', () => {
+  for (const lateStatus of [200, 500]) test(`discards late administrator mutation ${lateStatus} and private drafts after cookie identity switches to denied reader`, async ({ page }) => {
+    const company = gate(), mutation = gate(), started = gate();
+    const privateCategory = { id: 'private-archived', name: 'Private admin category', enabled: false, revision: '0' };
+    await page.addInitScript(() => localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token: 'admin-a-test', subject: 'admin-a', roles: ['reader'], channel: 'web' })));
+    await page.route('**/v1/auth/oidc/session', async route => { await company.promise; await route.fulfill({ json: { authenticated: true, subject: 'reader-b', roles: ['reader'] } }); });
+    await page.route(`${api}/v1/categories**`, async route => {
+      if (route.request().method() === 'GET') return route.fulfill(route.request().headers().authorization ? { json: { items: [privateCategory] } } : { status: 403, json: { code: 'FORBIDDEN' } });
+      started.open(); await mutation.promise;
+      await route.fulfill(lateStatus === 200 ? { json: { ...privateCategory, name: 'Late private rename', revision: '1' } } : { status: lateStatus, json: { code: 'INTERNAL_ERROR' } });
+    });
+    await page.goto('/categories');
+    await page.getByLabel('分类 ID').fill('private-admin-draft'); await page.getByLabel('分类名称', { exact: true }).fill('Admin A unsaved category');
+    await page.getByRole('row').filter({ hasText: 'private-archived' }).getByRole('button', { name: '编辑' }).click();
+    await page.getByLabel('编辑分类名称').fill('Late private rename'); await page.getByRole('button', { name: '保存分类' }).click(); await started.promise;
+    company.open(); await expect(page.getByText('当前身份：reader-b', { exact: false })).toBeVisible();
+    await expect(page.locator('main [role="alert"]')).toContainText('管理员');
+    await expect.soft(page.getByLabel('分类 ID')).toHaveValue(''); await expect.soft(page.getByLabel('分类名称', { exact: true })).toHaveValue('');
+    await finishResponse(page, mutation, response => response.url().includes('/v1/categories/') && response.request().method() === 'POST');
+    await expect(page.getByRole('row').filter({ hasText: 'private-archived' })).toHaveCount(0);
+    await expect(page.locator('main [role="alert"]')).toContainText('管理员');
+    await expect(page.locator('main')).not.toContainText('Late private rename');
+    await expect(page.getByRole('button', { name: '创建分类', exact: true })).toBeDisabled();
+  });
+  test('a late failure cannot clear a newer identity mutation busy state', async ({ page }) => {
+    const company = gate(), oldPost = gate(), oldStarted = gate(), newPost = gate(), newStarted = gate();
+    let posts = 0;
+    await page.addInitScript(() => localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token: 'admin-a-test', subject: 'admin-a', roles: ['reader'], channel: 'web' })));
+    await page.route('**/v1/auth/oidc/session', async route => { await company.promise; await route.fulfill({ json: { authenticated: true, subject: 'admin-b', roles: ['reader'] } }); });
+    await page.route(`${api}/v1/categories**`, async route => {
+      if (route.request().method() === 'GET') return route.fulfill({ json: { items: [category] } });
+      if (++posts === 1) { oldStarted.open(); await oldPost.promise; await route.fulfill({ status: 500, json: { code: 'INTERNAL_ERROR' } }); }
+      else { newStarted.open(); await newPost.promise; await route.fulfill({ json: { ...category, name: 'Current identity name', revision: '1' } }); }
+    });
+    await page.goto('/categories');
+    await page.getByRole('row').filter({ hasText: 'charts' }).getByRole('button', { name: '停用' }).click(); await oldStarted.promise;
+    company.open(); await expect(page.getByText('当前身份：admin-b', { exact: false })).toBeVisible();
+    await expect(page.getByRole('row').filter({ hasText: 'charts' }).getByRole('button', { name: '编辑' })).toBeEnabled({ timeout: 3000 });
+    await page.getByRole('row').filter({ hasText: 'charts' }).getByRole('button', { name: '编辑' }).click();
+    await page.getByLabel('编辑分类名称').fill('Current identity name'); await page.getByRole('button', { name: '保存分类' }).click(); await newStarted.promise;
+    await finishResponse(page, oldPost, response => response.request().method() === 'POST' && response.request().headers().authorization === 'Bearer admin-a-test');
+    await expect(page.getByRole('button', { name: '保存分类' })).toBeDisabled();
+    await expect(page.getByRole('button', { name: '刷新列表' })).toBeDisabled();
+    await expect(page.locator('main [role="alert"]')).toHaveCount(0);
+    newPost.open(); await expect(page.getByRole('row').filter({ hasText: 'charts' })).toContainText('Current identity name');
+    await expect(page.getByRole('button', { name: '保存分类' })).toBeEnabled();
+  });
+  test('clears private creation drafts on API changes and logout', async ({ page }) => {
+    await login(page);
+    await page.route('**/v1/categories**', route => route.fulfill({ json: { items: [category] } }));
+    await page.route('**/v1/auth/oidc/logout', route => route.fulfill({ status: 204 }));
+    await page.goto('/categories');
+    await page.getByLabel('分类 ID').fill('private-draft'); await page.getByLabel('分类名称', { exact: true }).fill('Private category');
+    await page.getByLabel('API 服务').fill('http://127.0.0.1:3999');
+    await expect(page.getByLabel('分类 ID')).toHaveValue(''); await expect(page.getByLabel('分类名称', { exact: true })).toHaveValue('');
+    await page.getByLabel('分类 ID').fill('private-after-api'); await page.getByLabel('分类名称', { exact: true }).fill('Other private category');
+    await page.getByRole('button', { name: '退出登录' }).click();
+    await expect(page.getByRole('heading', { name: '管理员登录' })).toBeVisible();
+    const payload = Buffer.from(JSON.stringify({ sub: 'next-admin', roles: ['reader'] })).toString('base64url');
+    await page.getByLabel('开发者 Bearer Token').fill(`header.${payload}.signature`); await page.getByRole('button', { name: '凭证登录' }).click();
+    await expect(page.getByLabel('分类 ID')).toHaveValue(''); await expect(page.getByLabel('分类名称', { exact: true })).toHaveValue('');
+  });
+  for (const deniedStatus of [401, 403]) test(`preflight ${deniedStatus} clears previous publishing ACL without losing frozen materials or creating uploads`, async ({ page }) => {
+    await login(page); const fixture = await createValidBundle(); const directory = await mkdtemp(join(tmpdir(), 'categories-denied-'));
+    let denied = false, uploads = 0;
+    await page.route(`${api}/v1/publishing/options`, route => route.fulfill(denied ? { status: deniedStatus, json: { code: deniedStatus === 401 ? 'UNAUTHENTICATED' : 'FORBIDDEN' } } : { json: { categories: [category], components: [{ componentId: 'line', category: 'charts' }], packages: ['@company/charts-react'] } }));
+    await page.route(`${api}/v1/uploads`, route => { uploads++; return route.fulfill({ status: 500, body: 'must not upload' }); });
+    try {
+      for (const [path, bytes] of fixture.files) { await mkdir(join(directory, path, '..'), { recursive: true }); await writeFile(join(directory, path), bytes); }
+      await page.goto('/upload');
+      await page.locator('#import-manifest-input').setInputFiles({ name: 'manifest.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fixture.manifest)) });
+      await page.locator('#import-files-input').setInputFiles(directory);
+      await page.getByLabel('待发布框架').selectOption('react'); await page.getByLabel('line-react 分类').selectOption('charts');
+      const submit = page.getByRole('button', { name: '确认并提交发布' }); await expect(submit).toBeEnabled();
+      await page.evaluate(() => localStorage.setItem('zhinexus_pending_release', 'preserved-frozen-pending'));
+      denied = true; await submit.click(); await expect(page.locator('#upload-status-message')).toContainText('发布失败');
+      await expect(page.getByText('当前发布授权：', { exact: false })).toHaveCount(0);
+      await expect(page.getByLabel('line-react 分类')).toBeDisabled(); await expect(submit).toBeDisabled();
+      await expect(page.locator('.variant-shot-card')).toHaveCount(3);
+      expect(uploads).toBe(0); expect(await page.evaluate(() => localStorage.getItem('zhinexus_pending_release'))).toBe('preserved-frozen-pending');
+      // Reacquiring the same identity's options uses the existing in-memory artifact bytes, without importing again.
+      denied = false; await page.getByRole('button', { name: '刷新发布选项' }).click(); await expect(submit).toBeEnabled();
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
+  test('a signed storage URL 403 preserves current publishing ACL and frozen upload session', async ({ page }) => {
+    await login(page); const fixture = await createValidBundle(); const directory = await mkdtemp(join(tmpdir(), 'categories-storage-'));
+    let uploads = 0, puts = 0, releases = 0;
+    await page.route(`${api}/v1/publishing/options`, route => route.fulfill({ json: { categories: [category], components: [{ componentId: 'line', category: 'charts' }], packages: ['@company/charts-react'] } }));
+    await page.route(`${api}/v1/uploads`, route => {
+      uploads++; const body = route.request().postDataJSON();
+      return route.fulfill({ json: { uploadSessionId: 'storage-forbidden-session', files: body.files.map((file: { path: string }) => ({ path: file.path, uploadUrl: `https://signed-storage.test/${file.path}`, expiresAt: new Date(Date.now() + 60_000).toISOString() })) } });
+    });
+    await page.route('https://signed-storage.test/**', route => { puts++; return route.fulfill({ status: 403, body: 'ExpiredToken' }); });
+    await page.route(`${api}/v1/releases`, route => { releases++; return route.fulfill({ status: 500, body: 'must not release' }); });
+    try {
+      for (const [path, bytes] of fixture.files) { await mkdir(join(directory, path, '..'), { recursive: true }); await writeFile(join(directory, path), bytes); }
+      await page.goto('/upload');
+      await page.locator('#import-manifest-input').setInputFiles({ name: 'manifest.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(fixture.manifest)) });
+      await page.locator('#import-files-input').setInputFiles(directory);
+      await page.getByLabel('待发布框架').selectOption('react'); await page.getByLabel('line-react 分类').selectOption('charts');
+      const submit = page.getByRole('button', { name: '确认并提交发布' }); await expect(submit).toBeEnabled();
+      await submit.click(); await expect(page.locator('#upload-status-message')).toContainText('文件上传失败 (403)');
+      await expect(page.getByText('当前发布授权：', { exact: false })).toBeVisible();
+      await expect(page.getByLabel('line-react 分类')).toBeEnabled(); await expect(submit).toBeEnabled();
+      await expect(page.locator('.variant-shot-card')).toHaveCount(3);
+      expect(uploads).toBe(1); expect(puts).toBe(1); expect(releases).toBe(0);
+      expect(await page.evaluate(() => localStorage.getItem('zhinexus_active_session_id'))).toBe('storage-forbidden-session');
+      const plan = await page.evaluate(() => JSON.parse(localStorage.getItem('zhinexus_active_session_plan')!));
+      expect(plan.subject).toBe('operator'); expect(plan.manifestDigest).toMatch(/^[0-9a-f]{64}$/);
+    } finally { await rm(directory, { recursive: true, force: true }); }
+  });
   test('requires login and keeps the new route and navigation within admin', async ({ page }) => {
     await page.route('**/v1/auth/oidc/session', route => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
     await page.goto('/categories');

@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createComponentCategory, listComponentCategories, readPublishingOptions, updateComponentCategory } from '../../apps/admin/app/lib/categories-client.js';
-import { buildPublishingManifest, sanitizeWebManifest } from '../../apps/admin/app/lib/uploads/manifest-form.js';
+import { CategoryApiError, createComponentCategory, listComponentCategories, readPublishingOptions, updateComponentCategory } from '../../apps/admin/app/lib/categories-client.js';
+import { buildPublishingManifest, sanitizeWebManifest, uploadFileBytes } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 import { makeFixture } from '../fixtures/releases/g1/factory.js';
 
 const enabled = { id: 'charts', name: '图表', enabled: true, revision: '0' };
@@ -58,6 +58,17 @@ describe('admin category API client', () => {
     const { connection, requests } = await endpoint(options);
     expect(await readPublishingOptions(connection)).toEqual(options);
     expect(requests[0]?.path).toBe('/v1/publishing/options');
+  });
+  it.each([401, 403])('keeps publishing options HTTP %i as a typed permission failure', async status => {
+    const { connection } = await endpoint({ code: 'DENIED' }, status);
+    const failure = await readPublishingOptions(connection).catch(error => error);
+    expect(failure).toBeInstanceOf(CategoryApiError); expect(failure.status).toBe(status);
+  });
+  it('keeps signed storage HTTP 403 distinct from a publishing identity failure', async () => {
+    const { connection } = await endpoint({ code: 'ExpiredToken' }, 403);
+    const failure = await uploadFileBytes(connection.apiUrl + '/signed', Buffer.from('{}')).catch(error => error);
+    expect(failure).toBeInstanceOf(Error); expect(failure).not.toBeInstanceOf(CategoryApiError);
+    expect(failure.message).toContain('文件上传失败 (403)');
   });
   it('rejects malformed publishing options', async () => {
     const { connection } = await endpoint({ categories: [enabled], components: [{ componentId: 'line' }], packages: ['@company/charts-vue'] });
