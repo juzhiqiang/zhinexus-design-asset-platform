@@ -6,7 +6,7 @@
 
 | 画板 | 参照页面 | 展示内容 | 尺寸 |
 | --- | --- | --- | --- |
-| 00 介绍首页 · 科技朋克 | `/`（概念，未实现路由） | 钛金属主视觉、资产展示、Vue/React 双框架、光纤接入流程与行动入口 | 1440 × 3196 |
+| 00 介绍首页 · 科技朋克 | `/`（已按本画板实现） | 钛金属主视觉、资产展示、Vue/React 双框架、光纤接入流程与行动入口 | 1440 × 3196 |
 | 01 组件目录 · 公开空状态 | `/components` | 目录建设中提示与浏览官方预置规范入口 | 1440 × 800 |
 | 02 组件目录 · 官方预置规范 | `/components` | 框架筛选、搜索及折线/柱状/饼图/散点图四张卡片 | 1440 × 1120 |
 | 03 折线图详情 · Vue 实现 | `/components/line` | 框架切换、独立状态项、预览、精确安装命令、Props/Events 和兼容性分区 | 1440 × 2199 |
@@ -22,6 +22,12 @@
 五个背景层共同引用 [gallery-atmosphere.glsl](shaders/gallery-atmosphere.glsl)，通过 `@time` 驱动慢漂；各层 `u_mode` 区分构图，`u_speed=0` 可手动冻结，`u_frame` 选择静止帧。复制设计时须同时保留 `gallery.pen` 和相邻 `shaders/` 目录；每层另有午夜蓝纯色兜底。导出的 PNG 不会播放动效；本轮不包含应用动画实现、系统减少动态效果偏好接入或完整 Pencil 播放性能验收。
 
 02–03 的包版本 `0.0.4` 与状态取自 `apps/gallery/app/lib/catalog.ts` 的内置规范示例，不代表真实发布、Ready 可达性或兼容性验收通过。03 展示预览授权及兼容性来源暂不可用时的状态，保留 React 切换入口，但不包含 React 切换后的独立详情画板或移动端画板。
+
+## 实现映射
+
+00 画板已于 2026-11-24 在 `apps/gallery` 落地为介绍首页（路由 `/`，路由组 `(intro)`），分区组件集中在 `app/_home/`：`home-content.ts` 承载文案与设计令牌，`home.css` 逐条镜像令牌；`AtmosphereCanvas.tsx` 与 `atmosphere.ts` 用 Canvas 2D 复刻五层 `gallery-atmosphere.glsl` 慢漂光场（尊重 `prefers-reduced-motion`，只绘一帧静止画面）；`TitanSculpture.tsx` 以「环带 + 顶部亮缘 + 左青右紫反射 + 底部压暗」近似重建 1860 条路径的钛金属雕塑；`TrendWindow.tsx` 与 `StructureWindow.tsx` 还原两扇艺术窗。契约测试 `tests/gallery/home-design.test.ts` 从 `gallery.pen` 现读文案、五层 shader 参数与设计令牌逐条比对，`tests/gallery/home-sculpture.test.ts` 钉住雕塑中空几何与实测尺寸，设计稿一改即红。
+
+范围偏差：设计稿是 1440 宽概念稿，实现沿用同一容器宽 1280、左右留白 80，未做完整响应式画板；「接入文档」「管理控制台」在设计稿中保留入口文案，但公开画廊没有对应路由，实现为不可点击文本（`href: null`），不伪造链接；`/components`、`/library` 等既有公开页面仍沿用原浅色样式与根布局导航，未随首页改版。
 
 ## 验证
 
