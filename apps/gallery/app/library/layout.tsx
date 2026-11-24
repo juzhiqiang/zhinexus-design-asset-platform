@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SiteHeader } from '../_site/SiteHeader';
 
 export const metadata: Metadata = {
   title: '我的资产库',
@@ -10,5 +11,10 @@ export const metadata: Metadata = {
 };
 
 export default function LibraryLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <>{children}</>;
+  return (
+    <>
+      <SiteHeader />
+      {children}
+    </>
+  );
 }
