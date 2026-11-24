@@ -39,7 +39,19 @@
 | `pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/project-publishing.test.ts` | 1/1 通过；真实四服务链到达 Ready |
 | `pnpm exec playwright test --config tests/browser/categories.config.ts` | 11/11 通过，使用独立 5278 端口验证构建后的后台 |
 
-根测试保留两类非失败警告：`DEP0190` 来自既有测试以 `shell: true` 启动子进程；`localStorage` 实验性警告来自 Node 未指定持久化文件。两者均未产生失败或改变本轮验收结论。T10 的 7 个跳过是未设置 `A10_FROZEN_BUNDLE` 的既有外部冻结包矩阵；Vitest 的 2 个跳过属于既有条件性用例，本轮未把跳过计为通过。
+根测试保留两类非失败警告：`DEP0190` 来自既有测试以 `shell: true` 启动子进程；`localStorage` 实验性警告来自 Node 未指定持久化文件。两者均未产生失败或改变本轮验收结论。
+
+未设置 `A10_FROZEN_BUNDLE` 时，T10 明确跳过以下 7 个必须读取真实冻结 SDK 策略的用例，本轮未用合成策略替代，也未把跳过计为通过：
+
+1. 候选低于基线且 peer 不满足时保持 `hold`；
+2. 四维全过但 peer 不满足时仍不得 `adopt`；
+3. 候选等于唯一基线且 Vue/React 均有实测时才 `adopt`；
+4. 只验证单一框架时不构成双框架覆盖；
+5. 任一维为 `not-run` 时不得 `adopt`；
+6. 存在视觉差异时不得 `adopt`；
+7. 候选版本与 supported 唯一基线不一致时保持 `hold`。
+
+同一环境条件还使 Vitest 跳过 2 个只读冻结包用例：`tests/evaluation/component-query-sdk.test.ts` 的“核对 manifest.files 全部 199 项、reports 引用与 14 变体”，以及 `tests/acceptance/t16-a/t16-a-api-cases.test.ts` 的“核对冻结 manifest SHA-256 与 0.0.11/0.0.12 版本”。
 
 ## 真实 Ready 证据
 
