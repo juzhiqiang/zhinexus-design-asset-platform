@@ -2,6 +2,18 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.28] - 2026-11-24
+
+### 新增
+
+- 使用项目 JSON 配置执行已有组件包的 init/dev/doctor/prepare-release/release，显式选择框架与分类，检查当前身份和组件/包 ACL。
+- 冻结 tarball 后在工作区外实际安装，以 Vite 适配器验证所选导出的真实渲染来源并生成逐实现截图；保留旧 SDK/Bundle 命令。
+
+### 修复
+
+- 共享包的 JavaScript 导出子路径须完整选择，缺失时提示 --framework all 或拆分独立框架包；根聚合入口与静态导出保持兼容。
+- 冻结恢复保留首次幂等键和原上传会话，不重新打包；拒绝错框架、源码/二次入口 alias、仅 import 未渲染与产物篡改。
+
 ## [0.0.27] - 2026-11-22
 
 ### Fixed
