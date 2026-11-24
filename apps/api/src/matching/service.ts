@@ -1,6 +1,6 @@
 import {
   canonicalJson, manifestDigest, validateMatchPlanRequest, validateMatchPlan,
-  type ComponentApiV1, type MatchElement, type MatchGap, type MatchPlanV1, type MatchPlanRequest,
+  type MatchElement, type MatchGap, type MatchPlanV1, type MatchPlanRequest,
 } from '@company/contracts';
 import { loadCurrentCandidates } from '../search/current.js';
 import type { CurrentCandidateSnapshot } from '../search/eligibility.js';
@@ -9,7 +9,7 @@ import type { Database } from '../db/database.js';
 import { uuid } from '../db/access.js';
 import type { ArtifactStore } from '../storage/artifact-store.js';
 import { PlatformError } from '../errors.js';
-import { readApi, resolveRelease, type Eligible, type MaterialRepository } from './materials.js';
+import { readApi, resolveRelease, type AssemblyApi, type Eligible, type MaterialRepository } from './materials.js';
 
 export type MatchRepository = {
   load(ids: string[]): Promise<Map<string, CurrentCandidateSnapshot>>;
@@ -20,7 +20,7 @@ const unavailable = () => gap('TARGET_UNAVAILABLE', '目标当前不可用，请
 /** 与组件精确查询 GET 共享的资格/材料 helper（`matching/materials.ts`）。 */
 const release = (request: MatchPlanRequest, id: string, snapshot?: CurrentCandidateSnapshot): Eligible | null =>
   resolveRelease({ context: request.context, ...(request.reactDomVersion ? { reactDomVersion: request.reactDomVersion } : {}) }, id, snapshot);
-function mapped(element: { instanceId: string; designId: string }, item: Eligible, api: ComponentApiV1, request: MatchPlanRequest): MatchElement {
+function mapped(element: { instanceId: string; designId: string }, item: Eligible, api: AssemblyApi, request: MatchPlanRequest): MatchElement {
   const binding = request.bindings?.find(b => b.instanceId === element.instanceId);
   const gaps: MatchGap[] = [];
   const props = api.props.map(prop => {
@@ -51,7 +51,7 @@ export async function assembleMatchPlan(input: unknown, repository: MatchReposit
   const mapping = new Map(request.design.mapping.entries.filter(e => e.framework === request.context.framework).map(e => [e.designId, e.variantReleaseId]));
   const ids = [...new Set(request.design.elements.flatMap(e => { const id = mapping.get(e.designId); return id === undefined ? [] : [id]; }))];
   const first = ids.length ? structuredClone(await repository.load(ids)) : new Map<string, CurrentCandidateSnapshot>();
-  const materials = new Map<string, ComponentApiV1 | null>();
+  const materials = new Map<string, AssemblyApi | null>();
   // Bounded I/O, deduplicated per release even when hundreds of instances reuse it.
   let next = 0;
   await Promise.all(Array.from({ length: Math.min(8, ids.length) }, async () => {

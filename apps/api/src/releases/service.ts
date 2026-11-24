@@ -5,6 +5,7 @@ import { audit, requireComponents, requirePackages, requireCurrentIdentity, uuid
 import type { UploadService } from '../uploads/service.js';
 import { validatePlatformBundle } from '../uploads/validator.js';
 import { PlatformError } from '../errors.js';
+import { registerReleaseCategories } from '../categories/service.js';
 
 type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null; missing_artifacts: string[] };
 export class ReleaseService {
@@ -37,6 +38,7 @@ export class ReleaseService {
         if (job.request_digest !== requestDigest || job.client_id !== context.principal.clientId || job.channel !== context.principal.channel) throw new PlatformError('CONFLICT');
         return { jobId: job.id, state: job.state };
       }
+      await registerReleaseCategories(client, manifest);
       const jobId = randomUUID();
       await client.query("INSERT INTO release_jobs(id,subject,client_id,channel,upload_session_id,manifest_digest,manifest,idempotency_key,request_digest,state,stage) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,'PENDING','PENDING')",
         [jobId, context.principal.subject, context.principal.clientId, context.principal.channel, frozen.session.id, digest, JSON.stringify(manifest), key, requestDigest]);

@@ -119,8 +119,6 @@
     "exportPath",
     "props",
     "events",
-    "styleExport",
-    "readyMethod",
     "notes"
   ],
   "additionalProperties": false

@@ -8,6 +8,7 @@ import { componentApiSchema } from './component-api.js';
 import { matchPlanRequestSchema, matchPlanSchema } from './match-plan.js';
 import { componentMatchQuerySchema, componentMatchResponseSchema } from './component-match.js';
 import { managedAccountSchemas } from './managed-accounts.js';
+import { categoryIdSchema, categorySchemas } from './categories.js';
 import { candidateSchema, searchCandidatesResponseSchema, searchCandidatesRequestSchema } from './search.js';
 import { array, artifactPath, choice, exactVersion, hash, integer, object, text, timestamp } from './schema.js';
 import type { Schema } from './schema.js';
@@ -26,7 +27,7 @@ export const environmentSchema = object({
   os: text, arch: text, browserVersion: text, browserRevision: text, fontDigest: hash, locale: text, timezone: text,
   deviceScaleFactor: { type: 'number', exclusiveMinimum: 0 }, renderer, width: integer(1, 8192), height: integer(1, 8192),
   theme: text, frameworkVersion: exactVersion, echartsVersion: exactVersion,
-});
+}, ['echartsVersion']);
 export const compatibilitySchema = object({ framework, frameworkVersion: exactVersion, reactDomVersion: exactVersion, echartsVersion: exactVersion, status: choice('candidate', 'passed', 'failed'), reportId: id, verifiedAt: timestamp }, ['reactDomVersion', 'reportId', 'verifiedAt']);
 export const reportSchema = object({
   id, toolVersion: exactVersion, variantId: id, packageSha256: hash, exampleId: id, environment: environmentSchema,
@@ -39,10 +40,10 @@ export const packageSchema = object({
   tarball: artifactSchema, sourceDigest: hash, sourceCommit: { type: 'string', pattern: '^(?:[a-f0-9]{40}|[a-f0-9]{64})$' }, dependencies, peerDependencies: dependencies,
 }, ['sourceCommit']);
 export const variantSchema = object({
-  componentId: id, variantId: id, framework, packageName: packageSchema.properties!.name!, packageVersion: exactVersion,
+  componentId: id, variantId: id, framework, category: categoryIdSchema, packageName: packageSchema.properties!.name!, packageVersion: exactVersion,
   exportPath: { ...text, pattern: '^\\.(?:/[a-zA-Z0-9_-]+(?:/[a-zA-Z0-9_-]+)*)?$' }, exportName: { ...text, pattern: '^[A-Za-z_$][A-Za-z0-9_$]*$' },
   api: artifactSchema, docs: artifactSchema, examples: array(exampleSchema, 1), screenshots: array(screenshotSchema), compatibility: array(compatibilitySchema),
-});
+}, ['category']);
 export const manifestSchema = object({ schemaVersion: { type: 'integer', const: 1 }, channel: choice('cli', 'web'), packages: array(packageSchema, 1), variants: array(variantSchema), files: array(artifactSchema, 1), reports: array(artifactSchema) });
 
 /** Cross-reference and evidence rules are enforced by validateManifest, not JSON Schema alone. */
@@ -61,4 +62,5 @@ export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Objec
   'component-api-v1': componentApiSchema, 'match-plan-request-v1': matchPlanRequestSchema, 'match-plan-v1': matchPlanSchema,
   'component-match-query-v1': componentMatchQuerySchema, 'component-match-response-v1': componentMatchResponseSchema,
   ...managedAccountSchemas,
+  ...categorySchemas,
 }).map(([name, schema]) => [name, { $schema: 'https://json-schema.org/draft/2020-12/schema', title: name, ...schema }]));
