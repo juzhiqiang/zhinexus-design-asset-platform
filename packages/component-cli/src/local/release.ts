@@ -137,6 +137,35 @@ export async function executeReleaseCommand(
   const timeoutMs = options.timeoutMs ?? 120_000;
   const deadline = Date.now() + timeoutMs;
 
+  if (session.uploadSessionId && !session.jobId && !session.uploadPlan && session.uploadComplete !== true) {
+    log(`旧格式会话缺少本地完成标记，正在核验原上传会话 ${session.uploadSessionId}...`);
+    let completeRes: Response;
+    try {
+      completeRes = await fetch(`${apiUrl}/v1/uploads/${session.uploadSessionId}/complete`, {
+        method: 'POST',
+        redirect: 'error', headers: {
+          'content-type': 'application/json',
+          authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ parts: [] }),
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch (error) {
+      throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 无法核验原上传会话；已保留原 uploadSessionId、幂等键与冻结材料 (${error instanceof Error ? error.message : String(error)})`);
+    }
+    if (!completeRes.ok) {
+      const errBody = await completeRes.text();
+      throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 原上传会话未通过完成核验；已保留原 uploadSessionId、幂等键与冻结材料 (${completeRes.status}): ${errBody}`);
+    }
+    try {
+      await readApiResponse(completeRes, 'completeUploadResponse');
+    } catch (error) {
+      throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 原上传会话缺少有效完成证明；已保留原 uploadSessionId、幂等键与冻结材料 (${error instanceof Error ? error.message : String(error)})`);
+    }
+    session.uploadComplete = true;
+    await saveReleaseSession(bundleDir, session);
+  }
+
   // 1. 上传文件会话
   const continuingUpload = !!session.uploadPlan;
   if (!session.uploadSessionId) {
@@ -166,8 +195,6 @@ export async function executeReleaseCommand(
     session.uploadComplete = false;
     await saveReleaseSession(bundleDir, session);
   }
-  // Legacy sessions were saved only with the completed upload identity. New sessions
-  // persist their plan before the first PUT, so a disconnect cannot skip missing bytes.
   if (session.uploadPlan && !session.uploadComplete) {
     const checked = validateApiMessage('createUploadResponse', session.uploadPlan);
     if (!checked.ok || checked.value.uploadSessionId !== session.uploadSessionId) throw new Error('UPLOAD_PLAN_INVALID');
@@ -218,7 +245,7 @@ export async function executeReleaseCommand(
     delete session.uploadedFiles;
     await saveReleaseSession(bundleDir, session);
   } else {
-    log(`复用已完成的上传会话: ${session.uploadSessionId}`);
+    log(session.jobId ? `已有发布作业，保留原上传会话: ${session.uploadSessionId}` : `复用已完成的上传会话: ${session.uploadSessionId}`);
   }
 
   // 2. 提交发布作业

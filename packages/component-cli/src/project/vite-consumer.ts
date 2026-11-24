@@ -35,31 +35,45 @@ async function runVite(input: BuildInput) {
     if (!inside(input.root, real)) throw new Error('CONSUMER_SOURCE_LINK: 实际构建来源越界 ' + real);
     return real;
   }
-  // Instrument the selected export without editing the installed module. Proxies
-  // retain the original call receiver, arguments, component instance and ref APIs.
-  const facade = `import * as original from ${JSON.stringify(input.entry.replace(/\\/g, '/'))};
-export * from ${JSON.stringify(input.entry.replace(/\\/g, '/'))};
-const notify = () => { const record = globalThis[${JSON.stringify(input.binding)}]; if (typeof record === 'function') void record(); };
-const trace = fn => new Proxy(fn, { apply(fn, receiver, args) { const result = Reflect.apply(fn, receiver, args); notify(); return result; } });
-const copy = (value, patch) => { const descriptors = Object.getOwnPropertyDescriptors(value); for (const [key, replacement] of Object.entries(patch)) descriptors[key] = { ...descriptors[key], value: replacement }; return Object.create(Object.getPrototypeOf(value), descriptors); };
-function wrap(value) {
-  if (typeof value === 'function') {
-    if (${JSON.stringify(input.framework)} === 'react' && value.prototype?.isReactComponent) return new Proxy(value, { construct(fn, args, target) { const instance = Reflect.construct(fn, args, target); instance.render = trace(instance.render); return instance; } });
-    return trace(value);
-  }
-  if (value && typeof value === 'object') {
-    if (${JSON.stringify(input.framework)} === 'react') {
-      if (value.$$typeof === Symbol.for('react.memo')) return copy(value, { type: wrap(value.type) });
-      if (value.$$typeof === Symbol.for('react.lazy')) return copy(value, { _init: new Proxy(value._init, { apply(fn, receiver, args) { return wrap(Reflect.apply(fn, receiver, args)); } }) });
-      if (value.$$typeof === Symbol.for('react.forward_ref')) return copy(value, { render: trace(value.render) });
-    } else {
-      const patch = {}; for (const key of ['setup', 'render']) if (typeof value[key] === 'function') patch[key] = trace(value[key]);
-      if (Object.keys(patch).length) return copy(value, patch);
-    }
-  }
-  throw new Error('PREVIEW_IMPLEMENTATION_UNSUPPORTED: selected export must be a Vue setup/render or React component');
-}
-const selected = wrap(original[${JSON.stringify(input.exportName)}]);
+  // Wrap the selected export without editing the installed module. The browser
+  // binding is called only from an actual framework commit/mount lifecycle.
+  const originalEntry = JSON.stringify(input.entry.replace(/\\/g, '/'));
+  const selectedExport = JSON.stringify(input.exportName);
+  const implementationBinding = JSON.stringify(input.binding);
+  const facade = input.framework === 'react' ? `import * as original from ${originalEntry};
+import { createElement, forwardRef, useLayoutEffect } from 'react';
+export * from ${originalEntry};
+const notify = () => { const record = globalThis[${implementationBinding}]; if (typeof record === 'function') void record(); };
+const value = original[${selectedExport}];
+const reactType = value && typeof value === 'object' && [Symbol.for('react.memo'), Symbol.for('react.lazy'), Symbol.for('react.forward_ref')].includes(value.$$typeof);
+if (typeof value !== 'function' && !reactType) throw new Error('PREVIEW_IMPLEMENTATION_UNSUPPORTED: selected export must be a React component');
+const selected = forwardRef(function FrozenSelectedExport(props, ref) {
+  useLayoutEffect(() => { notify(); }, []);
+  return createElement(value, { ...props, ref });
+});
+export { selected as ${input.exportName} };
+` : `import * as original from ${originalEntry};
+import { defineComponent, h, onMounted, ref } from 'vue';
+export * from ${originalEntry};
+const notify = () => { const record = globalThis[${implementationBinding}]; if (typeof record === 'function') void record(); };
+const value = original[${selectedExport}];
+if (typeof value !== 'function' && !(value && typeof value === 'object' && (typeof value.setup === 'function' || typeof value.render === 'function'))) throw new Error('PREVIEW_IMPLEMENTATION_UNSUPPORTED: selected export must be a Vue setup/render component');
+const selected = defineComponent({
+  name: 'FrozenSelectedExport',
+  inheritAttrs: false,
+  setup(_props, { attrs, slots, expose }) {
+    const inner = ref();
+    expose(new Proxy({}, {
+      get(_target, key) { return inner.value?.[key]; },
+      set(_target, key, replacement) { if (!inner.value) return false; inner.value[key] = replacement; return true; },
+      has(_target, key) { return !!inner.value && key in inner.value; },
+      ownKeys() { return inner.value ? Reflect.ownKeys(inner.value) : []; },
+      getOwnPropertyDescriptor(_target, key) { return inner.value && key in inner.value ? { configurable: true, enumerable: true } : undefined; },
+    }));
+    onMounted(() => { notify(); });
+    return () => h(value, { ...attrs, ref: inner }, slots);
+  },
+});
 export { selected as ${input.exportName} };
 `;
   const plugin: Plugin = {
@@ -86,13 +100,15 @@ export { selected as ${input.exportName} };
     },
     async generateBundle(_options, bundle) {
       if (!selected || !Object.values(bundle).some(item => item.type === 'chunk' && facadeId in item.modules)) throw new Error('PREVIEW_IMPLEMENTATION_UNUSED: 构建未消费所选冻结导出');
-      // Bind the proxy's own namespace import/re-export edge. A side import of
-      // the installed entry elsewhere cannot make a substituted proxy valid.
+      // Bind the facade's own namespace import/re-export edge. Framework runtime
+      // imports are expected, but exactly one edge must resolve to the frozen entry.
       const imported = [...new Set(this.getModuleInfo(facadeId)?.importedIds ?? [])];
-      if (imported.length !== 1 || await checkSource(imported[0]!) !== input.entry || this.getModuleInfo(imported[0]!)?.code == null) {
+      const frozenEntries: string[] = [];
+      for (const id of imported) if (await checkSource(id) === input.entry) frozenEntries.push(id);
+      if (frozenEntries.length !== 1 || this.getModuleInfo(frozenEntries[0]!)?.code == null) {
         throw new Error('CONSUMER_SOURCE_LINK: 冻结导出代理实际加载的入口被替换');
       }
-      facadeEntry = imported[0];
+      facadeEntry = frozenEntries[0];
       for (const id of this.getModuleIds()) {
         const real = await checkSource(id);
         if (real) sources.set(id, real);

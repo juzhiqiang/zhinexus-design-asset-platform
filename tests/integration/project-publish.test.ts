@@ -124,6 +124,30 @@ describe('project frozen consumer publication', () => {
     expect(result.exitCode, result.stderr).toBe(1); expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
     await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
   }, 180_000);
+  it.each([
+    ['vue', `import { BadgeVue } from '@fixture/project-badge/vue';
+if (typeof BadgeVue === 'function') BadgeVue({});
+else if (typeof BadgeVue.setup === 'function') BadgeVue.setup({}, { attrs: {}, slots: {}, emit() {}, expose() {} });
+document.querySelector('#app').textContent = 'unrelated Vue preview';
+window.__COMPONENT_EXAMPLE__ = { ready: Promise.resolve(), states: ['default'], async runState() {}, getChecks() { return [{ name: 'developer-render', status: 'passed' }]; } };
+`],
+    ['react', `import { BadgeReact } from '@fixture/project-badge/react';
+try {
+  if (typeof BadgeReact === 'function') BadgeReact({});
+  else if (typeof BadgeReact.render === 'function') BadgeReact.render({}, null);
+} catch {}
+document.querySelector('#app').textContent = 'unrelated React preview';
+window.__COMPONENT_EXAMPLE__ = { ready: Promise.resolve(), states: ['default'], async runState() {}, getChecks() { return [{ name: 'developer-render', status: 'passed' }]; } };
+`],
+  ])('rejects a manually invoked %s export that never enters the framework lifecycle', async (framework, source) => {
+    const { root, origin } = await fixture();
+    await fs.writeFile(path.join(root, `consumers/${framework}/main.js`), source);
+    const result = await runCli(['prepare-release', '--framework', 'all', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(result.exitCode, result.stderr).toBe(1);
+    expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
+    await expect(fs.stat(path.join(root, `rejected-bundle/reports/badge-${framework}.json`))).rejects.toThrow();
+    await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
+  }, 180_000);
   it.each([false, true])('rejects a second alias of the facade absolute installed entry even with an unrelated original-entry import (%s)', async includeOriginal => {
     const { root, origin } = await fixture();
     await aliasFacadeEntry(root, includeOriginal);
@@ -176,6 +200,98 @@ describe('project frozen consumer publication', () => {
     const result = await executeReleaseCommand(options);
     expect(result.ok).toBe(true); expect(result.session.idempotencyKey).toBe(before?.idempotencyKey); expect(creates).toBe(1); expect(complete).toBe(true);
     for (const [relative, bytes] of fixture.files) expect(uploaded.get(relative)).toEqual(Buffer.from(bytes));
+  });
+  it('fails closed for a legacy upload session without completion proof and preserves the frozen release identity', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'project-publish-legacy-upload-')); roots.push(root);
+    const fixture = makeFixture('cli');
+    await fs.writeFile(path.join(root, 'manifest.json'), JSON.stringify(fixture.manifest));
+    for (const [relative, bytes] of fixture.files) { await fs.mkdir(path.dirname(path.join(root, relative)), { recursive: true }); await fs.writeFile(path.join(root, relative), bytes); }
+    const { saveReleaseSession } = await import('../../packages/component-cli/src/local/release.js');
+    const { manifestDigest } = await import('../../packages/component-cli/src/contracts/digests.js');
+    const digest = await manifestDigest(fixture.manifest);
+    const originalBytes = new Map([...fixture.files].map(([relative, bytes]) => [relative, Buffer.from(bytes)]));
+    const requests: string[] = [];
+    const server = createServer((req, res) => {
+      requests.push(`${req.method} ${req.url}`);
+      res.setHeader('content-type', 'application/json');
+      if (req.method === 'POST' && req.url === '/v1/uploads/legacy-original-upload/complete') res.writeHead(409).end(JSON.stringify({ code: 'UPLOAD_INCOMPLETE' }));
+      else res.writeHead(500).end('{}');
+    });
+    servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
+    await saveReleaseSession(root, { manifestDigest: digest, idempotencyKey: 'legacy-original-key', uploadSessionId: 'legacy-original-upload', updatedAt: '' });
+
+    await expect(executeReleaseCommand({ bundleDir: root, apiUrl: origin, token: 'test-token' })).rejects.toThrow('UPLOAD_COMPLETION_UNPROVEN');
+
+    expect(requests).toEqual(['POST /v1/uploads/legacy-original-upload/complete']);
+    expect(await loadReleaseSession(root)).toMatchObject({ manifestDigest: digest, idempotencyKey: 'legacy-original-key', uploadSessionId: 'legacy-original-upload' });
+    for (const [relative, bytes] of originalBytes) expect(await fs.readFile(path.join(root, relative))).toEqual(bytes);
+  });
+  it('proves completion on the original legacy upload session before submitting the release', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'project-publish-legacy-complete-')); roots.push(root);
+    const fixture = makeFixture('cli');
+    await fs.writeFile(path.join(root, 'manifest.json'), JSON.stringify(fixture.manifest));
+    for (const [relative, bytes] of fixture.files) { await fs.mkdir(path.dirname(path.join(root, relative)), { recursive: true }); await fs.writeFile(path.join(root, relative), bytes); }
+    const { saveReleaseSession } = await import('../../packages/component-cli/src/local/release.js');
+    const { manifestDigest } = await import('../../packages/component-cli/src/contracts/digests.js');
+    const digest = await manifestDigest(fixture.manifest);
+    const requests: string[] = [];
+    let releaseUploadSessionId = '';
+    let releaseKey = '';
+    const server = createServer(async (req, res) => {
+      requests.push(`${req.method} ${req.url}`);
+      res.setHeader('content-type', 'application/json');
+      if (req.method === 'POST' && req.url === '/v1/uploads/legacy-original-upload/complete') {
+        for await (const _chunk of req) { /* consume request body */ }
+        res.end(JSON.stringify({ status: 'complete', verifiedFiles: fixture.manifest.files }));
+      } else if (req.method === 'POST' && req.url === '/v1/releases') {
+        const chunks: Buffer[] = []; for await (const chunk of req) chunks.push(Buffer.from(chunk));
+        releaseUploadSessionId = JSON.parse(Buffer.concat(chunks).toString()).uploadSessionId;
+        releaseKey = String(req.headers['idempotency-key']);
+        res.end(JSON.stringify({ jobId: 'legacy-recovered-job', state: 'VALIDATING' }));
+      } else if (req.method === 'GET' && req.url === '/v1/releases/legacy-recovered-job') {
+        res.end(JSON.stringify({ state: 'READY', stage: 'READY', attempt: 0, missingArtifacts: [], pollAfterMs: 1 }));
+      } else res.writeHead(500).end('{}');
+    });
+    servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
+    await saveReleaseSession(root, { manifestDigest: digest, idempotencyKey: 'legacy-original-key', uploadSessionId: 'legacy-original-upload', updatedAt: '' });
+
+    const result = await executeReleaseCommand({ bundleDir: root, apiUrl: origin, token: 'test-token', pollIntervalMs: 1 });
+
+    expect(result.ok).toBe(true);
+    expect(requests).toEqual([
+      'POST /v1/uploads/legacy-original-upload/complete',
+      'POST /v1/releases',
+      'GET /v1/releases/legacy-recovered-job',
+    ]);
+    expect(releaseUploadSessionId).toBe('legacy-original-upload');
+    expect(releaseKey).toBe('legacy-original-key');
+    expect(await loadReleaseSession(root)).toMatchObject({ manifestDigest: digest, idempotencyKey: 'legacy-original-key', uploadSessionId: 'legacy-original-upload', uploadComplete: true, jobId: 'legacy-recovered-job' });
+  });
+  it('continues polling an existing release job from a legacy session without requiring upload proof', async () => {
+    const root = await fs.mkdtemp(path.join(os.tmpdir(), 'project-publish-legacy-job-')); roots.push(root);
+    const fixture = makeFixture('cli');
+    await fs.writeFile(path.join(root, 'manifest.json'), JSON.stringify(fixture.manifest));
+    for (const [relative, bytes] of fixture.files) { await fs.mkdir(path.dirname(path.join(root, relative)), { recursive: true }); await fs.writeFile(path.join(root, relative), bytes); }
+    const { saveReleaseSession } = await import('../../packages/component-cli/src/local/release.js');
+    const { manifestDigest } = await import('../../packages/component-cli/src/contracts/digests.js');
+    const requests: string[] = [];
+    const server = createServer((req, res) => {
+      requests.push(`${req.method} ${req.url}`);
+      res.setHeader('content-type', 'application/json');
+      if (req.method === 'GET' && req.url === '/v1/releases/legacy-job') res.end(JSON.stringify({ state: 'READY', stage: 'READY', attempt: 0, missingArtifacts: [], pollAfterMs: 1 }));
+      else res.writeHead(500).end('{}');
+    });
+    servers.push(server); await new Promise<void>(resolve => server.listen(0, '127.0.0.1', resolve));
+    const origin = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
+    await saveReleaseSession(root, { manifestDigest: await manifestDigest(fixture.manifest), idempotencyKey: 'legacy-job-key', uploadSessionId: 'legacy-upload', jobId: 'legacy-job', state: 'VALIDATING', updatedAt: '' });
+
+    const result = await executeReleaseCommand({ bundleDir: root, apiUrl: origin, token: 'test-token', pollIntervalMs: 1 });
+
+    expect(result.ok).toBe(true);
+    expect(result.jobId).toBe('legacy-job');
+    expect(requests).toEqual(['GET /v1/releases/legacy-job']);
   });
   it('builds and packs once, installs that tarball outside the project and captures both static framework previews with honest reports', async () => {
     const { root, origin, uploaded, uploadCreates, disableCategory } = await fixture(); const progress: string[] = [];
