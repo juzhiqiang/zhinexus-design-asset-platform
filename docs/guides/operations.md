@@ -8,7 +8,7 @@ API每次响应输出HTTP_COMPLETED，使用服务端生成的requestId、status
 
 ## 部署准备
 
-先执行 `.\scripts\pnpm.ps1 preflight:production`：离线检查模板，输出必填变量名和待验收项目，不连接 OIDC 或部署服务。当前无公司资源时报告为 `environment.status=unconfigured`、`exitCode=2`。准备好私有环境变量后使用 `preflight:production --environment`；空白参数、非法 OIDC 客户端组合、非 HTTPS 地址和 API/预览复用数据库身份都会拒绝。报告只包含变量名与固定错误，不输出变量值。
+先执行 `pnpm preflight:production`：离线检查模板，输出必填变量名和待验收项目，不连接 OIDC 或部署服务。当前无公司资源时报告为 `environment.status=unconfigured`、`exitCode=2`。准备好私有环境变量后使用 `preflight:production --environment`；空白参数、非法 OIDC 客户端组合、非 HTTPS 地址和 API/预览复用数据库身份都会拒绝。报告只包含变量名与固定错误，不输出变量值。
 
 报告的退出码含义：`0` 为请求的准备检查通过，`1` 为模板或配置非法，`2` 为资源未配置。pnpm 的脚本和 exec 包装会将子进程的 `2` 归一成外层 `1`；CI 若要区分未配置与非法配置，应读取 JSON 的 `exitCode`，或在服务构建后以固定 Node 直接调用 `node node_modules/tsx/dist/cli.mjs scripts/production-preflight.ts`。所有状态均保留 `productionAcceptance:false`，真实登录/撤权、DNS/TLS/浏览器隔离、镜像与最小权限、告警送达、等量备份容量和双业务试点需要另行验收。
 
@@ -50,7 +50,7 @@ Postgres建立API、预览、迁移三个身份；预览最小权限参考网关
 
 ## 本地容量与上传恢复预演
 
-先确认 `infra:up` 已就绪，再运行 `.\scripts\pnpm.ps1 rehearse:capacity`。不要与其他构建、截图或负载测试并行，以免影响计时。该命令只在开发者电脑执行，先构建服务，再以真实 Nest HTTP、PostgreSQL、MinIO 和 Verdaccio 测量：
+先确认 `infra:up` 已就绪，再运行 `pnpm rehearse:capacity`。不要与其他构建、截图或负载测试并行，以免影响计时。该命令只在开发者电脑执行，先构建服务，再以真实 Nest HTTP、PostgreSQL、MinIO 和 Verdaccio 测量：
 
 - 隔离数据库中的200个合成目录组件、400个实现；20并发、10轮、200请求，混合双框架/单框架与分页查询，每个响应都核对实际数量、排序和框架。目录规模seed不代表发布了400个SDK实现。
 - 40+40+20MiB三个静态二进制文件，总量100MiB、20个分片。保留已完成分片及ETag，中断一次PUT并重启API，沿用原会话/未过期URL补传，完成后逐个检查冻结摘要和幂等性。50MiB单文件限制不变；本次不覆盖签名URL过期后的刷新。

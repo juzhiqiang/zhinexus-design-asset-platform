@@ -116,10 +116,10 @@ git status --short
 git log --oneline -8
 
 # 3) 依赖树回到锁文件状态（不修改 pnpm-lock.yaml 本身）
-.\scripts\pnpm.ps1 install --frozen-lockfile
+pnpm install --frozen-lockfile
 
 # 4) 确认 echarts 精确版本
-.\scripts\pnpm.ps1 ls -r --depth -1 | Select-String echarts
+pnpm ls -r --depth -1 | Select-String echarts
 ```
 
 **不要**手工编辑 `pnpm-lock.yaml`，也不要 `git checkout --` 丢弃他人未提交改动（`AGENTS.md` 不可违反约束）。根 `package.json`、`pnpm-workspace.yaml`、`pnpm-lock.yaml`、`turbo.json` 由 C 统一收口。

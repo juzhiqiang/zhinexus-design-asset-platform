@@ -1,10 +1,10 @@
 # 本地开发与运维准备
 
-Windows x64：先按根 README 使用 `scripts/bootstrap.ps1` 与 `scripts/pnpm.ps1 install --frozen-lockfile`，固定 Node 26.13.0 / pnpm 12.18.0。启动 Docker 后运行 `scripts/pnpm.ps1 infra:up`；凭证仅保存在忽略的 `.tools/g2-local`。服务配置见 API 与 preview-gateway README。
+Windows x64：先按根 README 使用 `scripts/bootstrap.ps1` 与 `pnpm install --frozen-lockfile`，固定 Node 26.13.0 / pnpm 12.18.0。启动 Docker 后运行 `pnpm infra:up`；凭证仅保存在忽略的 `.tools/g2-local`。服务配置见 API 与 preview-gateway README。
 
 本地开发执行根 `build`、`typecheck`、`test`、`test:platform`。浏览器前先完整 build，关闭5173–5176开发服务，设置 `NEXT_PUBLIC_SITE_URL=https://gallery.test`，再运行 `test:browser`。不要并行执行 platform/browser：平台测试会重建 SDK dist。
 
-| 运维准备命令（由 scripts/pnpm.ps1 执行） | 作用 |
+| 运维准备命令（由 pnpm 执行） | 作用 |
 | --- | --- |
 | `rehearse:recovery` | 真三存储传输断连、真实worker终止、上传中断、响应丢失及授权回归 |
 | `rehearse:backup` | 全新三存储源栈、协议样本发布、备份、空目标恢复、逐引用摘要检查 |

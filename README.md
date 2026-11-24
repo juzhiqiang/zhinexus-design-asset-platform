@@ -45,17 +45,16 @@ docs                     使用、部署、运维与工程文档
 
 ## 本地开发（Windows x64）
 
-在仓库根目录执行以下命令。引导脚本会从官方源下载并校验固定的 Node 26.13.0 与 pnpm 12.18.0，安装到项目 `.tools` 目录。需要能够访问 Node、npm 和 Playwright 下载源。
+在仓库根目录直接使用系统安装的 Node `>=24.6.0` 与 pnpm `12.18.0` 执行以下命令：
 
 ```powershell
-.\scripts\bootstrap.ps1
-.\scripts\pnpm.ps1 install --frozen-lockfile
-.\scripts\pnpm.ps1 verify:workspace
+pnpm install --frozen-lockfile
+pnpm verify:workspace
 
 $env:NEXT_PUBLIC_SITE_URL = 'http://127.0.0.1:5173'
 $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
-.\scripts\pnpm.ps1 build
-.\scripts\pnpm.ps1 dev
+pnpm build
+pnpm dev
 ```
 
 开发服务使用以下本机入口：
@@ -68,11 +67,11 @@ $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
 | React 示例 | `http://127.0.0.1:5175` |
 | API 存活检查 | `http://127.0.0.1:3000/healthz` |
 | 预览网关存活检查 | `http://127.0.0.1:3001/healthz` |
-| CLI 帮助 | `.\scripts\pnpm.ps1 component --help` |
+| CLI 帮助 | `pnpm component --help` |
 
 根 `dev` 通过 `turbo run dev --concurrency=12 --cache=local:rw` 编排 11 个工作区包，先执行上游构建；开发任务不缓存。同一工作区只保留一组开发服务，重新启动前在原终端按 `Ctrl+C` 并等待退出。
 
-若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。Windows 请使用上述 `.\scripts\pnpm.ps1 dev` 固定工具链入口。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
+若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
 
 API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还需启动独立发布 worker。配置与启动方式见 [API 接入说明](apps/api/README.md)、[预览网关说明](apps/preview-gateway/README.md) 和 [本地基础设施](infra/README.md)。
 
@@ -83,10 +82,10 @@ API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还�
 ## 常用验证命令
 
 ```powershell
-.\scripts\pnpm.ps1 typecheck
-.\scripts\pnpm.ps1 test
-.\scripts\pnpm.ps1 exec playwright install chromium
-.\scripts\pnpm.ps1 test:browser
+pnpm typecheck
+pnpm test
+pnpm exec playwright install chromium
+pnpm test:browser
 ```
 
 浏览器测试消费构建后的产物，运行前先执行 `build`，并关闭占用 5173–5177 端口的开发服务。构建和浏览器测试使用相同的 `NEXT_PUBLIC_SITE_URL`。根 `typecheck` 与 `test` 会先构建后端服务。
@@ -95,11 +94,11 @@ API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还�
 | --- | --- |
 | `.\scripts\verify.ps1` | 顺序执行冻结安装、工作区检查、构建、类型检查、单元/HTTP 测试与浏览器测试 |
 | `.\scripts\verify.ps1 -Bootstrap` | 在隔离临时目录验证工具链首次下载、校验与缓存重跑 |
-| `.\scripts\pnpm.ps1 build:services` | 仅构建 API、预览网关及 contracts |
-| `.\scripts\pnpm.ps1 test:gallery-cache` | 检查画廊站点域名切换与 sitemap |
-| `.\scripts\pnpm.ps1 infra:up` / `.\scripts\pnpm.ps1 infra:stop` | 启停本地 PostgreSQL、Verdaccio 与 MinIO |
-| `.\scripts\pnpm.ps1 test:infra` | 验证三存储读写、权限与备份恢复 |
-| `.\scripts\pnpm.ps1 test:platform` | 自建隔离三存储，验证上传、发布与恢复；需要 Docker 和本机锁定镜像 |
+| `pnpm build:services` | 仅构建 API、预览网关及 contracts |
+| `pnpm test:gallery-cache` | 检查画廊站点域名切换与 sitemap |
+| `pnpm infra:up` / `pnpm infra:stop` | 启停本地 PostgreSQL、Verdaccio 与 MinIO |
+| `pnpm test:infra` | 验证三存储读写、权限与备份恢复 |
+| `pnpm test:platform` | 自建隔离三存储，验证上传、发布与恢复；需要 Docker 和本机锁定镜像 |
 
 `build`、`typecheck` 使用本地缓存，画廊和管理端构建输出不进入 Turbo 缓存；测试、消费者安装、截图、发布和基线更新不进入 Turbo 缓存。平台测试与浏览器测试应顺序执行，避免重建产物相互影响。
 

@@ -43,7 +43,7 @@ Web 回调必须为 `${PLATFORM_API_ORIGIN}/v1/auth/oidc/callback`。CLI 公开�
 
 ```powershell
 $env:PLATFORM_ACCESS_OPERATOR = '登记的运维操作者'
-.\scripts\pnpm.ps1 --filter @company/platform-api exec node dist/operations/access-settings.js --file <私有操作文件>
+pnpm --filter @company/platform-api exec node dist/operations/access-settings.js --file <私有操作文件>
 ```
 
 支持精确正文（额外字段拒绝）：

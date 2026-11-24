@@ -18,12 +18,9 @@ function verify(args: string[] = [], extraEnv: Record<string, string> = {}) {
   copyFileSync(new URL('../../scripts/verify.ps1', import.meta.url), join(root, 'scripts/verify.ps1'));
   writeFileSync(join(root, '.node-version'), '26.13.0\n');
   writeFileSync(join(root, 'package.json'), '{"packageManager":"pnpm@12.18.0"}');
-  writeFileSync(join(root, 'scripts/pnpm.ps1'), `
-param([Parameter(ValueFromRemainingArguments = $true)][string[]]$PnpmArgs)
-Add-Content -LiteralPath $env:VERIFY_TRACE -Value ($PnpmArgs -join ' ')
-if ($PnpmArgs[0] -eq $env:VERIFY_FAIL) { exit 7 }
-exit 0
-`);
+  const binDir = join(root, 'bin');
+  mkdirSync(binDir);
+  writeFileSync(join(binDir, 'pnpm.cmd'), `@echo off\r\necho %*>>"%VERIFY_TRACE%"\r\nif "%~1"=="%VERIFY_FAIL%" exit /b 7\r\nexit /b 0\r\n`);
   writeFileSync(join(root, 'scripts/bootstrap.ps1'), `
 $cache = Join-Path (Split-Path -Parent $PSScriptRoot) 'downloaded'
 if (Test-Path -LiteralPath $cache) { $phase = 'cached' } else { $phase = 'fresh' }
@@ -41,7 +38,7 @@ finally {
 `);
   const result = spawnSync('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', join(root, 'run.ps1'), ...args], {
     cwd: join(root, 'caller'), encoding: 'utf8', timeout: 20_000,
-    env: { ...process.env, NEXT_PUBLIC_SITE_URL: '', VERIFY_FAIL: '', ...extraEnv, VERIFY_TRACE: join(root, 'trace.txt') },
+    env: { ...process.env, PATH: `${binDir};${process.env.PATH ?? ''}`, NEXT_PUBLIC_SITE_URL: '', VERIFY_FAIL: '', ...extraEnv, VERIFY_TRACE: join(root, 'trace.txt') },
   });
   const trace = existsSync(join(root, 'trace.txt')) ? readFileSync(join(root, 'trace.txt'), 'utf8').trim().split(/\r?\n/) : [];
   const state = JSON.parse(readFileSync(join(root, 'state.json'), 'utf8').replace(/^\uFEFF/, ''));

@@ -46,7 +46,7 @@
 - **已发布版本不可变与幂等恢复**：Verdaccio 已发布版本严禁覆盖、严禁删除重发；MinIO 已发布版本资源保持不可变。跨存储（MinIO / Verdaccio / PostgreSQL）通过 PostgreSQL `release_jobs` 持久化状态机、唯一约束、租约与 fencing token 协调恢复；同名同版本不同摘要必须报 `CONFLICT` 并失败关闭。
 - **Ready 与可信度状态分离**：资产 `Ready` 仅表示包与预览资源均可达，与检查报告来源（`local-automatic` vs `manual-upload`）、视觉基线确认状态、检索索引状态严格独立，不得混用或相互推断。
 - **静态预览隔离**：预览网关按短期授权提供只读资源，在访问者浏览器的沙箱 iframe 中运行。默认独立注册域名。用户于 2026-11-21 授权在暂无域名时启用同 IPv4 分 HTTPS 端口试用模式，须使用不透明源沙箱、短期路径授权及入口凭证过滤。预览代码严禁获取平台凭证或访问管理 API。详见 [安全规则](rules/security.md)。
-- **固定工具链与精确依赖**：Windows x64 本地开发使用项目 `.tools` 隔离的固定 Node `26.13.0` 与 pnpm `12.18.0`（通过 `.\scripts\bootstrap.ps1` 与 `.\scripts\pnpm.ps1` 执行，不修改全局安装）。外部依赖锁定精确版本（`saveExact: true`）；最新依赖组合若存在冲突，必须明确报告并适配或记录兼容例外，严禁静默回退旧版本。
+- **工具链与精确依赖**：本地开发直接使用系统全局 `pnpm`（`12.18.0`，兼容 `node >= 24.6.0`；如需独立验证隔离工具链，仍可按需使用 `.\scripts\bootstrap.ps1` 与 `.tools`）。外部依赖锁定精确版本（`saveExact: true`）；最新依赖组合若存在冲突，必须明确报告并适配或记录兼容例外，严禁静默回退旧版本。
 - **保留工作区与基线文档**：保留用户当前工作区中的已有修改，未经授权不得 `git reset`、`git checkout --` 或丢弃无关变更；`component-platform-architecture.md` 必须保持原始字节不变。
 
 ## 核心架构约束
@@ -76,8 +76,8 @@
 
 ## 验证要求
 
-- Windows 本机优先使用 `.\scripts\pnpm.ps1 <command>` 执行工作区命令，确保使用 `.tools` 中固定版本的 Node `26.13.0`、pnpm `12.18.0` 及本地 Playwright 浏览器目录。
-- 开发过程中运行当前任务对应的窄范围测试（如 `.\scripts\pnpm.ps1 verify:workspace`、指定 Vitest 测试文件或单包构建）。
+- Windows 本机直接使用 `pnpm <command>` 执行工作区命令（要求系统安装 `pnpm 12.18.0` 与 `node >= 24.6.0`）。
+- 开发过程中运行当前任务对应的窄范围测试（如 `pnpm verify:workspace`、指定 Vitest 测试文件或单包构建）。
 - 根 `typecheck` 与 `test` 均先执行 `build:services`（生成 Nest 服务编译产物与声明文件）；运行 `test:browser` 前必须先完成 `build` 并关闭占用 `5173–5175` 端口的开发服务。
 - 声明任务完成前，运行该任务列出的全部验证命令（基础工程检查可运行 `.\scripts\verify.ps1`；修改引导脚本须额外运行 `.\scripts\verify.ps1 -Bootstrap`）。
 - 不得基于假设、Turbo 缓存命中或部分输出报告成功；必须在验证记录或任务文档中记录实际通过结果。如果必需的外部检查（如 G2 的 PostgreSQL / Verdaccio / MinIO / OIDC）无法运行，记录阻塞原因，并保持对应任务状态为未完成。

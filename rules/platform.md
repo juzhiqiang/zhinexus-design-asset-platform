@@ -10,10 +10,10 @@
 
 ## 固定工具链与编译器分层
 
-- **本地隔离工具链（`.tools/`）**：
-  - 仓库固定 **Node.js `26.13.0`**（`.node-version` 与 `package.json#engines`）、**pnpm `12.18.0`**（`packageManager`）、**Turbo `2.11.10`**。
-  - `.\scripts\bootstrap.ps1` 自动将官方 Node 与原生 pnpm 下载至 `.tools/` 并校验 SHA-256 / SHA-512 摘要，不修改系统全局环境。
-  - Windows 本机统一通过 `.\scripts\pnpm.ps1 <args>` 执行命令；该脚本自动将 `.tools/bin` 与 Node 目录注入当前进程 `PATH`，并将 `PLAYWRIGHT_BROWSERS_PATH` 设为 `.tools/playwright`。
+- **本地工具链**：
+  - 仓库要求 **pnpm `12.18.0`**（`packageManager`）、**Node.js `>=24.6.0`**（`package.json#engines`，隔离验收基线为 `.node-version` 中的 `26.13.0`）与 **Turbo `2.11.10`**。
+  - 日常开发直接使用系统全局 `pnpm <args>` 执行工作区命令（已移除 `scripts/pnpm.ps1` 包装入口）。
+  - 如需隔离验证固定版本下载与摘要，仍可按需运行 `.\scripts\bootstrap.ps1` 将官方 Node 与原生 pnpm 下载至 `.tools/` 并校验 SHA-256 / SHA-512 摘要，不修改系统全局环境。
 - **TypeScript 双编译器策略**：
   - 根工作区、`apps/gallery`、`apps/admin`、`packages/charts-*`、`packages/component-cli`、`packages/contracts` 与 `examples/react` 使用 **TypeScript `7.0.2`**。
   - `apps/api` 与 `apps/preview-gateway` 显式固定 **Nest CLI `12.0.12` + TypeScript `6.0.3`**，启用 `experimentalDecorators` 与 `emitDecoratorMetadata`，确保编译产物具备完整依赖注入元数据。

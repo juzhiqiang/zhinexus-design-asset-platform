@@ -10,7 +10,7 @@
 - `PLATFORM_GALLERY_ORIGIN`、`PLATFORM_API_ORIGIN`、`PLATFORM_PREVIEW_ORIGIN`：三个无末尾斜杠的 HTTPS origin；API 与网关完全一致。最后一个为预览基础域，不带 `r-<uuid>`。
 - `PLATFORM_S3_ENDPOINT`、`PLATFORM_S3_REGION`、`PLATFORM_S3_BUCKET`、`PLATFORM_S3_ACCESS_KEY`、`PLATFORM_S3_SECRET_KEY`：网关只读对象账户。
 
-`scripts/pnpm.ps1 build:services` 后，`scripts/pnpm.ps1 --filter @company/preview-gateway start` 在 `127.0.0.1:3001` 启动。生产环境通过 [TLS 模板](../../infra/gateway/preview.conf) 反向代理；不得把内部明文端口暴露给访问者。缺少配置时仅 health 可用，资源失败关闭。不信任 X-Forwarded-Host，不从请求推导预览域。
+`pnpm build:services` 后，`pnpm --filter @company/preview-gateway start` 在 `127.0.0.1:3001` 启动。生产环境通过 [TLS 模板](../../infra/gateway/preview.conf) 反向代理；不得把内部明文端口暴露给访问者。缺少配置时仅 health 可用，资源失败关闭。不信任 X-Forwarded-Host，不从请求推导预览域。
 
 MinIO 账户只授予目标桶 `releases/*` 的 GetObject。网关 PostgreSQL 账户仅需以下权限（管理员先创建角色并配置 secret）：
 
@@ -51,7 +51,7 @@ GRANT EXECUTE ON FUNCTION catalog_can_read(text,text), preview_can_read(uuid,tex
 
 ## 本地验证边界
 
-`scripts/pnpm.ps1 test:platform` 包含真实 PG/MinIO/HTTP 授权与本地 Playwright Chromium 攻击测试。浏览器测试使用运行时生成的自签名证书和只解析测试域到 loopback 的 CONNECT 代理，不修改全局证书信任。样本为协议与恶意 HTML fixture，不冒充 SDK 0.0.4 真正渲染材料。
+`pnpm test:platform` 包含真实 PG/MinIO/HTTP 授权与本地 Playwright Chromium 攻击测试。浏览器测试使用运行时生成的自签名证书和只解析测试域到 loopback 的 CONNECT 代理，不修改全局证书信任。样本为协议与恶意 HTML fixture，不冒充 SDK 0.0.4 真正渲染材料。
 
 公司 OIDC/PKCE/撤权、生产独立注册域 wildcard DNS/TLS、目标浏览器第三方 Cookie 策略及 B 的真实画廊/八实现闭环仍需验收；不能据此标记完整 T07/G2/M2 完成。
 

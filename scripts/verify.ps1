@@ -44,7 +44,7 @@ try {
     @('test'),
     @('test:browser')
   )) {
-    & (Join-Path $PSScriptRoot 'pnpm.ps1') @taskArgs
+    & pnpm @taskArgs
     if ($LASTEXITCODE -ne 0) { throw "Verification failed: pnpm $($taskArgs -join ' ')" }
   }
   Write-Host 'Bootstrap verification passed (not full T01 acceptance).'

@@ -28,13 +28,13 @@ OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时�
 
 ## 初始化和运行
 
-1. 本地三存储可用根 `scripts/pnpm.ps1 infra:up` 启动。管理员创建专用数据库和私有 bucket，把凭证注入以上环境变量；API 不把 bucket 改为公开。
+1. 本地三存储可用根 `pnpm infra:up` 启动。管理员创建专用数据库和私有 bucket，把凭证注入以上环境变量；API 不把 bucket 改为公开。
 2. 构建服务并显式迁移（不会在启动时隐式修改 schema）：
 
 ```powershell
-.\scripts\pnpm.ps1 build:services
-.\scripts\pnpm.ps1 --filter @company/platform-api migrate
-.\scripts\pnpm.ps1 --filter @company/platform-api start
+pnpm build:services
+pnpm --filter @company/platform-api migrate
+pnpm --filter @company/platform-api start
 ```
 
 3. 管理员按已验证 OIDC subject 预建 components、component_permissions 和 package_permissions。组件 grant 的 can_publish/can_maintain 分别控制发布/维护，npm 包发布另需 package_permissions；没有默认通配授权。维护者角色不会自动拥有所有组件。授权变更通过受控运维执行。
@@ -42,7 +42,7 @@ OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时�
 4. 在独立进程启动 worker（可运行多个实例，全部共享同一数据库、私有 bucket 和 Verdaccio）：
 
 ```powershell
-.\scripts\pnpm.ps1 --filter @company/platform-api worker
+pnpm --filter @company/platform-api worker
 ```
 
 worker 不需要登录令牌；它只处理 API 已接受的作业。生产中由进程管理器保证重启，SIGTERM/SIGINT 等待当前轮结束；强制终止后默认 60 秒租约到期可接管，每 20 秒续租。诊断 `worker --once` 处理一轮并退出，退出 0 不等于作业 Ready，仍须查询作业状态。worker 不执行迁移，部署须先显式应用 004 及之前的迁移。
@@ -96,11 +96,11 @@ worker 不需要登录令牌；它只处理 API 已接受的作业。生产中�
 
 二期文本候选接口为 `POST /v1/search/candidates`。Bearer 主体必须具有 reader/publisher/maintainer 角色；请求 `{query,context,reactDomVersion?}`，响应为公共 `SearchCandidatesResponse`。React DOM 只接受显式精确版本，不从 React 推断；未满足必需 peer 的候选不会返回。`context.requirements` 暂未进行语义理解，响应 gaps 明确提示此限制。
 
-008_search 持久化 `metadata-text-v1` 元数据文本索引，仅包含组件/实现/导出名/包名/分类。运行 `scripts/pnpm.ps1 exec node apps/api/dist/index/search-runner.js` 单独消费发布 outbox；`--once` 消费至多一个作业，设置 `PLATFORM_SEARCH_REBUILD_JOB_ID` 可重建指定作业。索引失败记录为 failed 并可重试，不撤回 Ready。作业同一事务完成全部实现索引；查询最多检查前 50 个文本命中，并在最终批次 SQL 快照重新核验权限、状态和元数据 revision。最后读取完成后发生的撤权无法撤回已发送响应，不宣称跨响应的永久授权。
+008_search 持久化 `metadata-text-v1` 元数据文本索引，仅包含组件/实现/导出名/包名/分类。运行 `pnpm exec node apps/api/dist/index/search-runner.js` 单独消费发布 outbox；`--once` 消费至多一个作业，设置 `PLATFORM_SEARCH_REBUILD_JOB_ID` 可重建指定作业。索引失败记录为 failed 并可重试，不撤回 Ready。作业同一事务完成全部实现索引；查询最多检查前 50 个文本命中，并在最终批次 SQL 快照重新核验权限、状态和元数据 revision。最后读取完成后发生的撤权无法撤回已发送响应，不宣称跨响应的永久授权。
 
 API 请求/响应禁止缓存且 noindex；用途/视觉分数省略，不将人工截图或 Ready 当作兼容验证。兼容 verified 仅来自服务器接受的精确版本/摘要记录。无上传代码执行、组件构建或服务端浏览器。
 
-`scripts/pnpm.ps1 test:platform` 必须在 Windows 开发机运行：先构建服务及 SDK，使用隔离测试数据库/私有 bucket、真实签名 JWT、真实 HTTP/S3，并调用本地 CLI 生成双框架截图。缺本地存储会失败，不会 skip；不要在 API 容器中运行此命令。
+`pnpm test:platform` 必须在 Windows 开发机运行：先构建服务及 SDK，使用隔离测试数据库/私有 bucket、真实签名 JWT、真实 HTTP/S3，并调用本地 CLI 生成双框架截图。缺本地存储会失败，不会 skip；不要在 API 容器中运行此命令。
 
 初始限制为单包 50 MiB、单图 10 MiB、8192 像素边长、tar 展开 200 MiB/5000 文件、总材料 500 MiB；属于安全上限，不是已完成的并发容量承诺。失败/过期冻结尝试可能留下未引用对象，后续运维按引用清理，禁止按时间删除已发布资产。
 

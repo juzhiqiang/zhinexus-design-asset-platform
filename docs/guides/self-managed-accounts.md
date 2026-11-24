@@ -11,9 +11,9 @@
 ## 2. 启动与停止
 
 ```powershell
-.\scripts\pnpm.ps1 infra:self-managed:up      # 首次会生成随机凭据、本地 CA 与 IP 证书
-.\scripts\pnpm.ps1 infra:self-managed:stop    # 停止并移除容器，卷与凭据保留
-.\scripts\pnpm.ps1 infra:self-managed:credentials   # 仅打印凭据目录位置，不打印内容
+pnpm infra:self-managed:up      # 首次会生成随机凭据、本地 CA 与 IP 证书
+pnpm infra:self-managed:stop    # 停止并移除容器，卷与凭据保留
+pnpm infra:self-managed:credentials   # 仅打印凭据目录位置，不打印内容
 ```
 
 首次 `up` 会在空栈上生成 PostgreSQL 密码、Keycloak bootstrap 管理员密码、本地 CA 与覆盖访问 IP 的服务器证书。若发现已有卷但没有 `state.json`，脚本拒绝覆盖并提示走恢复流程——**有卷无凭证时不得重置数据**。
@@ -26,7 +26,7 @@ Keycloak 版本与镜像 digest 由 `infra/self-managed-versions.json` 固定；
 $env:PLATFORM_SELF_MANAGED_HOST = '127.0.0.1'      # 实际访问 IP，证书 SAN 必须覆盖它
 $env:PLATFORM_API_ORIGIN        = 'https://127.0.0.1:3000'
 $env:PLATFORM_GALLERY_ORIGIN    = 'https://127.0.0.1:5173'
-.\scripts\pnpm.ps1 infra:self-managed:bootstrap
+pnpm infra:self-managed:bootstrap
 ```
 
 bootstrap 会：创建 `zhinexus` realm 与 `zhinexus-web` / `zhinexus-cli` / `zhinexus-api` 客户端；轮换 `zhinexus-identity-admin` 服务账号密钥并只授予 `manage-users`、`view-users`、`query-users`、`query-groups`、`view-realm`（缺失任一即拒绝，不扩大授权）；创建首个平台管理员（随机临时密码、`UPDATE_PASSWORD` 首次改密、`platform_managed_user_id` 与 `platform_account_version` 只读属性）；执行平台迁移；按 issuer + subject 把该管理员登记进 `managed_accounts`（`administrator=true`）。

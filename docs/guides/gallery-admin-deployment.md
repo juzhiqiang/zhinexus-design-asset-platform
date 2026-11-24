@@ -48,29 +48,29 @@ Windows构建前设置API地址：
 
 ```powershell
 $env:NEXT_PUBLIC_PLATFORM_API_URL='https://api.assets.example.com'
-.\scripts\pnpm.ps1 install --frozen-lockfile
-.\scripts\pnpm.ps1 --filter @company/gallery --filter @company/admin build
+pnpm install --frozen-lockfile
+pnpm --filter @company/gallery --filter @company/admin build
 ```
 
 在两个受进程管理器管理的终端分别运行：
 
 ```powershell
-.\scripts\pnpm.ps1 --filter @company/gallery preview
-.\scripts\pnpm.ps1 --filter @company/admin preview
+pnpm --filter @company/gallery preview
+pnpm --filter @company/admin preview
 ```
 
 默认监听127.0.0.1:5173/5177。容器内需在相应应用目录执行等价的 `next start --hostname 0.0.0.0 --port 5173` 或5177，仅加入私有入口网络。NEXT_PUBLIC变量在构建时写入客户端产物，改变API地址后须重新构建两端。
 
-本地开发运行 `.\scripts\pnpm.ps1 dev`。遇端口占用先确认已有服务归属，避免重复启动；开发服务本身不提供生产VPN边界。
+本地开发运行 `pnpm dev`。遇端口占用先确认已有服务归属，避免重复启动；开发服务本身不提供生产VPN边界。
 
 ## 迁移与验收
 
 画廊旧 /upload、/jobs/:id、/match、/users、/access-settings 返回404；内部书签改成admin origin对应路径。默认登录回跳改为/library。root/gallery/API因此升至0.1.0，新admin为0.0.1。
 
 ```powershell
-.\scripts\pnpm.ps1 verify:workspace
-.\scripts\pnpm.ps1 verify:deployment
-.\scripts\pnpm.ps1 -PnpmArgs @('exec','vitest','run','tests/infra/gallery-admin-ingress.test.ts')
+pnpm verify:workspace
+pnpm verify:deployment
+pnpm -PnpmArgs @('exec','vitest','run','tests/infra/gallery-admin-ingress.test.ts')
 ```
 
 实际Docker Nginx配置和行为13项通过：两个nginx -t、可信/不可信网络、伪造请求头、默认拒绝、OIDC参数、2MiB接受与9MiB拒绝。最终证据见 [集成验证记录](../verification/2026-11-24-gallery-admin-split.md)。Claude早期审查保留为历史基线。

@@ -2,16 +2,16 @@
 
 ## 自动化测试
 
-Windows 本机统一通过 `.\scripts\pnpm.ps1 <command>` 运行检查，使用 `.tools` 中固定的 Node `26.13.0`、pnpm `12.18.0` 与本地 Playwright 浏览器：
+Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18.0` 与 `node >= 24.6.0`）：
 
-- **工作区结构与边界测试（`verify:workspace`）**：运行 `.\scripts\pnpm.ps1 verify:workspace`（`scripts/verify-workspace.ts`），校验 11 个固定成员、无循环依赖、公开包/私有包边界、`workspace:*` 内部协议、外部依赖精确版本锁定、公开包不依赖私有 `@company/contracts`、服务端安全依赖闭包及 Turbo 缓存排除规则。
-- **契约、单元与服务 HTTP 测试（`test`）**：运行 `.\scripts\pnpm.ps1 test`（先执行 `pnpm build:services`，再运行 `vitest run`）。
+- **工作区结构与边界测试（`verify:workspace`）**：运行 `pnpm verify:workspace`（`scripts/verify-workspace.ts`），校验 11 个固定成员、无循环依赖、公开包/私有包边界、`workspace:*` 内部协议、外部依赖精确版本锁定、公开包不依赖私有 `@company/contracts`、服务端安全依赖闭包及 Turbo 缓存排除规则。
+- **契约、单元与服务 HTTP 测试（`test`）**：运行 `pnpm test`（先执行 `pnpm build:services`，再运行 `vitest run`）。
   - `@company/contracts`、核心状态机、摘要计算、环境键计算与错误分类优先使用 Vitest 单元测试，同时覆盖合法样例与反例 fixtures（缺图、错框架、错摘要、伪造 `'local-automatic'` 来源、路径穿越等）。
   - NestJS 服务测试必须加载 `dist/` 真实编译产物，验证依赖注入、控制器到服务链路及真实 HTTP 响应，不得只验证 mock 被调用。
-- **浏览器与双框架渲染测试（`test:browser`）**：先执行 `.\scripts\pnpm.ps1 build` 并释放 `5173–5177` 端口，再运行 `.\scripts\pnpm.ps1 test:browser`，验证 React 画廊（`5173`）、内网管理端（`5177`）、Vue 示例（`5174`）、React 示例（`5175`）及双框架组件在零尺寸、`ResizeObserver`、`StrictMode`、`KeepAlive`、系列删减和卸载清理下的真实行为。
-- **引导脚本验证（`verify.ps1 -Bootstrap`）**：修改 `scripts/bootstrap.ps1`、`scripts/pnpm.ps1`、`.node-version` 或 `packageManager` 后，必须运行 `.\scripts\verify.ps1 -Bootstrap`，在独立临时目录中验证首次下载、哈希校验、版本探测和缓存重跑；该模式不执行日常全套检查。
-- **画廊缓存专项回归（`test:gallery-cache`）**：运行 `.\scripts\pnpm.ps1 test:gallery-cache`，执行 `tests/integration/gallery-cache.mjs` 的四轮真实构建与 HTTP sitemap 检查；不纳入普通 Vitest 或 Turbo 测试缓存。
-- **生成契约文件**：运行 `.\scripts\pnpm.ps1 --filter @company/contracts schemas:generate`，先构建 contracts 再生成 JSON Schema；`tests/contracts/api-schema.test.ts` 在普通 test 中检查内容和格式精确一致性。
+- **浏览器与双框架渲染测试（`test:browser`）**：先执行 `pnpm build` 并释放 `5173–5177` 端口，再运行 `pnpm test:browser`，验证 React 画廊（`5173`）、内网管理端（`5177`）、Vue 示例（`5174`）、React 示例（`5175`）及双框架组件在零尺寸、`ResizeObserver`、`StrictMode`、`KeepAlive`、系列删减和卸载清理下的真实行为。
+- **引导脚本验证（`verify.ps1 -Bootstrap`）**：修改 `scripts/bootstrap.ps1`、`.node-version` 或 `packageManager` 后，必须运行 `.\scripts\verify.ps1 -Bootstrap`，在独立临时目录中验证首次下载、哈希校验、版本探测和缓存重跑；该模式不执行日常全套检查。
+- **画廊缓存专项回归（`test:gallery-cache`）**：运行 `pnpm test:gallery-cache`，执行 `tests/integration/gallery-cache.mjs` 的四轮真实构建与 HTTP sitemap 检查；不纳入普通 Vitest 或 Turbo 测试缓存。
+- **生成契约文件**：运行 `pnpm --filter @company/contracts schemas:generate`，先构建 contracts 再生成 JSON Schema；`tests/contracts/api-schema.test.ts` 在普通 test 中检查内容和格式精确一致性。
 
 ## 外部消费者与环境验收
 
@@ -25,7 +25,7 @@ Windows 本机统一通过 `.\scripts\pnpm.ps1 <command>` 运行检查，使用 
 
 - 遵循语义化版本 `MAJOR.MINOR.PATCH`：四个公开包（`@company/charts-core`、`@company/charts-vue`、`@company/charts-react`、`@company/component-cli`）以各自 `package.json` 的 `version` 字段为唯一事实来源；平台整体版本以根 `package.json` 的 `version` 为唯一事实来源。
 - 当前 `G0` 工程骨架阶段，根包与四个公开包版本均为 `0.0.0`，尚不可作为业务组件发布。
-- 外部依赖在 `package.json` 中必须锁定精确版本 `x.y.z`（禁止 `^`、`~`、`*`），与根 `pnpm-lock.yaml` 保持一致。`.\scripts\pnpm.ps1 versions:resolve` 仅刷新 `docs/versions.discovery.json` 官方候选发现记录，不修改已安装版本，也不证明兼容。
+- 外部依赖在 `package.json` 中必须锁定精确版本 `x.y.z`（禁止 `^`、`~`、`*`），与根 `pnpm-lock.yaml` 保持一致。`pnpm versions:resolve` 仅刷新 `docs/versions.discovery.json` 官方候选发现记录，不修改已安装版本，也不证明兼容。
 
 ### 递增时机
 
