@@ -54,6 +54,20 @@ async function fixture() {
   origin = 'http://127.0.0.1:' + (server.address() as { port: number }).port;
   return { root, config, origin, uploaded, releaseKeys, uploadCreates: () => uploadCreates, rejectUploads: (reject: boolean) => { rejectUpload = reject; }, disableCategory: () => { categoriesEnabled = false; } };
 }
+async function aliasFacadeEntry(root: string, includeOriginal: boolean) {
+  await fs.writeFile(path.join(root, 'consumers/vue/substitute.mjs'), "import { h } from 'vue'; export const BadgeVue = { render() { return h('strong', 'Vue frozen badge'); } };\n");
+  await fs.writeFile(path.join(root, 'consumers/vue/vite.config.js'), String.raw`import { fileURLToPath } from 'node:url';
+export default {
+  resolve: {
+    "alias": [{
+      "find": /^.*[\/]dist[\/]vue\.mjs$/,
+      "replacement": fileURLToPath(new URL('./substitute.mjs', import.meta.url)).replace(/\\/g, '/')
+    }]
+  }
+};
+`);
+  if (includeOriginal) await fs.appendFile(path.join(root, 'consumers/vue/main.js'), "\nimport * as unusedOriginal from '@fixture/project-badge/vue?original-probe'; console.log(unusedOriginal.BadgeVue);\n");
+}
 describe('project frozen consumer publication', () => {
   it.each(['--idempotency-key', '--key'])('honors %s on the first release of prepared materials and keeps the original session key on resume', async flag => {
     const { root, origin, rejectUploads, releaseKeys } = await fixture();
@@ -96,6 +110,14 @@ describe('project frozen consumer publication', () => {
     await fs.writeFile(path.join(root, 'consumers/vue/main.js'), `import { BadgeVue } from '@fixture/project-badge/vue';\nconsole.log(BadgeVue); document.querySelector('#app').textContent = 'unrelated preview';\nwindow.__COMPONENT_EXAMPLE__ = { ready: Promise.resolve(), states: ['default'], async runState() {}, getChecks() { return [{ name: 'developer-render', status: 'passed' }]; } };\n`);
     const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
     expect(result.exitCode, result.stderr).toBe(1); expect(result.stderr).toContain('PREVIEW_IMPLEMENTATION_UNUSED');
+    await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
+  }, 180_000);
+  it.each([false, true])('rejects a second alias of the facade absolute installed entry even with an unrelated original-entry import (%s)', async includeOriginal => {
+    const { root, origin } = await fixture();
+    await aliasFacadeEntry(root, includeOriginal);
+    const result = await runCli(['prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root });
+    expect(result.exitCode, result.stderr).toBe(1); expect(result.stderr).toContain('CONSUMER_SOURCE_LINK');
+    await expect(fs.stat(path.join(root, 'rejected-bundle/manifest.json'))).rejects.toThrow();
     await expect(fs.stat(path.join(root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
   }, 180_000);
   it('preserves Vue setup expose and React memo forwardRef handles, props and events during actual rendering', async () => {
@@ -228,13 +250,17 @@ describe('project frozen consumer publication', () => {
     const packageRef = material.manifest.packages[0];
     expect(await computeFileSha256(path.join(material.bundleDir, packageRef.tarball.path))).toBe(packageRef.tarball.sha256);
     expect(uploaded.get(packageRef.tarball.path)).toEqual(await fs.readFile(path.join(material.bundleDir, packageRef.tarball.path)));
-    const evidence = { evidence: 'INDEPENDENT_CLI_REAL_INSTALL', cliVersion: installedPkg.version, cliTarballSha256: packed.sha256, cliTarballPath: packed.tarballPath, installedRoot, commands: ['init', 'dev', 'doctor', 'prepare-release', 'release', 'release (resume)'], componentTarballSha256: packageRef.tarball.sha256, frameworkVariants: material.manifest.variants.map((variant: { framework: string }) => variant.framework), buildCount: 1, uploadCreates: uploadCreates(), state: JSON.parse(release.stdout).state, retainedArtifacts: '' };
+    const rejected = await fixture(); await aliasFacadeEntry(rejected.root, true);
+    await expect(execute(process.execPath, [bin, 'prepare-release', '--framework', 'vue', '--bundle-dir', 'rejected-bundle', '--api-url', rejected.origin, '--token', 'test-token'], { ...options, cwd: rejected.root })).rejects.toMatchObject({ code: 1, stderr: expect.stringContaining('CONSUMER_SOURCE_LINK') });
+    await expect(fs.stat(path.join(rejected.root, 'rejected-bundle/reports/badge-vue.json'))).rejects.toThrow();
+    const evidence = { evidence: 'INDEPENDENT_CLI_REAL_INSTALL', cliVersion: installedPkg.version, cliTarballSha256: packed.sha256, cliTarballPath: packed.tarballPath, installedRoot, commands: ['init', 'dev', 'doctor', 'prepare-release', 'release', 'release (resume)', 'prepare-release (absolute entry alias rejected)'], componentTarballSha256: packageRef.tarball.sha256, frameworkVariants: material.manifest.variants.map((variant: { framework: string }) => variant.framework), buildCount: 1, uploadCreates: uploadCreates(), state: JSON.parse(release.stdout).state, retainedArtifacts: '' };
     if (process.env.PROJECT_CLI_EVIDENCE) {
       const retained = path.join(path.dirname(process.env.PROJECT_CLI_EVIDENCE), 'task-2-artifacts');
       await fs.mkdir(path.join(retained, 'cli'), { recursive: true }); await fs.copyFile(packed.tarballPath, path.join(retained, 'cli', packed.tarballName));
       for (const ref of material.manifest.files) { const target = path.join(retained, 'component-bundle', ref.path); await fs.mkdir(path.dirname(target), { recursive: true }); await fs.copyFile(path.join(material.bundleDir, ref.path), target); }
       await fs.writeFile(path.join(retained, 'component-bundle', 'manifest.json'), JSON.stringify(material.manifest, null, 2) + '\n');
       evidence.retainedArtifacts = retained;
+      await fs.writeFile(path.join(path.dirname(process.env.PROJECT_CLI_EVIDENCE), 'task-2-provenance-build.log'), prepared.stderr);
       await fs.writeFile(process.env.PROJECT_CLI_EVIDENCE, JSON.stringify(evidence, null, 2) + '\n');
     }
   }, 240_000);

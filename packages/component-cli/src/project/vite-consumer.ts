@@ -25,6 +25,7 @@ async function runVite(input: BuildInput) {
   const facadeId = '\0component-frozen-export';
   const sources = new Map<string, string>();
   let selected = false;
+  let facadeEntry: string | undefined;
   const cleanId = (id: string) => id.replace(/^\/\@fs\//, '').split('?')[0]!;
   async function checkSource(id: string) {
     if (id.startsWith('\0')) return;
@@ -84,15 +85,22 @@ export { selected as ${input.exportName} };
       return { code, map: null };
     },
     async generateBundle(_options, bundle) {
+      if (!selected || !Object.values(bundle).some(item => item.type === 'chunk' && facadeId in item.modules)) throw new Error('PREVIEW_IMPLEMENTATION_UNUSED: 构建未消费所选冻结导出');
+      // Bind the proxy's own namespace import/re-export edge. A side import of
+      // the installed entry elsewhere cannot make a substituted proxy valid.
+      const imported = [...new Set(this.getModuleInfo(facadeId)?.importedIds ?? [])];
+      if (imported.length !== 1 || await checkSource(imported[0]!) !== input.entry || this.getModuleInfo(imported[0]!)?.code == null) {
+        throw new Error('CONSUMER_SOURCE_LINK: 冻结导出代理实际加载的入口被替换');
+      }
+      facadeEntry = imported[0];
       for (const id of this.getModuleIds()) {
         const real = await checkSource(id);
         if (real) sources.set(id, real);
       }
-      if (!selected || !Object.values(bundle).some(item => item.type === 'chunk' && facadeId in item.modules)) throw new Error('PREVIEW_IMPLEMENTATION_UNUSED: 构建未消费所选冻结导出');
     },
   };
   await vite.build({ root: input.root, logLevel: 'silent', plugins: [plugin], build: { outDir: input.outDir, emptyOutDir: true } });
-  await fs.writeFile(path.join(input.root, '.consumer-provenance.json'), JSON.stringify({ viteVersion: vitePackage.version, installedEntry: input.entry, moduleName: input.moduleName, exportName: input.exportName, sources: [...sources.values()] }));
+  await fs.writeFile(path.join(input.root, '.consumer-provenance.json'), JSON.stringify({ viteVersion: vitePackage.version, installedEntry: input.entry, facadeEntry, moduleName: input.moduleName, exportName: input.exportName, sources: [...sources.values()] }));
 }
 
 export async function buildProjectConsumer(root: string, variant: ProjectVariant, installedEntry: string, moduleName: string, log: (message: string) => void, timeoutMs: number) {
