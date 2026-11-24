@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
+import { ZnShell } from './lib/design/shell';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -19,21 +19,7 @@ export default function AdminRootLayout({ children }: Readonly<{ children: React
   return (
     <html lang="zh-CN">
       <body>
-        <header className="site-header">
-          <div className="site-nav">
-            <Link href="/upload" className="site-logo">
-              <span>Zhinexus</span>
-              <span className="site-badge">内网管理端</span>
-            </Link>
-            <nav className="nav-links" aria-label="控制台导航">
-              <Link href="/upload" className="console-nav-link">上传发布</Link>
-              <Link href="/match" className="console-nav-link">项目上下文匹配</Link>
-              <Link href="/access-settings" className="console-nav-link">接入设置</Link>
-              <Link href="/users" className="console-nav-link">用户与权限</Link>
-            </nav>
-          </div>
-        </header>
-        {children}
+        <ZnShell>{children}</ZnShell>
       </body>
     </html>
   );
