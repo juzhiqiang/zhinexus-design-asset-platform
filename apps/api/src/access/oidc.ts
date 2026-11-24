@@ -107,7 +107,10 @@ export class CompanyOidc {
     if (!row || !this.settings.options.administrators.some(a=>a.issuer===row.issuer && a.subject===row.identity_subject)) throw new AuthFailure('UNAUTHENTICATED');
     return this.start(row.revision,active.generation);
   }
-  async start(candidate?:string,expectedGeneration?:string): Promise<{ location:string; cookie:string }> {
+  async start(candidate?:string,expectedGeneration?:string,target:'gallery'|'admin'='gallery'): Promise<{ location:string; cookie:string }> {
+    if (target !== 'gallery' && target !== 'admin') throw new PlatformError('INVALID_SCHEMA');
+    const webTarget = candidate ? 'admin' : target;
+    if (webTarget === 'gallery' && !this.settings.galleryOrigin) throw new PlatformError('INFRA_UNAVAILABLE');
     const active = await this.settings.current('oidc');
     if (expectedGeneration!==undefined && active.generation!==expectedGeneration) throw new AuthFailure('UNAUTHENTICATED');
     const revision = candidate ? (await this.db.query('SELECT config FROM access_revisions WHERE id=$1 AND section=$2',[candidate,'oidc'])).rows[0] : undefined;
@@ -115,7 +118,7 @@ export class CompanyOidc {
     if (!config) throw new PlatformError('INFRA_UNAVAILABLE');
     const { metadata } = await this.metadata(config);
     const state = randomBytes(32).toString('base64url'), browser = randomBytes(32).toString('base64url'), nonce = randomBytes(32).toString('base64url'), verifier = randomBytes(32).toString('base64url');
-    await this.db.query(`INSERT INTO oidc_attempts(state_hash,browser_hash,revision,generation,candidate,verifier,nonce,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,clock_timestamp()+interval '5 minutes')`,[digest(state),digest(browser),candidate ?? active.revision?.id ?? null,active.generation,!!candidate,verifier,nonce]);
+    await this.db.query(`INSERT INTO oidc_attempts(state_hash,browser_hash,revision,generation,candidate,verifier,nonce,web_target,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp()+interval '5 minutes')`,[digest(state),digest(browser),candidate ?? active.revision?.id ?? null,active.generation,!!candidate,verifier,nonce,webTarget]);
     const url = new URL(metadata.authorization_endpoint);
     url.search = new URLSearchParams({ response_type:'code',client_id:config.webClientId,redirect_uri:config.webRedirectUri,scope:['openid',...(config.scopes ?? [])].join(' '),state,nonce,code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256' }).toString();
     return { location:url.href,cookie:`__Host-oidc=${browser}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=Lax` };
@@ -124,7 +127,7 @@ export class CompanyOidc {
     if (!/^[A-Za-z0-9_-]{43}$/.test(state) || !/^[A-Za-z0-9_-]{43}$/.test(browser) || !code || code.length > 4096 || /[\u0000-\u001f\u007f]/u.test(code)) throw new AuthFailure('UNAUTHENTICATED');
     const active = await this.settings.current('oidc');
     const attempt = (await this.db.query(`UPDATE oidc_attempts SET consumed_at=clock_timestamp() WHERE state_hash=$1 AND browser_hash=$2 AND consumed_at IS NULL AND expires_at>clock_timestamp() AND generation=$3 RETURNING *`,[digest(state),digest(browser),active.generation])).rows[0];
-    if (!attempt) throw new AuthFailure('UNAUTHENTICATED');
+    if (!attempt || (attempt.web_target !== 'gallery' && attempt.web_target !== 'admin')) throw new AuthFailure('UNAUTHENTICATED');
     try {
       const config:OidcAccessConfig = attempt.revision ? (await this.db.query('SELECT config FROM access_revisions WHERE id=$1',[attempt.revision])).rows[0]?.config : this.settings.options.initialOidc;
       if (!config || config.webRedirectUri !== this.settings.options.apiOrigin+'/v1/auth/oidc/callback' || (responseIssuer !== undefined && responseIssuer !== config.issuer)) throw new AuthFailure('UNAUTHENTICATED');
@@ -147,7 +150,7 @@ export class CompanyOidc {
       const isAdmin = managed ? managed.administrator : this.settings.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject);
       if (attempt.candidate) {
         await this.settings.evidence(attempt.revision,active.generation,{webLogin:'passed',roles:effective.roles.length ? 'passed' : 'failed',...(isAdmin ? {adminLogin:'passed'} : {})});
-        return { location:this.settings.galleryOrigin+'/access-settings?candidate=passed' };
+        return { location:this.settings.adminOrigin+'/access-settings?candidate=passed' };
       }
       const token = randomBytes(32).toString('base64url');
       const authTime = typeof accessPayload.auth_time === 'number' && Number.isFinite(accessPayload.auth_time) ? Math.floor(accessPayload.auth_time) : null;
@@ -156,7 +159,8 @@ export class CompanyOidc {
         if (current.generation !== active.generation) throw new AuthFailure('UNAUTHENTICATED');
         await sql.query('INSERT INTO oidc_sessions(token_hash,generation,issuer,identity_subject,principal,expires_at,account_version,auth_time) VALUES ($1,$2,$3,$4,$5,to_timestamp($6),$7,$8)',[digest(token),active.generation,principal.issuer,principal.identitySubject,JSON.stringify(bound),Math.min(accessPayload.exp!,payload.exp!),managed ? Number(managed.version) : null,managed ? authTime : null]);
       });
-      return { location:this.settings.galleryOrigin+'/upload',cookie:`__Host-platform=${token}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=None` };
+      const location = attempt.web_target === 'admin' ? this.settings.adminOrigin+'/upload' : this.settings.galleryOrigin+'/library';
+      return { location,cookie:`__Host-platform=${token}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=None` };
     } catch { throw new AuthFailure('UNAUTHENTICATED'); }
   }
   async candidateCli(input:unknown): Promise<{ passed:true }> {

@@ -20,9 +20,12 @@ export class CompanyAuthController {
     }
   }
   @Get('start')
-  async start(@Query('revision') revision:string | undefined,@Headers('authorization') auth:string | undefined,@Req() request:{requestId:string},@Res() response:Response) {
+  async start(@Query() query:Record<string,unknown>,@Headers('authorization') auth:string | undefined,@Req() request:{requestId:string},@Res() response:Response) {
+    if (Object.keys(query).some(key => !['revision','target'].includes(key)) || Object.values(query).some(value => typeof value !== 'string') || (query.target !== undefined && query.target !== 'gallery' && query.target !== 'admin')) throw new PlatformError('INVALID_SCHEMA');
+    const revision = query.revision as string | undefined;
+    const target = query.target === 'admin' ? 'admin' : 'gallery';
     if (revision) await this.platform.runAdministrator(auth,request.requestId,async () => true);
-    const result = await this.checked('oidc-start',request.requestId,()=>this.runtime().start(revision));
+    const result = await this.checked('oidc-start',request.requestId,()=>this.runtime().start(revision,undefined,target));
     response.setHeader('Set-Cookie',result.cookie);response.setHeader('Referrer-Policy','no-referrer');response.redirect(303,result.location);
   }
   @Get('callback')

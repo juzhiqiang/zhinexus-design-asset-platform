@@ -19,18 +19,19 @@ import { KeycloakIdentityAdapter, type KeycloakOptions } from './identity/keyclo
 import type { IdentityAdapter } from './identity/adapter.js';
 import { IdentityWorker } from './identity/worker.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter };
-function validateGalleryOrigin(value: string): string {
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter };
+function validateWebOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
   const localHttp = url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname);
-  if ((!localHttp && url.protocol !== 'https:') || url.username || url.password || value !== url.origin) throw new PlatformError('INVALID_SCHEMA');
+  if ((!localHttp && url.protocol !== 'https:') || url.username || url.password || url.hostname.includes('*') || value !== url.origin) throw new PlatformError('INVALID_SCHEMA');
   return value;
 }
 export function environmentOptions(): PlatformOptions {
   const env = process.env;
   const result: PlatformOptions = {};
   if (env.PLATFORM_GALLERY_ORIGIN) result.galleryOrigin = env.PLATFORM_GALLERY_ORIGIN;
+  if (env.PLATFORM_ADMIN_ORIGIN !== undefined) result.adminOrigin = env.PLATFORM_ADMIN_ORIGIN;
   result.retention = retentionPolicy(env);
   if (env.PLATFORM_METRICS_TOKEN) result.metricsToken = env.PLATFORM_METRICS_TOKEN;
   result.preview = previewConfigFromEnv(env);
@@ -73,6 +74,7 @@ export class Platform {
   readonly uploads?: UploadService;
   readonly preview?: PreviewConfig;
   readonly galleryOrigin?: string;
+  readonly adminOrigin: string;
   readonly access?: AccessSettingsService;
   readonly companyOidc?: CompanyOidc;
   readonly accounts?: ManagedAccountsService;
@@ -83,9 +85,10 @@ export class Platform {
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
     this.metricsToken = options.metricsToken;
     if (options.preview) this.preview = validatePreviewConfig(options.preview);
+    this.adminOrigin = validateWebOrigin(options.adminOrigin ?? 'http://127.0.0.1:5177');
     const galleryOrigin = options.galleryOrigin ?? this.preview?.platformOrigin;
     if (galleryOrigin !== undefined) {
-      this.galleryOrigin = validateGalleryOrigin(galleryOrigin);
+      this.galleryOrigin = validateWebOrigin(galleryOrigin);
       if (this.preview && this.galleryOrigin !== this.preview.platformOrigin) throw new PlatformError('INVALID_SCHEMA');
     }
     const bootstrapResolver:JWTVerifyGetKey | undefined=options.access && options.oidc && !options.keyResolver ? async (header,token)=>{
@@ -99,7 +102,7 @@ export class Platform {
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
     if (this.db && options.access) {
-      this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : probePreview(this.db!,this.access!,this.companyOidc!.network,config as import('@company/contracts').PreviewAccessConfig));
+      this.access = new AccessSettingsService(this.db, options.access, this.galleryOrigin,async (section,config) => section === 'oidc' ? this.companyOidc!.probe(config as import('@company/contracts').OidcAccessConfig) : probePreview(this.db!,this.access!,this.companyOidc!.network,config as import('@company/contracts').PreviewAccessConfig),this.adminOrigin);
       if (options.managedAccounts && options.identity) {
         const network = new RestrictedHttps(options.access.outbound, options.access.ca, options.accessLookup);
         this.accounts = new ManagedAccountsService(this.db, this.access, options.managedAccounts, options.identityAdapter ?? new KeycloakIdentityAdapter(network, options.identity!));
@@ -107,6 +110,9 @@ export class Platform {
       this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts);
       if (this.accounts) this.identityWorker = new IdentityWorker(this.accounts);
     }
+  }
+  allowsWebOrigin(origin: string | undefined): boolean {
+    return origin !== undefined && (origin === this.galleryOrigin || origin === this.adminOrigin);
   }
   async requireAccessConfiguration():Promise<void> {
     if (this.companyOidc || !this.db) return;

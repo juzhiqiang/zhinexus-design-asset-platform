@@ -36,7 +36,7 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
     app.use(async (request:{headers:Record<string,string | undefined>;method:string;requestId:string},response:ServerResponse,next:() => void) => {
       const values = (request.headers.cookie ?? '').split(';').map(v=>v.trim()).filter(v=>v.startsWith('__Host-platform='));
       if (values.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(values[0]!.slice(16))) {
-        if (!['GET','HEAD','OPTIONS'].includes(request.method) && request.headers.origin !== platform.galleryOrigin) {
+        if (!['GET','HEAD','OPTIONS'].includes(request.method) && !platform.allowsWebOrigin(request.headers.origin)) {
           if(platform.db)await audit(platform.db,undefined,'AUTH_DENIED','oidc-csrf',{code:'FORBIDDEN'},request.requestId).catch(()=>{});
           response.statusCode=403;response.end();return;
         }
@@ -44,8 +44,8 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
       }
       next();
     });
-    if (platform.galleryOrigin) app.enableCors({
-      origin: (origin, callback) => callback(null, origin === platform.galleryOrigin),
+    app.enableCors({
+      origin: (origin, callback) => callback(null, platform.allowsWebOrigin(origin)),
       methods: ['GET', 'POST', 'OPTIONS'], allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key'],
       exposedHeaders: ['X-Request-Id'], credentials: Boolean(platform.access),
     });

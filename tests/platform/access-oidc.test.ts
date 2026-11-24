@@ -34,7 +34,7 @@ it('runs candidate Web/CLI PKCE, isolates permissions and invalidates sessions a
   await new Promise<void>(resolve => idp.listen(0,'127.0.0.1',resolve));
   issuer = `https://127.0.0.1:${(idp.address() as {port:number}).port}`;
   const config = { issuer,audience:'platform-api',webClientId:'web-company',cliClientId:'cli-company',webRedirectUri:'https://api.example.com/v1/auth/oidc/callback',cliRedirectUri:'http://127.0.0.1:43129/callback',roleClaim:'groups',roleMapping:{reader:'read',publisher:'publish',maintainer:'maintain'} };
-  const h = await platformHarness({ galleryOrigin:'https://gallery.example.com',access:{apiOrigin:'https://api.example.com',administrators:[{issuer:'https://issuer.t05.test',subject:'operator'},{issuer,subject:'operator'}],outbound:[{hostname:'127.0.0.1',port:Number(new URL(issuer).port),networks:['127.0.0.1/32']}],ca:await readFile(cert,'utf8')} });
+  const h = await platformHarness({ galleryOrigin:'https://gallery.example.com',adminOrigin:'https://admin.example.com',access:{apiOrigin:'https://api.example.com',administrators:[{issuer:'https://issuer.t05.test',subject:'operator'},{issuer,subject:'operator'}],outbound:[{hostname:'127.0.0.1',port:Number(new URL(issuer).port),networks:['127.0.0.1/32']}],ca:await readFile(cert,'utf8')} });
   try {
     const admin = await h.token('operator',['reader']);
     expect((await fetch(h.origin()+'/v1/auth/oidc/callback?state=private-state&code=private-code')).status).toBe(401);
@@ -73,8 +73,8 @@ it('runs candidate Web/CLI PKCE, isolates permissions and invalidates sessions a
     const staleTicket=await handoff();
     const validated = await h.request('/v1/access-settings/oidc/validate',{expectedGeneration:'0',revision},admin);
     expect((await validated.json()).sections.oidc.draft.checks.discovery).toBe('passed');
-    const login = async (candidate?:string,responseIssuer=issuer) => {
-      let entry='/v1/auth/oidc/start';
+    const login = async (candidate?:string,responseIssuer=issuer,target?:string,restart=false) => {
+      let entry='/v1/auth/oidc/start'+(target ? '?target='+target : '');
       if(candidate){
         const handoff=await h.request('/v1/auth/oidc/candidate-start',{revision:candidate},administration);
         expect(handoff.status).toBe(200);
@@ -86,6 +86,7 @@ it('runs candidate Web/CLI PKCE, isolates permissions and invalidates sessions a
       expect(start.status).toBe(303);
       const url = new URL(start.headers.get('location')!);
       const browserCookie = start.headers.get('set-cookie')!.split(';')[0]!;
+      if (restart) await h.restart();
       const code = randomBytes(24).toString('base64url');
       codes.set(code,{nonce:url.searchParams.get('nonce')!,challenge:url.searchParams.get('code_challenge')!,client:url.searchParams.get('client_id')!,redirect:url.searchParams.get('redirect_uri')!});
       const reply = await fetch(h.origin()+`/v1/auth/oidc/callback?state=${url.searchParams.get('state')}&code=${code}&iss=${encodeURIComponent(responseIssuer)}&session_state=company-session`,{headers:{cookie:browserCookie},redirect:'manual'});
@@ -97,6 +98,7 @@ it('runs candidate Web/CLI PKCE, isolates permissions and invalidates sessions a
     expect((await login(revision,'https://wrong-issuer.example.com')).status).toBe(401);
     const candidate = await login(revision);
     expect(candidate.status).toBe(303);
+    expect(candidate.headers.get('location')).toBe('https://admin.example.com/access-settings?candidate=passed');
     expect(candidate.headers.get('set-cookie') ?? '').not.toContain('__Host-platform=');
     expect((await h.request('/v1/access-settings/oidc/activate',{expectedGeneration:'0',revision},admin)).status).toBe(409);
     const cli = await companyLogin({apiOrigin:h.origin(),candidate:revision,administratorToken:admin,caFile:cert,openBrowser:async address=>{
@@ -134,6 +136,11 @@ it('runs candidate Web/CLI PKCE, isolates permissions and invalidates sessions a
     expect((await h.request('/v1/auth/oidc/session',undefined,credential.accessToken,'GET')).status).toBe(200);
     const signedIn = await login();
     expect(signedIn.status).toBe(303);
+    expect(signedIn.headers.get('location')).toBe('https://gallery.example.com/library');
+    expect((await login(undefined,issuer,'gallery')).headers.get('location')).toBe('https://gallery.example.com/library');
+    expect((await login(undefined,issuer,'admin',true)).headers.get('location')).toBe('https://admin.example.com/upload');
+    const targets=(await h.db.query('SELECT DISTINCT web_target FROM oidc_attempts')).rows.map(row=>row.web_target).sort();
+    expect(targets).toEqual(['admin','gallery']);
     const session = signedIn.headers.get('set-cookie')!.split(';')[0]!;
     const info = () => fetch(h.origin()+'/v1/auth/oidc/session',{headers:{cookie:session}});
     expect((await info()).status).toBe(200);

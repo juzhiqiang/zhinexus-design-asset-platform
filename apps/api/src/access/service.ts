@@ -53,7 +53,7 @@ const revisionView = (row: RevisionRow,generation?:string) => {
 };
 
 export class AccessSettingsService {
-  constructor(private readonly db: Database, readonly options: AccessOptions, readonly galleryOrigin?: string, private readonly probe?: AccessProbe) {}
+  constructor(private readonly db: Database, readonly options: AccessOptions, readonly galleryOrigin?: string, private readonly probe?: AccessProbe, readonly adminOrigin = 'http://127.0.0.1:5177') {}
   async evidence(revision:string, generation:string, checks:AccessChecks): Promise<void> {
     await this.db.transaction(async sql => {
       const state = (await sql.query<ActiveRow>("SELECT * FROM access_active WHERE section='oidc' FOR UPDATE")).rows[0]!;
