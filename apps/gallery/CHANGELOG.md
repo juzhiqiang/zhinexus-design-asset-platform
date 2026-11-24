@@ -2,6 +2,13 @@
 
 所有对本工作区包的重要实质性修改均记录于此文件。
 
+## [0.1.1] - 2026-11-24
+
+### 新增
+
+- 介绍首页 `/` 按 `docs/design/gallery.pen` 画板 `00 介绍首页 · 科技朋克` 实现：设计令牌与午夜蓝底、原生矢量钛金属 Möbius 雕塑（中空环带）、Canvas 2D 复刻的五层慢漂光场（尊重 `prefers-reduced-motion`）、玻璃趋势光带与立体柱阵两扇艺术窗、双框架金属徽章与四步接入流程；分区组件集中在 `app/_home/`，契约测试 `tests/gallery/home-design.test.ts` 与 `tests/gallery/home-sculpture.test.ts` 从设计稿现读比对。
+- 首页改版不影响既有公开页面：`/components`、`/library` 继续使用原浅色样式，浅色导航抽到 `app/_site/SiteHeader.tsx` 由公开路由组布局挂载。
+
 ## [0.0.13] - 2026-11-22
 
 ### 新增
