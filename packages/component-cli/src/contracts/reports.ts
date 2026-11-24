@@ -5,7 +5,7 @@ export type EnvironmentV1 = {
   os: string; arch: string; browserVersion: string; browserRevision: string;
   fontDigest: Sha256; locale: string; timezone: string; deviceScaleFactor: number;
   renderer: Renderer; width: number; height: number; theme: string;
-  frameworkVersion: string; echartsVersion: string;
+  frameworkVersion: string; echartsVersion?: string;
 };
 /** Runtime validation requires ReactDOM for React and report/time evidence for passed. */
 export type CompatibilityRecord = {

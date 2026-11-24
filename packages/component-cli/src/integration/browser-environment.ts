@@ -35,7 +35,7 @@ export function fontFingerprintCanonical(input: unknown): string {
 
 export async function captureBrowserEnvironment(input: {
   browser: Browser; page: Page; readySelector: string; timeoutMs: number;
-  viewport: { width: number; height: number }; renderer: 'canvas' | 'svg'; theme: string; frameworkVersion: string; echartsVersion: string;
+  viewport: { width: number; height: number }; renderer: 'canvas' | 'svg'; theme: string; frameworkVersion: string; echartsVersion?: string;
 }) {
   const cdp = await input.browser.newBrowserCDPSession();
   let browserIdentity: { revision: string; product: string };
@@ -83,7 +83,7 @@ export async function captureBrowserEnvironment(input: {
     browserVersion: input.browser.version(), browserRevision: browserIdentity.revision, fontDigest: sha256Hex(canonical),
     locale: measured.locale, timezone: measured.timezone, deviceScaleFactor: measured.deviceScaleFactor,
     width: measured.width, height: measured.height, renderer: input.renderer, theme: input.theme,
-    frameworkVersion: input.frameworkVersion, echartsVersion: input.echartsVersion,
+    frameworkVersion: input.frameworkVersion, ...(input.echartsVersion ? { echartsVersion: input.echartsVersion } : {}),
   };
   return { environment, browser: browserIdentity, fontFingerprint: { measurements: measured.fonts, canonical } };
 }

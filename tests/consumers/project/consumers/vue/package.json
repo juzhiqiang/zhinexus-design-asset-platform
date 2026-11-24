@@ -1,0 +1,6 @@
+{
+  "name": "project-consumer-vue", "version": "1.0.0", "private": true, "type": "module",
+  "scripts": { "build": "vite build --base ./" },
+  "dependencies": { "@fixture/project-badge": "0.1.0", "vue": "3.5.45", "react": "19.3.1", "react-dom": "19.3.1" },
+  "devDependencies": { "vite": "8.3.8" }
+}

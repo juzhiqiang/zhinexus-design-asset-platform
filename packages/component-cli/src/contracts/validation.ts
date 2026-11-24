@@ -64,11 +64,17 @@ export function validateManifest(input: unknown, context: ManifestValidationCont
     packages.set(key, pkg); artifact(pkg.tarball, `/packages/${i}/tarball`);
   });
   const variantIds = new Set<string>(); const implementations = new Set<string>();
+  const categories = new Map<string, string>();
   const variants = new Map<string, VariantRef>();
   manifest.variants.forEach((variant, i) => {
     unique(variantIds, variant.variantId, `/variants/${i}/variantId`);
     unique(implementations, `${variant.componentId}:${variant.framework}`, `/variants/${i}`);
     variants.set(variant.variantId, variant);
+    if (variant.category !== undefined) {
+      const prior = categories.get(variant.componentId);
+      if (prior !== undefined && prior !== variant.category) add('CONFLICT', `/variants/${i}/category`, 'Framework implementations of the same component must select the same category');
+      categories.set(variant.componentId, variant.category);
+    }
   });
   const reports = new Map<string, CheckReportV1>(); const reportPaths = new Set<string>();
   manifest.reports.forEach((ref, i) => {

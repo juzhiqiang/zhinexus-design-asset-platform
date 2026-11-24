@@ -50,6 +50,10 @@ export function resolvePnpmExecutable(startDir: string = process.cwd()): string 
       curr = path.dirname(curr);
     }
   }
+  for (const directory of (process.env.PATH ?? '').split(path.delimiter)) {
+    const native = path.join(directory, process.platform === 'win32' ? 'pnpm.exe' : 'pnpm');
+    if (fs.existsSync(native)) return native;
+  }
   return 'pnpm';
 }
 

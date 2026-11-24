@@ -7,6 +7,7 @@ import type { EnvironmentV1 } from '../contracts/reports.js';
 import type { CheckResult, ComponentExample, Renderer, ScreenshotRef } from '../contracts/examples.js';
 import type { Framework } from '../contracts/release-manifest.js';
 import { text } from '../contracts/schema.js';
+import { captureBrowserEnvironment } from '../integration/browser-environment.js';
 
 export type CaptureOptions = {
   url: string;
@@ -25,6 +26,8 @@ export type CaptureOptions = {
   viewport?: { width: number; height: number };
   theme?: string;
   renderer?: Renderer;
+  /** Generic project consumers select their own rendered host and measure the actual browser. */
+  readySelector?: string;
 };
 
 export type CaptureResult = {
@@ -79,6 +82,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       deviceScaleFactor: 1,
       locale: 'zh-CN',
       timezoneId: 'Asia/Shanghai',
+      colorScheme: theme === 'dark' ? 'dark' : 'light',
     });
 
     const page = await context.newPage();
@@ -143,9 +147,9 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       }
     });
 
-    const dimensions = await page.evaluate(() => {
+    const dimensions = await page.evaluate((selector) => {
       const el =
-        document.querySelector('.charts-line') ||
+        (selector ? document.querySelector(selector) : null) || document.querySelector('.charts-line') ||
         document.querySelector('.charts-bar') ||
         document.querySelector('.charts-pie') ||
         document.querySelector('.charts-scatter') ||
@@ -158,14 +162,14 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       if (!el) return { width: 0, height: 0 };
       const rect = el.getBoundingClientRect();
       return { width: rect.width, height: rect.height };
-    });
+    }, options.readySelector);
 
     if (dimensions.width <= 0 || dimensions.height <= 0) {
       throw new Error(`INVALID_DIMENSIONS: 图表容器尺寸无效: ${dimensions.width}x${dimensions.height}`);
     }
 
     const browserVersion = browser.version();
-    const environment = detectEnvironment({
+    const environment = options.readySelector ? (await captureBrowserEnvironment({ browser, page, readySelector: options.readySelector, timeoutMs, viewport, renderer, theme, frameworkVersion: options.frameworkVersion!, echartsVersion: options.echartsVersion })).environment : detectEnvironment({
       browserVersion,
       renderer,
       width: viewport.width,

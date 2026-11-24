@@ -13,6 +13,9 @@ export type ReleaseSession = {
   uploadSessionId?: string;
   jobId?: string;
   state?: string;
+  uploadPlan?: ApiMessages['createUploadResponse'];
+  uploadedFiles?: string[];
+  uploadComplete?: boolean;
   updatedAt: string;
 };
 
@@ -135,6 +138,7 @@ export async function executeReleaseCommand(
   const deadline = Date.now() + timeoutMs;
 
   // 1. 上传文件会话
+  const continuingUpload = !!session.uploadPlan;
   if (!session.uploadSessionId) {
     log('正在向平台创建上传会话 (POST /v1/uploads)...');
     const uploadReqRes = await fetch(`${apiUrl}/v1/uploads`, {
@@ -157,10 +161,21 @@ export async function executeReleaseCommand(
 
     const plan = await readApiResponse(uploadReqRes, 'createUploadResponse');
     session.uploadSessionId = plan.uploadSessionId;
+    session.uploadPlan = plan;
+    session.uploadedFiles = [];
+    session.uploadComplete = false;
     await saveReleaseSession(bundleDir, session);
-
-    log(`上传计划已就绪，共有 ${plan.files.length} 个文件待传输...`);
+  }
+  // Legacy sessions were saved only with the completed upload identity. New sessions
+  // persist their plan before the first PUT, so a disconnect cannot skip missing bytes.
+  if (session.uploadPlan && !session.uploadComplete) {
+    const checked = validateApiMessage('createUploadResponse', session.uploadPlan);
+    if (!checked.ok || checked.value.uploadSessionId !== session.uploadSessionId) throw new Error('UPLOAD_PLAN_INVALID');
+    const plan = checked.value;
+    log(`复用原上传计划，共有 ${plan.files.length} 个文件...`);
     for (const filePlan of plan.files) {
+      if (session.uploadedFiles?.includes(filePlan.path)) continue;
+      if (continuingUpload && Date.parse(filePlan.expiresAt) <= Date.now()) throw new Error('UPLOAD_PLAN_EXPIRED: 原上传授权已过期，冻结材料与会话已保留；需要平台为同一会话续签后才能补传');
       const fileBytes = filesMap.get(filePlan.path);
       if (!fileBytes) {
         throw new Error(`BUNDLE_FILE_MISSING: Bundle 缺少待上传文件: ${filePlan.path}`);
@@ -178,6 +193,8 @@ export async function executeReleaseCommand(
       if (!putRes.ok) {
         throw new Error(`FILE_UPLOAD_FAILED: 文件上传失败 ${filePlan.path} (${putRes.status})`);
       }
+      session.uploadedFiles = [...(session.uploadedFiles ?? []), filePlan.path];
+      await saveReleaseSession(bundleDir, session);
     }
 
     log('所有文件传输完成，正在通知服务端执行字节与摘要核对 (POST /v1/uploads/:id/complete)...');
@@ -196,6 +213,10 @@ export async function executeReleaseCommand(
       throw new Error(`COMPLETE_UPLOAD_FAILED: 完成上传核验失败 (${completeRes.status}): ${errBody}`);
     }
     await readApiResponse(completeRes, 'completeUploadResponse');
+    session.uploadComplete = true;
+    delete session.uploadPlan;
+    delete session.uploadedFiles;
+    await saveReleaseSession(bundleDir, session);
   } else {
     log(`复用已完成的上传会话: ${session.uploadSessionId}`);
   }
