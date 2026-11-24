@@ -62,3 +62,7 @@
 | 3c9357fc | 独立升级root/gallery/API至0.1.0、admin至0.0.1 |
 
 合并策略：原工作区保持不动，在已验证的隔离工作区清洁提交后切换本地main，使用--ff-only合并。合并后核对tree完全一致，重新执行verify:workspace及根tsc；不推送远程，不部署生产。
+
+合并已完成：本地main从fcd75253快进至41f8ee71；合并前后tree均为aa111273bc8036e6834f930f49d9b1328cf4fc6e。合并后verify:workspace与根tsc均退出0。此补录只变更计划与验证文档，业务代码仍为完整回归通过的同一代码树。
+
+新版启动目录为 C:/Users/10208/.codex/worktrees/gallery-admin-split/zhinexus-design-asset-platform，当前分支main；执行 scripts/pnpm.ps1 dev 即可使用已验收的5173画廊和5177后台。D:/project原目录保留既有分支和修改，尚未替换为main。所有本次启动的开发服务已停止；未执行push、生产部署或冻结SDK重发布。
