@@ -163,3 +163,5 @@ T13–T14（二期档案检索、设计稿匹配）为 28–42 开发人日，�
 2026-11-12 C进展：T07已合main，继续交付T11观测/故障预演和T12隔离恢复/部署准备。A继续SDK与真实项目，B继续当前SDK完整冻结材料和CLI/画廊联调；C没有修改A/B业务代码。完整T11/T12验收依赖保持原定义。
 
 2026-11-13 下一轮分工落地：A补T09 ranking/proportion，目标7组件14实现；B先收口T07真实目录/鉴权/预览，再做T08逐实现手动上传；C按 [执行计划](docs/plans/2026-11-13-c-platform-acceptance.md) 补当前十实现的Windows/真实三存储验收、网页后端交接和本地容量/100MiB分片恢复。C本轮不接管B页面或A组件；contracts、根命令与锁文件继续C统一收口。当前本机证据和剩余外部门槛见 [新增记录](docs/verification/platform-services.md)，本地预演不标记完整T11/T12通过。
+
+2026-11-24 真实项目发布分工收口：A/SDK 包边界保持不变；B 完成项目 CLI 的配置、工作区外消费者、冻结恢复和来源校验；C 完成分类契约/API、后台分类与发布选择、共享包完整性联调、可信网络入口和最终版本/文档/全图验证。三类真实项目包在隔离 PostgreSQL/MinIO/Verdaccio 上达到 Ready，旧 SDK 发布路径继续通过。该技术证据不把 G2 生产接入、T11 业务试点或两个真实业务项目改为完成；后续负责人按 [使用指南](../guides/project-publishing.md) 和 [验证记录](../verification/2026-11-24-project-publishing.md) 接续。

@@ -567,3 +567,5 @@ flowchart LR
 2026-11-13 C补充：按 [本轮执行计划](docs/plans/2026-11-13-c-platform-acceptance.md) 验证当前SDK五组件十实现的真实冻结发布、两类精确Registry消费者及预览资源摘要；补充T08网页后端交接测试和 `rehearse:capacity`。200组件/400实现为隔离DB合成目录规模，100MiB为40+40+20MiB总提交分片恢复；本地量测不替代生产SLA、T08页面、T10或业务试点。新增结果见 [本轮记录](docs/verification/platform-services.md)，保留此前历史状态。
 
 2026-11-13 后续C补验：七组件十四实现的Windows冻结发布/真实HTTPS预览/精确Registry消费见 [新增证据](docs/verification/sdk-release.md)。T08浏览器联调暴露API缺少CORS，C按 [修复计划](docs/plans/2026-11-13-c-gallery-cors.md) 仅放行配置的精确画廊Origin与既有请求头；不改变上传/身份协议，B继续真实网页三存储E2E。
+
+2026-11-24 真实项目发布补充：按 [专项计划](2026-11-24-project-cli-publishing.md) 完成稳定分类契约/API、真实项目 CLI、后台分类与发布选择，以及全链路技术验收。CLI 保留旧 SDK/Bundle 命令；项目模式只登记已有组件包，不生成业务组件。共享包必须提交完整 JavaScript 实现子路径，Vue-only/React-only 独立包可分别发布。真实隔离服务已覆盖三类包 Ready、worker/API 恢复和 registry 消费；生产 OIDC/TLS、独立域名、两个真实业务项目和 T11 试点仍保持开放，见 [验证记录](../verification/2026-11-24-project-publishing.md)。

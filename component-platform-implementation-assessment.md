@@ -250,3 +250,11 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 **未验证边界（本节不声称完成）：** 沙箱无 pnpm、无 Docker，Node 为 v22.23.5 而项目固定 26.13.0，可用磁盘不足 320MB。因此完整 typecheck/build、`tests/platform/**` 的真实 PostgreSQL 集成、浏览器验收均无法在本环境执行；本轮只做语法核对与不依赖外部设施的单测，其余留宿主验证。真实登录、首次改密后 `auth_time` 变化、撤权时限实测、正式部署验收仍未完成，G2 的 OIDC 项不因此关闭。退役 `infra/keycloak/`、`infra/compose.self-managed.yaml` 的 identity 服务与 `identity/keycloak.ts` 单独收口，不留无声删除。
 
+## 13. 真实项目组件发布补充（2026-11-24）
+
+已按 [专项设计](docs/specs/2026-11-24-project-cli-publishing.md) 和 [实施计划](docs/plans/2026-11-24-project-cli-publishing.md) 完成真实项目 CLI、分类管理与后台发布选择的技术收口。开发者登记已有公开组件子包，CLI 在本地构建一次并冻结一次，随后在工作区外安装同一 tarball、运行受控 Vite 消费者、逐实现截图并提交。服务端仍不构建或执行上传代码。
+
+分类使用稳定 ID、修订 CAS 和历史快照；当前启用状态只约束新作业，已成功幂等作业保留原快照。组件和 npm 包发布权限仍需管理员预登记，选择分类不会扩大访问权。同一冻结包包含多个 JavaScript 实现子路径时必须提交完整实现；单框架独立发布应使用实际独立包，不能裁切共享包或在截图后重新打包。
+
+本机隔离服务已验证共享双框架包、Vue-only 包和 React-only 包通过 Nest HTTP、PostgreSQL、MinIO、Verdaccio 到达 Ready，并验证 worker/API 跨进程恢复、原上传会话与幂等键复用、registry 干净消费者安装及摘要一致。该结果是本地技术验收，不替代生产 OIDC/TLS、独立域名、两个真实业务项目或 T11 业务试点；完整证据和未覆盖项见 [验证记录](docs/verification/2026-11-24-project-publishing.md)。
+
