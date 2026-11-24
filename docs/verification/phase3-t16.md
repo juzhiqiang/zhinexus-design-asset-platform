@@ -367,7 +367,7 @@ T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内�
   - 公共契约与 Schema 复核 `c22-contract-schema-01.json`：**113 collected / 113 passed / 0 failed / 0 pending，exit 0**。
   - Docker 引擎只读预检可用；后续验收创建独占随机端口服务栈，不能使用共享现存容器冒充验收。
 - **结论与状态**：完成（B20 首个 134/134 全绿 + C21 RED 取证）。被 `t16-b23-c24-d20-2026-11-19.md`、`t16-b25-c25-d22-2026-11-19.md` 更新至 141/141。
-- **交叉引用**：`t16-backup-ancestor-2026-11-19.md`、`t16-product-review-2026-11-18.md`、`t16-b23-c24-d20-2026-11-19.md`、`2026-11-19-t16-b21-review-brief.md`。
+- **交叉引用**：`t16-backup-ancestor-2026-11-19.md`、`t16-product-review-2026-11-18.md`、`t16-b23-c24-d20-2026-11-19.md`、`2026-11-19-t16-b21-review-brief.md`（汇编小节）。
 - **过时或矛盾点**：B20 根 test exit 1（1744/3/2）为当时真实状态，不得称根回归通过；B21 接收后需完整复跑（后续 B26 阶段根 1753/1753 全通过）。
 
 ### t16-main-completion-2026-11-19.md
@@ -410,7 +410,7 @@ T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内�
   - C 新增测试与三个验收 TS 文件窄 TS7 检查 exit 0，日志 `c-install-evidence-typecheck.log`。
   - 原始临时配置可能含测试凭据，禁止提交或对外交付。
 - **结论与状态**：完成（根因定位 + RED 交接）。84/73/11 为当时口径，被 `t16-acceptance-token-2026-11-18.md` 与 `t16-client-text-delivery-2026-11-18.md` 的后续轮次更新。
-- **交叉引用**：`t16-acceptance-token-2026-11-18.md`、`t16-client-text-delivery-2026-11-18.md`、`2026-11-18-t16-b-npm-metadata-brief.md`。
+- **交叉引用**：`t16-acceptance-token-2026-11-18.md`、`t16-client-text-delivery-2026-11-18.md`、`2026-11-18-t16-b-npm-metadata-brief.md`（汇编小节）。
 - **过时或矛盾点**：「CLI 来自开发构建，尚非最终冻结 CLI 验收」；84 条产品口径后被逐轮替换。
 
 ### t16-p0-safe-apply-contracts-2026-11-18.md
@@ -447,7 +447,7 @@ T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内�
   - 更新 expected 后 `project-install-isolation.test.ts` 实跑：16 collected，11 passed / 5 failed / 0 pending，exit 1；新增失败对应固定 YAML 与内部环境缺失，未修改 B 产品。
   - 成功矩阵删除不支持的项目动态配置，保留生命周期 poison；恶意配置单独核验 blocked 与零写入。
 - **结论与状态**：完成（兼容证据 + 产品 RED 定位）。
-- **交叉引用**：`t16-npm-installed-delivery-2026-11-18.md`、`t16-product-red-2026-11-18.md`、`2026-11-18-t16-b-npm-metadata-brief.md`。
+- **交叉引用**：`t16-npm-installed-delivery-2026-11-18.md`、`t16-product-red-2026-11-18.md`、`2026-11-18-t16-b-npm-metadata-brief.md`（汇编小节）。
 - **过时或矛盾点**：16 collected 为当时口径，随后随产品轮次增长；「真实八组合首轮的配置拒绝与夹具锁生成错误不冒称产品 RED」为阶段性措辞。
 
 ### t16-product-red-2026-11-18.md
@@ -458,7 +458,7 @@ T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内�
   - 基线提交 `41a88e764059fea267f91451b4923290676f7d7f`，前置 P0 为 `2594f2776fb4b2de4a684fc3e50317ccc1d758dd`。
   - 唯一实施目录 `C:/Users/10208/.codex/worktrees/t16-safe-apply-0026/zhinexus-design-asset-platform`。
   - B 为实际 Claude 桌面端，会话名「T16 B 安装隔离测试」，会话 `local_bb7d37e6-a0da-4459-85ce-990c70dceedd`；保留用户已有 `step-5-preview High` 设置；通过 computer-use 插件操作 UI，不以 Codex 审查代理冒充 Claude。
-  - 授权依据 `2026-11-18-t16-b-install-isolation-brief.md`；B 只编写三个 `project-*.test.ts` 与 `tests/integration/t16-support/*`，不改产品源码/exports/stub/公共契约/fixtures/配置/依赖/锁/版本；B 不提交。
+  - 授权依据 `2026-11-18-t16-b-install-isolation-brief.md`（汇编小节）；B 只编写三个 `project-*.test.ts` 与 `tests/integration/t16-support/*`，不改产品源码/exports/stub/公共契约/fixtures/配置/依赖/锁/版本；B 不提交。
   - 修订前预检：project-apply 27 collected / 0 passed / 27 failed；project-rollback 17 / 0 / 17；project-install-isolation 16 / 0 / 16（15 例缺 applyIntegration，1 例 npm fixture 的 MATCH_CONTEXT_MISMATCH 不计产品 RED）；`tsc --project tsconfig.json --noEmit` exit 1（sync 必填字段、unknown 展开、rollback 类型来源及可变 union 闭包收窄）；`vitest run tests/contracts/integration-apply.test.ts` 85/85 exit 0。
   - 预检日志 `claude-preflight-apply/rollback/isolation` 的 .log/.json 及 `claude-preflight-typecheck-three.log`。
   - C 撤除五个依赖伪造备份读视图的活动用例（空字节正例、originalBase64 篡改/缺失、projectRoot/planDigest 篡改）与一个把备份原始写操作当 installStarted 日志提交的活动用例；未用 skip/todo 占位。
@@ -470,7 +470,7 @@ T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内�
   - GREEN 前五项待办：(1) 真实备份存储的字段破坏与同 operation 最新引用可达；(2) 接入真实 journal/latest 原子持久化点与 installStarted=true 断言；(3) 按真实写入 API 调整 fs 故障接点（当前覆盖 node:fs named/default、sync/callback 与 fs.promises 包装，不声称独立 node:fs/promises 导入或 FileHandle 写入被拦截）；(4) 按 LineChart 实际 prop/event 分别检查 Vue/React 绑定，source/handler 用不同值，不把全局 Set.has 当完整绑定验收；(5) synthetic workspace 成员链接只验证受控场景。
   - 验收限制：synthetic tarball 字节只支持受控摘要/HTTP 夹具；测试私有进程 mock 物化受控目录，不能证明真实 npm/pnpm 安装或执行隔离。
 - **结论与状态**：完成（产品 RED 交付）。被后续 B01–B26 产品轮次与 `t16-product-review-2026-11-18.md`、`t16-client-text-delivery-2026-11-18.md` 持续更新。
-- **交叉引用**：`t16-recovery-sync-2026-11-18.md`、`2026-11-18-t16-b-install-isolation-brief.md`、`t16-product-review-2026-11-18.md`。
+- **交叉引用**：`t16-recovery-sync-2026-11-18.md`、`2026-11-18-t16-b-install-isolation-brief.md`（汇编小节）、`t16-product-review-2026-11-18.md`。
 - **过时或矛盾点**：62 collected 为最初 RED 总数，随后随 C 审查用例增加逐轮增长至 141；「一致的测试私有读视图」为预检阶段说明，最终交付不含 overlay。
 
 ### t16-product-review-2026-11-18.md
@@ -518,7 +518,7 @@ T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内�
   - 最终根 `test`：T10 168/168、Vitest 84 files、1579/1579、exit 0、309.18s、无 skip/todo；日志 `root-test-review-final.log`；保留既有 DEP0190 警告，T16 安装必须按 brief 用 `shell:false` 实现。
   - 关键决定：包管理器进程只在工程外 staging 运行；候选锁在备份前生成；冻结依赖物化启动前持久化 installStarted=true 并重新摘要；备份版本不可变；依赖树经链接/硬链接/摘要与并发守卫后从同卷外部 ready/quarantine 受控交付；暂不支持的解析配置和 local/git/file/link/portal/patch 依赖显式阻断。
 - **结论与状态**：完成（P0 收口 + 安装隔离交接）。
-- **交叉引用**：`t16-p0-safe-apply-contracts-2026-11-18.md`、`2026-11-18-t16-b-install-isolation-brief.md`、`t16-product-red-2026-11-18.md`。
+- **交叉引用**：`t16-p0-safe-apply-contracts-2026-11-18.md`、`2026-11-18-t16-b-install-isolation-brief.md`（汇编小节）、`t16-product-red-2026-11-18.md`。
 - **过时或矛盾点**：根 Vitest 计数 1577→1579 为本文内两次更新；架构 SHA 在本篇中为小写 `e59bb77e...`，与 P0 记录的大写形式为同一值。
 
 ### t16-technical-acceptance-2026-11-19.md

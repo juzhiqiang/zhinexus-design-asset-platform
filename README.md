@@ -70,7 +70,7 @@ $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
 | 预览网关存活检查 | `http://127.0.0.1:3001/healthz` |
 | CLI 帮助 | `.\scripts\pnpm.ps1 component --help` |
 
-根 `dev` 通过 `turbo run dev --concurrency=12 --cache=local:rw` 编排 10 个工作区包，先执行上游构建；开发任务不缓存。同一工作区只保留一组开发服务，重新启动前在原终端按 `Ctrl+C` 并等待退出。
+根 `dev` 通过 `turbo run dev --concurrency=12 --cache=local:rw` 编排 11 个工作区包，先执行上游构建；开发任务不缓存。同一工作区只保留一组开发服务，重新启动前在原终端按 `Ctrl+C` 并等待退出。
 
 若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。Windows 请使用上述 `.\scripts\pnpm.ps1 dev` 固定工具链入口。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
 

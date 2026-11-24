@@ -2,6 +2,8 @@
 
 本文件是项目 AI 协作开发的核心规则入口。所有代理必须遵守核心约束，并按任务类型读取 `rules/` 中的详细规则。不得假设文件、脚本或功能一定存在；先检查当前仓库实际内容。
 
+别整花活，写最少的、能跑的代码。
+
 ## 项目概述
 
 本项目用于构建 **Zhinexus 组件资产平台（公司图表与组件资产平台）**，采用 **Monorepo + pnpm workspace + Turborepo** 工程架构。平台前端画廊使用 **React 19.3.1 + Next.js 16.4.6 App Router**，管理 API 与静态预览网关使用 **NestJS 12.4.2**（默认 Express 适配器）；组件侧同时支持 **Vue 3.5.45 与 React 19.3.1 双框架**，图表引擎采用 **ECharts 6.1.0**，存储层采用 **Verdaccio、PostgreSQL、MinIO**。

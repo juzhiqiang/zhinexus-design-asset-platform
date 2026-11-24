@@ -1,16 +1,19 @@
 # 公司图表与组件资产平台：实施评估与交付计划
 
-2026-11-24 用户授权公开画廊与内网管理端拆分：新增私有工作区 apps/admin（5177），gallery（5173）保留公开页面及按账号权限读取的 /library；管理 API（3000）在统一身份来源下按内网入口隔离，预览网关（3001）保持独立。工作区当前边界改为 11 成员。本次分工、接口和验收以 [拆分计划](docs/plans/2026-11-24-gallery-admin-split.md) 为准，不追改以下历史验收结论。
+## 当前状态速览（截至 2026-11-24）
 
-2026-11-22 用户确认增加「接入设置」。在数据库独立维护公司 OIDC 与预览入口的活动版本。支持同 IPv4 分 HTTPS 端口和独立域之间切换。公司撤权、独立域 DNS/TLS 和已有三存储环境的实际证据仍是 G2 验收输入。见 [实施计划](docs/plans/2026-11-22-g2-access-settings.md)。
+本文件是 2026-11-11 的**实施前评估基准**，各节按当时事实记录、不追改。本节取代原先堆在文件开头的倒序进展段落：用户决定与进展结论逐条保留在下表，**验证计数、命令与日志不再在此重复，以对应验证汇编为唯一事实来源**。身份源的范围决定见第 11、12 节。
 
-2026-11-21 用户确认无域名时可先在同一台服务器用同 IPv4 的不同 HTTPS 端口提供预览。平台与网关显式启用 `PLATFORM_PREVIEW_MODE=ip-port`，画廊同步启用 IP 模式。该模式使用不透明源沙箱、短期授权路径及入口凭证过滤。独立注册域及逐发布 origin 保持为默认配置和正式 DNS/TLS 验收目标。见 [实施计划](docs/plans/2026-11-21-preview-ip-port.md)。
+| 日期 | 决定或进展 | 权威文档 |
+| --- | --- | --- |
+| 2026-11-24 | 用户授权公开画廊与内网管理端拆分：新增私有工作区 `apps/admin`（5177），`gallery`（5173）保留公开页面及按账号权限读取的 `/library`；管理 API（3000）在统一身份来源下按内网入口隔离，预览网关（3001）保持独立；工作区当前边界改为 11 成员 | `docs/plans/2026-11-24-gallery-admin-split.md`、`docs/guides/gallery-admin-deployment.md` |
+| 2026-11-22 | 用户确认增加「接入设置」：数据库独立维护公司 OIDC 与预览入口的活动版本，支持同 IPv4 分 HTTPS 端口与独立域之间切换；公司撤权、独立域 DNS/TLS 与已有三存储环境的实际证据仍是 G2 验收输入 | `docs/plans/2026-11-22-g2-access-settings.md`、`docs/guides/access-settings.md` |
+| 2026-11-21 | 用户授权暂无域名时在同一台服务器用同 IPv4 的不同 HTTPS 端口提供预览试用，使用不透明源沙盒、短期授权路径及入口凭证过滤；独立注册域与逐发布 origin 保持为默认配置和正式 DNS/TLS 验收目标 | `docs/guides/preview-ip-port.md` |
+| 2026-11-21 | T10 五项本机技术验收完成，G1 的 A/B 侧技术材料已齐，实际业务回执待签署 | `docs/verification/gates-infra.md` |
+| 2026-11-20 | T17 工具技术验收完成，三期 T15–T17 工具链已交付；用户授权临时创建并清理 Vue/React 工程 | `docs/verification/phase3-t17.md`、`docs/phases/phase3/local-project-verification.md` |
+| 2026-11-19 | T16 技术交付已本地合并 main 并复验；完整 T16/T17、真实授权 Vue/React 业务项目及公司生产条件独立待验收 | `docs/verification/phase3-t16.md` |
 
-2026-11-21 T10 五项本机技术验收完成，包括候选来源、冻结双框架矩阵、生命周期及视觉、两个原消费者回退、画廊分区和 14 实现隔离服务验证。G1 A/B 技术材料已齐，实际业务回执待签署。见 [本轮验收记录](docs/verification/gates-infra.md)。
-
-2026-11-20 T17 本轮工具技术验收完成，三期 T15–T17 工具链已交付。用户授权临时创建并清理 Vue/React 工程；同一冻结 CLI `0.0.23` 已通过完整工程、黑盒、双框架四条宿主链及固定 20 正向/13 强制拒绝矩阵，控制方独立评分与封存字节复读通过。交付本地验证、最多两轮模板修复及四工具 stdio MCP；摘要、实际计数、清理保留项与历史过程缺口见 [当前交付汇总](docs/verification/phase3-t17.md)，用法见 [调用说明](docs/phases/phase3/local-project-verification.md)。本轮不替代 T11/T12、两个历史真实业务试点、公司 OIDC 或生产独立预览域/G2。原始架构保持只读，以下历史记录保留。
-
-2026-11-19 T16 技术交付已本地合并 main 并复验：B26 产品 141/141、契约与镜像 166/166，CLI `0.0.14` 一次 pack 冻结。main 强制全图 20/20、0 cached，根 Vitest 1753/1753 与 T10 168/168，完整冻结 T16 14/14 和契约浏览器 1/1 全部通过；实际 D 默认入口四段黑盒包含在 14 项内。此前完整浏览器 287/287、冻结 T15 25/25、D 既有 5/5 和平台独立补验保留为历史证据。独立全树审查无未解决 Critical/Important，保留两项非阻断 Minor。完整 T16/T17、真实授权 Vue/React 业务项目及公司生产条件独立待验收；见 [main 收口记录](docs/verification/phase3-t16.md)。本段同步当前状态，不改原实施评估基准和原架构文档。
+上线未关闭项集中在仓库之外，逐条现状见 `docs/guides/release-acceptance.md` 与 `docs/verification/gates-infra.md` 的终态结论。
 
 评估日期：2026-11-11（Asia/Shanghai）  
 依据：`component-platform-architecture.md`，规划版本 2026-11-10  
@@ -157,7 +160,7 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 ## 8. 二、三期与“全三期年底完成”的可行性
 
-2026-11-18 T16 P0 恢复补充：四组恢复路径完整覆盖候选，unresolvedPaths 单独承载 I/O 失败；首写失败保留真实备份并允许空提交证据。Schema、CLI 内联副本和设计同步，产品按 [安装隔离 brief](docs/plans/2026-11-18-t16-b-install-isolation-brief.md) 先 RED；所有包管理器进程在目标工程外暂存运行，冻结安装启动前持久化日志并更新备份摘要。验证见 [补充记录](docs/verification/phase3-t16.md)。该交付仅为 P0，P1–P4、真实 npm/pnpm 安装矩阵及业务项目验收仍未完成。
+2026-11-18 T16 P0 恢复补充：四组恢复路径完整覆盖候选，unresolvedPaths 单独承载 I/O 失败；首写失败保留真实备份并允许空提交证据。Schema、CLI 内联副本和设计同步，产品按 [安装隔离 brief](docs/plans/2026-11-18-t16-briefs-compilation.md#2026-11-18-t16-b-install-isolation-briefmd) 先 RED；所有包管理器进程在目标工程外暂存运行，冻结安装启动前持久化日志并更新备份摘要。验证见 [补充记录](docs/verification/phase3-t16.md)。该交付仅为 P0，P1–P4、真实 npm/pnpm 安装矩阵及业务项目验收仍未完成。
 
 2026-11-17 T15 已完成技术验收：CLI `0.0.13` 交付只读项目/锁识别、发布身份与摘要复查及 `IntegrationPlanV1`；四个实际客户端完成各自职责，最终冻结 CLI 仓外真实服务 25/25、根测试 1494/1494 + T10 168/168、平台 41/41、浏览器 18/18。详见 [T15 收口记录](docs/verification/phase3-t15.md)。T16/T17 及真实业务项目仍待实施；以下原估算保留量级参考，不以本轮 synthetic 技术验收推断三期整体完成。
 
@@ -224,4 +227,20 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 具体范围决定：自托管 Keycloak 作为身份服务，凭证仅由 API 持有；日常管理入口是资产平台的「用户与权限」后台；第一版关闭公开注册、无 SMTP 依赖，用户名不要求公司邮箱；平台超级管理员由部署初始化并按 issuer + subject 登记，第一版后台只管理普通成员，不提供任命超级管理员、修改部署信任边界或删除管理员的 HTTP 接口；本机试用使用真实身份服务、持久化存储与可信 HTTPS IP 入口，本机账号不替代正式部署验收。
 
 原架构文档 `component-platform-architecture.md` 保持原样，本节不追改历史验证结论：既有「公司 OIDC」相关记录仍是当时事实，不因此改称本次验证。不新增工作区成员，身份服务属于 infra，API、网关、画廊与 contracts 按既有职责维护。
+
+## 12. 身份源由自托管 Keycloak 改为平台自研的范围决定
+
+2026-11-23 用户决定不依赖 Keycloak：如平台需要登录体系，由平台自行实现。据此身份源从「自托管 Keycloak」改为「平台自研身份服务」。本节取代第 11 节中关于身份服务技术选型的部分；**第 11 节的历史结论保持原样**，它是 2026-11-22 当时的事实，不追改。
+
+**不变的部分（这是方案成立的前提，已逐行核实）：** 认证协议仍为 OIDC authorization code + PKCE + JWT，Web 仍用 Cookie 会话，CLI 仍用回环登录。claim 契约不变——`platform_account_version`、`platform_managed_user_id`、`roles`、`auth_time`，以及 `exp`/`sub`/`iat`/`iss`/`aud`/`azp`。`apps/api/src/access/oidc.ts` 与 `apps/api/src/auth/oidc.ts` 共 311 行是 provider 无关的：只从 discovery 文档取 `authorization_endpoint`、`token_endpoint`、`jwks_uri`，只校验 RS256/ES256 签名与上述声明。本地身份服务照样暴露这三个端点、用同样 shape 签令牌，这 311 行**零改动复用**。`identity/adapter.ts` 的 5 方法接口与 `accounts/service.ts` 同样不变。
+
+**变化的部分（必须显式记录，不得默默改）：** 其一，平台开始自行保存密码材料，`012_managed_accounts.sql` 顶部「this migration stores no password material」的不变量**就此失效**，由新迁移正式取代并在迁移注释中说明。其二，签名密钥与密码哈希同处 API 进程，原来「平台被攻破也伪造不出令牌」的安全属性**不再成立**——一次沦陷即可伪造任意用户令牌。用户 2026-11-23 明确接受该边界缩小。
+
+**本轮范围（最小可用）：** 本地授权端点、令牌端点（含 PKCE `code_verifier` 校验）、JWKS 端点、discovery 文档、密码哈希与校验、首次改密、`LocalIdentityAdapter` 替换 `KeycloakIdentityAdapter`。**PKCE 不能推后**：`access/oidc.ts` 发起登录时恒定下发 `code_challenge` 与 `code_challenge_method:'S256'`，本地端点不收下 challenge、换令牌时不验 `code_verifier`，网页登录第一次即断。
+
+**明确推后并记为已知风险：** refresh 令牌轮换、登录限速与账号锁定、登录审计。此处存在一处需用户知情的矛盾——用户在信任边界一项选择「接受同进程签发，用其他手段兜」，其描述包含登录限速；又在范围一项把限速列入后补。本轮的取舍是：短 TTL 与密钥轮换纳入最小集（成本极低），**登录限速与锁定推后，并作为已知风险记录**，不作为已具备的缓解措施宣称。
+
+**密码哈希选型：** 使用 Node 核心 `crypto.scrypt`，不引入新依赖。理由是该沙箱可用磁盘不足 320MB、无法编译原生 argon2，且项目规则要求新增外部依赖必须按官方来源锁定精确版本并留证据；核心模块由 Node 官方维护，可避开依赖锁定与供应链举证。argon2id 仍是更优选择，记为后续升级项。
+
+**未验证边界（本节不声称完成）：** 沙箱无 pnpm、无 Docker，Node 为 v22.23.5 而项目固定 26.13.0，可用磁盘不足 320MB。因此完整 typecheck/build、`tests/platform/**` 的真实 PostgreSQL 集成、浏览器验收均无法在本环境执行；本轮只做语法核对与不依赖外部设施的单测，其余留宿主验证。真实登录、首次改密后 `auth_time` 变化、撤权时限实测、正式部署验收仍未完成，G2 的 OIDC 项不因此关闭。退役 `infra/keycloak/`、`infra/compose.self-managed.yaml` 的 identity 服务与 `identity/keycloak.ts` 单独收口，不留无声删除。
 

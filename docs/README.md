@@ -4,6 +4,8 @@
 
 2026-11-22（分支 `chore/docs-consolidation`）对 `docs/` 做了一次合并整理：`docs/verification/` 下 216 篇逐次验证记录按主题合并为 8 篇汇编文档，原件已从工作树删除，但**全部内容以小节形式完整保留在汇编内**，git 历史亦可追溯（如 `git show b2d4066f:docs/verification/t09-bar.md`）。实施计划、契约设计、使用指南、阶段文档**一篇未删**，仅按主题迁入子目录，仓库内约 120 个文件中的路径引用已同步更新。
 
+2026-11-24 又做了一轮精简：`component-platform-implementation-assessment.md` 开头倒序堆叠的 5 段日期进展收敛为「当前状态速览」表（验证计数改以验证汇编为唯一来源）；`docs/design/` 下 6 篇当天画廊设计验证合并为 `gallery-iteration-2026-11-23.md`；`docs/plans/` 下 11 篇 T16 分包 brief 合并为 `2026-11-18-t16-briefs-compilation.md`。两处合并同样**完整保留原文**（小节标题即原文件名），git 历史可追溯；原件与引用已一并处理。
+
 ## 目录结构
 
 ```
@@ -12,7 +14,8 @@ docs/
 ├── versions.discovery.json       版本发现证据（scripts/resolve-versions.mjs 读取，勿移动）
 ├── guides/                       使用与运维指南（8 篇）
 ├── foundation/                   工程基线验证（2 篇，AGENTS.md 指定的事实来源）
-├── plans/                        实施计划与分工（49 篇，原 superpowers/plans/）
+├── design/                       pen.dev 设计稿说明与当天迭代汇编（3 篇 + .pen/预览素材）
+├── plans/                        实施计划与分工（38 篇，原 superpowers/plans/）
 ├── specs/                        契约与设计（14 篇，原 superpowers/specs/）
 ├── phases/
 │   ├── phase2/                   二期契约与工具文档（8 篇）
@@ -65,6 +68,16 @@ docs/
 | `nest-react-bootstrap.md` | NestJS / React 工程调整验证 | 技术栈调整（NestJS 12.4.2 + React 19.3.1 + Next 16.4.6）的实测证据，AGENTS.md 指定事实来源 |
 | `gallery-next-migration.md` | Gallery Next 迁移验证 | 画廊 Next 迁移与公开/私有渲染边界，AGENTS.md 指定事实来源 |
 
+### 设计稿 `docs/design/`
+
+| 文件 | 标题 | 说明 |
+|---|---|---|
+| `gallery.md` | 组件画廊设计稿 | 画廊 `gallery.pen` 四张画板说明、预览与当前终态 |
+| `management-api.md` | 管理控制台设计稿 | 管理后台 `management-api.pen` 六张画板说明 |
+| `gallery-iteration-2026-11-23.md` | 画廊设计稿迭代汇编 | 当天六篇设计验证记录合并而成，小节标题即原文件名；含拆分、第一至第四版首页的完整过程与 SHA-256 |
+
+设计稿本体是 `.pen` 文件与 `previews/`、`shaders/` 素材，用 pen.dev / Pencil 打开；全部为 B 的 T07 静态设计资产，不构成业务验收证据。
+
 ### 实施计划 `docs/plans/`
 
 工程基线：`2026-11-11-bootstrap-execution.md`（初始化执行范围）、`2026-11-11-nest-react-bootstrap.md`（技术栈调整）、`2026-11-11-gallery-next-public-private.md`（画廊迁移）、`2026-11-12-simplify-project-scripts.md`（脚本整理）、`2026-11-11-component-platform-implementation.md`（**总计划 T01–T17，最高频引用**）、`2026-11-11-three-person-allocation.md`（分工排期）。
@@ -79,7 +92,7 @@ SDK/CLI：`2026-11-16-sdk-lifecycle-acceptance.md`、`2026-11-16-b-cli-release-a
 
 三期（phase3）：`2026-11-16-phase3-t15-kickoff.md`、`2026-11-18-phase3-t16-safe-apply.md`、`2026-11-19-phase3-t17-completion.md`、`2026-11-21-preview-ip-port.md`、`2026-11-22-component-visual-acceptance.md`、`2026-11-22-self-managed-accounts-implementation.md`。
 
-T16 分包 brief（A/B/C/D 四方）：`2026-11-18-t16-a-api-cases-brief.md`、`2026-11-18-t16-a-assertion-review-brief.md`、`2026-11-18-t16-a-assertion-round3-brief.md`、`2026-11-18-t16-b-backup-supplement-brief.md`、`2026-11-18-t16-b-install-isolation-brief.md`、`2026-11-18-t16-b-node-probe-brief.md`、`2026-11-18-t16-b-npm-metadata-brief.md`、`2026-11-18-t16-b-product-green-brief.md`、`2026-11-18-t16-b-react-authority-brief.md`、`2026-11-18-t16-d-blackbox-brief.md`、`2026-11-19-t16-b21-review-brief.md`。
+T16 分包 brief（A/B/C/D 四方，11 篇）：已合并为 `2026-11-18-t16-briefs-compilation.md`，小节标题即原文件名（A 侧 API 案例与两轮断言返工、B 侧安装隔离与产品 GREEN 及四个补修和 B21、D 侧黑盒）。
 
 ### 契约与设计 `docs/specs/`
 

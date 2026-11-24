@@ -61,13 +61,13 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 
 ### Task 2: B / P1 产品实现
 
-**Interfaces:** `applyIntegration(root,plan,options)`、`rollbackIntegration(root,backupRef,options)`，输出 P0 类型；真实 replan 与路径核验独立实现，不能只信任离线 Schema。具体 options、固定安装 argv、配置与凭据隔离、依赖目录受控交付及首批 RED 范围见 [B 安装隔离 brief](docs/plans/2026-11-18-t16-b-install-isolation-brief.md)。先编写产品测试，C 在 Windows 确认 RED 后再开 GREEN。
+**Interfaces:** `applyIntegration(root,plan,options)`、`rollbackIntegration(root,backupRef,options)`，输出 P0 类型；真实 replan 与路径核验独立实现，不能只信任离线 Schema。具体 options、固定安装 argv、配置与凭据隔离、依赖目录受控交付及首批 RED 范围见 [B 安装隔离 brief](docs/plans/2026-11-18-t16-briefs-compilation.md#2026-11-18-t16-b-install-isolation-briefmd)。先编写产品测试，C 在 Windows 确认 RED 后再开 GREEN。
 
 - [x] P0 完整 hash 交接后，B 实际 Claude 桌面端先写失败行为测试并由 Windows 宿主确认 RED。最终提交 `b951f43d`，62 collected / 62 failed，无收集或fixture错误，见独立 RED 记录。
 - [x] 实现生成器、暂存安装、原字节备份、写前/写后 hash 守卫、用户后续编辑保护及 CLI 显式调用；T15 行为保持。B26 产品 141/141、冻结 T15 25/25，详见 2026-11-19 冻结验收记录。
 - [x] 真实 Vue/React synthetic 样例类型/构建、npm/pnpm/workspace、故障恢复及网络资格复验通过后停写交 C。冻结八矩阵、四 hostile 和 Next 共 13 项通过，真实业务项目独立开放。
 
-2026-11-18 后续授权：用户明确选择继续产品 GREEN 与验收，通过后本地合 main；新阶段遵循 [B 产品 GREEN brief](docs/plans/2026-11-18-t16-b-product-green-brief.md)，RED 历史中的禁止实现仅属于此前测试阶段。
+2026-11-18 后续授权：用户明确选择继续产品 GREEN 与验收，通过后本地合 main；新阶段遵循 [B 产品 GREEN brief](docs/plans/2026-11-18-t16-briefs-compilation.md#2026-11-18-t16-b-product-green-briefmd)，RED 历史中的禁止实现仅属于此前测试阶段。
 
 ### Task 3: A / P2 与 D / P3 独立验收
 
@@ -105,7 +105,7 @@ C P0：新增 `packages/contracts/src/integration-apply.ts`、四份 Schema、`t
 
 2026-11-19 B20 接收检查点：实际桌面原文六个 hunk 唯一有序匹配后机械接收，三条恢复 RED 转 GREEN；完整产品 **134/134/0/0，exit 0**，CLI build/typecheck、probe73、根 fixtures tsc、workspace 和强制全图 **20/20、0 cached** 通过。D11 上下文改写导致机械拒绝，未落盘执行，已交实际 D12 原作者重修。独立审查、根回归、完整 D 黑盒与最终冻结消费者仍待通过，Task 3/4 和 main 合并保持未完成；详见上述同次恢复记录。保留全部工作树与原始证据。
 
-2026-11-19 C21 补充：独立审查三个 Important 已由四条真实文件系统 C21 用例确认 RED，最终 `c21-review-red-02` 为 **109/0/4/105，exit 1**（collected/passed/failed/unselected）。实际 B21 已交桌面原作者修 apply/backup/install。根普通 Vitest **1744 passed / 3 failed / 2 skipped，exit 1**，三失败对应新增源码与备份用例；stage 新用例未计入本次根执行，修后须完整复跑。D12 十分钟 thinking 超时无完整交付，保留原文及 receipt，实际同模型续写请求缩小。Task 3/4、最终冻结验收及 main 合并继续待通过，不 push、不清理、不勾完整 T16/T17。详见 [同次恢复记录](docs/verification/phase3-t16.md) 和 [B21 brief](docs/plans/2026-11-19-t16-b21-review-brief.md)。
+2026-11-19 C21 补充：独立审查三个 Important 已由四条真实文件系统 C21 用例确认 RED，最终 `c21-review-red-02` 为 **109/0/4/105，exit 1**（collected/passed/failed/unselected）。实际 B21 已交桌面原作者修 apply/backup/install。根普通 Vitest **1744 passed / 3 failed / 2 skipped，exit 1**，三失败对应新增源码与备份用例；stage 新用例未计入本次根执行，修后须完整复跑。D12 十分钟 thinking 超时无完整交付，保留原文及 receipt，实际同模型续写请求缩小。Task 3/4、最终冻结验收及 main 合并继续待通过，不 push、不清理、不勾完整 T16/T17。详见 [同次恢复记录](docs/verification/phase3-t16.md) 和 [B21 brief](docs/plans/2026-11-18-t16-briefs-compilation.md#2026-11-19-t16-b21-review-briefmd)。
 
 2026-11-19 原作者续写：C21 fixtures tsc exit 0，既有只读 reviewer 确认最终四条夹具无失真。B21 Read 参数失败未交付，实际 B22 已收到当前完整三文件与测试片段的自包含文本；C 未改产品。公共 apply 契约与 Schema 复核 113/113、exit 0。D14 的独立规范摘要编码错误未接收，D15 输出上限失败未交付，同模型小片段继续返修。全 GREEN、D 完整范围、冻结矩阵与 main 合并仍待通过；命令和原文摘要追加于上述同次恢复记录。
 
