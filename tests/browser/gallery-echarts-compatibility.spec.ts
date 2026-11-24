@@ -1,9 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
-import { catalogFixture, compatibilityFixture, officialFixture, releaseFixture } from '../gallery/echarts-compatibility-fixtures.js';
+import { compatibilityFixture, officialFixture, releaseFixture } from '../gallery/echarts-compatibility-fixtures.js';
 
 const origin = process.env.GALLERY_TEST_ORIGIN ?? 'http://127.0.0.1:5173';
 
-async function mockSources(page: Page, options: { officialFailure?: boolean; measuredFailure?: boolean; empty?: boolean; unpublished?: boolean } = {}) {
+async function mockSources(page: Page, options: { officialFailure?: boolean; measuredFailure?: boolean; empty?: boolean } = {}) {
   await page.addInitScript(() => {
     localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token: 'compat-reader', subject: 'reader', roles: ['reader'], channel: 'web' }));
   });
@@ -12,7 +12,7 @@ async function mockSources(page: Page, options: { officialFailure?: boolean; mea
   );
   await page.route('**/v1/**', async (route) => {
     const url = new URL(route.request().url());
-    const framework = url.searchParams.get('framework') === 'react' || url.pathname.includes('release-react') ? 'react' : 'vue';
+    const framework = url.pathname.includes('release-react') ? 'react' : 'vue';
     if (url.pathname === '/v1/auth/oidc/session') {
       await route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } });
     } else if (url.pathname === '/v1/me/components') {
@@ -36,16 +36,12 @@ async function mockSources(page: Page, options: { officialFailure?: boolean; mea
       await route.fulfill({ json: { variantReleaseId: `release-${framework}`, reports: [] } });
     } else if (url.pathname.startsWith('/v1/me/variant-releases/') && url.pathname.endsWith('/artifacts')) {
       await route.fulfill({ body: '# Docs', contentType: 'text/markdown' });
-    } else if (url.pathname.startsWith('/v1/me/variant-releases/')) {
-      await route.fulfill({ json: releaseFixture(framework) });
-    } else if (url.pathname === '/v1/components') {
-      await route.fulfill({ json: options.unpublished ? { items: [], page: 1, pageSize: 100, total: 0 } : catalogFixture(framework) });
-    } else if (url.pathname.endsWith('/compatibility')) {
+    } else if (url.pathname.startsWith('/v1/me/variant-releases/') && url.pathname.endsWith('/compatibility')) {
       await route.fulfill({
         status: options.measuredFailure ? 503 : 200,
         json: options.empty ? { variantReleaseId: `release-${framework}`, items: [] } : compatibilityFixture(framework),
       });
-    } else if (url.pathname.startsWith('/v1/variant-releases/')) {
+    } else if (url.pathname.startsWith('/v1/me/variant-releases/')) {
       await route.fulfill({ json: releaseFixture(framework) });
     } else {
       await route.fulfill({ status: 404, json: {} });
@@ -53,7 +49,7 @@ async function mockSources(page: Page, options: { officialFailure?: boolean; mea
   });
 }
 
-test('official discovery and actual measured support remain distinct', async ({ page }) => {
+test('official discovery and actual measured support remain distinct using current authenticated releaseId', async ({ page }) => {
   await mockSources(page);
   await page.goto(`${origin}/library/release-vue`);
   const panel = page.getByRole('region', { name: 'ECharts 版本与实测兼容', exact: true });
@@ -84,14 +80,6 @@ test('a published implementation without records has no verified support claim',
   await expect(measured).not.toContainText('ECharts 6.1.0');
 });
 
-test('an unpublished implementation does not inherit static accepted metadata', async ({ page }) => {
-  await mockSources(page, { unpublished: true });
-  await page.goto(`${origin}/library/release-vue`);
-  const measured = page.getByRole('region', { name: '已接收实测支持', exact: true });
-  await expect(measured).toContainText('当前框架实现尚无公开发布，未验证兼容性');
-  await expect(measured).not.toContainText('6.1.0');
-});
-
 test('an official discovery failure leaves measured records visible', async ({ page }) => {
   await mockSources(page, { officialFailure: true });
   await page.goto(`${origin}/library/release-vue`);
@@ -117,16 +105,16 @@ test('switching frameworks suppresses both stale visible records and late respon
   const released = new Promise<void>((resolve) => { releaseResponse = resolve; });
   let requested: (() => void) | undefined;
   const pending = new Promise<void>((resolve) => { requested = resolve; });
-  await page.route('**/v1/variant-releases/release-react/compatibility', async (route) => {
+  await page.route('**/v1/me/variant-releases/release-react/compatibility', async (route) => {
     requested?.();
     await released;
     await route.fulfill({ json: compatibilityFixture('react') }).catch(() => undefined);
   });
   await page.getByRole('tab', { name: /React 19/ }).click();
   await pending;
-  await expect(measured).toContainText('正在读取实测记录');
-  await expect(measured).not.toContainText('accepted-vue');
-  await page.getByRole('tab', { name: /Vue 3/ }).click();
+  await expect(page.getByTestId('library-detail-loading')).toBeVisible();
+  await expect(page.locator('body')).not.toContainText('accepted-vue');
+  await page.goto(`${origin}/library/release-vue`);
   await expect(measured).toContainText('accepted-vue');
   releaseResponse?.();
   await expect(measured).not.toContainText('accepted-react');

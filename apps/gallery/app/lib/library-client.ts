@@ -1,5 +1,6 @@
 import { validateApiMessage, type ApiMessages, type Framework } from '@company/contracts';
-import { platformApiOrigin } from './auth';
+
+const DEFAULT_API_ORIGIN = (process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 
 export type AuthTokenHolder = { token: string };
 
@@ -46,7 +47,7 @@ export async function fetchMyComponents(
   session: AuthTokenHolder,
   options: LibraryClientOptions & { framework?: Framework; query?: string } = {},
 ): Promise<LibraryResult<ApiMessages['componentsResponse']>> {
-  const apiUrl = (options.apiUrl ?? platformApiOrigin).replace(/\/$/, '');
+  const apiUrl = (options.apiUrl ?? DEFAULT_API_ORIGIN).replace(/\/$/, '');
   const fetcher = options.fetcher ?? fetch;
   const params = new URLSearchParams({ pageSize: '100' });
   if (options.framework) params.set('framework', options.framework);
@@ -67,7 +68,7 @@ export async function fetchMyVariantRelease(
   session: AuthTokenHolder,
   options: LibraryClientOptions = {},
 ): Promise<LibraryResult<ApiMessages['variantReleaseResponse']>> {
-  const apiUrl = (options.apiUrl ?? platformApiOrigin).replace(/\/$/, '');
+  const apiUrl = (options.apiUrl ?? DEFAULT_API_ORIGIN).replace(/\/$/, '');
   const fetcher = options.fetcher ?? fetch;
   try {
     const res = await fetcher(
@@ -90,7 +91,7 @@ export async function fetchMyVariantReports(
   session: AuthTokenHolder,
   options: LibraryClientOptions = {},
 ): Promise<LibraryResult<ApiMessages['variantReportsResponse']>> {
-  const apiUrl = (options.apiUrl ?? platformApiOrigin).replace(/\/$/, '');
+  const apiUrl = (options.apiUrl ?? DEFAULT_API_ORIGIN).replace(/\/$/, '');
   const fetcher = options.fetcher ?? fetch;
   try {
     const res = await fetcher(
@@ -114,7 +115,7 @@ export async function fetchMyVariantArtifactText(
   session: AuthTokenHolder,
   options: LibraryClientOptions = {},
 ): Promise<LibraryResult<string>> {
-  const apiUrl = (options.apiUrl ?? platformApiOrigin).replace(/\/$/, '');
+  const apiUrl = (options.apiUrl ?? DEFAULT_API_ORIGIN).replace(/\/$/, '');
   const fetcher = options.fetcher ?? fetch;
   const params = new URLSearchParams({ path: artifactPath });
   try {
@@ -126,5 +127,43 @@ export async function fetchMyVariantArtifactText(
     return { status: 'ok', data: await res.text() };
   } catch {
     return { status: 'error', message: '无法读取组件产物内容。' };
+  }
+}
+
+export async function fetchMyVariantCompatibility(
+  releaseId: string,
+  release: ApiMessages['variantReleaseResponse'],
+  session: AuthTokenHolder,
+  options: LibraryClientOptions = {},
+): Promise<LibraryResult<ApiMessages['myVariantCompatibilityResponse']>> {
+  const apiUrl = (options.apiUrl ?? DEFAULT_API_ORIGIN).replace(/\/$/, '');
+  const fetcher = options.fetcher ?? fetch;
+  try {
+    const res = await fetcher(
+      `${apiUrl}/v1/me/variant-releases/${encodeURIComponent(releaseId)}/compatibility`,
+      buildInit(session, 'application/json', options.signal),
+    );
+    if (!res.ok) return classifyHttpError(res.status);
+    const parsed = validateApiMessage('myVariantCompatibilityResponse', await res.json());
+    if (!parsed.ok || parsed.value.variantReleaseId !== releaseId) {
+      return { status: 'error', message: '实测兼容记录不符合契约。' };
+    }
+    const seenIds = new Set<string>();
+    for (const record of parsed.value.items) {
+      if (
+        record.variantReleaseId !== releaseId ||
+        record.packageName !== release.package.name ||
+        record.packageVersion !== release.package.version ||
+        record.packageSha256 !== release.package.tarball.sha256 ||
+        record.framework !== release.variant.framework ||
+        seenIds.has(record.compatibilityId)
+      ) {
+        return { status: 'error', message: '实测兼容记录与当前版本身份不匹配。' };
+      }
+      seenIds.add(record.compatibilityId);
+    }
+    return { status: 'ok', data: parsed.value };
+  } catch {
+    return { status: 'error', message: '无法读取实测兼容记录。' };
   }
 }

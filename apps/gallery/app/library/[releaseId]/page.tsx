@@ -5,21 +5,25 @@ import Link from 'next/link';
 import type { ApiMessages, PublicVariantSummary } from '@company/contracts';
 import { clearSession, companyLoginUrl, loadCompanySession, type UserSession } from '../../lib/auth';
 import { getDisplayEnhancement } from '../../lib/catalog';
+import type { MeasuredCompatibility } from '../../lib/echarts-compatibility';
 import {
   fetchMyComponents,
   fetchMyVariantArtifactText,
+  fetchMyVariantCompatibility,
   fetchMyVariantRelease,
   fetchMyVariantReports,
+  type LibraryResult,
 } from '../../lib/library-client';
 import type { ComponentVariantMeta } from '../../lib/types';
 import { ComponentPreview } from '../../(public)/components/[slug]/ComponentPreview';
-import { EchartsCompatibility } from '../../(public)/components/[slug]/EchartsCompatibility';
+import { EchartsCompatibility, type CompatibilityLoadState } from '../../(public)/components/[slug]/EchartsCompatibility';
 
 type DetailPayload = {
   release: ApiMessages['variantReleaseResponse'];
   reports: ApiMessages['variantReportsResponse']['reports'];
   docsText: string | null;
   siblings: PublicVariantSummary[];
+  compatibility: CompatibilityLoadState<MeasuredCompatibility>;
 };
 
 type ViewState =
@@ -29,6 +33,21 @@ type ViewState =
   | { kind: 'not_found' }
   | { kind: 'error'; message: string }
   | { kind: 'ready'; data: DetailPayload };
+
+function firstDeniedStatus(
+  results: Array<LibraryResult<unknown>>,
+): 'unauthenticated' | 'forbidden' | 'not_found' | null {
+  for (const res of results) {
+    if (res.status === 'unauthenticated') return 'unauthenticated';
+  }
+  for (const res of results) {
+    if (res.status === 'forbidden') return 'forbidden';
+  }
+  for (const res of results) {
+    if (res.status === 'not_found') return 'not_found';
+  }
+  return null;
+}
 
 export default function LibraryReleaseDetailPage({
   params,
@@ -63,6 +82,8 @@ export default function LibraryReleaseDetailPage({
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    // 重检或切换版本开始即刻清空旧 ready 数据与预览 iframe，防止切换账号/权限期间残留旧资产
+    setView({ kind: 'loading' });
 
     const currentSession = await loadCompanySession();
     if (gen !== generationRef.current || controller.signal.aborted) return;
@@ -96,20 +117,27 @@ export default function LibraryReleaseDetailPage({
     }
 
     const release = releaseResult.data;
-    const [reportsRes, docsRes, siblingsRes] = await Promise.all([
+    const [reportsRes, docsRes, siblingsRes, compatRes] = await Promise.all([
       fetchMyVariantReports(targetReleaseId, currentSession, { signal: controller.signal }),
       fetchMyVariantArtifactText(targetReleaseId, release.variant.docs.path, currentSession, { signal: controller.signal }),
       fetchMyComponents(currentSession, { query: release.variant.componentId, signal: controller.signal }),
+      fetchMyVariantCompatibility(targetReleaseId, release, currentSession, { signal: controller.signal }),
     ]);
     if (gen !== generationRef.current || controller.signal.aborted) return;
 
-    if (reportsRes.status === 'unauthenticated' || docsRes.status === 'unauthenticated' || siblingsRes.status === 'unauthenticated') {
+    // 真实 API 用 404 隐藏撤权；任意受保护子请求返回 401/403/404 必须立即清空详情、文档与 iframe
+    const denied = firstDeniedStatus([reportsRes, docsRes, siblingsRes, compatRes]);
+    if (denied === 'unauthenticated') {
       clearSession();
       clearPrivateData({ kind: 'unauthenticated' }, true);
       return;
     }
-    if (reportsRes.status === 'forbidden' || docsRes.status === 'forbidden') {
+    if (denied === 'forbidden') {
       clearPrivateData({ kind: 'forbidden' });
+      return;
+    }
+    if (denied === 'not_found') {
+      clearPrivateData({ kind: 'not_found' });
       return;
     }
 
@@ -119,6 +147,19 @@ export default function LibraryReleaseDetailPage({
           .flatMap((item) => item.variants)
       : [];
 
+    const compatibility: CompatibilityLoadState<MeasuredCompatibility> = compatRes.status === 'ok'
+      ? {
+          status: 'loaded',
+          value: {
+            kind: 'published',
+            variantReleaseId: release.variantReleaseId,
+            packageName: release.package.name,
+            packageVersion: release.package.version,
+            records: compatRes.data.items,
+          },
+        }
+      : { status: 'error' };
+
     setView({
       kind: 'ready',
       data: {
@@ -126,6 +167,7 @@ export default function LibraryReleaseDetailPage({
         reports: reportsRes.status === 'ok' ? reportsRes.data.reports : [],
         docsText: docsRes.status === 'ok' ? docsRes.data : null,
         siblings,
+        compatibility,
       },
     });
   }, [clearPrivateData]);
@@ -158,7 +200,7 @@ export default function LibraryReleaseDetailPage({
   if (view.kind === 'loading') {
     return (
       <main>
-        <section className="empty-state" role="status">
+        <section className="empty-state" role="status" data-testid="library-detail-loading">
           <h2>正在校验授权并加载组件详情…</h2>
           <p>内部资产详情仅在客户端校验权限后读取。</p>
         </section>
@@ -197,7 +239,7 @@ export default function LibraryReleaseDetailPage({
       <main>
         <section className="empty-state" data-testid="library-detail-not-found">
           <h2>未找到该组件版本</h2>
-          <p>目标发布版本不存在或当前不可访问。</p>
+          <p>目标发布版本不存在、无权限或已被撤销。页面数据与预览已清空。</p>
           <Link href="/library" className="filter-btn">返回我的资产库</Link>
         </section>
       </main>
@@ -218,7 +260,7 @@ export default function LibraryReleaseDetailPage({
     );
   }
 
-  const { release, reports, docsText, siblings } = view.data;
+  const { release, reports, docsText, siblings, compatibility } = view.data;
   const display = getDisplayEnhancement(release.variant.componentId);
   const frameworkName = release.variant.framework === 'react' ? 'React 19' : 'Vue 3';
   const cleanSubpath = release.variant.exportPath.replace(/^\.\//, '');
@@ -341,7 +383,11 @@ export default function LibraryReleaseDetailPage({
         </div>
       </section>
 
-      <EchartsCompatibility componentId={release.variant.componentId} framework={release.variant.framework} />
+      <EchartsCompatibility
+        componentId={release.variant.componentId}
+        framework={release.variant.framework}
+        measured={compatibility}
+      />
 
       <section className="spec-table-container" aria-label="检查报告">
         <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>

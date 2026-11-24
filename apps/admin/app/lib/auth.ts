@@ -9,20 +9,36 @@ export const platformApiOrigin = (process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'h
 export const companyLoginUrl = `${platformApiOrigin}/v1/auth/oidc/start?target=admin`;
 
 let companySession: UserSession | null = null;
+let authGeneration = 0;
+let logoutInFlight: Promise<void> | null = null;
+let activeSessionAbort: AbortController | null = null;
 
 export async function loadCompanySession(): Promise<UserSession | null> {
+  if (logoutInFlight) {
+    return null;
+  }
+  const gen = authGeneration;
+  activeSessionAbort?.abort();
+  const controller = new AbortController();
+  activeSessionAbort = controller;
   try {
     const response = await fetch(`${platformApiOrigin}/v1/auth/oidc/session`, {
       credentials: 'include',
       cache: 'no-store',
       redirect: 'error',
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.any([controller.signal, AbortSignal.timeout(5000)]),
     });
+    if (gen !== authGeneration || logoutInFlight || controller.signal.aborted) {
+      return null;
+    }
     if (!response.ok) {
       companySession = null;
       return getStoredSession();
     }
     const value: unknown = await response.json();
+    if (gen !== authGeneration || logoutInFlight || controller.signal.aborted) {
+      return null;
+    }
     if (
       !value ||
       typeof value !== 'object' ||
@@ -40,8 +56,15 @@ export async function loadCompanySession(): Promise<UserSession | null> {
     companySession = { token: '__session__', subject: value.subject, roles: value.roles, channel: 'web' };
     return companySession;
   } catch {
+    if (gen !== authGeneration || logoutInFlight || controller.signal.aborted) {
+      return null;
+    }
     companySession = null;
     return getStoredSession();
+  } finally {
+    if (activeSessionAbort === controller) {
+      activeSessionAbort = null;
+    }
   }
 }
 
@@ -70,6 +93,7 @@ const STORAGE_KEY = 'zhinexus_console_auth';
 
 export function getStoredSession(): UserSession | null {
   if (typeof window === 'undefined') return null;
+  if (logoutInFlight) return null;
   if (companySession) return companySession;
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -86,6 +110,9 @@ export function saveSession(token: string): UserSession | null {
   if (typeof window === 'undefined') return null;
   const payload = parseTokenPayload(token);
   if (!payload || !payload.sub) return null;
+  authGeneration += 1;
+  activeSessionAbort?.abort();
+  activeSessionAbort = null;
   const clientId = payload.azp ?? payload.client_id ?? 'web';
   const session: UserSession = {
     token,
@@ -100,12 +127,23 @@ export function saveSession(token: string): UserSession | null {
 
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
+  authGeneration += 1;
+  activeSessionAbort?.abort();
+  activeSessionAbort = null;
   localStorage.removeItem(STORAGE_KEY);
   companySession = null;
-  void fetch(`${platformApiOrigin}/v1/auth/oidc/logout`, {
+  const logoutPromise = fetch(`${platformApiOrigin}/v1/auth/oidc/logout`, {
     method: 'POST',
     credentials: 'include',
     cache: 'no-store',
     redirect: 'error',
-  }).catch(() => {});
+  })
+    .catch(() => {})
+    .then(() => undefined)
+    .finally(() => {
+      if (logoutInFlight === logoutPromise) {
+        logoutInFlight = null;
+      }
+    });
+  logoutInFlight = logoutPromise;
 }

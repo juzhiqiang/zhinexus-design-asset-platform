@@ -4,14 +4,14 @@ import { useEffect, useState } from 'react';
 import type { Framework } from '@company/contracts';
 import { discoverOfficialEcharts, fetchMeasuredCompatibility, OFFICIAL_ECHARTS_SOURCE, type MeasuredCompatibility, type OfficialEchartsDiscovery } from '../../../lib/echarts-compatibility';
 
-type LoadState<T> = { status: 'loading' } | { status: 'error' } | { status: 'loaded'; value: T };
+export type CompatibilityLoadState<T> = { status: 'loading' } | { status: 'error' } | { status: 'loaded'; value: T };
 
 function OfficialDiscovery() {
-  const [state, setState] = useState<LoadState<OfficialEchartsDiscovery>>({ status: 'loading' });
+  const [state, setState] = useState<CompatibilityLoadState<OfficialEchartsDiscovery>>({ status: 'loading' });
   useEffect(() => {
     const controller = new AbortController();
     discoverOfficialEcharts({ signal: controller.signal }).then(
-      value => { if (!controller.signal.aborted) setState({ status: 'loaded', value }); },
+      (value) => { if (!controller.signal.aborted) setState({ status: 'loaded', value }); },
       () => { if (!controller.signal.aborted) setState({ status: 'error' }); },
     );
     return () => controller.abort();
@@ -32,16 +32,7 @@ function OfficialDiscovery() {
   );
 }
 
-function MeasuredSupport({ componentId, framework }: { componentId: string; framework: Framework }) {
-  const [state, setState] = useState<LoadState<MeasuredCompatibility>>({ status: 'loading' });
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchMeasuredCompatibility(componentId, framework, { signal: controller.signal }).then(
-      value => { if (!controller.signal.aborted) setState({ status: 'loaded', value }); },
-      () => { if (!controller.signal.aborted) setState({ status: 'error' }); },
-    );
-    return () => controller.abort();
-  }, [componentId, framework]);
+function MeasuredSupportView({ framework, state }: { framework: Framework; state: CompatibilityLoadState<MeasuredCompatibility> }) {
   const result = state.status === 'loaded' ? state.value : undefined;
 
   return (
@@ -53,7 +44,7 @@ function MeasuredSupport({ componentId, framework }: { componentId: string; fram
       {result?.kind === 'published' && <>
         <p className="compatibility-package"><strong>{result.packageName}@{result.packageVersion}</strong></p>
         {result.records.length === 0 ? <p role="status">暂无已接收的实测兼容记录，未验证兼容性。</p> : <ul className="compatibility-records">
-          {result.records.map(record => <li key={record.compatibilityId}>
+          {result.records.map((record) => <li key={record.compatibilityId}>
             <p><strong>ECharts {record.echartsVersion}</strong> · {record.framework === 'vue' ? 'Vue' : 'React'} {record.frameworkVersion}</p>
             <p className="compatibility-meta">记录 {record.compatibilityId} · <time dateTime={record.createdAt}>{record.createdAt}</time></p>
           </li>)}
@@ -63,13 +54,38 @@ function MeasuredSupport({ componentId, framework }: { componentId: string; fram
   );
 }
 
-export function EchartsCompatibility({ componentId, framework }: { componentId: string; framework: Framework }) {
+function PublicMeasuredSupport({ componentId, framework }: { componentId: string; framework: Framework }) {
+  const [state, setState] = useState<CompatibilityLoadState<MeasuredCompatibility>>({ status: 'loading' });
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchMeasuredCompatibility(componentId, framework, { signal: controller.signal }).then(
+      (value) => { if (!controller.signal.aborted) setState({ status: 'loaded', value }); },
+      () => { if (!controller.signal.aborted) setState({ status: 'error' }); },
+    );
+    return () => controller.abort();
+  }, [componentId, framework]);
+  return <MeasuredSupportView framework={framework} state={state} />;
+}
+
+export function EchartsCompatibility({
+  componentId,
+  framework,
+  measured,
+}: {
+  componentId: string;
+  framework: Framework;
+  measured?: CompatibilityLoadState<MeasuredCompatibility>;
+}) {
   return (
     <section className="echarts-compatibility" aria-label="ECharts 版本与实测兼容">
       <h3>ECharts 版本与实测兼容</h3>
       <div className="compatibility-grid">
         <OfficialDiscovery />
-        <MeasuredSupport key={`${componentId}:${framework}`} componentId={componentId} framework={framework} />
+        {measured ? (
+          <MeasuredSupportView framework={framework} state={measured} />
+        ) : (
+          <PublicMeasuredSupport key={`${componentId}:${framework}`} componentId={componentId} framework={framework} />
+        )}
       </div>
     </section>
   );

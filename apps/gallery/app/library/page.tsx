@@ -40,6 +40,8 @@ export default function MyLibraryPage() {
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+    // 重检开始立即清空旧账号/旧权限的 ready 数据，防止切换账号延迟期间继续展示旧资产
+    setView({ kind: 'loading' });
 
     const currentSession = await loadCompanySession();
     if (gen !== generationRef.current || controller.signal.aborted) return;

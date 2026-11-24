@@ -1,5 +1,5 @@
 import { validateApiMessage, type ApiMessages, type Framework } from '@company/contracts';
-import type { ComponentCatalogItem, ComponentEventSpec, ComponentPropSpec, ComponentVariantMeta } from './types';
+import type { ComponentCatalogItem, ComponentEventSpec, ComponentPropSpec, ComponentVariantMeta } from './types.js';
 
 const DEFAULT_API_ORIGIN = (process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
 

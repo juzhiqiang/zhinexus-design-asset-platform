@@ -43,6 +43,10 @@ async function mockLibraryDetail(page: Page, signedIn = true) {
   await page.route('**/v1/me/variant-releases/*/artifacts**', (route) =>
     route.fulfill({ body: '# LineChart Docs', contentType: 'text/markdown' }),
   );
+  await page.route('**/v1/me/variant-releases/*/compatibility', (route) => {
+    const id = route.request().url().includes('release-react') ? 'release-react' : 'release-vue';
+    return route.fulfill({ json: { variantReleaseId: id, items: [] } });
+  });
   await page.route('**/v1/me/variant-releases/*', (route) => {
     const fw = route.request().url().includes('release-react') ? 'react' : 'vue';
     return route.fulfill({ json: releaseFixture(fw) });

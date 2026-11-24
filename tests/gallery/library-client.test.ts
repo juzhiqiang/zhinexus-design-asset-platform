@@ -4,7 +4,9 @@ import {
   fetchMyVariantRelease,
   fetchMyVariantReports,
   fetchMyVariantArtifactText,
+  fetchMyVariantCompatibility,
 } from '../../apps/gallery/app/lib/library-client.js';
+import { compatibilityFixture, releaseFixture } from './echarts-compatibility-fixtures.js';
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -83,5 +85,27 @@ describe('authenticated /v1/me library client', () => {
       expect(artifact.data).toBe('# LineChart Docs');
     }
     expect(seen[1]!.url).toBe('http://api.test/v1/me/variant-releases/rel-1/artifacts?path=docs%2Fline.md');
+  });
+
+  it('fetches authenticated /v1/me/variant-releases/:id/compatibility and classifies 404/403/401', async () => {
+    const release = releaseFixture('vue');
+    const seen: string[] = [];
+    const okFetcher: typeof fetch = async (input) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      seen.push(url);
+      return jsonResponse(compatibilityFixture('vue'));
+    };
+
+    const ok = await fetchMyVariantCompatibility(release.variantReleaseId, release, { token: '__session__' }, { apiUrl: 'http://api.test', fetcher: okFetcher });
+    expect(ok.status).toBe('ok');
+    expect(seen[0]).toBe('http://api.test/v1/me/variant-releases/release-vue/compatibility');
+
+    const notFound = await fetchMyVariantCompatibility(
+      release.variantReleaseId,
+      release,
+      { token: '__session__' },
+      { apiUrl: 'http://api.test', fetcher: async () => jsonResponse({ code: 'NOT_FOUND' }, 404) },
+    );
+    expect(notFound.status).toBe('not_found');
   });
 });
