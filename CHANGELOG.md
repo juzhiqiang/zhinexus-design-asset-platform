@@ -4,6 +4,9 @@
 
 ### 新增
 
+- `juz-cli 0.0.30` 在正常 npm 安装时自动下载截图所需的匹配 Chromium，复用已有缓存；开发者无需另行执行 Playwright 安装命令。
+- 下载失败时明确报错并提示重装或补装，支持环境变量显式跳过。平台仓库内部安装行为不变，Linux 系统依赖仍需另行准备。
+
 - 后台管理新增登录页 `apps/admin/app/login`：本地身份模式下 `/v1/auth/oidc/start?target=admin` 不再把浏览器送到返回 JSON 描述符的 `GET /identity/authorize`，而是送到管理端自己的登录页；页面是零客户端脚本的服务端组件，把同一组 OIDC 参数放回表单隐藏域，凭据以一次普通表单 POST 直接提交到身份服务，成功后由 `303 → /v1/auth/oidc/callback → /upload` 自己走完，`__Host-platform` Cookie 因此能落到 API origin。视觉按后台既有设计令牌（`access-panel`/`zn-field`/`zn-input`/`zn-btn-primary`、接入设置分区的 Command Motif），`.pen` 没有登录画板，属全新 UI。
 - 登录失败可回到页面本身：`POST /identity/authorize` 对浏览器表单导航（`Accept: text/html`）返回 303 回登录页并带封闭集合的 `reason`（凭据错误 / 首次需改密 / 已停用 / 入口失效 / 服务不可用）与规范化用户名，其他客户端照旧收 JSON 错误。回跳 URL 由新增的 `identity/local/login-page.ts` 构造，每个字段按服务端同一套形状复验，畸形即丢弃，口令从不进 URL。
 - 首次登录改密在同一张表单内完成：播种出来的管理员 `must_change=true`，服务端在同一次提交里要求 `new_password`，登录页因此多渲染一个新密码字段，策略文案与 `assertPasswordPolicy` 一致（至少 12 个字符、不得与当前口令相同）。
@@ -15,6 +18,7 @@
 - `tests/admin/console-render.test.ts` 的页面加载器类型写成 `{ default: () => unknown }`，使带 props 的画板在类型上就不合法（HEAD 上 2 条既有报错），改为 `{ default: unknown }`。
 
 验证：新增 23 项 API 侧与 16 项后台渲染测试全过，导航/设计令牌 15 项、本地身份服务 23 项回归全过，画板渲染 6/7（唯一失败在 HEAD 上同样失败）；API 与后台两侧针对性 tsc 均 0 错；后台 `next build`（Turbopack，含 TypeScript 检查）通过，`/login` 为动态渲染；13 项变异全部被抓到。未验证：真实浏览器完整登录、画廊侧登录页、公网边缘模板的 `/identity/`（仍按设计 404）。详见 [登录页验证记录](docs/verification/2026-11-25-admin-login-page.md)。
+验证：真实 npm 安装、空缓存下载与浏览器启动、受控下载失败、显式跳过及 CLI 回归共 19 项通过，详见 [验证记录](docs/verification/2026-11-25-juz-browser-install.md)。本轮提供本地分发包，尚未发布 npm。
 
 ## [0.1.6] - 2026-11-25
 

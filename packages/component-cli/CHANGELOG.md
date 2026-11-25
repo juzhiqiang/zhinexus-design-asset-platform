@@ -2,6 +2,13 @@
 
 本文件记录 `@company/component-cli` 的对外可见变化，遵循语义化版本与 Keep a Changelog 约定。
 
+## [0.0.30] - 2026-11-25
+
+### 新增
+
+- 独立 `juz-cli` 分发包在正常 npm 安装时自动下载匹配 Chromium，支持缓存复用和显式跳过，省去首次截图前的手动安装命令。
+- 下载失败返回非零并提示重装；已全局安装包可通过 `npm rebuild -g juz-cli --foreground-scripts` 补装，兼容包内浏览器缓存。Linux 系统库仍需按提示准备。
+
 ## [0.0.28] - 2026-11-24
 
 ### 新增

@@ -44,7 +44,7 @@ docs                     使用、部署、运维与工程文档
 
 公开包为 `@company/charts-core`、`@company/charts-vue`、`@company/charts-react` 和 `@company/component-cli`。CLI 内联契约校验，公开包运行时不依赖私有 `@company/contracts`。画廊通过 HTTP 和公共契约访问后端。
 
-CLI 工作区包保持内部名称，通过 `pnpm --filter @company/component-cli pack:juz` 生成独立的 `juz-cli` npm 分发包，可用 `npm install -g <生成的 tgz>` 本地测试。实际发布到 registry 后才可使用 `npm install -g juz-cli`；当前后台导入本地 ZIP 需先解压。
+CLI 工作区包保持内部名称，通过 `pnpm --filter @company/component-cli pack:juz` 生成独立的 `juz-cli` npm 分发包，可用 `npm install -g <生成的 tgz>` 本地测试；正常安装自动准备截图所需的 Chromium。实际发布到 registry 后才可使用 `npm install -g juz-cli`；当前后台导入本地 ZIP 需先解压。
 
 ## 本地开发（Windows x64）
 

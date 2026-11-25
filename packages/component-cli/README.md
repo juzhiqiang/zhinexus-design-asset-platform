@@ -4,6 +4,8 @@
 
 发布到 npm 后安装：`npm install -g juz-cli`。开发测试可全局安装构建得到的 `juz-cli-<version>.tgz`。
 
+正常安装会自动下载匹配的 Chromium，已有缓存直接复用。下载失败会给出补装命令；处理网络问题后重试安装即可。`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` 或 npm `--ignore-scripts` 可跳过，之后需手动补装浏览器才能截图。Linux 系统库仍按 Playwright 提示准备，不自动提权安装。
+
 ```sh
 juz login --api-url https://你的平台API域名
 juz init
