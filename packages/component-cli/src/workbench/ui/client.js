@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const token=location.hash.slice(1);
-const drafts=new Map(),events=new Map();let catalog,current,publishing,frame,port,generation=0,validation=0,selection=0,zoom=1,selectedState='default',frozenView=false,snapshot; 
+const drafts=new Map(),events=new Map();let catalog,current,publishing,frame,port,generation=0,validation=0,selection=0,zoom=1,selectedState='default',frozenView=false,snapshot;
 function node(tag,text,className){const element=document.createElement(tag);if(text!==undefined)element.textContent=text;if(className)element.className=className;return element;}
 function error(message){$('error').textContent=String(message);$('error').hidden=false;$('notice').hidden=true;}
 function clearError(){$('error').hidden=true;}
@@ -125,7 +125,13 @@ $('apply-data').onclick=async()=>{try{const next=structuredClone(draft().value);
 $('apply-props').onclick=async()=>{try{const next=structuredClone(draft().value);next.props=JSON.parse($('props-json').value);await apply(next);}catch(e){draft().invalid=true;updateActions();error('Props JSON 无效：'+e);}};
 $('states').onchange=async()=>{selectedState=$('states').value;const selected=example().states.find(s=>s.id===selectedState);if(!selected)return;if(isReadonly()){port?.postMessage({type:'state',id:selected.id});return;}const next=structuredClone(draft().value);next.props=structuredClone(selected.props);next.data=structuredClone(selected.data);await apply(next).catch(error);};
 $('reset').onclick=()=>apply(structuredClone(draft().saved)).catch(error);
-$('save').onclick=async()=>{try{const currentDraft=draft();const next=structuredClone(currentDraft.value);const state=next.states.find(s=>s.id===selectedState);if(state){state.props=structuredClone(next.props);state.data=structuredClone(next.data);}const result=await api('save',{id:current.id,value:next,digest:currentDraft.digest});drafts.set(current.id,{value:structuredClone(result.value),saved:structuredClone(result.value),digest:result.digest,invalid:false});renderEditors();await refreshCatalog();notice('示例已保存');}catch(e){error(e);}};
+$('save').onclick=async()=>{try{
+ const id=current.id,currentDraft=draft(),original=structuredClone(currentDraft.value),next=structuredClone(original);
+ const state=next.states.find(s=>s.id===selectedState);if(state){state.props=structuredClone(next.props);state.data=structuredClone(next.data);}
+ const result=await api('save',{id,value:next,digest:currentDraft.digest}),latest=drafts.get(id);
+ if(latest){const unchanged=JSON.stringify(latest.value)===JSON.stringify(original)&&!latest.invalid;latest.saved=structuredClone(result.value);latest.digest=result.digest;if(unchanged)latest.value=structuredClone(result.value);if(current?.id===id&&unchanged)renderEditors();}
+ await refreshCatalog();notice('示例已保存');
+}catch(e){error(e);}};
 $('clear-events').onclick=()=>{events.set(current.id,[]);renderEvents();};
 $('refresh-account').onclick=()=>refreshAccount().catch(error);
 $('login').onclick=async()=>{try{$('login').disabled=true;$('account').textContent='请在系统浏览器完成公司登录…';await api('login',{apiOrigin:$('api-origin').value});await refreshAccount();notice('平台登录完成');}catch(e){error(e);}finally{$('login').disabled=false;}};
@@ -138,4 +144,3 @@ $('return-dev').onclick=()=>select(current).catch(error);
 const refreshTimer=setInterval(()=>{if(catalog)void refreshCatalog().catch(()=>{});},2000);
 addEventListener('pagehide',()=>{clearInterval(refreshTimer);port?.close();frame?.remove();},{once:true});
 try{catalog=await api('catalog');renderDirectory();if(catalog.variants.length){const query=new URLSearchParams(location.search);const initial=catalog.variants.find(v=>(!query.get('package')||v.packageName===query.get('package'))&&(!query.get('framework')||v.framework===query.get('framework')));if(!initial&&(query.has('package')||query.has('framework')))throw new Error('请求的包或框架未登记');await select(initial??catalog.variants[0]);}else error('没有已登记的组件实现。');void refreshAccount().catch(error);}catch(e){error(e);}
-

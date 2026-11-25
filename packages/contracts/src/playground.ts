@@ -25,4 +25,3 @@ export function validatePlayground(input: unknown): ValidationResult<PlaygroundV
   }
   return result;
 }
-

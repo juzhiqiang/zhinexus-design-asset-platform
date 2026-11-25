@@ -80,4 +80,3 @@ export async function startDevelopmentPreview(project:LoadedProject,variant:Proj
   return {origin,url:origin+base+'index.html',mode:variant.sourceEntry?'source':'built-export',close:async()=>{await stopScript();await vite?.close();await new Promise<void>(resolve=>{server.close(()=>resolve());server.closeAllConnections();});await fs.rm(temporary,{recursive:true,force:true});}};
  }catch(error){await stopScript();await vite?.close();await new Promise<void>(resolve=>{if(!server.listening){resolve();return;}server.close(()=>resolve());server.closeAllConnections();});await fs.rm(temporary,{recursive:true,force:true});throw error;}
 }
-

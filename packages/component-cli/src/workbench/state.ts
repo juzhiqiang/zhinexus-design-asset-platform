@@ -10,7 +10,9 @@ export const configRelative=(project:LoadedProject)=>path.relative(project.root,
 export function stateKey(project:LoadedProject){return computeBufferSha256(configRelative(project)+'\n'+project.pkg.name).slice(0,24);}
 export async function pointerPath(project:LoadedProject){return projectPath(project.root,'.component-state/'+stateKey(project)+'.json',true);}
 export async function inputFingerprint(project:LoadedProject){
- const entries:[string,string][]=[['config',canonicalJson(project.config)],['package',await computeSourceDigest(project.packageDir,{ignore:['.component-state','.superpowers']})]];
+ // Build commands may consume shared sources/configuration anywhere in the
+ // declared project. A conservative root digest prevents stale implicit reuse.
+ const entries:[string,string][]=[['config',canonicalJson(project.config)],['project',await computeSourceDigest(project.root,{ignore:['.tools','.next','test-results','playwright-report','.release']})],['package',await computeSourceDigest(project.packageDir,{ignore:['.component-state','.superpowers']})]];
  for(const relative of ['package.json','pnpm-lock.yaml','pnpm-workspace.yaml','package-lock.json','npm-shrinkwrap.json','tsconfig.json','tsconfig.base.json']){
   try{entries.push(['root/'+relative,computeBufferSha256(await fs.readFile(await projectPath(project.root,relative)))]);}catch(error){if(!(error instanceof Error&&error.message.startsWith('PROJECT_FILE_MISSING')))throw error;}
  }
@@ -39,4 +41,3 @@ export async function writePointer(project:LoadedProject,pointer:ReleasePointer)
   await fs.writeFile(legacy+'.tmp',JSON.stringify(pointer,null,2)+'\n');await fs.rename(legacy+'.tmp',legacy);
  }
 }
-

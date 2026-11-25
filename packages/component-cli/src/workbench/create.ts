@@ -60,4 +60,3 @@ export const Demo=defineComponent({name:'Demo',props:{label:{type:String,default
   await fs.writeFile(path.join(root,'README.md'),'# '+slug+'\n\n运行 pnpm install，然后 juz dev。本地开发无需登录。发布前在工作台登录并分配后台分类。\n');
   return {root,next:'cd '+directory+' && pnpm install && juz dev'};
 }
-

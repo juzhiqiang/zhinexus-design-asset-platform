@@ -20,4 +20,3 @@ export async function runWorkbenchCommand(command:string,args:readonly string[],
   return {exitCode:0,stdout:JSON.stringify({url:url.href,mode:command==='preview'?'frozen':'development',host:'127.0.0.1',port})+'\n',stderr:''};
  }catch(error){return {exitCode:1,stdout:'',stderr:(error instanceof Error?error.message:String(error))+'\n'};}
 }
-

@@ -13,4 +13,3 @@ export async function terminateTree(child:ChildProcess):Promise<void>{
  else {try{process.kill(-child.pid,'SIGTERM');}catch{child.kill();}}
 }
 export function bindChild(child:ChildProcess){const signal=operation.getStore();const abort=()=>{void terminateTree(child);};signal?.addEventListener('abort',abort,{once:true});child.once('close',()=>signal?.removeEventListener('abort',abort));if(signal?.aborted)abort();}
-

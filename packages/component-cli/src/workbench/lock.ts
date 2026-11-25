@@ -16,4 +16,3 @@ export async function acquirePackageLock(project:LoadedProject):Promise<()=>Prom
  return async()=>{if(released)return;released=true;const owner=JSON.parse(await fs.readFile(file,'utf8'));if(owner.nonce===nonce)await fs.rm(file);};
 }
 export async function withPackageLock<T>(project:LoadedProject,operation:()=>Promise<T>):Promise<T>{const release=await acquirePackageLock(project);try{return await operation();}finally{await release();}}
-

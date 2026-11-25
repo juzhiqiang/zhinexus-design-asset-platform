@@ -36,4 +36,3 @@ addEventListener('pagehide',()=>{unmount();port?.close();},{once:true});
 `;
 }
 export const consumerHtml='<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>组件预览</title><style>html,body,#app{margin:0;width:100%;height:100%;box-sizing:border-box}body{font-family:system-ui,sans-serif}#app{display:grid;place-items:stretch}</style></head><body><div id="app"></div><script type="module" src="./main.js"></script></body></html>\n';
-

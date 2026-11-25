@@ -13,6 +13,22 @@ let root:string,service:Awaited<ReturnType<typeof startWorkbench>>;
 test.beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-browser-'));await createProject(root,'demo','all');await promisify(execFile)(resolvePnpmExecutable(),['install','--ignore-scripts','--config.manage-package-manager-versions=false'],{cwd:path.join(root,'demo'),windowsHide:true,timeout:120000});service=await startWorkbench({root:path.join(root,'demo'),version:'0.1.0',port:0});});
 test.afterEach(async()=>{await service?.close();if(root)await fs.rm(root,{recursive:true,force:true});});
 
+test('pending saves remain attached to their implementation and preserve later edits',async({page})=>{
+ await page.goto(service.url);const frame=page.frameLocator('iframe');await expect(frame.getByRole('heading',{name:'Hello juz'})).toBeVisible();
+ let release:()=>void=()=>{},received=false;
+ await page.route('**/api/save',async route=>{const response=await route.fetch();const waiting=new Promise<void>(resolve=>{release=resolve;});received=true;await waiting;await route.fulfill({response});});
+ try{
+  await page.getByLabel('label',{exact:true}).fill('React saved');await expect(frame.getByRole('heading',{name:'React saved'})).toBeVisible();await page.getByRole('button',{name:'保存示例',exact:true}).click();await expect.poll(()=>received).toBe(true);
+  await page.getByRole('button',{name:'Vue',exact:true}).click();await expect(frame.getByRole('heading',{name:'Hello juz'})).toBeVisible();release();await expect(page.locator('#notice')).toContainText('示例已保存');
+  await expect(page.getByLabel('label',{exact:true})).toHaveValue('Hello juz');
+  await page.getByRole('button',{name:'React',exact:true}).click();await expect(frame.getByRole('heading',{name:'React saved'})).toBeVisible();
+  received=false;await page.getByLabel('label',{exact:true}).fill('First edit');await expect(frame.getByRole('heading',{name:'First edit'})).toBeVisible();await page.getByRole('button',{name:'保存示例',exact:true}).click();await expect.poll(()=>received).toBe(true);
+  await page.getByLabel('label',{exact:true}).fill('Later edit');await expect(frame.getByRole('heading',{name:'Later edit'})).toBeVisible();release();await expect(page.locator('#notice')).toContainText('示例已保存');await expect(page.getByLabel('label',{exact:true})).toHaveValue('Later edit');
+  expect(JSON.parse(await fs.readFile(path.join(root,'demo/packages/react/playground.json'),'utf8')).props.label).toBe('First edit');
+  await expect(page.getByRole('button',{name:'保存示例',exact:true})).toBeEnabled();
+ }finally{release();}
+});
+
 test('supports enum/bounds/boolean controls, real drag resizing and honestly reports a custom consumer without a bridge',async({page})=>{
  const project=path.join(root,'demo'),exampleFile=path.join(project,'packages/react/playground.json');
  const example=JSON.parse(await fs.readFile(exampleFile,'utf8'));example.controls[0]={name:'label',kind:'enum',options:['Hello juz','Selected enum','No data']};example.controls[1].min=0;await fs.writeFile(exampleFile,JSON.stringify(example));
@@ -113,4 +129,3 @@ test('built-export mode starts the declared watcher, waits for its output and st
   await expect.poll(()=>{try{process.kill(pid,0);return true;}catch{return false;}}).toBe(false);
  }finally{await service.close();await fs.writeFile(configFile,old);service=await startWorkbench({root:project,version:'0.1.0',port:0});}
 });
-

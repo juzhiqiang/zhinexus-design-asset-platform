@@ -38,4 +38,3 @@ export async function savePlayground(project:LoadedProject,variant:ProjectVarian
     return readPlayground(project,variant);
   } finally { await handle.close(); await fs.rm(lock,{force:true}); await fs.rm(temporary,{force:true}); }
 }
-

@@ -130,4 +130,3 @@ export async function startWorkbench(options:WorkbenchOptions){
  catch(error){server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));throw error;}
  return {origin,token,url:origin+'/#'+token,close:async()=>{if(closed)return;closed=true;abort.abort();await selection.catch(()=>{});await active?.close();await candidatePreview?.close();await frozen?.close();await Promise.allSettled([...queues.values()]);server.closeAllConnections();await new Promise<void>(resolve=>server.close(()=>resolve()));}};
 }
-

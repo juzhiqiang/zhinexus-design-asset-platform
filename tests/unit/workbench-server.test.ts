@@ -28,4 +28,3 @@ it('binds control to loopback, requires session plus exact Host and Origin, and 
  await expect(startWorkbench({root:path.join(cwd,'demo'),version:'0.1.0',port})).rejects.toThrow('PORT_IN_USE');
  const html=await (await fetch(service.origin)).text();expect(html).not.toContain(service.token);
 });
-

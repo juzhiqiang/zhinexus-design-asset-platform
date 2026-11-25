@@ -13,6 +13,19 @@ it('serializes package mutations across callers and recovers a dead owner lock',
 });
 const roots:string[]=[];
 afterEach(async()=>{for(const r of roots.splice(0))await fs.rm(r,{recursive:true,force:true});});
+it('invalidates frozen inputs when a shared root source or build configuration changes',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-shared-input-'));roots.push(root);
+ await runCli(['create','demo','--framework','all'],'0.1.0',{cwd:root});
+ const {readWorkspace}=await import('../../packages/component-cli/src/workbench/workspace.js');
+ const {inputFingerprint}=await import('../../packages/component-cli/src/workbench/state.js');
+ const p=(await readWorkspace(path.join(root,'demo'))).projects[0]!;
+ await fs.writeFile(path.join(p.root,'shared.ts'),'export const value="Before";');
+ await fs.appendFile(path.join(p.root,p.config.variants[0]!.sourceEntry!),'\nexport {value} from "../../../shared.js";');
+ const before=await inputFingerprint(p);await fs.writeFile(path.join(p.root,'shared.ts'),'export const value="After";');
+ expect(await inputFingerprint(p)).not.toBe(before);
+ const shared=await inputFingerprint(p);await fs.writeFile(path.join(p.root,'build-config.mjs'),'export default {minify:false};');
+ expect(await inputFingerprint(p)).not.toBe(shared);
+});
 it('uses independently owned recovery pointers and fingerprints real source, docs and example inputs',async()=>{
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-fingerprint-'));roots.push(root);
  await runCli(['create','demo','--framework','all'],'0.1.0',{cwd:root});
@@ -29,4 +42,3 @@ it('uses independently owned recovery pointers and fingerprints real source, doc
  await fs.writeFile(path.join(p.root,'.component-release.json'),JSON.stringify({configFile:'wrong.json',packageName:p.pkg.name,packageVersion:p.pkg.version,bundleDir:'fake',configDigest:'0'.repeat(64),manifestDigest:'0'.repeat(64)}));
  expect(await readPointer(p)).toBeUndefined();
 });
-

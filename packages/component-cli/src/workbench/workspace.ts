@@ -35,4 +35,3 @@ export async function selectProject(workspace:ComponentWorkspace, selected?:stri
   if(matches.length!==1) throw new Error('PACKAGE_SELECTION_REQUIRED: 使用 --package <包名、目录或配置路径> 选择唯一组件包');
   return matches[0]!;
 }
-

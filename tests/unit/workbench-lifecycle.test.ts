@@ -30,4 +30,3 @@ it('does not forward platform credentials to component build processes',async()=
  expect(JSON.parse(await fs.readFile(path.join(root,'environment.json'),'utf8'))).toEqual({path:true});}
  finally{delete process.env.ZHINEXUS_API_TOKEN;await fs.rm(root,{recursive:true,force:true});}
 });
-

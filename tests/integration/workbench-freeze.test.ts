@@ -31,4 +31,3 @@ it('freezes saved data from a real installed component and serves only declared 
   expect(await Promise.all(manifest.files.map((f:{path:string})=>computeFileSha256(path.join(output.bundleDir,f.path))))).toEqual(before);
  } finally {await fs.rm(root,{recursive:true,force:true});}
 },180000);
-
