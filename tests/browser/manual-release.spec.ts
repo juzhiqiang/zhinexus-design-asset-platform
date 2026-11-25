@@ -18,15 +18,18 @@ async function devLogin(page: Page) {
 }
 
 test.describe('T08: 网页手动发布与逐实现截图必检', () => {
-  test('未登录用户访问发布工作区渲染登录后开放且带有 noindex 保护', async ({ page }) => {
+  test('未登录用户访问发布工作区自动跳转至登录页且带有 noindex 保护', async ({ page }) => {
     const response = await page.goto('http://127.0.0.1:5177/upload');
     expect(response).not.toBeNull();
     expect(response!.status()).toBe(200);
 
-    // 1. 未登录渲染提示
-    await expect(page.locator('h1')).toContainText('登录后开放');
+    // 1. 未登录自动跳转至 /login，隐藏侧栏并展示登录入口
+    await expect(page).toHaveURL(/\/login\?next=%2Fupload$/);
+    await expect(page.locator('aside.zn-sidebar')).toHaveCount(0);
+    await expect(page.locator('h1')).toContainText('管理员登录');
+    await expect(page.locator('h2')).toContainText('登录后开放');
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
-    await expect(page.locator('body')).toContainText('此处提供组件发布功能');
+    await expect(page.getByRole('link', { name: '账号登录' })).toBeVisible();
   });
 
   test('模拟登录后展示发布工作区与逐实现必检清单', async ({ page }) => {

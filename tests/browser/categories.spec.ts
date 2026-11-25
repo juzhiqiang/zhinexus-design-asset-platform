@@ -128,12 +128,11 @@ test.describe('built admin controls with mocked API responses (not persistence e
       expect(plan.subject).toBe('operator'); expect(plan.manifestDigest).toMatch(/^[0-9a-f]{64}$/);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
-  test('requires login and keeps the new route and navigation within admin', async ({ page }) => {
+  test('requires login and redirects unauthenticated visits to login', async ({ page }) => {
     await page.route('**/v1/auth/oidc/session', route => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
     await page.goto('/categories');
-    await expect(page.getByRole('heading', { name: '组件分类', exact: true })).toBeVisible();
-    await expect(page.getByRole('link', { name: '组件分类', exact: true })).toHaveAttribute('href', '/categories');
-    await expect(page.getByText('分类管理仅允许平台管理员')).toBeVisible();
+    await expect(page).toHaveURL(/\/login\?next=%2Fcategories$/);
+    await expect(page.getByRole('heading', { name: '管理员登录', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '创建分类', exact: true })).toHaveCount(0);
   });
   test('creates, renames and toggles a stable ID; stale CAS keeps edits until explicit refresh', async ({ page }) => {

@@ -2183,3 +2183,40 @@ a.filter-btn {
     animation-duration: 0.01ms !important;
   }
 }
+
+.zn-login-shell {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+  overflow: hidden;
+}
+
+.zn-login-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  max-width: 760px;
+}
+
+.zn-auth-checking {
+  text-align: center;
+  color: var(--zn-muted);
+  font-size: 14px;
+  padding: 48px 0;
+}
+
+.zn-token-login {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--zn-border);
+}
+
+.zn-token-login summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--zn-muted);
+  margin-bottom: 12px;
+}

@@ -1,7 +1,11 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+}));
 
 /**
  * `/login` render contract. The page is a server component with no client script: it takes the
@@ -115,10 +119,12 @@ describe('登录页渲染授权表单', () => {
     });
   }
 
-  it('全部参数缺失时同样拒绝渲染表单', async () => {
+  it('全部参数缺失时渲染默认登录入口与凭证登录，不渲染本地授权端点表单', async () => {
     const html = await render({});
-    expect(html).not.toContain('<form');
-    expect(html).toContain('无法开始登录');
+    expect(html).not.toContain('identity/authorize');
+    expect(html).toContain('登录后开放');
+    expect(html).toContain(`href="${API_ORIGIN}/v1/auth/oidc/start?target=admin"`);
+    expect(html).toContain('id="token-input"');
   });
 
   it('不引用 globals.css 未定义的类名', async () => {

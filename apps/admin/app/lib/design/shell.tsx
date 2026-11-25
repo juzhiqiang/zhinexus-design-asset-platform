@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ZnIcon } from './icons';
 import { ADMIN_NAV_ITEMS, resolveActiveNavKey, resolveTopbarPage } from './nav';
-import { getStoredSession } from '../auth';
+import { getStoredSession, loadCompanySession } from '../auth';
 
 const SEARCH_TARGET = '/match';
 
@@ -90,12 +90,65 @@ function QuickSearch() {
 
 export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const pathname = usePathname() ?? '/upload';
+  const router = useRouter();
+  const isLoginPage = pathname === '/login';
   const activeKey = resolveActiveNavKey(pathname);
   const [subject, setSubject] = useState('');
+  const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'redirecting'>(() =>
+    isLoginPage ? 'authenticated' : 'checking',
+  );
 
   useEffect(() => {
-    setSubject(getStoredSession()?.subject ?? '');
-  }, [pathname]);
+    if (isLoginPage) {
+      setAuthStatus('authenticated');
+      return;
+    }
+    const stored = getStoredSession();
+    if (stored) {
+      setSubject(stored.subject);
+      setAuthStatus('authenticated');
+      return;
+    }
+    setAuthStatus('checking');
+    let cancelled = false;
+    void loadCompanySession().then((session) => {
+      if (cancelled) return;
+      if (session) {
+        setSubject(session.subject);
+        setAuthStatus('authenticated');
+        return;
+      }
+      setSubject('');
+      setAuthStatus('redirecting');
+      const next = pathname && pathname.startsWith('/') && !pathname.startsWith('//') && pathname !== '/login'
+        ? `?next=${encodeURIComponent(pathname)}`
+        : '';
+      router.replace(`/login${next}`);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoginPage, pathname, router]);
+
+  if (isLoginPage) {
+    return (
+      <div className="zn-login-shell">
+        <AuroraFlowField />
+        <div className="zn-login-content">{children}</div>
+      </div>
+    );
+  }
+
+  if (authStatus !== 'authenticated') {
+    return (
+      <div className="zn-login-shell">
+        <AuroraFlowField />
+        <div className="zn-login-content">
+          <p className="zn-auth-checking">{authStatus === 'redirecting' ? '正在前往登录页…' : '正在核验登录状态…'}</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="zn-shell">

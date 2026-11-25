@@ -42,13 +42,15 @@ test('administrator edits, saves and validates a preview draft with visible vers
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=window.innerWidth)).toBe(true);
   await page.screenshot({path:'test-results/access-settings-mobile.png',fullPage:true});
 });
-test('ordinary users cannot see configuration and the console offers company login',async({page})=>{
+test('ordinary users cannot see configuration and the console redirects unauthenticated visits to login',async({page})=>{
   await page.route('**/v1/auth/oidc/session',route=>route.fulfill({status:401,json:{code:'UNAUTHENTICATED'}}));
   await page.route('**/v1/access-settings',route=>route.fulfill({status:403,json:{code:'FORBIDDEN'}}));
   await page.goto('http://127.0.0.1:5177/access-settings');
+  await expect(page).toHaveURL(/\/login\?next=%2Faccess-settings$/);
   await expect(page.getByRole('link',{name:'账号登录'})).toBeVisible();
   await expect(page.getByLabel('issuer')).toHaveCount(0);
   await page.goto('http://127.0.0.1:5177/upload');
+  await expect(page).toHaveURL(/\/login\?next=%2Fupload$/);
   await expect(page.getByRole('link',{name:'账号登录'})).toBeVisible();
 });
 test('explicit administrators can enter candidate Web login and see historical CLI verification',async({page})=>{
