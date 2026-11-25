@@ -1,8 +1,8 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, readFileSync, writeFileSync, chmodSync } from 'node:fs';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { dirname, join, resolve } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
 const infra = join(root, 'infra');
@@ -80,6 +80,89 @@ async function registerAdministrator(issuer: string, subject: string, username: 
   await platform.onApplicationShutdown();
 }
 
+/** The statements the local bootstrap issues; narrow enough to be answered from memory in tests. */
+export type SeedingSql = { query: (sql: string, values: unknown[]) => Promise<unknown> };
+
+/**
+ * The self-managed issuer is deployment configuration. The same shape is enforced in
+ * `apps/api/src/platform.ts`, so an issuer the API would reject cannot be seeded here.
+ */
+export function assertSelfManagedIssuer(value: string | undefined): string {
+  const issuer = (value ?? '').trim();
+  if (!issuer) throw new Error('PLATFORM_SELF_MANAGED_ISSUER is required; it is deployment configuration and is never taken from a request');
+  let parsed: URL;
+  try { parsed = new URL(issuer); } catch { throw new Error('PLATFORM_SELF_MANAGED_ISSUER is not a valid URL'); }
+  if (parsed.protocol !== 'https:' || parsed.username || parsed.password || parsed.search || parsed.hash) {
+    throw new Error('PLATFORM_SELF_MANAGED_ISSUER must be an https URL without credentials, query or fragment');
+  }
+  return issuer;
+}
+
+/** One administrator per issuer: a second seed would silently compete for the same identity. */
+export async function localAdministratorPresent(sql: SeedingSql, issuer: string): Promise<boolean> {
+  const found = (await sql.query('SELECT administrator FROM managed_accounts WHERE issuer=$1 AND administrator=true LIMIT 1', [issuer])) as { rows: unknown[] };
+  return found.rows.length > 0;
+}
+
+export type LocalAdministratorSeed = {
+  id: string; subject: string; platformSubject: string; issuer: string;
+  username: string; displayName: string; roles: readonly string[]; passwordHash: string;
+};
+
+/**
+ * Seeds the one administrator the local identity service allows. The account is enabled with its
+ * credential already set, so no identity operation is queued and the platform never has to
+ * synchronise it; `must_change` still forces a replacement on first login. Only the digest is
+ * written — the temporary password itself is returned to the operator and never persisted.
+ */
+export async function seedLocalAdministrator(sql: SeedingSql, seed: LocalAdministratorSeed): Promise<void> {
+  await sql.query(`INSERT INTO managed_accounts(id,issuer,subject,platform_subject,username,display_name,roles,administrator,enabled,awaiting_activation,credentials_set,sync_state,remote_user_id,desired_revision,access_epoch,version)
+    VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
+  [seed.id, seed.issuer, seed.subject, seed.platformSubject, seed.username, seed.displayName, JSON.stringify(seed.roles),
+    true, true, false, true, 'synced', seed.id, 1, 0, 1]);
+  // Same upsert shape as LocalIdentityStore.putCredential, so a replayed seed cannot duplicate a row.
+  await sql.query(`INSERT INTO local_credentials(account_id,password_hash,must_change) VALUES ($1,$2,$3)
+    ON CONFLICT (account_id) DO UPDATE SET password_hash=EXCLUDED.password_hash,must_change=EXCLUDED.must_change,updated_at=clock_timestamp()`,
+  [seed.id, seed.passwordHash, true]);
+  await sql.query('INSERT INTO audit_events(subject,event,target_id,data) VALUES ($1,$2,$3,$4)',
+  ['deployment:self-managed-bootstrap-local', 'MANAGED_ACCOUNT_CREATE', seed.username, JSON.stringify({ username: seed.username, result: 'passed', administrator: true })]);
+}
+
+/**
+ * Keycloak-free first administrator for `PLATFORM_IDENTITY_MODE=local`. The platform's own
+ * identity service holds credentials in `local_credentials` and exposes no administration
+ * surface, so this is the only way an administrator can come to exist; without one,
+ * `requireAdministrator` rejects every managed-account call and the console cannot create
+ * accounts at all. Migrations run first so a fresh stack needs a single command.
+ */
+async function bootstrapLocal(): Promise<void> {
+  const issuer = assertSelfManagedIssuer(process.env['PLATFORM_SELF_MANAGED_ISSUER']);
+  const databaseUrl = process.env['PLATFORM_DATABASE_URL'];
+  if (!databaseUrl) throw new Error('PLATFORM_DATABASE_URL is required; the local identity service stores credentials in the platform database');
+  const username = process.env['PLATFORM_SELF_MANAGED_ADMIN_USERNAME'] ?? 'platform-admin';
+  const displayName = process.env['PLATFORM_SELF_MANAGED_ADMIN_DISPLAY_NAME'] ?? '平台管理员';
+  const { Platform } = await import('../../apps/api/dist/platform.js');
+  const { managedPlatformSubject } = await import('../../apps/api/dist/accounts/service.js');
+  const { hashPassword } = await import('../../apps/api/dist/identity/local/password.js');
+  const { migrateRegistry } = await import('../../apps/api/dist/db/migrate.js');
+  // Only the database is needed, so unrelated deployment validation cannot block the seed.
+  const platform = new Platform({ databaseUrl });
+  const password = randomBytes(24).toString('base64url');
+  try {
+    await migrateRegistry(platform.db!);
+    const id = randomUUID(), subject = randomUUID();
+    await platform.db!.transaction(async sql => {
+      if (await localAdministratorPresent(sql, issuer)) throw new Error('A platform administrator already exists for this issuer; this bootstrap only runs on an empty directory');
+      await seedLocalAdministrator(sql, {
+        id, subject, platformSubject: managedPlatformSubject(issuer, subject), issuer,
+        username, displayName, roles: ['reader'], passwordHash: await hashPassword(password),
+      });
+    });
+  } finally { await platform.onApplicationShutdown(); }
+  // The password is shown once, only to the operator, and never written to the repository.
+  process.stdout.write(JSON.stringify({ event: 'SELF_MANAGED_BOOTSTRAPPED_LOCAL', issuer, administrator: username, temporaryPassword: password, note: '首次登录必须更换该临时口令；口令只在本行输出一次' }, null, 2) + '\n');
+}
+
 async function bootstrap(): Promise<void> {
   requireSecret('keycloak-bootstrap-password');
   const host = process.env['PLATFORM_SELF_MANAGED_HOST'] ?? '127.0.0.1';
@@ -145,7 +228,10 @@ if (command === 'up') {
   process.stdout.write(JSON.stringify({ event: 'SELF_MANAGED_CREDENTIALS', directory, note: '文件仅位于本机私有凭据目录，不写入 Git' }) + '\n');
 } else if (command === 'bootstrap') {
   await bootstrap();
-} else {
-  process.stderr.write('Usage: self-managed.ts <up|stop|credentials|bootstrap>\n');
+} else if (command === 'bootstrap-local') {
+  await bootstrapLocal();
+} else if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  // Guarded as in infra/scripts/local.ts: importing this module (tests) must not start infrastructure.
+  process.stderr.write('Usage: self-managed.ts <up|stop|credentials|bootstrap|bootstrap-local>\n');
   process.exitCode = 1;
 }

@@ -23,6 +23,7 @@
     "infra:self-managed:stop": "tsx infra/scripts/self-managed.ts stop",
     "infra:self-managed:credentials": "tsx infra/scripts/self-managed.ts credentials",
     "infra:self-managed:bootstrap": "pnpm build:services && tsx infra/scripts/self-managed.ts bootstrap",
+    "infra:self-managed:bootstrap-local": "pnpm build:services && tsx infra/scripts/self-managed.ts bootstrap-local",
     "infra:stop": "tsx infra/scripts/local.ts stop",
     "test:infra": "tsx infra/scripts/check.ts",
     "test:platform": "pnpm build:services && pnpm --filter @company/charts-core --filter @company/charts-vue --filter @company/charts-react build && vitest run --config tests/platform/vitest.config.ts",

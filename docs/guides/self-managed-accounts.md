@@ -44,6 +44,24 @@ bootstrap **仅在空的自有栈首次执行**；realm 已存在即拒绝。临
 | `PLATFORM_ACCESS_ADMINISTRATORS` | 部署登记的管理员 issuer + subject 列表 |
 | `PLATFORM_ACCESS_OUTBOUND` | 身份服务出站白名单（hostname / port / CIDR） |
 
+## 3.1 本地身份模式（`PLATFORM_IDENTITY_MODE=local`，无 Keycloak）
+
+平台自研身份服务（迁移 `013_local_credentials.sql`）把口令材料放在平台自己的库里，且**没有任何 HTTP 管理面**，因此 Keycloak 的 `bootstrap` 无法为它创建管理员；没有管理员，`requireAdministrator` 会拒绝全部托管账号请求，后台「用户与权限」的创建账号就不可用。本地模式用单独一条命令补这一步：
+
+```powershell
+$env:PLATFORM_SELF_MANAGED_ISSUER = 'https://127.0.0.1:3000/identity'   # 与 API 所用同一值
+$env:PLATFORM_DATABASE_URL        = 'postgres://zhinexus:<password>@127.0.0.1:25432/zhinexus'
+pnpm infra:self-managed:bootstrap-local
+```
+
+必填只有上表两项：issuer 必须是 https 且不带 userinfo/query/fragment（与 `apps/api/src/platform.ts` 同一套校验），数据库地址指向自有栈的 PostgreSQL。可用 `PLATFORM_SELF_MANAGED_ADMIN_USERNAME`（默认 `platform-admin`）与 `PLATFORM_SELF_MANAGED_ADMIN_DISPLAY_NAME`（默认 `平台管理员`）覆盖默认值。引导只连数据库，不校验其他部署配置，避免无关配置挡住播种。
+
+命令会：先执行平台迁移（幂等，按校验和防改写）；同一 issuer 下已有管理员即拒绝；写入 `administrator=true, enabled=true, awaiting_activation=false, credentials_set=true, sync_state='synced'` 且 `remote_user_id` 取账号自身 id 的管理员行；按 `LocalIdentityStore.putCredential` 同样的 upsert 写入 `local_credentials` 且 `must_change=true`；补一条审计事件。**临时口令只在 stdout 打印一次**，不落库、不写仓库、不进日志——库里只有 scrypt 摘要。
+
+之后按既有环境启动 API（`PLATFORM_IDENTITY_MODE=local` + 同一 issuer + Web/CLI 回调），用临时口令在管理端登录，首次登录强制改密，即可进入「用户与权限」创建成员。
+
+本地模式**尚未实测**的链路（见 `docs/verification/2026-11-25-local-administrator-bootstrap.md`）：真实网页登录回跳与首次改密、CLI PKCE 回环。其中「本地身份服务签发的 `sub` 取 `platform_subject`，而 `verifiedAccount` 按 `managed_accounts.subject` 查找」这一处契约不一致会阻断网页登录，须先在宿主确认后再排端到端验收。
+
 ## 4. 从初始化到验收的试用步骤
 
 1. 客户端信任 `.tools/self-managed/ca-certificate.pem`，**不关闭证书校验**。
@@ -63,4 +81,4 @@ bootstrap **仅在空的自有栈首次执行**；realm 已存在即拒绝。临
 
 ## 6. 未验证项
 
-以下项目在本轮**未实测**，不能据本说明声称已完成：Keycloak 版本与镜像 digest；`platform_account_version` 与 `auth_time` 是否确实出现在 access token；首次改密后的登录与 `auth_time` 变化；realm 管理服务账号的最小角色集；真实浏览器验收与正式部署验收。相关证据按设计第 8 节单独记录。
+以下项目在本轮**未实测**，不能据本说明声称已完成：Keycloak 版本与镜像 digest；`platform_account_version` 与 `auth_time` 是否确实出现在 access token；首次改密后的登录与 `auth_time` 变化；realm 管理服务账号的最小角色集；真实浏览器验收与正式部署验收；`pnpm infra:self-managed:bootstrap-local` 的真实 PostgreSQL 播种与随后的网页登录。相关证据按设计第 8 节单独记录。
