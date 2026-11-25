@@ -8,7 +8,7 @@
 
 ```powershell
 pnpm --filter @company/component-cli pack:juz
-npm install -g .\packages\component-cli\.release\juz-cli-0.0.29.tgz
+npm install -g .\packages\component-cli\.release\juz-cli-0.0.30.tgz
 juz --version
 ```
 
@@ -16,7 +16,11 @@ juz --version
 
 本次没有执行 npm 发布。只有管理员将该分发包发布到目标 registry 后，其他开发者才能直接运行 `npm install juz-cli -g`。
 
-本机需 Node >=24.6.0 与 pnpm 12.18.0；CLI 使用 pnpm 冻结组件包、安装外部消费者。首次截图前安装匹配的 Chromium：仓库开发运行 `pnpm exec playwright install chromium`，独立安装运行 `npx --yes --package @playwright/test@1.65.0 playwright install chromium`。
+本机需 Node >=24.6.0 与 pnpm 12.18.0；CLI 使用 pnpm 冻结组件包、安装外部消费者。从 `0.0.30` 起，正常 `npm install -g` 安装 `juz-cli` 或本地 tgz 时会自动准备匹配的 Chromium，已有缓存直接复用，无需额外执行浏览器安装命令。
+
+下载失败会让安装失败并给出补装命令；修复网络后重新安装即可。需要暂时跳过时可在 PowerShell 设置 `$env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = '1'`，测试结束后用 `Remove-Item Env:PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD` 恢复默认。使用 `--ignore-scripts` 也会跳过自动下载。跳过后，恢复脚本执行和下载设置，再运行 `npm rebuild -g juz-cli --foreground-scripts` 为已全局安装的 CLI 补装 Chromium；此命令也适用于 `PLAYWRIGHT_BROWSERS_PATH=0` 的包内缓存。代理、下载源与缓存目录沿用 Playwright 环境配置。
+
+平台仓库内部包没有安装钩子，仓库开发仍按需运行 `pnpm exec playwright install chromium`。Linux 如缺少浏览器系统库，需额外按 Playwright 提示安装系统依赖；CLI 不自动提权安装系统软件。
 
 ## 首次接入
 

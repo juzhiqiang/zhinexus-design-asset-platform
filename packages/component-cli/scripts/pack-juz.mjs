@@ -20,6 +20,7 @@ try {
   await writeFile(join(staging, 'package.json'), JSON.stringify({
     name: 'juz-cli', version: source.version, description: '从真实项目构建、验证和发布组件到平台',
     private: false, type: source.type, files: ['dist'], bin: source.bin,
+    scripts: { postinstall: 'node dist/install-browser.js' },
     exports: source.exports, types: source.types, main: source.main,
     engines: source.engines, dependencies: source.dependencies, publishConfig: { access: 'public' },
   }, null, 2) + '\n');
