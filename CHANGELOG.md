@@ -1,5 +1,12 @@
 # 更新日志
 
+## [0.1.4] - 2026-11-25
+
+### 新增
+
+- 自主管理账号栈新增 `pnpm infra:self-managed:bootstrap-local`：`PLATFORM_IDENTITY_MODE=local` 下不依赖 Keycloak，只连平台数据库即可播种首个平台管理员——先执行幂等迁移，同一 issuer 已有管理员即拒绝，写入启用且凭据已置、同步状态为已同步的管理员行，并按同一 upsert 形状写入 `must_change=true` 的本地凭据；临时口令只在控制台打印一次，库里只留 scrypt 摘要。后台「用户与权限」的创建账号链路此前因为没有任何管理员可被建出而不可用，此命令补上唯一缺失的入口。
+- `docs/guides/self-managed-accounts.md` 增加本地身份模式的完整路径与前置条件；`docs/verification/2026-11-25-local-administrator-bootstrap.md` 记录本轮核查结论、沙箱实测与两处待宿主确认的登录契约缺陷。
+
 ## [0.1.3] - 2026-11-24
 
 ### 新增
