@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.1.11] - 2026-11-26
+
+### 新增
+
+- 管理 API（`@company/platform-api 0.1.4`）在非生产且未配置正式 OIDC/本地数据库身份源的本地开发模式下，自动启用默认管理员账号密码登录（默认 `admin` / `ZhinexusAdmin!2026`，可通过 `PLATFORM_DEV_ADMIN_USERNAME` / `PLATFORM_DEV_ADMIN_PASSWORD` 覆盖，或 `PLATFORM_DEV_ADMIN=false` 关闭），通过 `POST /identity/login` 签发临时 ES256 管理员令牌并由 `/v1/auth/oidc/session` 核验。生产环境或已配置正式身份源时自动禁用。
+
 ## [0.1.10] - 2026-11-26
 
 ### 新增
