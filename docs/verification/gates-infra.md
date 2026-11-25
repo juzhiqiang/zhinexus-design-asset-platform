@@ -138,7 +138,7 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
     - `Get-FileHash -Algorithm SHA256 component-platform-architecture.md` → 基线值不变
     - **一次尝试 `pnpm build --force` 退出 1**（当前 Turbo 不允许显式 `--cache` 与 `--force` 同用）；改用等价 `--cache=local:w`。
 - 结论与状态：完成（代码候选）。**被 `g1-t10-closeout-2026-11-21.md` 更新**（契约计数从 145/145 增至 **522/522**）。G1 人工门槛在该篇记录时点仍未通过；2026-11-22 已决定 G1 获人工放行（A/B 业务回执不作前置）。
-- 交叉引用：`g2-example-contract-2026-11-12.md`、`g2-local-infra-2026-11-12.md`、`g1-t10-closeout-2026-11-21.md`、`docs/plans/2026-11-12-g1-review-g2-access.md`。
+- 交叉引用：`g2-example-contract-2026-11-12.md`、`g2-local-infra-2026-11-12.md`、`g1-t10-closeout-2026-11-21.md`、`docs/plans/2026-11-22-g2-access-acceptance.md`。
 - 过时或矛盾点：**测试计数已过时**（145/145 → 522/522，见 G1/T10 收口篇）。「G1 人工门槛仍未通过」措辞在两篇中均成立于各自时点，收口篇进一步明确「A/B 技术审查及修正复核已完成，实际评审人的业务回执和人工通过结论待签署」；引用时须用最新表述。
 
 ### g1-t10-closeout-2026-11-21.md
@@ -167,12 +167,12 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
   - 未覆盖边界：画廊实测查询超过单页 100 条时明确不可用；CLI 上传未完成的中断恢复、异常代理回执之后的继续执行、浏览器 JavaScript 跨域读取 multipart ETag 的生产配置仍需专项实测；本轮真实分片字节与 ETag 验证使用本地隔离 MinIO；截图报告中的浏览器修订由现有 CLI 实现默认填为 **1000**，实测环境证据另记 Chromium 安装修订 **1254**。
   - 原架构文档 SHA-256 与基线一致。
 - 结论与状态：完成（T10 技术验收）。**G1 A/B 签署、公司 OIDC 和正式预览域、T11 真实业务试点及 T12 生产验收仍开放**（其中 G1 签署已于 2026-11-22 决定人工放行，A/B 业务回执不作前置）。是 `t11-pilot-rehearsal-2026-11-21.md` 的基线来源（`7eb5e521`）。
-- 交叉引用：`g1-contracts-2026-11-12.md`、`g2-access-settings-2026-11-22.md`、`t11-pilot-rehearsal-2026-11-21.md`、`docs/plans/2026-11-12-g1-review-g2-access.md`、`audit-final/discovery-review.md`、`sdk-freeze.json`、`cli-freeze.json`、`installed-cli.json`、`cli-0.0.25/freeze.json`、`cli-0.0.25/installed.json`、`b-release-acceptance-2026-11-16.md`、`t08-real-web-upload-2026-11-13.md`、`c-sdk14-acceptance-2026-11-13.evidence.json`。
+- 交叉引用：`g1-contracts-2026-11-12.md`、`g2-access-settings-2026-11-22.md`、`t11-pilot-rehearsal-2026-11-21.md`、`docs/plans/2026-11-22-g2-access-acceptance.md`、`audit-final/discovery-review.md`、`sdk-freeze.json`、`cli-freeze.json`、`installed-cli.json`、`cli-0.0.25/freeze.json`、`cli-0.0.25/installed.json`、`b-release-acceptance-2026-11-16.md`、`t08-real-web-upload-2026-11-13.md`、`c-sdk14-acceptance-2026-11-13.evidence.json`。
 - 过时或矛盾点：**G1 状态措辞易被误读。** 原文明确「A/B 实际评审及外部交付方实名待确认，G1/G2 不勾选通过」「没有替 A/B 伪造业务签字」。同时 0.0.24/0.0.25 CLI 版本号、522/522 契约计数、2271/2271 与 306/306 浏览器计数**取代**了 `g1-contracts-2026-11-12.md` 的 145/145、162/162、11/11。
 
 ### g2-access-settings-2026-11-22.md
 
-- 日期／角色／主题：2026-11-22。角色：C 收口 contracts/迁移/API/网关/根配置/运维；B 范围的 CLI 和画廊按顺序实施。主题：G2 接入设置（公司登录 OIDC + 预览入口）本地交付与审查复验。执行位置 `C:/Users/10208/.codex/worktrees/g2-access-settings/zhinexus-design-asset-platform`，分支 `feat/g2-access-settings`。依据 `docs/plans/2026-11-22-g2-access-settings.md` 与 `docs/specs/2026-11-22-g2-access-settings-design.md`。
+- 日期／角色／主题：2026-11-22。角色：C 收口 contracts/迁移/API/网关/根配置/运维；B 范围的 CLI 和画廊按顺序实施。主题：G2 接入设置（公司登录 OIDC + 预览入口）本地交付与审查复验。执行位置 `C:/Users/10208/.codex/worktrees/g2-access-settings/zhinexus-design-asset-platform`，分支 `feat/g2-access-settings`。依据 `docs/plans/2026-11-22-g2-access-acceptance.md` 中「2026-11-22-g2-access-settings.md」小节与 `docs/specs/2026-11-22-g2-access-settings-design.md`。
 - 目的：实现五项计划的配置能力与本地闭环；真实公司账号、撤权时限、生产 DNS/TLS、生产凭据、双业务试点仍是外部 G2 输入。
 - 承重事实：
   - 交付范围：PostgreSQL 独立管理 OIDC/预览草稿、不可变配置正文与启用历史、活动代数、逐项证据与审计；保存/验证/启用/恢复均执行正文 CAS 和独立部署管理员检查。Web 服务端 PKCE、浏览器绑定、state/nonce/issuer/audience/client/签名验证；CLI S256 与固定 `127.0.0.1` 回环。每次受保护访问核验活动 OIDC 代数、停用与角色；业务写入在事务内复查。受限 HTTPS 核验所有 DNS 地址并固定连接地址，限制主机/端口/CIDR/响应大小/超时/重定向，支持公司 CA 与 IP SAN。画廊提供公司登录、接入设置、编辑/验证/启用/历史/复验/恢复/比较/审计；Cookie 会话优先于旧手动令牌；CLI 发布/恢复/状态/基线消费同 origin 有效私有登录文件。部署命令支持个人身份绑定、停用、角色限制与经验证恢复，无 HTTP 管理后门；域名/IP Nginx 模板提供探针路径与凭据过滤；网关数据库授权按列限制写入。
@@ -211,7 +211,7 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
   - 实现提交 9 个：`8dc608dc`（接入配置契约、管理员草稿版本校验）、`4de78be7`（公司 OIDC、CLI 回环登录、候选权限隔离）、`aa56a1af`（预览入口检查、活动切换与回退）、`8fb7abd6`（工具链检查期间到期的取消阻止脚本启动；21 项原生/浏览器验证文件及 CLI typecheck）、`93606a10`（接入设置页面、公司会话与候选验证）、`e16a6d94`（发布/状态/基线消费匹配 origin 的本机登录）、`3edf3c3e`（认证代数、候选证据、角色撤销及运维恢复；完整平台 148 项、契约/单元 10 项）、`89786076`（部署恢复说明、Nginx 入口过滤模板与真实入口测试）、`c5131ba3`（独立语义化升版与 CHANGELOG）。
   - 原架构文件 SHA-256 不变。**保持当前分支/工作树；用户没有授权 push、合并或创建 tag。**
 - 结论与状态：完成（本计划五项本地实现、审查处置、安装产物验证与回归）。**G2/T01 仍未完成外部验收**：真实公司 Web/CLI 账号、公司同步与专用账号停用/角色移除、既有 token/Web session/preview grant 拒绝时延及公司认可的目标时限、生产逐发布 DNS/TLS/续期、生产数据库身份与 MinIO 只读策略、双业务试点的双框架回执。本轮部署检查仅证明模板有效。
-- 交叉引用：`docs/guides/access-settings.md`、`g2-five-items-2026-11-22.md`、`preview-ip-port-2026-11-21.md`、`docs/guides/preview-ip-port.md`、`docs/plans/2026-11-22-g2-access-settings.md`、`docs/specs/2026-11-22-g2-access-settings-design.md`、`self-managed-accounts-2026-11-22.md`、`infra/gateway/preview.conf`、`infra/gateway/preview-ip.conf`、`infra/gateway/preview-role.sql`。
+- 交叉引用：`docs/guides/access-settings.md`、`g2-five-items-2026-11-22.md`、`preview-ip-port-2026-11-21.md`、`docs/guides/preview-ip-port.md`、`docs/plans/2026-11-22-g2-access-acceptance.md`、`docs/specs/2026-11-22-g2-access-settings-design.md`、`self-managed-accounts-2026-11-22.md`、`infra/gateway/preview.conf`、`infra/gateway/preview-ip.conf`、`infra/gateway/preview-role.sql`。
 - 过时或矛盾点：**`verify:deployment` 的 `productionAcceptance=false` 与 G1「人工放行」是两件事，必须分开陈述**——本文证明模板有效、`templateValidated=true`，但 `environmentValidated=false`、`productionAcceptance=false`，不能读作部署已就绪。另注意本文的版本号（根 0.0.9 / API 0.0.11 / 画廊 0.0.12 / 网关 0.0.4 / CLI 0.0.26）**被 `self-managed-accounts-2026-11-22.md` 的下一轮升版取代**（根 0.0.10 / API 0.0.12 / 画廊 0.0.13 / 网关 0.0.5 / CLI 0.0.27）。
 
 ### g2-example-contract-2026-11-12.md
@@ -405,7 +405,7 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
 
 ### self-managed-accounts-2026-11-22.md
 
-- 日期／角色／主题：2026-11-22，Asia/Shanghai。角色：综合（C 为主，自管账号后台）。主题：自主管理账号与权限后台本地验证。分支 `feat/self-managed-accounts-impl`，基线 `d700802d`。设计见 `docs/specs/2026-11-22-self-managed-accounts-design.md`，实施计划见 `docs/plans/2026-11-22-self-managed-accounts-implementation.md`，部署与恢复见 `docs/guides/self-managed-accounts.md`。
+- 日期／角色／主题：2026-11-22，Asia/Shanghai。角色：综合（C 为主，自管账号后台）。主题：自主管理账号与权限后台本地验证。分支 `feat/self-managed-accounts-impl`，基线 `d700802d`。设计见 `docs/specs/2026-11-22-self-managed-accounts-design.md`，实施计划见 `docs/plans/2026-11-22-self-managed-accounts.md`，部署与恢复见 `docs/guides/self-managed-accounts.md`。
 - 目的：交付自管账号（Keycloak 承载）契约、API 与网关实现并做本地/沙箱验证。
 - 承重事实：
   - 版本升至根 **0.0.10** / API **0.0.12** / 画廊 **0.0.13** / 预览网关 **0.0.5** / CLI **0.0.27**。
@@ -420,7 +420,7 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
   - `main` 领先 `origin/main` **8 个提交，尚未 push**（push 需用户明确授权）。分支 `feat/self-managed-accounts-impl` 与 `feat/self-managed-accounts` **保留未删**，是否清理由用户决定。
   - 边界与安全自查：迁移 `012_managed_accounts.sql` 不存储任何密码材料，`identity_operations` 的 CHECK 约束不含密码类操作，密码设置只能走瞬时受保护请求；账号视图契约（`managed-account-summary/detail/list-response/audit-response`）一律 `additionalProperties: false`，单测覆盖拒绝 `password`、`remoteUserId`、`token`、`secretRef` 等字段；身份管理出站复用 `RestrictedHttps` 的部署白名单、地址固定与平台信任库，服务账号取 realm 内 `manage-users`、`view-users`、`query-users`、`query-groups`、`view-realm`，缺失任一即拒绝授权；`infra/gateway/preview-role.sql` 仅新增 `managed_accounts` 的 `SELECT`，网关不获得写权限；本机身份栈凭据、CA 私钥与 TLS 私钥只写入 `.tools/self-managed/`（`.gitignore` 已覆盖 `.tools/`），初始超管密码仅在 bootstrap 控制台打印一次。
 - 结论与状态：**代码与沙箱测试已合入 `main`（`8ce44290`，未 push）；真实 Keycloak/平台集成、浏览器验收、撤权时限、正式部署验收均未执行。** 是本主题中版本号最新的一轮（取代 `g2-access-settings-2026-11-22.md` 的 0.0.9/0.0.11/0.0.12/0.0.4/0.0.26）。
-- 交叉引用：`g2-access-settings-2026-11-22.md`、`docs/guides/access-settings.md`、`docs/guides/self-managed-accounts.md`、`docs/specs/2026-11-22-self-managed-accounts-design.md`、`docs/plans/2026-11-22-self-managed-accounts-implementation.md`、`t11-pilot-rehearsal-2026-11-21.md`、`infra/self-managed-versions.json`、`infra/gateway/preview-role.sql`、`scripts/sync-contracts.mjs`。
+- 交叉引用：`g2-access-settings-2026-11-22.md`、`docs/guides/access-settings.md`、`docs/guides/self-managed-accounts.md`、`docs/specs/2026-11-22-self-managed-accounts-design.md`、`docs/plans/2026-11-22-self-managed-accounts.md`、`t11-pilot-rehearsal-2026-11-21.md`、`infra/self-managed-versions.json`、`infra/gateway/preview-role.sql`、`scripts/sync-contracts.mjs`。
 - 过时或矛盾点：**沙箱零实跑，不得据此声称全图回归通过。** 文中 550/950/52 文件等计数只在沙箱轻量环境下成立，且 10 个 tests/unit 文件失败是环境限制。另注意本记录的合并提交 `8ce44290` 与 `g2-five-items-2026-11-22.md` 的基线 `6511ba77`、`g1-t10-closeout-2026-11-21.md` 的 `d289cc88` 是同一 `main` 线上的不同时点。
 
 ### turbo-baseline.md

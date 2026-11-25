@@ -1,6 +1,6 @@
 # 自主管理账号栈与本机试用
 
-本说明配合 [自主管理账号设计](../specs/2026-11-22-self-managed-accounts-design.md) 与 [实施计划](../plans/2026-11-22-self-managed-accounts-implementation.md)。它描述平台自行维护身份源时的部署、初始化、试用与恢复步骤，不替代正式部署验收。
+本说明配合 [自主管理账号设计](../specs/2026-11-22-self-managed-accounts-design.md) 与 [实施计划](../plans/2026-11-22-self-managed-accounts.md)。它描述平台自行维护身份源时的部署、初始化、试用与恢复步骤，不替代正式部署验收。
 
 ## 1. 与共享 G2 栈的边界
 
@@ -62,9 +62,9 @@ pnpm infra:self-managed:bootstrap-local
 
 之后按既有环境启动 API（`PLATFORM_IDENTITY_MODE=local` + 同一 issuer + Web/CLI 回调），用临时口令在管理端登录，首次登录强制改密，即可进入「用户与权限」创建成员。
 
-网页登录现在有真实的登录页：`/v1/auth/oidc/start?target=admin` 不再把浏览器送到返回 JSON 描述符的 `GET /identity/authorize`，而是送到管理端 `${PLATFORM_ADMIN_ORIGIN}/login`，页面把同一组授权参数放回表单隐藏域，凭据以一次普通表单 POST 直接提交到 `${API}/identity/authorize`。凭据输错或账号停用时，该端点 303 回登录页并带一个封闭集合的 `reason`；首次登录必须在同一次提交里换掉临时口令，页面会因此多渲染一个新密码字段。前提是浏览器到 API origin 的 `/identity/` 可达——`infra/gateway/gallery-public.conf` 的公网边缘模板仍按设计 404 `/identity/`，自管栈的 API 直接跑在宿主上，不经该模板。详见 [登录页验证记录](../verification/2026-11-25-admin-login-page.md)。
+网页登录现在有真实的登录页：`/v1/auth/oidc/start?target=admin` 不再把浏览器送到返回 JSON 描述符的 `GET /identity/authorize`，而是送到管理端 `${PLATFORM_ADMIN_ORIGIN}/login`，页面把同一组授权参数放回表单隐藏域，凭据以一次普通表单 POST 直接提交到 `${API}/identity/authorize`。凭据输错或账号停用时，该端点 303 回登录页并带一个封闭集合的 `reason`；首次登录必须在同一次提交里换掉临时口令，页面会因此多渲染一个新密码字段。前提是浏览器到 API origin 的 `/identity/` 可达——`infra/gateway/gallery-public.conf` 的公网边缘模板仍按设计 404 `/identity/`，自管栈的 API 直接跑在宿主上，不经该模板。详见 [登录页验证记录](../verification/self-managed-accounts.md#2026-11-25-admin-login-pagemd)。
 
-本地模式**尚未实测**的链路（见 `docs/verification/2026-11-25-local-administrator-bootstrap.md`）：真实网页登录回跳与首次改密、CLI PKCE 回环。本轮已按静态比对修掉两处会阻断网页登录的契约缺陷——本地身份服务签令牌的 `sub` 取 `platform_subject` 而平台按 `managed_accounts.subject` 查找、token 端点不返回 `id_token`——但均只在沙箱单测层验证，未在真实 HTTPS 入口与浏览器中跑通。登录页本身同样只在沙箱单测层与生产构建层验证，未在真实浏览器里走过一次完整登录。
+本地模式**尚未实测**的链路（见 `docs/verification/self-managed-accounts.md#2026-11-25-local-administrator-bootstrapmd`）：真实网页登录回跳与首次改密、CLI PKCE 回环。本轮已按静态比对修掉两处会阻断网页登录的契约缺陷——本地身份服务签令牌的 `sub` 取 `platform_subject` 而平台按 `managed_accounts.subject` 查找、token 端点不返回 `id_token`——但均只在沙箱单测层验证，未在真实 HTTPS 入口与浏览器中跑通。登录页本身同样只在沙箱单测层与生产构建层验证，未在真实浏览器里走过一次完整登录。
 
 ## 4. 从初始化到验收的试用步骤
 

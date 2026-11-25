@@ -1,6 +1,6 @@
 # 二期 A3 离线评估 Runner 规范
 
-> 对应实现：[runner.ts](file:///C:/Users/10208/.codex/worktrees/a-phase2-profiles/zhinexus-design-asset-platform/tests/evaluation/runner.ts)、[scoring.ts](file:///C:/Users/10208/.codex/worktrees/a-phase2-profiles/zhinexus-design-asset-platform/tests/evaluation/scoring.ts)。
+> 对应实现：[runner.ts](../../../tests/evaluation/runner.ts)、[scoring.ts](../../../tests/evaluation/scoring.ts)（原写作 `file:///` 绝对路径指向已回收的临时 worktree，2026-11-26 改为仓库相对路径）。
 > 本 runner 仅用于离线评估执行与报告归档，不定义公共 `@company/contracts` DTO，也不代表已具备真实 30+ 标注集（T14 仍未完成）。
 
 ## 命令接口

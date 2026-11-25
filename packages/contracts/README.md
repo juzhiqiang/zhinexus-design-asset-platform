@@ -129,7 +129,7 @@ T16 受控应用契约（2026-11-18）新增 apply authorization、apply result�
 
 apply result 采用显式状态/证据矩阵：applied 必须有完整写入、无 issue，并与计划的安装状态一致；blocked 只能表达写入和安装前的守卫失败，不得带 changedFiles、backupRef、安装副作用或写后错误码；rolled-back 必须有 backupRef，首写失败时允许空 changedFiles/beforeHashes/afterHashes、not-run 和 WRITE_FAILED，不虚构已提交文件；recovery-required 必须带 backupRef，并至少证明发生过写入或安装副作用。issue message 由 code 映射到固定脱敏文本，任意 stderr、URL、凭证或错配消息均拒绝。rollback 中 preserved 与同路径 USER_EDITED 双向绑定，unresolved 与同路径 WRITE_FAILED/RECOVERY_REQUIRED 双向绑定；rolled-back 不得有 preserved、unresolved 或 issues。畸形 backup 上下文返回 ValidationResult 失败，不得抛出运行时异常。
 
-修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/gates-infra.md、docs/plans/2026-11-12-g1-review-g2-access.md。
+修改先补失败测试，使用上述命令重生 schema；fixtures 则在构建后去掉其生成命令的 --check，连同失败样本一起评审。入口：tests/fixtures/releases/g1/README.md、docs/verification/gates-infra.md、docs/plans/2026-11-22-g2-access-acceptance.md。
 
 V1 评审通过后冻结字段/错误码；兼容可选字段明确同步调用方，不兼容修改升级 schemaVersion 并保留旧版解析策略。本包 private=true，版本仍 0.0.0；本次无对外业务端点/组件/CLI 功能发布，不触发公开包或平台升版。CLI 将来使用本包须内联运行时代码，不保留私有运行时依赖，并验证干净消费者。
 

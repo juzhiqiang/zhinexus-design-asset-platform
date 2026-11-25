@@ -21,7 +21,7 @@
 - `juz-cli 0.0.30` 在正常 npm 安装时自动下载截图所需的匹配 Chromium，复用已有缓存；开发者无需另行执行 Playwright 安装命令。
 - 下载失败时明确报错并提示重装或补装，支持环境变量显式跳过。平台仓库内部安装行为不变，Linux 系统依赖仍需另行准备。
 
-验证：真实 npm 安装、空缓存下载与浏览器启动、受控下载失败、显式跳过及 CLI 回归共 19 项通过，详见 [功能验证记录](docs/verification/2026-11-25-juz-browser-install.md) 与 [main 合并验证记录](docs/verification/2026-11-26-juz-main-merge.md)。本轮提供本地分发包，尚未发布 npm。
+验证：真实 npm 安装、空缓存下载与浏览器启动、受控下载失败、显式跳过及 CLI 回归共 19 项通过，详见 [功能验证记录](docs/verification/cli-chromium-autodownload.md#2026-11-25-juz-browser-installmd) 与 [main 合并验证记录](docs/verification/cli-chromium-autodownload.md#2026-11-26-juz-main-mergemd)。本轮提供本地分发包，尚未发布 npm。
 
 ## [0.1.7] - 2026-11-25
 
@@ -37,7 +37,7 @@
 - `LocalIdentityService.discovery()` 抽掉 `const base` 时漏改 `token_endpoint`/`jwks_uri`（`ReferenceError`），由既有 `tests/unit/local-identity.test.ts` 抓到；登录页对未知 `reason` 现在回退到最保守的提示而不是渲染空条。
 - `tests/admin/console-render.test.ts` 的页面加载器类型写成 `{ default: () => unknown }`，使带 props 的画板在类型上就不合法（HEAD 上 2 条既有报错），改为 `{ default: unknown }`。
 
-验证：新增 23 项 API 侧与 16 项后台渲染测试全过，导航/设计令牌 15 项、本地身份服务 23 项回归全过，画板渲染 6/7（唯一失败在 HEAD 上同样失败）；API 与后台两侧针对性 tsc 均 0 错；后台 `next build`（Turbopack，含 TypeScript 检查）通过，`/login` 为动态渲染；13 项变异全部被抓到。未验证：真实浏览器完整登录、画廊侧登录页、公网边缘模板的 `/identity/`（仍按设计 404）。详见 [登录页验证记录](docs/verification/2026-11-25-admin-login-page.md)。
+验证：新增 23 项 API 侧与 16 项后台渲染测试全过，导航/设计令牌 15 项、本地身份服务 23 项回归全过，画板渲染 6/7（唯一失败在 HEAD 上同样失败）；API 与后台两侧针对性 tsc 均 0 错；后台 `next build`（Turbopack，含 TypeScript 检查）通过，`/login` 为动态渲染；13 项变异全部被抓到。未验证：真实浏览器完整登录、画廊侧登录页、公网边缘模板的 `/identity/`（仍按设计 404）。详见 [登录页验证记录](docs/verification/self-managed-accounts.md#2026-11-25-admin-login-pagemd)。
 
 ## [0.1.6] - 2026-11-25
 
@@ -52,7 +52,7 @@
 - 根目录组件初始化保留原有忽略规则并排除发布材料，安装后拒绝夹带发布记录的候选包；限制包内自定义输出目录，避免下一次打包夹带旧 ZIP。
 - 登录统一遵守自定义凭据路径；分发包使用空临时目录打包，避免重复构建时误返回旧版本 tarball。
 
-验证：100 项针对性测试与独立 npm 安装发布链路通过；全仓检查仍有后台、旧 T17 工具链及 worker 异常阻塞，详见 [验证记录](docs/verification/2026-11-25-juz-simple-publishing.md)。
+验证：100 项针对性测试与独立 npm 安装发布链路通过；全仓检查仍有后台、旧 T17 工具链及 worker 异常阻塞，详见 [验证记录](docs/verification/project-publishing.md#2026-11-25-juz-simple-publishingmd)。
 
 ## [0.1.5] - 2026-11-25
 
@@ -71,7 +71,7 @@
 ### 新增
 
 - 自主管理账号栈新增 `pnpm infra:self-managed:bootstrap-local`：`PLATFORM_IDENTITY_MODE=local` 下不依赖 Keycloak，只连平台数据库即可播种首个平台管理员——先执行幂等迁移，同一 issuer 已有管理员即拒绝，写入启用且凭据已置、同步状态为已同步的管理员行，并按同一 upsert 形状写入 `must_change=true` 的本地凭据；临时口令只在控制台打印一次，库里只留 scrypt 摘要。后台「用户与权限」的创建账号链路此前因为没有任何管理员可被建出而不可用，此命令补上唯一缺失的入口。
-- `docs/guides/self-managed-accounts.md` 增加本地身份模式的完整路径与前置条件；`docs/verification/2026-11-25-local-administrator-bootstrap.md` 记录本轮核查结论、沙箱实测与两处待宿主确认的登录契约缺陷。
+- `docs/guides/self-managed-accounts.md` 增加本地身份模式的完整路径与前置条件；`docs/verification/self-managed-accounts.md#2026-11-25-local-administrator-bootstrapmd` 记录本轮核查结论、沙箱实测与两处待宿主确认的登录契约缺陷。
 
 ## [0.1.3] - 2026-11-24
 

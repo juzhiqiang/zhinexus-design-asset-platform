@@ -6,24 +6,26 @@
 
 2026-11-24 又做了一轮精简：`component-platform-implementation-assessment.md` 开头倒序堆叠的 5 段日期进展收敛为「当前状态速览」表（验证计数改以验证汇编为唯一来源）；`docs/design/` 下 6 篇当天画廊设计验证合并为 `gallery-iteration-2026-11-23.md`；`docs/plans/` 下 11 篇 T16 分包 brief 合并为 `2026-11-18-t16-briefs-compilation.md`。两处合并同样**完整保留原文**（小节标题即原文件名），git 历史可追溯；原件与引用已一并处理。
 
+2026-11-26 第三轮（分支 `chore/docs-slim-round3`）继续合并 2026-11-24 之后新写的同主题散篇：真实项目发布 5 篇 → 2 篇、后台账号与本地身份 4 篇 → 2 篇、画廊/管理端拆分 2 篇 → 1 篇、G2 接入 4 篇 → 1 篇、CLI Chromium 自动下载 2 篇 → 1 篇。做法与前两轮相同：**原文逐字保留**（小节标题即原文件名，标题降两级），仅把篇间交叉引用改成本汇编内锚点；git 历史可追溯。这一轮的代价也与前两轮相同——**文件数降 10 篇，总字节反而上升约 1 万**，因为每篇新汇编都要加导读段说明「这几篇是什么关系、该看哪篇」。若某次精简的目标是纯字节下降，应改做单文件内联精简，不要用合并。
+
 ## 目录结构
 
 ```
 docs/
 ├── README.md                     本文件：总索引、事实来源速查、过期表述清单
 ├── versions.discovery.json       版本发现证据（scripts/resolve-versions.mjs 读取，勿移动）
-├── guides/                       使用与运维指南（8 篇）
+├── guides/                       使用与运维指南（10 篇）
 ├── foundation/                   工程基线验证（2 篇，AGENTS.md 指定的事实来源）
 ├── design/                       pen.dev 设计稿说明与当天迭代汇编（3 篇 + .pen/预览素材）
 ├── plans/                        实施计划与分工（38 篇，原 superpowers/plans/）
-├── specs/                        契约与设计（14 篇，原 superpowers/specs/）
+├── specs/                        契约与设计（15 篇，原 superpowers/specs/）
 ├── phases/
-│   ├── phase2/                   二期契约与工具文档（8 篇）
+│   ├── phase2/                   二期契约与工具文档（7 篇 + 1 个报告样例）
 │   └── phase3/                   三期接入文档（4 篇）
-├── acceptance/                   验收材料（T11 预演、首批资产、试用清单）
+├── acceptance/                   验收材料（3 篇 + 首批资产截图素材）
 └── verification/
-    ├── *.md                      8 篇主题验证汇编（合并自 216 篇逐次记录）
-    └── evidence/                 历史日志与 JSON 证据（23 个 + 视觉验收素材目录）
+    ├── *.md                      14 篇：8 篇主题汇编 + 6 篇 2026-11-24 之后的当日记录/新汇编
+    └── evidence/                 历史日志、JSON 证据与视觉验收截图素材（勿修改）
 ```
 
 ## 三类文档，三种读法
@@ -82,7 +84,7 @@ docs/
 
 工程基线：`2026-11-11-bootstrap-execution.md`（初始化执行范围）、`2026-11-11-nest-react-bootstrap.md`（技术栈调整）、`2026-11-11-gallery-next-public-private.md`（画廊迁移）、`2026-11-12-simplify-project-scripts.md`（脚本整理）、`2026-11-11-component-platform-implementation.md`（**总计划 T01–T17，最高频引用**）、`2026-11-11-three-person-allocation.md`（分工排期）。
 
-门禁：`2026-11-12-g1-contracts-platform.md`、`2026-11-12-g1-review-g2-access.md`（**G1/G2 清单，含 2026-11-22 G1 放行回写**）、`2026-11-12-g2-local-infra.md`、`2026-11-21-g1-t10-acceptance-closeout.md`、`2026-11-22-g2-five-item-acceptance.md`、`2026-11-22-g2-access-settings.md`。
+门禁：`2026-11-12-g1-contracts-platform.md`、`2026-11-22-g2-access-acceptance.md`（**G1/G2 清单汇编**，合并了 2026-11-12 G1 评审与 G2 五项接入清单（含 2026-11-22 G1 放行回写）、2026-11-12 本地三存储、2026-11-22 接入设置、2026-11-22 五项实测四篇，小节标题即原文件名）、`2026-11-21-g1-t10-acceptance-closeout.md`。
 
 平台任务：`2026-11-12-t05-platform.md`、`2026-11-12-t06-release-worker.md`、`2026-11-12-t07-catalog-preview.md`、`2026-11-12-t11-t12-platform-operations.md`、`2026-11-13-c-gallery-cors.md`、`2026-11-13-c-platform-acceptance.md`、`2026-11-13-c-sdk14-acceptance.md`、`2026-11-13-next-round-execution.md`、`2026-11-14-distribution-production-preparation.md`。
 
@@ -90,7 +92,9 @@ SDK/CLI：`2026-11-16-sdk-lifecycle-acceptance.md`、`2026-11-16-b-cli-release-a
 
 二期（phase2）：`2026-11-15-phase2-kickoff.md`、`2026-11-15-phase2-candidates.md`、`2026-11-15-phase2-id-matching.md`、`2026-11-15-phase2-match-plan-http.md`、`2026-11-15-phase2-text-search.md`、`2026-11-16-phase2-query-completion.md`。
 
-三期（phase3）：`2026-11-16-phase3-t15-kickoff.md`、`2026-11-18-phase3-t16-safe-apply.md`、`2026-11-19-phase3-t17-completion.md`、`2026-11-21-preview-ip-port.md`、`2026-11-22-component-visual-acceptance.md`、`2026-11-22-self-managed-accounts-implementation.md`。
+三期（phase3）：`2026-11-16-phase3-t15-kickoff.md`、`2026-11-18-phase3-t16-safe-apply.md`、`2026-11-19-phase3-t17-completion.md`、`2026-11-21-preview-ip-port.md`、`2026-11-22-component-visual-acceptance.md`。
+
+2026-11-24 之后新增：`2026-11-22-self-managed-accounts.md`（自主管理账号 + 平台自研身份服务两篇计划汇编）、`2026-11-24-gallery-admin-split.md`（拆分计划）、`2026-11-24-project-publishing.md`（真实项目 CLI 发布 + juz 简化发布两篇计划汇编）、`2026-11-25-juz-browser-install.md`（安装时自动下载 Chromium）。
 
 T16 分包 brief（A/B/C/D 四方，11 篇）：已合并为 `2026-11-18-t16-briefs-compilation.md`，小节标题即原文件名（A 侧 API 案例与两轮断言返工、B 侧安装隔离与产品 GREEN 及四个补修和 B21、D 侧黑盒）。
 
@@ -123,53 +127,39 @@ T16 分包 brief（A/B/C/D 四方，11 篇）：已合并为 `2026-11-18-t16-bri
 | `phase3-t15.md` | 14 | T15 项目导入与矩阵、CLI 0.0.13 验收、2026-11-22 视觉验收 300/302 |
 | `phase3-t16.md` | 23 | T16 契约、A 侧三轮断言审查、B/C/D 编号用例、产品红与技术验收、CLI 0.0.14 冻结 |
 | `phase3-t17.md` | 38 | T17 矩阵执行器、CLI 0020–0023 回归、宿主链、黑盒 0021–0023、CLI 0.0.23 唯一交付候选 |
-| `gates-infra.md` | 14 | G0 bootstrap、G1（已放行）、G2（未通过）、turbo/scripts、Next 迁移、预览 IP 端口、自管账号、T11 演练 |
+| `gates-infra.md` | 16 | G0 bootstrap、G1（已放行）、G2（未通过）、turbo/scripts、Next 迁移、预览 IP 端口、自管账号、T11 演练 |
+| `project-publishing.md` | 3 | 2026-11-26 新增。真实项目 CLI 发布 + 最终修复补录 + juz 简化发布；真实四服务链 Ready 证据 |
+| `self-managed-accounts.md` | 2 | 2026-11-26 新增。后台创建账号核查与本地管理员播种、令牌 `sub`/`id_token` 修复、后台登录页 |
+| `gallery-admin-split.md` | 2 | 2026-11-26 新增。画廊/管理端拆分集成验证 + 集成前的只读安全边界审查（P0-1～P2-16） |
+| `cli-chromium-autodownload.md` | 2 | 2026-11-26 新增。juz-cli `postinstall` 自动下载 Chromium + 合并 main 复验 |
+
+尚未并入汇编的当日单篇记录：`2026-11-24-admin-pen-restore.md`（管理端按 `management-api.pen` 还原的验证与已知取舍）、`2026-11-24-dev-startup.md`（开发启动与端口冲突排查）。
 
 ### 证据文件 `docs/verification/evidence/`
 
-23 个历史 `.log` / `.json`（bootstrap、Nest、turbo、SDK 验收 evidence）与 `component-visual-acceptance-2026-11-22/` 截图素材目录。用途与关键数字见 `gates-infra.md` 的「证据文件」一节；这些文件是历史运行的原始输出，不要修改。
+历史 `.log` / `.json`（bootstrap、Nest、turbo、SDK 验收 evidence）与 `component-visual-acceptance-2026-11-22/` 截图素材目录。用途与关键数字见 `gates-infra.md` 的「证据文件」一节；这些文件是历史运行的原始输出，不要修改。
 
-## 验证汇编与原记录对照
+## 原记录文件名怎么查
 
-每篇汇编的「逐条合并记录」中，小节标题即原记录文件名（如 `### t09-bar.md`）。各汇编覆盖的原记录如下。
+每篇汇编的「逐条合并记录」中，小节标题即原记录文件名（如 `### t09-bar.md`）。**原文件名与汇编的对应关系只维护在汇编内**，本索引不再重复抄录那 200 多个文件名——手抄清单必然过期，而汇编内的小节标题不会。查某个旧文件名属于哪篇汇编：
 
-**`verification/sdk-charts.md`**（SDK 图表组件（T02–T09），19 篇）
+```bash
+grep -rl '^### <原文件名>' docs/verification/
+```
 
-`t02-core.md`、`t03-adapters.md`、`t03-t04-consumer-freeze.md`、`t09-bar.md`、`t09-bar-windows-native.md`、`t09-chart-component-handover.md`、`t09-main-merge-2026-11-12.md`、`t09-pie.md`、`t09-pie-main-merge-2026-11-12.md`、`t09-pie-solid-main-merge-2026-11-12.md`、`t09-ranking-proportion.md`、`t09-ranking-proportion-windows-native.md`、`t09-scatter.md`、`t09-scatter-main-merge-2026-11-12.md`、`t09-scatter-windows-native.md`、`t09-sdk-evidence-audit.md`、`t09-trend-card.md`、`t09-trend-card-main-merge-2026-11-12.md`、`t09-trend-card-windows-native.md`
+汇编的完整性用篇数核对：上表「合并篇数」应等于该汇编中以原文件名（含 `.md`）命名的 `###` 小节数量。核对命令：
 
-**`verification/sdk-release.md`**（SDK 兼容性、探针与发布验收（T10 及发布链），30 篇）
+```bash
+grep -c '^### .*\.md' docs/verification/<汇编>.md
+```
 
-`a-probe-distribution-2026-11-14.md`、`a-sdk-0011-release-2026-11-16.md`、`a-sdk-acceptance-2026-11-16.md`、`a-sdk-browser-acceptance-2026-11-16.md`、`a-sdk-presentation-normalization-2026-11-16.md`、`a-t10-exact-version-fix-2026-11-16.md`、`a-t10-frozen-policy-2026-11-16.md`、`a-t10-probes-next-2026-11-13.md`、`a-t10-strict-handoff-2026-11-16.md`、`b-cli-0010-release-2026-11-16.md`、`b-cli-compatibility-2026-11-14.md`、`b-installed-probe-next-2026-11-16.md`、`b-next-baseline-2026-11-13.md`、`b-next-baseline-p2-2026-11-14.md`、`b-next-baseline-review-2026-11-14.md`、`b-next-echarts-cli-2026-11-14.md`、`b-next-echarts-p2-2026-11-14.md`、`b-next-echarts-review-2026-11-14.md`、`b-release-acceptance-2026-11-16.md`、`c-a-sdk0010-browser-2026-11-13.md`、`c-a-sdk0010-handover-2026-11-13.md`、`c-a-sdk0010-windows-2026-11-13.md`、`c-a-sdk007-windows-2026-11-13.md`、`c-sdk14-acceptance-2026-11-13.md`、`sdk-label-adopt-acceptance-2026-11-16.md`、`sdk-label-clipping-repair-2026-11-16.md`、`t10-a-to-b-interface-handover.md`、`t10-sdk-compatibility.md`、`t10-windows-local-procedure.md`、`t11-t12-sdk-consumer-handover-2026-11-13.md`
-
-**`verification/platform-services.md`**（平台服务与集成（T04–T08、T11/T12），33 篇）
-
-`t04-cli-check-2026-11-12.md`、`t04-t06-release-registry-2026-11-12.md`、`t05-artifact-validation.md`、`t05-auth.md`、`t05-final-2026-11-12.md`、`t05-platform-http.md`、`t05-registry-fixes.md`、`t06-release-worker-2026-11-12.md`、`t07-catalog-preview-2026-11-12.md`、`t07-gallery-ui-2026-11-12.md`、`t07-t08-gallery-upload-2026-11-13.md`、`t08-real-web-upload-2026-11-13.md`、`t08-web-upload-cross-review-2026-11-13.md`、`t08-web-upload-hardening-2026-11-13.md`、`t11-t12-platform-operations-2026-11-12.md`、`c-b-gallery004-final-2026-11-13.md`、`c-cli-release-isolation-2026-11-13.md`、`c-distribution-integration-2026-11-15.md`、`c-gallery-cors-2026-11-13.md`、`c-image-atomic-review-2026-11-14.md`、`c-isolated-platform-2026-11-14.md`、`c-main-integration-2026-11-13.md`、`c-next-round-integration-2026-11-14.md`、`c-next-round-integration-2026-11-16.md`、`c-platform-acceptance-2026-11-16.md`、`c-platform-capacity-2026-11-13.md`、`c-production-preparation-2026-11-15.md`、`c-web-upload-independent-snapshots-2026-11-13.md`、`c-web-upload-regressions-2026-11-13.md`、`cli-0011-integration-repairs-2026-11-16.md`、`four-agent-merge-cleanup-2026-11-16.md`、`next-round-final-gates-2026-11-16.md`、`rollback-sidecar-repairs-2026-11-16.md`
-
-**`verification/phase2-matching.md`**（二期组件匹配与检索，45 篇）
-
-`a-phase2-context-alignment-2026-11-15.md`、`a-phase2-id-evaluation-2026-11-15.md`、`a-phase2-profiles-2026-11-15.md`、`a-phase2-profiles-review-2026-11-15.md`、`a-phase2-query-sdk-2026-11-16.md`、`a-phase2-scoring-2026-11-15.md`、`a-review-b-context-2026-11-15.md`、`a-review-b2-candidates-2026-11-15.md`、`a-review-b3-recheck-2026-11-15.md`、`a-review-b3-search-2026-11-15.md`、`a-review-c2-search-2026-11-15.md`、`a-review-c3-search-2026-11-15.md`、`a-review-project-context-2026-11-15.md`、`a2-scoring-fix-2026-11-15.md`、`a3-evaluation-runner-2026-11-15.md`、`a3-runner-error-redaction-2026-11-15.md`、`a-t13-id-eval-2026-11-16.md`、`b-phase2-candidate-results-2026-11-15.md`、`b-phase2-context-implementation-2026-11-15.md`、`b-phase2-context-implementation-revision-2026-11-15.md`、`b-phase2-design-id-match-2026-11-15.md`、`b-phase2-matching-2026-11-15.md`、`b-phase2-query-implementation-2026-11-16.md`、`b-t13-match-ui-2026-11-16.md`、`b3-search-page-2026-11-15.md`、`c-b-phase2-context-acceptance-2026-11-15.md`、`c-b2-candidates-acceptance-2026-11-15.md`、`c-b3-search-acceptance-2026-11-15.md`、`c-phase2-candidate-contract-2026-11-15.md`、`c-phase2-eligibility-2026-11-15.md`、`c-phase2-project-context-2026-11-15.md`、`c-phase2-query-contracts-2026-11-16.md`、`c-phase2-query-integration-2026-11-16.md`、`c-review-a3-evaluation-2026-11-15.md`、`c-t13-matching-baseline-2026-11-16.md`、`c3-live-gallery-2026-11-15.md`、`c3-search-request-2026-11-15.md`、`c3-text-search-2026-11-15.md`、`d-id-runner-2026-11-16.md`、`d-phase2-query-consumer-2026-11-16.md`、`d-t13-eval-gaps-2026-11-16.md`、`phase2-id-contracts-2026-11-15.md`、`phase2-id-integration-2026-11-16.md`、`phase2-main-merge-2026-11-15.md`、`phase2-query-completion-2026-11-16.md`
-
-**`verification/phase3-t15.md`**（三期 T15 项目导入与视觉验收，14 篇）
-
-`component-visual-acceptance-2026-11-22.md`、`component-visual-acceptance-integration-2026-11-22.md`、`phase3-t15-planning-2026-11-16.md`、`t15-completion-2026-11-17.md`、`a-t15-project-importer-review-2026-11-17.md`、`a-t15-project-matrix-2026-11-17.md`、`a-t15-project-matrix-review-2026-11-17.md`、`b-t15-integration-plan-2026-11-17.md`、`c-t15-browser-contract-runtime-2026-11-17.md`、`c-t15-contracts-2026-11-17.md`、`c-t15-inspect-review-2026-11-17.md`、`c-t15-plan-integration-2026-11-17.md`、`c-t15-plan-review-2026-11-17.md`、`d-t15-plan-consumer-2026-11-17.md`
-
-**`verification/phase3-t16.md`**（三期 T16 安全应用，23 篇）
-
-`t16-a-api-cases-2026-11-18.md`、`t16-a-assertion-review-2026-11-18.md`、`t16-a-assertion-review-round2-2026-11-18.md`、`t16-a-assertion-review-round3-2026-11-18.md`、`t16-a-host-review-2026-11-18.md`、`t16-acceptance-token-2026-11-18.md`、`t16-b23-c24-d20-2026-11-19.md`、`t16-b25-c25-d22-2026-11-19.md`、`t16-backup-ancestor-2026-11-19.md`、`t16-c-binding-review-2026-11-18.md`、`t16-client-resume-2026-11-18.md`、`t16-client-text-delivery-2026-11-18.md`、`t16-d-blackbox-2026-11-19.md`、`t16-d-installed-recovery-2026-11-19.md`、`t16-hot-recovery-2026-11-19.md`、`t16-main-completion-2026-11-19.md`、`t16-npm-installed-delivery-2026-11-18.md`、`t16-p0-safe-apply-contracts-2026-11-18.md`、`t16-pnpm12-isolation-2026-11-18.md`、`t16-product-red-2026-11-18.md`、`t16-product-review-2026-11-18.md`、`t16-recovery-sync-2026-11-18.md`、`t16-technical-acceptance-2026-11-19.md`
-
-**`verification/phase3-t17.md`**（三期 T17 矩阵与黑盒，38 篇）
-
-`t17-a1-hardening-2026-11-19.md`、`t17-async-assertion-2026-11-20.md`、`t17-blackbox-0022-2026-11-20.md`、`t17-blackbox-0023-2026-11-20.md`、`t17-blackbox-2026-11-19.md`、`t17-blackbox-2026-11-20.md`、`t17-c0-current-evidence-2026-11-20.md`、`t17-c0-official-correction-2026-11-20.md`、`t17-c0-official-supplement-2026-11-20.md`、`t17-cli-0020-regressions-2026-11-20.md`、`t17-cli-0021-regressions-2026-11-20.md`、`t17-cli-0022-regressions-2026-11-20.md`、`t17-cli-0023-regressions-2026-11-20.md`、`t17-completion-2026-11-20.md`、`t17-final-delivery-review-0023-2026-11-20.md`、`t17-final-review-2026-11-20.md`、`t17-host-0021-2026-11-20.md`、`t17-host-0022-2026-11-20.md`、`t17-host-0023-2026-11-20.md`、`t17-host-fixtures-2026-11-20.md`、`t17-host-guards-2026-11-20.md`、`t17-host-runner-2026-11-19.md`、`t17-integration-2026-11-20.md`、`t17-local-registry-timeout-2026-11-20.md`、`t17-matrix-0022-2026-11-20.md`、`t17-matrix-0023-2026-11-20.md`、`t17-matrix-2026-11-19.md`、`t17-matrix-executor-2026-11-20.md`、`t17-matrix-n10-request-2026-11-20.md`、`t17-matrix-scoring-2026-11-20.md`、`t17-mcp-sdk-redaction-2026-11-20.md`、`t17-no-install-2026-11-20.md`、`t17-pnpm-manager-bootstrap-2026-11-20.md`、`t17-pnpm-no-install-2026-11-20.md`、`t17-regression-budgets-2026-11-20.md`、`t17-regression-stability-2026-11-20.md`、`t17-repair-source-continuity-2026-11-20.md`、`t17-service-token-budget-2026-11-20.md`
-
-**`verification/gates-infra.md`**（门禁与工程基建，16 篇）
-
-`bootstrap.md`、`bootstrap-review.md`、`g1-contracts-2026-11-12.md`、`g1-t10-closeout-2026-11-21.md`、`g2-access-settings-2026-11-22.md`、`g2-example-contract-2026-11-12.md`、`g2-five-items-2026-11-22.md`、`g2-local-infra-2026-11-12.md`、`g2-main-merge-2026-11-12.md`、`gallery-next-migration.md`、`nest-react-bootstrap.md`、`preview-ip-port-2026-11-21.md`、`scripts-maintenance-2026-11-12.md`、`self-managed-accounts-2026-11-22.md`、`turbo-baseline.md`、`t11-pilot-rehearsal-2026-11-21.md`
+（2026-11-26 新增的四篇汇编里，个别原记录自带文中小标题，降级后也是 `###`，因此不能简单数所有 `###`；上面这条命令只数以原文件名命名的小节。）各汇编的原记录命名规律（便于猜测与批量检索）：`sdk-charts.md` 收 `t02-`/`t03-`/`t09-`；`sdk-release.md` 收 `a-`/`b-`/`c-`/`t10-`/`t11-t12-` 与 `sdk-label-`；`platform-services.md` 收 `t04`–`t08`、`c-`、`cli-`、`four-agent-`、`next-round-`、`rollback-sidecar-`；`phase2-matching.md` 收 `a-`/`b-`/`c-`/`d-`、`phase2-` 与 `a2-`/`a3-`/`b3-`/`c3-`；`phase3-t15.md` 收 `t15-` 与 `component-visual-acceptance-`；`phase3-t16.md` 收 `t16-`；`phase3-t17.md` 收 `t17-`；`gates-infra.md` 收 `bootstrap`、`g1-`、`g2-`、`gallery-next-migration.md`、`nest-react-bootstrap.md`、`scripts-maintenance-`、`turbo-baseline.md`、`t11-pilot-rehearsal-`、`self-managed-accounts-2026-11-22.md`、`preview-ip-port-2026-11-21.md`。
 
 ## 已过期或需注意的表述
 
 阅读历史文档时，以下表述已发生时点变化，不要据此判断现状：
 
-- **G1 已放行**：2026-11-22 用户决定 G1 放行，A/B 实际业务回执不作为前置条件；该决定已提交进 main（`6511ba77`）并回写 `plans/2026-11-12-g1-review-g2-access.md`。因此 `verification/gates-infra.md` 中 `### g1-contracts-2026-11-12.md` 等早期小节里「G1 人工门槛仍未通过」「不能用代理自查冒充签字」的措辞是该时点记录，**不是当前状态**。仓库根 `README.md` 与 `tests/fixtures/releases/g1/README.md` 中类似旧措辞尚未回写，需用户拍板后再改。
+- **G1 已放行**：2026-11-22 用户决定 G1 放行，A/B 实际业务回执不作为前置条件；该决定已提交进 main（`6511ba77`）并回写 `plans/2026-11-22-g2-access-acceptance.md` 中「2026-11-12-g1-review-g2-access.md」小节。因此 `verification/gates-infra.md` 中 `### g1-contracts-2026-11-12.md` 等早期小节里「G1 人工门槛仍未通过」「不能用代理自查冒充签字」的措辞是该时点记录，**不是当前状态**。仓库根 `README.md` 与 `tests/fixtures/releases/g1/README.md` 中类似旧措辞尚未回写，需用户拍板后再改。
 - **G1 放行不外推到 G2**：G2 五项外部接入（公司 OIDC 登录与撤权、生产独立预览域 DNS/TLS、生产镜像 digest、生产容量与等量备份、两个真实业务试点）一项都未达到证据标准；`infra:check-access` 在缺少配置时退出码为 2，报告恒为 `g2Ready: false`。
 - **`guides/release-acceptance.md`**：文中 2026-11-13 表格是历史快照，部分行的本地缺口已被 2026-11-15／11-16／11-21 的记录推进，逐行现状以文中链接与 `verification/gates-infra.md` 为准。
 - **ECharts 6.0.0 仍为 hold**：候选 6.0.0 的严格安装被拒、显式 legacy 测量中双框架类型检查失败，peer 保持 6.1.0 未扩大；不要依据任何历史记录升级。
@@ -177,7 +167,7 @@ T16 分包 brief（A/B/C/D 四方，11 篇）：已合并为 `2026-11-18-t16-bri
 - **2026-11-22 视觉验收不能宣布全部通过**：功能 300/302，V01 小屏横向溢出、V02 深色宿主、V03 饼图 solid-empty 自检失败三项阻断未关闭，详见 `verification/phase3-t15.md`。
 - **自管账号后台未验证真实 IdP**：实现已合入本地 main 但未 push，沙箱零实跑，真实 Keycloak 的 mapper、首次改密、登录与撤权时限均未验证。
 - **本地 main 有未推送提交**：按仓库规则，任何 `git push` 都需用户明确授权。
-- **旧路径**：整理后 `docs/verification/<原记录>.md`、`docs/superpowers/`、`docs/phase2/`、`docs/phase3/` 与 docs 根下的 8 篇指南路径均已不存在；引用已批量更新，若发现遗漏的旧路径请报告修正。
+- **旧路径**：整理后 `docs/verification/<原记录>.md`、`docs/superpowers/`、`docs/phase2/`、`docs/phase3/` 与 docs 根下的 8 篇指南路径均已不存在；2026-11-26 又一批 2026-11-24 之后的当日散篇按主题并入汇编（见「原记录文件名怎么查」）。引用已批量更新，若发现遗漏的旧路径请报告修正。
 
 ## 尚未关闭的事项
 

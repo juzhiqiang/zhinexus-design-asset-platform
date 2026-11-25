@@ -73,6 +73,6 @@ pnpm verify:deployment
 pnpm -PnpmArgs @('exec','vitest','run','tests/infra/gallery-admin-ingress.test.ts')
 ```
 
-实际Docker Nginx配置和行为13项通过：两个nginx -t、可信/不可信网络、伪造请求头、默认拒绝、OIDC参数、2MiB接受与9MiB拒绝。最终证据见 [集成验证记录](../verification/2026-11-24-gallery-admin-split.md)。Claude早期审查保留为历史基线。
+实际Docker Nginx配置和行为13项通过：两个nginx -t、可信/不可信网络、伪造请求头、默认拒绝、OIDC参数、2MiB接受与9MiB拒绝。最终证据见[集成验证记录](../verification/gallery-admin-split.md#2026-11-24-gallery-admin-splitmd)。Claude 早期审查作为同汇编内的[安全边界审查小节](../verification/gallery-admin-split.md#gallery-admin-security-reviewmd)保留为历史基线。
 
 上线仍需在真实公网和VPN验证DNS/TLS、共享会话/退出、资产授权、管理拒绝、源站不可达、公司IdP回调及预览隔离。本机签名OIDC测试不替代公司IdP验收。

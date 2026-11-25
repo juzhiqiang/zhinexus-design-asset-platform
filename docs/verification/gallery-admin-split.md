@@ -1,11 +1,90 @@
-# 画廊公开 / 内网管理端拆分：独立安全边界审查
+# 画廊公开 / 内网管理端拆分验证汇编（gallery-admin-split）
 
-> 历史基线（2026-11-24）：本文为 Claude 桌面端在拆分集成前的只读审查，保留当时发现与未执行声明。“当前代码”“尚未实现”不表示最终集成状态。双 origin/target、前端拆分与私有目录、真实 Nginx 测试均已随后落地；最终以 [集成验证记录](2026-11-24-gallery-admin-split.md) 和 [部署指南](../guides/gallery-admin-deployment.md) 为准。
+> 本文件由 2 篇记录合并而成（2026-11-26，`chore/docs-slim-round3` 分支）。合并范围：`2026-11-24-gallery-admin-split.md`、`gallery-admin-security-review.md`。每篇以 `### <原文件名>` 为标题**完整保留原文**（标题降两级），git 历史可追溯，信息不灭失。
+>
+> **按阅读顺序排列，不是按写作时间**：第一篇是终态集成验证（结论以此为准）；第二篇是集成**之前**的只读安全边界审查，第一篇的实现与审查正是针对它的问题清单（P0-1～P2-16），因此第二篇里的「尚未实现」「未执行」不表示最终状态——这一点在第二篇开头自己的历史基线横幅里也已声明。引用拆分结论时用第一篇，追溯「问题当初怎么发现的」用第二篇。
+>
+> 拆分授权的计划见 [`../plans/2026-11-24-gallery-admin-split.md`](../plans/2026-11-24-gallery-admin-split.md)，部署与入口见 [`../guides/gallery-admin-deployment.md`](../guides/gallery-admin-deployment.md)。
+
+## 逐条合并记录
+
+### 2026-11-24-gallery-admin-split.md
+
+日期：2026-11-24。集成分支：feat/gallery-admin-split，从本地 main fcd75253 开始。原 D:/project 工作区和在途本地身份/设计稿修改未纳入此分支。本文为新增记录，不覆盖历史验证。
+
+#### 实现与审查
+
+- 反重力桌面端实现两个独立 Next 应用、路由迁移、受保护资产库与回归测试，提交已集成为 4b014fa6、cb15b677。
+- API 实现代理提供双 origin、服务端绑定的登录 target、迁移014与真实浏览器共享 Cookie 测试，集成为 029578e6、f5089fe6。
+- Claude 桌面端完成独立安全审查和 Nginx 入口模板/测试。Codex 负责集成、实际 Docker 验证、问题修复、根配置与部署指南。
+- 独立复审发现并修复4项：私有子请求被拒后残留数据、账号切换重检时旧数据残留、退出后迟到会话写回、私有兼容记录误用公开版本。复审确认四项均关闭；两端原注销竞态复现返回 null。
+
+#### 已执行验证
+
+所有工作区命令通过固定 Node 26.13.0 / pnpm 12.18.0 的 scripts/pnpm.ps1 执行。原始日志保留在集成工作树 .superpowers/sdd/2026-11-24-gallery-admin-split/（忽略目录，不提交可能含运行细节的日志）。
+
+| 验证 | 实际结果与日志 |
+| --- | --- |
+| install --frozen-lockfile | 通过；锁文件仅增加 admin importer，无运行时新依赖 |
+| verify:workspace | 11成员、无环、4公开包、服务端安全依赖图通过 |
+| turbo run build --force | 11/11成功，0缓存；build.log |
+| turbo run typecheck --force + 根tsc | 15/15成功，0缓存；根tsc通过；typecheck.log、root-typecheck-final.log |
+| 最终前端 build/typecheck | 5/5成功，0缓存；frontend-final-build.log |
+| pnpm test | T10：161通过、7跳过；Vitest：141文件、2382通过、2跳过；root-test.log |
+| 目录真实平台测试 | 12/12；catalog-platform.log |
+| API OIDC真实平台测试 | 1/1；api-oidc-platform.log；先构建CLI后通过，保留初始缺产物失败日志 |
+| Nginx入口+生产预检专项 | 20/20（入口13、预检7）；ingress-final.log |
+| 上传恢复/摘要浏览器专项 | 12/12；upload-acceptance.log；使用已有冻结SDK，不重新打包 |
+
+浏览器首轮321通过、1失败：contracts-runtime的测试模块白名单遗漏managed-accounts，新增该既有契约模块后该项1/1通过（browser-contracts-green.log），完整重跑322/322（browser-rerun.log）。
+
+入口测试使用本机 Docker、摘要锁定的 Nginx 镜像，实际执行两份 nginx -t。先后发现并修复正则转义/量词引号、大小写登录参数匹配、测试速率限制干扰与默认1MiB上传体限制。2MiB应接受/9MiB应拒绝用例先RED后GREEN；最终入口13/13通过。
+
+平台专项首轮8通过、2失败，定位到旧账号测试缺identity初始化及过时响应包装；补齐fixture后进一步发现真实roles text[]写入错误。独立修复41bbeb12仅将两处roles参数改为原生数组，管理员/角色/版本和撤权校验均保留；账号创建/更新3项先RED再GREEN，鉴权单元28项通过，独立复审无阻塞。集成重跑账号、迁移、上传及真实跨端浏览器会话4文件11/11通过（platform-rerun.log）。
+
+最终升版树完成22/22 build/typecheck（0缓存）与根tsc；版本后 frozen install 与11成员图校验通过。test:gallery-cache 四次真实构建与HTTP sitemap origin检查均通过（gallery-cache-final.log）。pnpm dev 实际由Turbo启动11包；5173首页及/library、5177/upload、5174/5175示例、3000/3001健康检查均200，5173/upload为404（dev-smoke.json）。开发进程仅用于验收，已停止本次启动的进程树。
+
+#### 证据边界
+
+- 真实浏览器共享会话测试使用 Chromium、TLS、本地签名OIDC/PKCE、真实API与PostgreSQL，验证两origin、host-only Cookie、CORS/CSRF和跨端退出。承载页面是最小HTML；Next界面另由浏览器套件覆盖。这不等于公司IdP或正式DNS/TLS验收。
+- 上传真实端到端复用冻结SDK批次39f845ad-b174-4340-98f6-9dc2ab083764；manifest SHA-256为5934c8b6d42b0110964d83530bda1bfd04d9186e5ea803a18f853f8ae50edfc2，与既有acceptance记录一致。本次未重pack或改冻结产物。
+- 私有内容由既有逐组件权限决定；本次未自动公开任何数据库资产。管理端隔离需要真实内网/VPN、TLS入口和源站防火墙按部署指南配置，本次不执行生产部署。
+- 公司IdP、生产DNS/TLS、真实公网/VPN、生产预览域与整套生产运行门槛未验收，不据此改写历史T01–T17完成状态。
+- 根套件中的7项T10与2项Vitest跳过均因未设置独立A10_FROZEN_BUNDLE，不能据此声称冻结SDK升级验证完成；本次网页发布套件使用自己的ZHINEXUS_SDK_BUNDLE_DIR明确指定冻结批次。没有将Docker入口测试跳过算作通过。
+
+#### 最终集成补录
+
+最终运行基于3c9357fc代码树：root-test-final.log记录141文件、2382通过、2跳过（469.55s，退出0），前置T10为161通过、7跳过；browser-release-final.log记录322/322（2.2min，退出0）。测试未通过Turbo缓存替代执行。账号平台最终11/11、上传专项12/12、入口13/13及生产预检7/7均已通过。
+
+原始架构文件在集成树与原工作区的SHA-256均为E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723，且相对main基线无差异。原工作区保留在chore/gallery-design-restoration分支862fc980，其本地身份服务、设计稿和其他既有修改未暂存/提交到本次分支。
+
+| 提交 | 目的 |
+| --- | --- |
+| 5fca5df8 | 明确拆分边界、责任与验收计划 |
+| 029578e6 | 双origin与持久化登录目标 |
+| 4b014fa6 | 独立管理端、画廊私有资产库与路由迁移 |
+| cb15b677 | 四项私有状态/鉴权竞态审查修复 |
+| f5089fe6 | 真实浏览器跨端会话协议验收 |
+| 38a0c6c1 | 公网/内网入口、真实Nginx测试与部署指南 |
+| 079b26d3 | 工作区、锁文件、编排及验收入口同步 |
+| 6b60f4ec | 浏览器契约模块夹具补齐 |
+| 41bbeb12 | 账号角色PostgreSQL数组写入修复与真实回归 |
+| 3c9357fc | 独立升级root/gallery/API至0.1.0、admin至0.0.1 |
+
+合并策略：原工作区保持不动，在已验证的隔离工作区清洁提交后切换本地main，使用--ff-only合并。合并后核对tree完全一致，重新执行verify:workspace及根tsc；不推送远程，不部署生产。
+
+合并已完成：本地main从fcd75253快进至41f8ee71；合并前后tree均为aa111273bc8036e6834f930f49d9b1328cf4fc6e。合并后verify:workspace与根tsc均退出0。此补录只变更计划与验证文档，业务代码仍为完整回归通过的同一代码树。
+
+新版启动目录为 C:/Users/10208/.codex/worktrees/gallery-admin-split/zhinexus-design-asset-platform，当前分支main；执行 scripts/pnpm.ps1 dev 即可使用已验收的5173画廊和5177后台。D:/project原目录保留既有分支和修改，尚未替换为main。所有本次启动的开发服务已停止；未执行push、生产部署或冻结SDK重发布。
+
+### gallery-admin-security-review.md
+
+> 历史基线（2026-11-24）：本文为 Claude 桌面端在拆分集成前的只读审查，保留当时发现与未执行声明。“当前代码”“尚未实现”不表示最终集成状态。双 origin/target、前端拆分与私有目录、真实 Nginx 测试均已随后落地；最终以[同汇编内的集成验证记录](#2026-11-24-gallery-admin-splitmd)和[部署指南](../guides/gallery-admin-deployment.md)为准。
 
 审查范围：`feat/gallery-admin-ingress` 工作树上 `D:\project` 同一提交内容的**只读**审查，加上本文件所属的入口模板实现说明。审查未修改任何 API、前端、根配置、锁文件或既有文档；本文件与 `infra/gateway/{gallery-public,admin-internal}.conf`、`docs/guides/gallery-admin-deployment.md`、`tests/infra/gallery-admin-ingress.test.ts` 是本任务唯一写入范围。
 结论先行：**技术侧的数据边界基本是对的，问题集中在三处——公网入口根本没有可验证的制品、公开页把硬编码样例冒充成 Ready 资产、以及 API 只认一个浏览器 Origin 导致「公开画廊」与「内网管理」在当前代码里无法同时成立。** 第三点必须由 API 子任务先落地（`PLATFORM_ADMIN_ORIGIN` + 登录 target 绑定），否则入口模板只能保护「公网看不到管理 UI」，保护不了「公网不能写管理 API」。
 
-## 阅读约定
+#### 阅读约定
 
 - 「静态核查」= 已读到源码 / 迁移 / 配置原文并引用行号。本报告**没有任何运行时执行**：未启动服务、未跑测试、未发 HTTP 请求。凡未执行的部分，文中一律写「未执行」，不写成已验证。
 - 「推断」= 由代码结构推导、未在运行时证实。
@@ -13,7 +92,7 @@
 
 ---
 
-## P0-1 公网入口在仓库里没有任何制品，「白名单只开放浏览/登录/预览」目前不可执行也不可验证
+#### P0-1 公网入口在仓库里没有任何制品，「白名单只开放浏览/登录/预览」目前不可执行也不可验证
 
 静态核查：`apps/api/src/server.ts:6` 在 `PLATFORM_BIND_HOST=0.0.0.0` 时绑 `0.0.0.0`；`infra/compose.production.yaml:15` 正是该值，且 api 服务挂在 `networks: [backend, edge, egress]`（同文件 12 行）。`infra/gateway/` 只有 `preview.conf` 与 `preview-ip.conf`，两者都 `proxy_pass` 到 `127.0.0.1:3001`，没有任何面向 3000 或前端的反代/TLS 配置。`infra/compose.production.yaml` 的 services 也只有 api / worker / preview-gateway / postgres / verdaccio / minio，没有 gallery、没有 admin、没有 ingress。
 
@@ -23,7 +102,7 @@
 
 验收用例：见下文「验收用例」第 1–3 组；行为矩阵在 `tests/infra/gallery-admin-ingress.test.ts`。
 
-## P0-2 公开画廊把硬编码样例冒充成 Ready / local-automatic / accepted / indexed
+#### P0-2 公开画廊把硬编码样例冒充成 Ready / local-automatic / accepted / indexed
 
 静态核查：`apps/gallery/app/lib/catalog.ts:8-265` 的 `OFFICIAL_COMPONENTS` 对 line / bar / pie / scatter 共 8 个 variant 全部硬编码 `availability:'Ready'`、`reportSource:'local-automatic'`、`baselineStatus:'accepted'`、`indexStatus:'indexed'`、`packageVersion:'0.0.4'`、`verifiedAt:'2026-11-12T10:00:00Z'`，无任何 API 读取。
 
@@ -39,7 +118,7 @@
 
 验收用例：见第 4–6 组。
 
-## P0-3 任何非硬编码的新组件，公开详情页会 500 而不是 404
+#### P0-3 任何非硬编码的新组件，公开详情页会 500 而不是 404
 
 静态核查：`getComponentDetail` 对 API 命中但不属于四个硬编码 id 的组件返回 `variants: []` 与 `defaultVariant: null as unknown as ComponentVariantMeta`（`catalog.ts:369-370`）。`lib/types.ts:39-47` 把 `variants` 与 `defaultVariant` 都声明为非空。`ComponentDetailViewer.tsx:18-21` 三级回退全空 ⇒ `activeVariant === null`，`:25` 读 `activeVariant.framework` 抛 TypeError。`as unknown as` 绕过编译期检查，SSR 渲染期崩溃 ⇒ 500。
 
@@ -47,7 +126,7 @@
 
 最小实现：`getComponentDetail` 对无法映射到完整 `ComponentVariantMeta` 的 API 结果返回 `null`（走 `notFound()`），或把 `defaultVariant` 改为可选并在 viewer 里显式处理空态。
 
-## P0-4 API 只有一个浏览器 Origin，公开画廊与内网管理端当前无法同时成立
+#### P0-4 API 只有一个浏览器 Origin，公开画廊与内网管理端当前无法同时成立
 
 静态核查：`apps/api/src/platform.ts:27-33` 的 `validateGalleryOrigin` 只接受**一个** origin，`PlatformOptions` 里只有 `galleryOrigin?: string`，`environmentOptions()` 也没有任何 `PLATFORM_ADMIN_ORIGIN`。这一个值被四处消费：
 
@@ -66,7 +145,7 @@
 
 验收用例：见第 7–9 组。
 
-## P0-5 登录回调硬编码 `/upload`，而 `/upload` 正在搬去 admin
+#### P0-5 登录回调硬编码 `/upload`，而 `/upload` 正在搬去 admin
 
 静态核查：`access/oidc.ts:159` 普通网页登录成功后 `return { location: this.settings.galleryOrigin + '/upload', cookie: ... }`；`:150` 候选流程 `return { location: this.settings.galleryOrigin + '/access-settings?candidate=passed' }`。`oidc_attempts` 插入（`:118`）的字段是 `state_hash,browser_hash,revision,generation,candidate,verifier,nonce,expires_at`，只有布尔 `candidate`，没有「哪个前端发起的」标识。
 
@@ -78,7 +157,7 @@
 
 ---
 
-## P1-6 画廊没有 `middleware.ts`，控制台页面只做客户端门
+#### P1-6 画廊没有 `middleware.ts`，控制台页面只做客户端门
 
 静态核查：`apps/gallery` 下不存在 `middleware.ts`（`app/` 与 `src/` 都没有）。五个 console 页面首行都是 `'use client'`，唯一门是 `useEffect` 调 `loadCompanySession()`。匿名访客仍然拿到 console 外壳与导航 HTML——`tests/browser/gallery-rendering.spec.ts:14-20` 自己就断言匿名 `GET /upload` 返回含「登录后开放」的 HTML。
 
@@ -88,7 +167,7 @@
 
 验收用例：见第 11–13 组。
 
-## P1-7 登出不能撤掉 Bearer JWT；公司 OIDC 签发的 token 只能连座禁用
+#### P1-7 登出不能撤掉 Bearer JWT；公司 OIDC 签发的 token 只能连座禁用
 
 静态核查：`POST /v1/auth/oidc/logout`（`access/auth-routes.ts:61-66`）只 `DELETE FROM oidc_sessions WHERE token_hash=$1`，不写 `disabled_subjects`、不动 `auth_time_floor`。`CompanyOidc.authenticate` 的 `Bearer` 分支（`access/oidc.ts:79-87`）只做 JWKS 验签 + `identity_bindings` 查表，唯一否决点是 `finish() → restricted()`（`:43-47`）里的 `disabled_subjects` 与 `subject_role_restrictions`。
 
@@ -100,7 +179,7 @@
 
 验收用例：见第 14–16 组。
 
-## P1-8 本地身份服务的口令端点若跟随「登录所需」上公网，就是把猜解入口挂到公网
+#### P1-8 本地身份服务的口令端点若跟随「登录所需」上公网，就是把猜解入口挂到公网
 
 静态核查：`apps/api/src/identity/local/controller.ts` 的 `/identity/authorize`（GET 描述表单 / POST 提交用户名口令并 303）、`/identity/token`、`/identity/jwks`、`/identity/.well-known/openid-configuration`、`/identity/password`（首次登录更换临时凭证）全部**无鉴权**。当 `PLATFORM_IDENTITY_MODE=local` 时，浏览器登录流程确实要走到 `authorize` 与 `token`（`platform.ts:62` 注释说明 issuer 就在 API origin 上）。
 
@@ -110,27 +189,27 @@
 
 ---
 
-## P2-9 公开页硬编码陈旧版本与内网 registry 地址
+#### P2-9 公开页硬编码陈旧版本与内网 registry 地址
 
 静态核查：`ComponentDetailViewer.tsx:146` 公开渲染 `npm config set @company:registry http://127.0.0.1:14873/`——HTTP 且 loopback（`infra/README.md` 表格确认 14873 是本机 Verdaccio）。同页 `:26-27` 用硬编码 `packageVersion` 拼「精确版本安装命令」，公开指导用户装 0.0.4。另一个自查才发现的矛盾：详情页状态看板显示硬编码 Ready，而同屏 `EchartsCompatibility`（`:224` → `lib/echarts-compatibility.ts:40,48,57`）是**匿名直连真实 API** 的，组件未公开时会渲染「尚无公开发布，未验证兼容性」——同一页面自相矛盾。
 
-## P2-10 拆分会先撞两个工程闸门
+#### P2-10 拆分会先撞两个工程闸门
 
 静态核查：`scripts/verify-workspace.ts:25` 对 `apps/`、`packages/` 下每个目录断言必须在硬编码 `expected` 表内，建 `apps/admin` 会抛 `Unreviewed workspace directory: apps/admin`。`scripts/verify-deployment.ts:18` 把 services 钉成 `['api','worker','preview-gateway','postgres','verdaccio','minio']`，13-14 行的 `networks` 映射也逐服务钉死，新增 gallery/admin 服务会同时报 `Unexpected service topology` 与 `unexpected network access`；`tests/unit/deployment.test.ts:10-13` 的负向用例会随模板变化失效。`turbo.json` 只有 `@company/gallery#build` 的包级条目，admin 需要同款条目与自己的 `NEXT_PUBLIC_*` env 清单。
 
-## P2-11 规格与设计稿已就拆分达成一致，但旧规格文本未修订
+#### P2-11 规格与设计稿已就拆分达成一致，但旧规格文本未修订
 
 静态核查：`docs/specs/2026-11-11-gallery-next-public-private-rendering.md` 第 5 行「用户确认按页面及数据范围区分公开和登录内容，不拆分成两个独立前端应用」，第 19 行把「不新增第二个画廊应用」列为非目标。而 `docs/plans/2026-11-24-gallery-admin-split.md:9` 明确「此决策修订固定 10 成员的历史工程约束」，`docs/design/management-api.md` 也已按管理控制台单独出稿。即：拆分已获授权，但旧规格文本仍是相反表述，`AGENTS.md` 的「唯一事实来源」会让人无所适从。建议在规格文档加一条指向拆分计划的修订说明（属 Codex 文档收口范围）。
 
 ---
 
-## 已经核查为稳固的部分（不必重复审查）
+#### 已经核查为稳固的部分（不必重复审查）
 
 `catalog_can_read`（`apps/api/migrations/005_catalog.sql:5-12`）的公开/私有切分是对的：`actor IS NULL` 只给 `c.public`，非公开必须命中 `component_permissions` 的 `can_read OR can_publish OR can_maintain`，且被禁 subject 连公开资产也读不到。`catalog/routes.ts:11-19` 用 `originalUrl.startsWith('/v1/me/')` 分流，公开路径传 `subject = null`。`catalog/service.ts:55` 的 `PlatformError('NOT_FOUND', [], subject !== null)` 第三参数名是 `authorizationDenied`，`errors.ts` 与 `http.ts` 的 `ErrorFilter` 都不读它，**它只影响审计事件记哪个 code，不改变 HTTP 响应**——匿名与已登录未授权拿到的都是 404 + 相同 body，不存在存在性披露（这一点比初判更强，但机制解释与初判不同）。`catalog/service.ts:84-87` 的 artifact 读取做了对象键/摘要/字节数三重核对后再复读一次 `find()`。预览 grant（`preview/service.ts`）5 分钟过期、记 `account_version`、`tighten` 时统一撤销、iframe 在 ip-port 模式用 `allow-scripts` 不透明源。`RestrictedHttps` 对 OIDC 出网做 hostname/port/CIDR 钉死。`access/service.ts` 的 generation + evidence 15 分钟窗口模型完整。`compose.production.yaml` 的只读/降权/无端口暴露/摘要钉死由 `verify-deployment.ts` 强制。
 
 ---
 
-## 验收用例与已有测试路径
+#### 验收用例与已有测试路径
 
 既有可复用测试：
 
@@ -176,9 +255,9 @@
 
 ---
 
-## 入口层补充发现（本任务范围）
+#### 入口层补充发现（本任务范围）
 
-### P1-12 `?revision=` 是管理员级候选配置入口，路径白名单挡不住
+##### P1-12 `?revision=` 是管理员级候选配置入口，路径白名单挡不住
 
 静态核查：`apps/api/src/access/auth-routes.ts:22-27` 的 `GET /v1/auth/oidc/start` 接受 `@Query('revision')`，且 `if (revision) await this.platform.runAdministrator(...)`；`access/oidc.ts:110-121` 的 `start(candidate, expectedGeneration)` 会拿这个 revision 去查 `access_revisions` 并用它的配置发起登录。`GET /v1/auth/oidc/cli`（同文件 `:52-56`）同样接受 `revision` 并走 `runAdministrator`，`cliMetadata(revision)` 返回候选配置。
 
@@ -186,27 +265,27 @@
 
 已交付：`gallery-public.conf` 对 `$args`（原始未解码查询串）做字面量比对，`/v1/auth/oidc/start` 只放行「无参数」「`target=gallery`」和「`target=admin`（仅可信来源）」；`revision=`、`rev%69sion=`、`revision=a&revision=b`、`target=gallery&revision=...`、`target=evil`、`TARGET=gallery`、重复 `target`、任意 `redirect`/`return` 全部拒绝。回调只放行 `code`/`state`/`iss`/`session_state` 四键。`/v1/auth/oidc/cli` 整体移出公网白名单（画廊不调用它），只在可信来源可达。
 
-### P1-13 同一路径的 GET 公开、POST 是管理写操作
+##### P1-13 同一路径的 GET 公开、POST 是管理写操作
 
 静态核查：`apps/api/src/compatibility/controller.ts:13-24` 的 `POST /v1/variant-releases/:id/compatibility` 走 `platform.run(auth,'baseline',...)`，即 maintainer 角色；而同路径的 `GET`（`:26-36`，非 `/v1/me/` 分支）传 `subject = null`，匿名可读。
 
 已交付：compatibility 单独一个 location（必须排在通用 variant 读正则之前，nginx 按出现顺序取首个命中的正则），用 `map "$request_method:$public_api_trusted_network"` 让 GET/HEAD/OPTIONS 公网可达、POST 只在可信来源可达。其余公开读路径一律 `limit_except GET HEAD OPTIONS { deny all; }`。两个 Next.js location 不设方法限制——App Router Server Actions 是 POST。
 
-### P1-14 `/v1/me/components` 是私有目录的读取入口，不能漏
+##### P1-14 `/v1/me/components` 是私有目录的读取入口，不能漏
 
 `apps/gallery` 登录后要读 `/v1/me/components`（拆分计划第 13 行）。它在通用 variant 读正则的覆盖范围之外（路径是 `/v1/me/components`，不以 `variant` 开头），必须单独列名。**初稿漏了它**，已补为 `location = /v1/me/components`。
 
-### P2-15 穿越检查不能扫查询串
+##### P2-15 穿越检查不能扫查询串
 
 初稿用 `map $request_uri` 直接匹配 `%2f` / 反斜杠，会把 `?path=docs%2Fline-vue.md`（合法材料查询）和 OIDC 的 `code` / `iss` 值一起拒掉。已改为两段式：先用 `~^(?<public_path>[^?]*)` 把路径切出来，再只对路径做穿越检查；查询串交给各端点自己的策略。
 
-### P2-16 两个 Next.js 前端不能被 `limit_except` 打断
+##### P2-16 两个 Next.js 前端不能被 `limit_except` 打断
 
 `limit_except` 用在 `location /`（画廊 / 管理端）会把 Next.js App Router 的 Server Action POST 打死。已确认两个前端 location 不设方法限制，并在守卫里断言这一点。
 
 ---
 
-## 本任务交付物与执行情况
+#### 本任务交付物与执行情况
 
 | 文件 | 内容 |
 | --- | --- |

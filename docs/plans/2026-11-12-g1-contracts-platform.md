@@ -41,7 +41,7 @@
 
 ## Task 2：评审交接和接入排期
 
-**Files:** 新增 `docs/verification/gates-infra.md`、`docs/plans/2026-11-12-g1-review-g2-access.md`；同步 README、contracts README、评估与实施/分工计划。
+**Files:** 新增 `docs/verification/gates-infra.md`、`docs/plans/2026-11-22-g2-access-acceptance.md`；同步 README、contracts README、评估与实施/分工计划。
 
 - [ ] A 评审 ready/runState/getChecks、双框架与示例语义；B 评审冻结摘要/截图/报告/API fixtures；C 收口。
 - [x] 明确 2026-11-13 评审时点、记录模板和阻断条件；没有实际回执不标完成。

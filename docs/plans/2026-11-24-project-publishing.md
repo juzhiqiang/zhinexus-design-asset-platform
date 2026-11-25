@@ -1,4 +1,12 @@
-# 真实项目 CLI 发布与分类 Implementation Plan
+# 真实项目组件发布实施计划汇编（project-publishing）
+
+> 本文件由 2 篇实施计划按时间序合并而成（2026-11-26，`chore/docs-slim-round3` 分支）。合并范围：`2026-11-24-project-cli-publishing.md`、`2026-11-25-juz-simple-publishing.md`。每篇原计划以 `### <原文件名>` 为标题**完整保留原文**（标题降两级），git 历史可追溯，信息不灭失。
+>
+> 两篇的关系：第一篇落地「真实项目通过 CLI 发布已有组件 + 发布前选择后台框架与分类」；第二篇在其能力之上把命令入口收敛为 `juz init/login/dev/package/publish`，并新增独立的 `juz-cli` npm 分发包。第二篇的验证结果见[验证汇编 `project-publishing.md`](../verification/project-publishing.md)，规格契约见 `../specs/2026-11-24-project-cli-publishing.md`。
+
+## 逐条合并记录
+
+### 2026-11-24-project-cli-publishing.md
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. 用户已授权子代理分工；实施任务顺序派发，逐任务独立审查。
 
@@ -10,7 +18,7 @@
 
 **Spec:** `docs/specs/2026-11-24-project-cli-publishing.md`
 
-## Global Constraints
+#### Global Constraints
 
 - 原始架构文档字节不变；保留当前工作区首页设计改动。
 - 所有构建、消费者安装及自动截图仅在开发者电脑运行，不进入 Turbo 验证缓存。
@@ -18,7 +26,7 @@
 - B 范围：CLI/管理端与消费者测试；C 范围：contracts/API/迁移及根配置；本轮依赖契约先收口再实施。
 - 不新增业务组件、不新增 workspace 成员、不改变原有 ACL、不推送或合并。
 
-## Review Focus
+#### Review Focus
 
 1. 用户业务工程为私有应用：拒绝发布，提示选择组件子包，不修改业务 package.json。
 2. 声称 React 实际 Vue、源码 alias 或 workspace 链接：必须拒绝，不能伪造消费者通过。
@@ -26,7 +34,7 @@
 4. 上传中断再运行 release：复用同一冻结材料与幂等会话，不重新 pack。
 5. 一包多组件/多框架：逐导出与逐实现材料完整检查，不能借用别的实现截图。
 
-## Task 1：分类契约与持久化 API（C）
+#### Task 1：分类契约与持久化 API（C）
 
 **Files:** `packages/contracts/src/categories.ts`、`release-manifest.ts`、`schemas.ts`、`index.ts`；`apps/api/src/categories/*`、`app.ts`、`platform.ts`、`releases/service.ts` 与新增迁移；`tests/contracts/categories.test.ts`、`tests/platform/categories.test.ts`。
 
@@ -39,7 +47,7 @@
 - [x] 最小实现与事务/审计；分类校验置于新作业登记事务，原幂等成功作业重试不受分类后续停用影响。
 - [x] 生成 schemas，构建服务，运行契约与平台专项；通过后聚焦提交。
 
-## Task 2：真实项目配置与 CLI 编排（B）
+#### Task 2：真实项目配置与 CLI 编排（B）
 
 **Files:** `packages/component-cli/src/project/*`、`commands/project.ts`、`cli.ts`、`bin.ts` 与 CLI 内联契约同步；`tests/unit/project-cli.test.ts`、`tests/integration/project-publish.test.ts`。
 
@@ -52,7 +60,7 @@
 - [x] release 接入准备流程、进度输出与原会话恢复；非交互调用参数缺失给出明确提示。
 - [x] 单包类型/构建、窄范围测试及独立安装 CLI 真实验证；聚焦提交。
 
-## Task 3：后台分类与发布选择（B）
+#### Task 3：后台分类与发布选择（B）
 
 **Files:** `apps/admin/app/categories/page.tsx`、`lib/categories-client.ts`、`layout.tsx`、`upload/page.tsx`、`lib/uploads/manifest-form.ts`；`tests/gallery/categories-client.test.ts`、`tests/browser/categories.spec.ts`。
 
@@ -61,7 +69,7 @@
 - [x] 联调补充：同一冻结 npm 包的实现按包联动选择；部分包实现子集在前端阻断，不修改包字节或放宽既有 API 的 JavaScript 子路径完整申报校验。CLI 使用相同发布边界并明确提示。
 - [x] 类型/构建及真实浏览器验证，聚焦提交。
 
-## Task 4：全链路验证、文档与升版（C）
+#### Task 4：全链路验证、文档与升版（C）
 
 **Files:** `README.md`、`component-platform-implementation-assessment.md`、总体/分工计划追加记录、`docs/guides/project-publishing.md`、新增验证记录、对应 package.json 与 CHANGELOG。
 
@@ -70,4 +78,25 @@
 - [x] 独立审查范围 diff，修复实质问题并复验；记录命令、结果、摘要及未覆盖项。
 - [x] 同步使用文档与任务记录；按 0.x 兼容变更 PATCH 规则升级 CLI 和平台/管理端相关版本、同步锁文件，独立升版提交。
 
-执行说明：`pnpm build --force` 因根脚本固定的 `--cache=local:rw` 与 Turborepo 2.11.10 的 `--force` 参数互斥而退出 1；本轮以 `pnpm exec turbo run build --force` 完成 11/11、0 缓存的实际强制构建，并保留原失败日志。最终根测试和专项验证通过，完整命令与摘要见 `docs/verification/2026-11-24-project-publishing-final-fix.md`。生产 OIDC/TLS、独立域名、G2 生产基础设施、T11 双真实业务试点，以及 Zip/history/低代码后续范围仍未完成。
+执行说明：`pnpm build --force` 因根脚本固定的 `--cache=local:rw` 与 Turborepo 2.11.10 的 `--force` 参数互斥而退出 1；本轮以 `pnpm exec turbo run build --force` 完成 11/11、0 缓存的实际强制构建，并保留原失败日志。最终根测试和专项验证通过，完整命令与摘要见[验证汇编 `docs/verification/project-publishing.md`](../verification/project-publishing.md)。生产 OIDC/TLS、独立域名、G2 生产基础设施、T11 双真实业务试点，以及 Zip/history/低代码后续范围仍未完成。
+
+### 2026-11-25-juz-simple-publishing.md
+
+用户要求延续已有真实项目发布能力，参考 DataV 的简短命令流程：安装、初始化、登录、本地开发、本地打包或一键发布。删除使用指南中固定 Node 26.13.0 的要求。
+
+#### 本轮实现
+
+1. `juz init` 交互填写已有组件包、组件 ID、导出、框架与后台分类；单框架 `dev` 自动选择。`login` 支持浏览器或 token，保存 API origin，后续命令复用。`publish` 自动执行原有本地构建/冻结/消费者检查/上传或恢复。
+2. `juz package` 不要求平台登录，验证本地配置、构建和消费者后生成冻结目录及 ZIP。ZIP 只包含 manifest 与声明文件，禁止包含登录和上传会话文件。平台权限和分类启用状态仍在发布时验证。后台现有入口需解压后导入 manifest 和材料目录；直接 ZIP 导入不在本次 CLI 变更内。
+3. 保持 11 个 workspace 成员及内部包名；增加 `pack:juz` 将同一构建产物制作为名称为 `juz-cli` 的独立 npm tarball，不新增 wrapper，不依赖未发布的内部 CLI 包。可本地全局安装，实际发布 npm 需另外授权。
+4. 根目录组件初始化保留已有忽略语义并排除发布材料；安装后拦截夹带发布记录的候选包。自定义输出位于组件包内时仅允许 `.component-releases/` 子目录，已有冻结材料的恢复继续使用原路径。重复分发打包在空临时目录内完成，避免旧版本 tgz 干扰结果。
+
+现有协议要求开发者提供 API/docs/消费者及就绪协议；本轮改善命令入口，不凭空生成业务组件或验证证据。底层诊断与恢复命令放入详细帮助。保持冻结 tarball 摘要、服务器零执行、同版本不可变。
+
+#### 验证与进度
+
+- 初始化/dev/login/命令路由：子代理实现，真实本地脚本和 HTTP 单测。
+- 本地材料 ZIP、离线校验、CLI 分发包：主代理整合，解压并比较全部文件字节、工作区外 npm 安装验证。
+- CLI 构建/typecheck、相关测试与根测试；独立代理审查。仅实测通过项记入独立验证记录。
+- 2026-11-25：从 main 创建 `feat/juz-simple-publishing`，保留原有本任务未提交修改。旧工作树路径为空，实际代码位于 D 盘项目目录。
+- 验证结果、现有全仓检查阻塞与交付范围统一记录在 [本轮验证记录](../verification/project-publishing.md#2026-11-25-juz-simple-publishingmd)。

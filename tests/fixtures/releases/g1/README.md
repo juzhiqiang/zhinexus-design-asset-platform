@@ -25,4 +25,4 @@
 .\scripts\pnpm.ps1 exec vitest run tests/contracts
 ```
 
-A 核对示例/双框架语义；B 核对冻结、截图/报告/API 与失败码；C 收口。实际评审与 G2 接入回执见 docs/plans/2026-11-12-g1-review-g2-access.md，没有回执不得填通过。
+A 核对示例/双框架语义；B 核对冻结、截图/报告/API 与失败码；C 收口。实际评审与 G2 接入回执见 docs/plans/2026-11-22-g2-access-acceptance.md，没有回执不得填通过。
