@@ -12,6 +12,7 @@ if (!fs.existsSync(targetContractsDir)) {
 
 const filesToSync = [
   'categories.ts',
+  'playground.ts',
   'access-settings.ts',
   'schema.ts',
   'schemas.ts',

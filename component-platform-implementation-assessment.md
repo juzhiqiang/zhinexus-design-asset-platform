@@ -258,3 +258,7 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 本机隔离服务已验证共享双框架包、Vue-only 包和 React-only 包通过 Nest HTTP、PostgreSQL、MinIO、Verdaccio 到达 Ready，并验证 worker/API 跨进程恢复、原上传会话与幂等键复用、registry 干净消费者安装及摘要一致。该结果是本地技术验收，不替代生产 OIDC/TLS、独立域名、两个真实业务项目或 T11 业务试点；完整证据和未覆盖项见 [验证记录](docs/verification/project-publishing.md#2026-11-24-project-publishingmd)。
 
+
+## 2026-11-26 用户确认：juz 本地统一工作台
+
+本轮扩展已有项目 CLI：支持新建与现有包接入、多包索引、源码热更新/构建导出、双框架调试、显式保存示例，以及复用冻结发布链路的本地工作台。dev 默认行为切换，原开发脚本通过 --script 保留。原始架构字节保持不变；不增加平台工作区成员、服务端代码执行或在线编辑器。详细接口、任务和验收见 docs/plans/2026-11-26-juz-workbench.md。

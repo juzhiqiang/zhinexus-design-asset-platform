@@ -86,6 +86,13 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   }
 
   const [requestedCommand, ...rest] = args;
+  if (requestedCommand === 'create') {
+    try {
+      if (rest.length !== 3 || rest[1] !== '--framework') throw new Error('ARGUMENT_INVALID: juz create <目录> --framework react|vue|all');
+      const { createProject } = await import('./workbench/create.js');
+      return { exitCode:0, stdout:JSON.stringify(await createProject(context.cwd ?? process.cwd(),rest[0]!,rest[2]!))+'\n',stderr:'' };
+    } catch(error) {return {exitCode:1,stdout:'',stderr:String(error)+'\n'};}
+  }
   const command = requestedCommand === 'publish' ? 'release' : requestedCommand;
   if (['init', 'dev', 'doctor', 'package', 'prepare-release', 'release'].includes(command ?? '') &&
     (['init', 'dev', 'doctor', 'package', 'publish'].includes(requestedCommand ?? '') || rest.includes('--project') || rest.includes('--config') || existsSync(join(context.cwd ?? process.cwd(), 'component.config.json')))) {

@@ -110,14 +110,12 @@ describe('real project CLI configuration', () => {
     expect(repeated.exitCode).toBe(1); expect(repeated.stderr).toContain('CONFIG_EXISTS');
     expect(await fs.readFile(path.join(root, 'component.config.json'), 'utf8')).toBe(original);
     expect(await fs.readFile(path.join(root, 'component/package.json'), 'utf8')).toBe(before);
-    expect((await fs.readdir(root)).sort()).toEqual(['component', 'component.config.json']);
+    expect((await fs.readdir(root)).sort()).toEqual(['api', 'component', 'component.config.json', 'consumers', 'docs', 'examples']);
   });
   it('rejects a private application and missing noninteractive framework before creating configuration', async () => {
     const root = await project();
     const missing = await runCli(initArgs(root).filter((_, index) => index !== 9 && index !== 10), '0.0.27');
     expect(missing.exitCode).toBe(1); expect(missing.stderr).toContain('--framework');
-    const missingCategory = await runCli(initArgs(root).slice(0, 11), '0.0.27');
-    expect(missingCategory.exitCode).toBe(1); expect(missingCategory.stderr).toContain('--category');
     await fs.writeFile(path.join(root, 'component/package.json'), JSON.stringify({ name: '@fixture/app', version: '0.1.0', private: true }));
     const result = await runCli(initArgs(root), '0.0.27');
     expect(result.exitCode).toBe(1); expect(result.stderr).toContain('PACKAGE_PRIVATE');

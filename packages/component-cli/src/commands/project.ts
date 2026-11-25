@@ -55,7 +55,7 @@ async function validateNewBundleDirectory(packageDir: string, bundleDir: string)
 export async function runProjectCommand(command: string, args: readonly string[], version: string, context: ProjectCliContext = {}) {
   try {
     const options: Record<string, string> = {}; let prepareOnly = false;
-    const allowed = ['--project', '--config', '--package', '--component', '--export', '--export-path', '--framework', '--category', '--api-url', '--token', '--bundle-dir', '--timeout', '--key', '--idempotency-key'];
+    const allowed = ['--project', '--config', '--package', '--component', '--export', '--export-path', '--source', '--framework', '--category', '--api-url', '--token', '--bundle-dir', '--timeout', '--key', '--idempotency-key'];
     for (let i = 0; i < args.length; i++) {
       const key = args[i]!;
       if (key === '--prepare-only') { prepareOnly = true; continue; }
@@ -84,9 +84,8 @@ export async function runProjectCommand(command: string, args: readonly string[]
       const component = await input('component');
       const exportName = await input('export');
       const framework = await choose('framework', [{ value: 'vue', label: 'Vue' }, { value: 'react', label: 'React' }, { value: 'all', label: 'Vue + React' }]);
-      if (!options['--category'] && !context.select) throw new Error('ARGUMENT_REQUIRED: 非交互调用必须提供 --category');
       let category = options['--category'];
-      if (!category) {
+      if (!category && (options['--api-url'] || options['--token']) && context.select) {
         let access: Awaited<ReturnType<typeof publishingAccess>>;
         try { access = await publishingAccess(options['--api-url'], options['--token']); }
         catch (error) {
@@ -101,10 +100,13 @@ export async function runProjectCommand(command: string, args: readonly string[]
       if (!pkg.scripts?.build) throw new Error('BUILD_COMMAND_REQUIRED: 组件包必须提供 build script');
       const frameworks = framework === 'all' ? ['vue', 'react'] as const : [framework as 'vue' | 'react'];
       const program = await packageManager(root, packageDir);
-      const config: ProjectConfig = { schemaVersion: 1, packageDir, build: { program, args: ['run', 'build'] }, dev: {}, variants: frameworks.map(framework => ({ componentId: component, framework, category, exportName, exportPath: options['--export-path'] ?? '.', api: `api/${component}-${framework}.json`, docs: `docs/${component}-${framework}.md`, consumer: { templateDir: `consumers/${framework}`, adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } })) };
+      const config: ProjectConfig = { schemaVersion: 1, packageDir, build: { program, args: ['run', 'build'] }, dev: {}, variants: frameworks.map(framework => ({ componentId: component, framework, category, sourceEntry: options['--source'], playground: `examples/${component}-${framework}.json`, exportName, exportPath: options['--export-path'] ?? '.', api: `api/${component}-${framework}.json`, docs: `docs/${component}-${framework}.md`, consumer: { templateDir: `consumers/${framework}`, adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } })) };
+      if (options['--source']) await projectPath(root, options['--source']);
       if (pkg.scripts.dev) for (const framework of frameworks) config.dev[framework] = { program, args: ['run', 'dev'] };
       validateProjectConfig(config);
       if (path.resolve(root, packageDir) === root) await excludeRootReleaseArtifacts(root);
+      const { addMissingMaterials } = await import('../workbench/create.js');
+      for (const variant of config.variants) await addMissingMaterials(root, variant, pkg.name);
       await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
       return { exitCode: 0, stdout: JSON.stringify({ configPath, next: '运行 juz dev 开发现有组件；填写 API/docs/消费者模板及就绪协议后运行 juz package 或 juz publish' }) + '\n', stderr: '' };
     }

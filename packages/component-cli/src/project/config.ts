@@ -8,7 +8,7 @@ const relativePath = z.string().min(1).max(1024);
 const identifier = z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/);
 export const commandSchema = z.strictObject({ program: z.string().min(1), args: z.array(z.string()).max(128) });
 const variantSchema = z.strictObject({
-  componentId: identifier, framework: z.enum(['vue', 'react']), category: identifier,
+  componentId: identifier, framework: z.enum(['vue', 'react']), category: identifier.optional(), sourceEntry: relativePath.optional(), playground: relativePath.optional(),
   exportName: z.string().regex(/^[A-Za-z_$][A-Za-z0-9_$]*$/), exportPath: z.string().regex(/^\.(?:\/[A-Za-z0-9_-]+)*$/),
   api: relativePath, docs: relativePath,
   consumer: z.strictObject({ adapter: z.literal('vite'), templateDir: relativePath, previewDir: relativePath, previewEntry: relativePath }),
@@ -71,14 +71,14 @@ export async function readProject(rootInput: string, configFile = PROJECT_CONFIG
   const root = await fs.realpath(rootInput);
   const configPath = await projectPath(root, configFile);
   const config = validateProjectConfig(JSON.parse(await fs.readFile(configPath, 'utf8')));
-  const ids = new Set<string>(); const categories = new Map<string, string>();
+  const ids = new Set<string>(); const categories = new Map<string, string | undefined>();
   for (const variant of config.variants) {
     const id = variant.componentId + '-' + variant.framework;
     if (ids.has(id) || new Set(variant.readiness.states).size !== variant.readiness.states.length) throw new Error('CONFIG_DUPLICATE: ' + id);
     ids.add(id);
     if (categories.has(variant.componentId) && categories.get(variant.componentId) !== variant.category) throw new Error('CATEGORY_CONFLICT: ' + variant.componentId);
     categories.set(variant.componentId, variant.category);
-    for (const relative of [variant.api, variant.docs, variant.consumer.templateDir]) await projectPath(root, relative, true);
+    for (const relative of [variant.api, variant.docs, variant.consumer.templateDir, ...[variant.sourceEntry, variant.playground].filter((p): p is string => !!p)]) await projectPath(root, relative, true);
     await projectPath(root, variant.consumer.previewDir, true); await projectPath(root, variant.consumer.previewEntry, true);
   }
   return { root, configPath, config, ...await readProjectPackage(root, config.packageDir) };

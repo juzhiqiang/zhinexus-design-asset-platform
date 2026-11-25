@@ -1,3 +1,4 @@
+import { playgroundSchema } from './playground.js';
 import { projectContextSchema } from './project-context.js';
 import { localProjectInspectionSchema, integrationPlanSchema } from './integration-plan.js';
 import { integrationApplyAuthorizationSchema, integrationBackupSchema, integrationApplyResultSchema, integrationRollbackResultSchema } from './integration-apply.js';
@@ -48,7 +49,7 @@ export const manifestSchema = object({ schemaVersion: { type: 'integer', const: 
 
 /** Cross-reference and evidence rules are enforced by validateManifest, not JSON Schema alone. */
 export const CONTRACT_SCHEMAS: Record<string, Schema> = Object.fromEntries(Object.entries({
-  'release-manifest-v1': manifestSchema, 'example-ref-v1': exampleSchema, 'screenshot-ref-v1': screenshotSchema,
+  'playground-v1': playgroundSchema, 'release-manifest-v1': manifestSchema, 'example-ref-v1': exampleSchema, 'screenshot-ref-v1': screenshotSchema,
   'environment-v1': environmentSchema, 'check-report-v1': reportSchema,
   'project-context-v1': projectContextSchema,
   'local-project-inspection-v1': localProjectInspectionSchema, 'integration-plan-v1': integrationPlanSchema,

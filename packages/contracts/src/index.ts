@@ -33,3 +33,4 @@ export type BootstrapHealth = {
   service: 'api' | 'preview-gateway';
   stage: 'bootstrap';
 };
+export * from './playground.js';
