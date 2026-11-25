@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CompanyOidc } from '../../apps/api/src/access/oidc.js';
-import { PlatformError } from '../../apps/api/src/errors.js';
-import { LocalIdentityController } from '../../apps/api/src/identity/local/controller.js';
-import { isBrowserForm, loginFailureReason, loginFailureUrl } from '../../apps/api/src/identity/local/login-page.js';
-import { hashPassword } from '../../apps/api/src/identity/local/password.js';
-import { LocalIdentityService } from '../../apps/api/src/identity/local/service.js';
+import { CompanyOidc } from '../../apps/api/dist/access/oidc.js';
+import { PlatformError } from '../../apps/api/dist/errors.js';
+import { LocalIdentityController } from '../../apps/api/dist/identity/local/controller.js';
+import { isBrowserForm, loginFailureReason, loginFailureUrl } from '../../apps/api/dist/identity/local/login-page.js';
+import { hashPassword } from '../../apps/api/dist/identity/local/password.js';
+import { LocalIdentityService } from '../../apps/api/dist/identity/local/service.js';
 
 /**
  * The admin login page round trip. Two pieces live on the API side: `CompanyOidc.start` decides

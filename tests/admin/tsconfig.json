@@ -1,0 +1,8 @@
+{
+  "extends": "../../apps/admin/tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "include": ["../../apps/admin/next-env.d.ts", "./**/*.ts"]
+}

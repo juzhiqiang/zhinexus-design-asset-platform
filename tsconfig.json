@@ -15,6 +15,7 @@
     "vitest.config.ts"
   ],
   "exclude": [
-    "tests/consumers/**"
+    "tests/consumers/**",
+    "tests/admin/**"
   ]
 }
