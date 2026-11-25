@@ -15,14 +15,17 @@ export async function runCli(
       exitCode: 0,
       stdout: `juz CLI v${version} — 组件开发与发布
 
-  juz init      为当前组件包创建配置，交互选择框架和平台分类
+  juz create <目录> --framework react|vue|all  创建离线可运行模板
+  juz init      接入已有组件包；本地分类可以暂未分配
   juz login     登录平台并记住 API 地址（首次可加 --api-url <origin>）
-  juz dev       运行项目配置中的开发命令
+  juz dev       启动本地工作台（127.0.0.1:1111）；旧开发脚本用 --script
+  juz preview --bundle-dir <目录>  只读预览冻结材料
   juz package   本地构建、验证冻结产物，生成本地 ZIP（后台需解压导入）
   juz publish   构建并验证后发布；重试时复用已有冻结材料
 
 在已有组件项目目录运行；子包可通过 juz init --package <相对路径> 选择。
-分类选择需要登录；也可通过 --category <平台分类 ID> 明确配置。
+本地开发无需登录。冻结前通过 --category <平台分类 ID> 或工作台分配分类；发布时检查身份和权限。
+工作台支持 --port <端口>、--no-open、--package <包名>；多包打包和发布必须选择 --package。
 令牌登录：juz login --api-url <origin> --token <token>
 更多参数与兼容命令：juz --help-all
 版本：juz --version
@@ -39,7 +42,10 @@ export async function runCli(
   component login [--api-url <origin>] [--token <token>] [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
   component check [--framework vue|react|all] [--staging-dir <dir>]
   component init --package <relative-dir> --component <id> --export <name> --framework vue|react|all --category <id> [--project <root>]
-  component dev --framework vue|react [--project <root>]
+  juz create <目录> --framework react|vue|all
+  juz dev [--project <root>] [--package <name>] [--framework vue|react] [--port <port>] [--no-open]
+  juz dev --script [--framework vue|react] [--project <root>]
+  juz preview --bundle-dir <目录> [--port <port>] [--no-open]
   component doctor --framework vue|react|all [--project <root>] [--api-url <origin>]
   component prepare-release [--framework vue|react|all] [--project <root>] [--bundle-dir <relative-dir>]
   component package [--framework vue|react|all] [--project <root>] [--bundle-dir <relative-dir>]
@@ -67,8 +73,9 @@ export async function runCli(
   baseline         管理与确认本地自动验证产生的视觉回归基线
   integrate        只读识别目标项目（inspect）、生成可审查的只读接入计划（plan），
                    或按显式授权执行受控应用（apply）与保留用户编辑的恢复（rollback）
-  init/dev/doctor   读取 component.config.json，初始化与开发已有组件包，校验身份/ACL/分类
-  release/status   上传冻结材料与原会话恢复；项目恢复自动复用 .component-release.json
+  create/init/dev  离线新建、接入和开发；component.workspace.json 支持多包
+  doctor           发布前检查身份/ACL/分类
+  release/status   上传冻结材料与原会话恢复；项目恢复自动复用每包 .component-state 指针
 
 发布、状态与基线命令按 --token、环境凭证、已保存登录的顺序选择认证。
 保存的凭证只用于完全匹配的 API origin，过期后需重新登录；自定义登录文件可通过
@@ -86,6 +93,11 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   }
 
   const [requestedCommand, ...rest] = args;
+  if (requestedCommand === 'preview' || (requestedCommand === 'dev' && !rest.includes('--script'))) {
+    const { runWorkbenchCommand } = await import('./workbench/command.js');
+    return runWorkbenchCommand(requestedCommand, rest, version, context);
+  }
+  if (requestedCommand === 'dev' && rest.includes('--script')) rest.splice(rest.indexOf('--script'),1);
   if (requestedCommand === 'create') {
     try {
       if (rest.length !== 3 || rest[1] !== '--framework') throw new Error('ARGUMENT_INVALID: juz create <目录> --framework react|vue|all');
@@ -95,7 +107,7 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
   }
   const command = requestedCommand === 'publish' ? 'release' : requestedCommand;
   if (['init', 'dev', 'doctor', 'package', 'prepare-release', 'release'].includes(command ?? '') &&
-    (['init', 'dev', 'doctor', 'package', 'publish'].includes(requestedCommand ?? '') || rest.includes('--project') || rest.includes('--config') || existsSync(join(context.cwd ?? process.cwd(), 'component.config.json')))) {
+    (['init', 'dev', 'doctor', 'package', 'publish'].includes(requestedCommand ?? '') || rest.includes('--project') || rest.includes('--config') || existsSync(join(context.cwd ?? process.cwd(), 'component.config.json')) || existsSync(join(context.cwd ?? process.cwd(), 'component.workspace.json')))) {
     const { runProjectCommand } = await import('./commands/project.js');
     const result = await runProjectCommand(command!, rest, version, context);
     const configFile = rest.includes('--config') ? rest[rest.indexOf('--config') + 1] : 'component.config.json';

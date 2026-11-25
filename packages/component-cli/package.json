@@ -7,7 +7,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node scripts/package-probe.mjs && node scripts/package-probe.mjs --check",
+    "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node scripts/package-workbench.mjs && node scripts/package-probe.mjs && node scripts/package-probe.mjs --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "dev": "tsc -p tsconfig.build.json --watch",
     "pack:juz": "pnpm run build && node scripts/pack-juz.mjs"

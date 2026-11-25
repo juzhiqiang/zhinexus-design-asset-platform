@@ -56,7 +56,7 @@ describe('simple project CLI onboarding', () => {
     const config = JSON.parse(await fs.readFile(path.join(root, 'component.config.json'), 'utf8'));
     expect(config.packageDir).toBe('.'); expect(config.build.program).toBe('npm'); expect(config.dev.react.program).toBe('npm');
     expect(config.variants[0]).toMatchObject({ componentId: 'badge', exportName: 'Badge', framework: 'react', category: 'general' });
-    const dev = await runCli(['dev'], '1.0.0', { cwd: root, select: async () => { throw new Error('Unnecessary selection'); } });
+    const dev = await runCli(['dev', '--script'], '1.0.0', { cwd: root, select: async () => { throw new Error('Unnecessary selection'); } });
     expect(dev.exitCode, dev.stderr).toBe(0); expect(await fs.readFile(path.join(root, 'dev-started'), 'utf8')).toBe('yes');
   });
   it.each(['pnpm-lock.yaml', 'package-lock.json'])('infers the package manager from %s when the package manifest omits it', async lock => {
@@ -65,17 +65,17 @@ describe('simple project CLI onboarding', () => {
     expect(result.exitCode, result.stderr).toBe(0);
     expect(JSON.parse(await fs.readFile(path.join(root, 'component.config.json'), 'utf8')).build.program).toBe(lock === 'pnpm-lock.yaml' ? 'pnpm' : 'npm');
   });
-  it('explains how to log in before selecting a real enabled category', async () => {
+  it('initializes offline without asking for a category or an account', async () => {
     const root = await temporaryRoot(); await existingPackage(root);
     const result = await runCli(['init', '--component', 'badge', '--export', 'Badge', '--framework', 'react'], '1.0.0', { cwd: root, select: async () => { throw new Error('No fabricated categories'); } });
-    expect(result.exitCode).toBe(1); expect(result.stderr).toContain('juz login');
-    await expect(fs.stat(path.join(root, 'component.config.json'))).rejects.toThrow();
+    expect(result.exitCode,result.stderr).toBe(0);
+    expect(JSON.parse(await fs.readFile(path.join(root, 'component.config.json'),'utf8')).variants[0].category).toBeUndefined();
   });
   it('asks which development command to run for a dual-framework configuration', async () => {
     const root = await temporaryRoot(); await existingPackage(root);
     const initialized = await runCli(['init', '--component', 'badge', '--export', 'Badge', '--framework', 'all', '--category', 'general'], '1.0.0', { cwd: root });
     expect(initialized.exitCode, initialized.stderr).toBe(0);
-    const dev = await runCli(['dev'], '1.0.0', { cwd: root, select: async (label, choices) => { expect(label).toBe('framework'); expect(choices.map(choice => choice.value)).toEqual(['vue', 'react']); return 'vue'; } });
+    const dev = await runCli(['dev', '--script'], '1.0.0', { cwd: root, select: async (label, choices) => { expect(label).toBe('framework'); expect(choices.map(choice => choice.value)).toEqual(['vue', 'react']); return 'vue'; } });
     expect(dev.exitCode, dev.stderr).toBe(0); expect(JSON.parse(dev.stdout).framework).toBe('vue');
     expect(await fs.readFile(path.join(root, 'dev-started'), 'utf8')).toBe('yes');
   });

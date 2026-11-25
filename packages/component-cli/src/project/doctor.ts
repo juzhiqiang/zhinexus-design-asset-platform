@@ -1,3 +1,4 @@
+import {operationTimeout} from './lifecycle.js';
 import * as fs from 'node:fs/promises';
 import { z } from 'zod';
 import { validatePublishingOptions } from '../contracts/categories.js';
@@ -12,7 +13,7 @@ export async function publishingAccess(apiInput?: string, tokenInput?: string) {
   const token = await resolvePlatformToken(apiUrl, tokenInput);
   if (!token) throw new Error('UNAUTHENTICATED: 请先 component login 或提供 --token');
   const get = async (endpoint: string): Promise<unknown> => {
-    const response = await fetch(apiUrl + endpoint, { redirect: 'error', headers: { authorization: 'Bearer ' + token }, signal: AbortSignal.timeout(15_000) });
+    const response = await fetch(apiUrl + endpoint, { redirect: 'error', headers: { authorization: 'Bearer ' + token }, signal: operationTimeout(15_000) });
     if (!response.ok) throw new Error((response.status === 401 ? 'UNAUTHENTICATED' : 'FORBIDDEN') + ': 平台前置检查被拒绝 (' + response.status + ')');
     return response.json();
   };

@@ -1,6 +1,6 @@
 # 从真实项目发布组件
 
-日常只需 `juz dev` 开发、`juz publish` 发布。第一次接入时登录并初始化一次，CLI 根据配置自动构建、校验、冻结、打包和上传。
+日常使用 `juz dev` 工作台开发、`juz publish` 发布。第一次离线新建或初始化即可开发，上传时再登录。新建、双框架调试、保存示例、多包配置及冻结预览见 [工作台实操指南](juz-workbench.md)。CLI 根据配置自动构建、校验、冻结、打包和上传。
 
 ## 开发测试安装
 
@@ -8,7 +8,7 @@
 
 ```powershell
 pnpm --filter @company/component-cli pack:juz
-npm install -g .\packages\component-cli\.release\juz-cli-0.0.30.tgz
+npm install -g .\packages\component-cli\.release\juz-cli-0.1.0.tgz
 juz --version
 ```
 
@@ -27,15 +27,15 @@ juz --version
 进入开发者自己的组件项目：
 
 ```powershell
-# 本地测试 API；部署后替换为平台 API origin
-juz login --api-url http://127.0.0.1:3000
 juz init
 juz dev
+# 准备发布时登录；部署后替换为平台 API origin
+juz login --api-url http://127.0.0.1:3000
 ```
 
 首次登录记住服务器地址，后续 `juz login`、`juz publish` 自动复用。login 打开平台登录页，也可用 `juz login --api-url <平台地址> --token <token>`。不从 token 猜测服务器；平台 API 地址由首次登录显式选择。`--api-url`、环境 `PLATFORM_API_URL` / `ZHINEXUS_API_URL` 优先于保存的地址，凭据只用于完全匹配的 origin。
 
-`juz init` 引导填写已有组件包目录（默认当前目录）、组件 ID、导出名称、Vue/React 框架及管理员维护的启用分类，创建 `component.config.json`。分类列表需要登录，所以首次推荐先 login 再 init。已知稳定分类 ID 时可用 `--category <id>` 先初始化。
+`juz init` 引导填写已有组件包目录（默认当前目录）、组件 ID、导出名称和 Vue/React 框架，补充缺失材料并创建 `component.config.json`。本地草稿可以不分配分类，冻结前再登录工作台选择管理员维护的启用分类，或使用 `--category <id>`。`--source <项目内入口>` 显式登记源码，CLI 不猜测业务初始化逻辑。
 
 现有 build/dev 脚本作为本地命令，按项目 packageManager 或锁文件选择 npm/pnpm；没有声明时默认 npm。业务工程可以是私有项目，但必须选择其中可发布的组件子包，例如 `juz init --package packages/button`。目标包必须有准确的 name/version 和 build 脚本。已有配置不会被覆盖。
 
@@ -49,7 +49,7 @@ juz dev
 juz publish
 ```
 
-自动完成配置、账号、分类和权限检查 → 本地构建 → 打包冻结 → 外部消费者安装与验证、截图 → 上传 → 发布。单框架自动选择；同时配置 Vue/React 时发布全部实现。进度输出到 stderr，结果写 stdout。`juz dev` 在单框架时自动选择，双框架时交互选择，也可显式 `--framework vue|react`。
+自动完成配置、账号、分类和权限检查 → 本地构建 → 打包冻结 → 外部消费者安装与验证、截图 → 上传 → 发布。同包同时配置 Vue/React 时发布全部实现；多包必须选择 `--package` 或交互选择。进度输出到 stderr，结果写 stdout。`juz dev` 默认工作台双框架切换，也可显式 `--framework vue|react` 首选；直接执行旧脚本用 `juz dev --script`。
 
 只生成本地发布材料时：
 
@@ -59,11 +59,11 @@ juz package
 
 返回冻结目录 `bundleDir` 和 ZIP 文件 `archivePath`。此操作不需要平台登录，但安装消费者依赖仍可能访问 npm registry。ZIP 只包含清单及声明产物，不包含凭证、上传会话或项目源码目录。之后 `juz publish` 复用这份冻结材料。
 
-默认材料放在项目 `.component-releases/<版本-时间>/`，ZIP 与该版本目录并列。自定义 `--bundle-dir` 时请放在组件包外；若放在组件包内，必须位于该包 `.component-releases/` 的子目录，避免下一次打包包含先前的发布包。
+默认材料放在项目 `.component-releases/<包配置键>/<版本-时间>/`，ZIP 与该版本目录并列；每包恢复指针位于 `.component-state/`。自定义 `--bundle-dir` 时请放在组件包外；若放在组件包内，必须位于该包 `.component-releases/` 的子目录，避免下一次打包包含先前的发布包。
 
 **当前后台操作：解压 ZIP → 导入 manifest.json → 批量导入解压后的材料目录。** 后台暂不直接读取 ZIP；网页提交按既有规则标记为 manual-upload，不继承 CLI 自动验证来源。
 
-上传中断后重复 `juz publish` 恢复同一份材料与任务。版本不可覆盖；修改组件后升级组件包版本再发布。只修改源码但保留相同版本时，重试仍发布原冻结材料。配置发生变化时 CLI 提示重新准备材料；显式 `--bundle-dir <项目内原目录>` 可恢复原版本。
+上传中断后重复 `juz publish` 恢复同一份材料与任务。版本不可覆盖；修改组件后升级组件包版本再发布。源码、示例、API、文档、分类、消费者或依赖锁文件变化时拒绝隐式复用，须重新准备；显式 `--bundle-dir <项目内原目录>` 可恢复原版本。冻结分类不能直接改写。
 
 ## 首次需要开发者提供的资料
 

@@ -8,8 +8,9 @@ import { rootCertificates } from 'node:tls';
 import { validateOidcCliMetadata } from '../contracts/access-settings.js';
 import { credentialPath, resolvePlatformApiUrl, validPlatformToken } from '../local/credentials.js';
 
-export type LoginOptions = { apiOrigin?:string;token?:string;credentialFile?:string;caFile?:string;candidate?:string;administratorToken?:string;openBrowser?:(url:string)=>Promise<void>;timeoutMs?:number };
+export type LoginOptions = { apiOrigin?:string;token?:string;credentialFile?:string;caFile?:string;candidate?:string;administratorToken?:string;openBrowser?:(url:string)=>Promise<void>;timeoutMs?:number;signal?:AbortSignal };
 export async function companyLogin(options:LoginOptions):Promise<{authenticated:true;candidate:boolean;credentialFile?:string}> {
+  options.signal?.throwIfAborted();
   if (options.token !== undefined && !validPlatformToken(options.token)) throw new Error('Invalid token');
   if (options.token !== undefined && options.candidate !== undefined) throw new Error('Token and candidate login cannot be combined');
   if (options.timeoutMs !== undefined && (!Number.isSafeInteger(options.timeoutMs) || options.timeoutMs <= 0)) throw new Error('Invalid login timeout');
@@ -21,7 +22,7 @@ export async function companyLogin(options:LoginOptions):Promise<{authenticated:
   async function json(endpoint:string,body?:string,authorization?:string,form=false):Promise<unknown> {
     const url = new URL(endpoint);
     return new Promise((resolveResult,reject) => {
-      const req = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url,{method:body ? 'POST':'GET',...(url.protocol === 'https:' ? {ca,rejectUnauthorized:true} : {}),signal:AbortSignal.timeout(Math.min(options.timeoutMs ?? 10_000, 10_000)),headers:{accept:'application/json',...(body ? {'content-type':form ? 'application/x-www-form-urlencoded':'application/json'} : {}),...(authorization ? {authorization:'Bearer '+authorization} : {})}},res => {
+      const req = (url.protocol === 'https:' ? httpsRequest : httpRequest)(url,{method:body ? 'POST':'GET',...(url.protocol === 'https:' ? {ca,rejectUnauthorized:true} : {}),signal:AbortSignal.any([AbortSignal.timeout(Math.min(options.timeoutMs ?? 10_000, 10_000)),...(options.signal?[options.signal]:[])]),headers:{accept:'application/json',...(body ? {'content-type':form ? 'application/x-www-form-urlencoded':'application/json'} : {}),...(authorization ? {authorization:'Bearer '+authorization} : {})}},res => {
         const chunks:Buffer[]=[];let size=0;
         res.on('data',(chunk:Buffer)=>{size+=chunk.length;if(size>256000){res.destroy();reject(new Error('Response too large'));}else chunks.push(chunk);});
         res.on('end',()=>{try{if(!res.statusCode || res.statusCode<200 || res.statusCode>=300)throw new Error();resolveResult(JSON.parse(Buffer.concat(chunks).toString()));}catch{reject(new Error('Login failed'));}});res.on('error',reject);
@@ -49,6 +50,8 @@ export async function companyLogin(options:LoginOptions):Promise<{authenticated:
   const state=randomBytes(32).toString('base64url'),verifier=randomBytes(32).toString('base64url');
   let complete!:(code:string)=>void,fail!:(error:Error)=>void;
   const completion = new Promise<string>((accept,reject)=>{complete=accept;fail=reject;});
+  void completion.catch(()=>{});
+  const aborted=()=>fail(new Error('Login cancelled'));options.signal?.addEventListener('abort',aborted,{once:true});
   const server = createServer((req,res)=>{
     const url=new URL(req.url ?? '/',config.redirectUri);
     if (req.method !== 'GET' || req.headers.host !== redirect.host || url.pathname !== redirect.pathname || url.searchParams.get('state') !== state || url.searchParams.getAll('state').length !== 1 || url.searchParams.getAll('code').length !== 1 || [...url.searchParams.keys()].some(k=>!['code','state','iss','session_state'].includes(k)) || (url.searchParams.has('iss') && url.searchParams.get('iss') !== config.issuer)) {res.statusCode=400;res.end('Login callback rejected');return;}
@@ -76,5 +79,5 @@ export async function companyLogin(options:LoginOptions):Promise<{authenticated:
     const session=await json(apiOrigin+'/v1/auth/oidc/session',undefined,accessToken);
     if(!session || typeof session!=='object' || !('authenticated' in session) || session.authenticated!==true)throw new Error('Protected access denied');
     return{authenticated:true,candidate:false,credentialFile:await saveCredential(accessToken)};
-  } finally {clearTimeout(timer);server.closeAllConnections();await new Promise<void>(accept=>{if(!server.listening){accept();return;}server.close(()=>accept());});}
+  } finally {options.signal?.removeEventListener('abort',aborted);clearTimeout(timer);server.closeAllConnections();await new Promise<void>(accept=>{if(!server.listening){accept();return;}server.close(()=>accept());});}
 }

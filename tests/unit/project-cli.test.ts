@@ -129,7 +129,7 @@ describe('real project CLI configuration', () => {
   });
   it('runs configured development commands locally and validates API identity in doctor', async () => {
     const root = await project(); const value = await config(root);
-    const dev = await runCli(['dev', '--project', root, '--framework', 'react'], '0.0.27');
+    const dev = await runCli(['dev', '--script', '--project', root, '--framework', 'react'], '0.0.27');
     expect(dev.exitCode, dev.stderr).toBe(0); expect(await fs.readFile(path.join(root, 'component/dev-started'), 'utf8')).toBe('yes');
     const origin = await api();
     const doctor = await runCli(['doctor', '--project', root, '--framework', 'react', '--api-url', origin, '--token', 'unit-token'], '0.0.27');
@@ -141,7 +141,7 @@ describe('real project CLI configuration', () => {
   it('rejects project paths that escape the real root', async () => {
     const root = await project(); const value = await config(root); value.packageDir = '../outside';
     await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
-    const result = await runCli(['dev', '--project', root, '--framework', 'react'], '0.0.27');
+    const result = await runCli(['dev', '--script', '--project', root, '--framework', 'react'], '0.0.27');
     expect(result.exitCode).toBe(1); expect(result.stderr).toContain('PATH_OUTSIDE_PROJECT');
   });
   it('preserves SDK command help and version behavior', async () => {
@@ -161,7 +161,7 @@ describe('real project CLI configuration', () => {
     const value = await config(root);
     value.variants.push({ ...value.variants[0]!, framework: 'vue' });
     await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
-    const result = await runCli(['dev'], '0.0.27', { cwd: root });
+    const result = await runCli(['dev', '--script'], '0.0.27', { cwd: root });
     expect(result.exitCode).toBe(1); expect(result.stderr).toContain('--framework');
     await expect(fs.stat(path.join(root, 'component/dev-started'))).rejects.toThrow();
   });
@@ -169,7 +169,7 @@ describe('real project CLI configuration', () => {
     const root = await project(); await config(root); const outside = await project();
     await fs.rm(path.join(root, 'component'), { recursive: true });
     await fs.symlink(path.join(outside, 'component'), path.join(root, 'component'), 'junction');
-    const result = await runCli(['dev', '--project', root, '--framework', 'react'], '0.0.27');
+    const result = await runCli(['dev', '--script', '--project', root, '--framework', 'react'], '0.0.27');
     expect(result.exitCode).toBe(1); expect(result.stderr).toContain('PATH_OUTSIDE_PROJECT');
   });
 });

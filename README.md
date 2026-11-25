@@ -9,7 +9,7 @@ Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资�
 - **组件画廊**：浏览和检索组件，查看组件详情、API、检查报告与隔离预览。
 - **双框架 SDK**：提供折线图、柱状图、饼图、散点图、趋势卡、排行榜和占比图的 Vue/React 实现。
 - **资产发布**：支持 CLI 提交冻结 Bundle，以及网页上传预构建产物和手动截图；由独立 worker 协调包、预览资源与发布状态。
-- **真实项目发布**：`juz init/login/dev/package/publish` 登记、开发、一键发布已有组件子包或生成本地 ZIP，自动完成冻结与外部消费者验证；后台管理分类与组件/包授权。见 [CLI 使用指南](docs/guides/project-publishing.md)。
+- **本地组件工作台**：`juz create/init/dev/preview/package/publish` 支持新建/接入、多包及 React/Vue 切换、源码热更新、参数/数据/状态调试、保存示例及只读冻结预览，复用外部消费者截图和发布链路；旧开发脚本使用 `juz dev --script`。本地开发无需登录，发布前分配启用分类并检查权限。见 [工作台实操指南](docs/guides/juz-workbench.md) 和 [发布指南](docs/guides/project-publishing.md)。
 - **组件查询与装配**：按组件 ID、框架和精确包版本查询，通过显式设计 ID 映射生成装配方案；文本检索用于人工发现候选。
 - **本地项目接入**：支持工程识别、接入计划、受控应用与恢复、本地验证、有限修复和 stdio MCP。
 

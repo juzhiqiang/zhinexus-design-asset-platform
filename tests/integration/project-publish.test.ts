@@ -396,7 +396,7 @@ window.__COMPONENT_EXAMPLE__ = { ready: Promise.resolve(), states: ['default'], 
     await expect(execute(process.execPath, [bin, 'init', '--package', 'component', '--component', 'badge', '--export', 'BadgeVue', '--framework', 'vue', '--category', 'general'], options)).rejects.toMatchObject({ code: 1 });
     expect(await fs.readFile(configPath, 'utf8')).toBe(starter);
     const configured = JSON.parse(originalConfig); configured.dev.react = { program: process.execPath, args: ['-e', "require('fs').writeFileSync('dev-count','dev')"] }; await fs.writeFile(configPath, JSON.stringify(configured));
-    const developed = await execute(process.execPath, [bin, 'dev', '--framework', 'react'], options); expect(JSON.parse(developed.stdout).developed).toBe(true); expect(await fs.readFile(path.join(root, 'component/dev-count'), 'utf8')).toBe('dev');
+    const developed = await execute(process.execPath, [bin, 'dev', '--script', '--framework', 'react'], options); expect(JSON.parse(developed.stdout).developed).toBe(true); expect(await fs.readFile(path.join(root, 'component/dev-count'), 'utf8')).toBe('dev');
     const doctor = await execute(process.execPath, [bin, 'doctor', '--framework', 'all', '--api-url', origin, '--token', 'test-token'], options);
     expect(JSON.parse(doctor.stdout).ok).toBe(true);
     const prepared = await execute(process.execPath, [bin, 'prepare-release', '--framework', 'all', '--api-url', origin, '--token', 'test-token'], options);

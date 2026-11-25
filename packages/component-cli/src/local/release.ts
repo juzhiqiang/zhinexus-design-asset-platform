@@ -1,3 +1,5 @@
+import { operationTimeout,operationSignal } from '../project/lifecycle.js';
+import {setTimeout as delay} from 'node:timers/promises';
 import * as crypto from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
@@ -148,7 +150,7 @@ export async function executeReleaseCommand(
           authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ parts: [] }),
-        signal: AbortSignal.timeout(30_000),
+        signal: operationTimeout(30_000),
       });
     } catch (error) {
       throw new Error(`UPLOAD_COMPLETION_UNPROVEN: 无法核验原上传会话；已保留原 uploadSessionId、幂等键与冻结材料 (${error instanceof Error ? error.message : String(error)})`);
@@ -180,7 +182,7 @@ export async function executeReleaseCommand(
         manifestDigest: currentDigest,
         files: manifest.files,
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: operationTimeout(30_000),
     });
 
     if (!uploadReqRes.ok) {
@@ -214,7 +216,7 @@ export async function executeReleaseCommand(
           'content-type': 'application/octet-stream',
         },
         body: Buffer.from(fileBytes),
-        signal: AbortSignal.timeout(60_000),
+        signal: operationTimeout(60_000),
       });
 
       if (!putRes.ok) {
@@ -232,7 +234,7 @@ export async function executeReleaseCommand(
         authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ parts: [] }),
-      signal: AbortSignal.timeout(30_000),
+      signal: operationTimeout(30_000),
     });
 
     if (!completeRes.ok) {
@@ -262,7 +264,7 @@ export async function executeReleaseCommand(
         uploadSessionId: session.uploadSessionId,
         manifest,
       }),
-      signal: AbortSignal.timeout(30_000),
+      signal: operationTimeout(30_000),
     });
 
     if (!releaseRes.ok && releaseRes.status !== 202) {
@@ -287,7 +289,7 @@ export async function executeReleaseCommand(
       redirect: 'error', headers: {
         authorization: `Bearer ${token}`,
       },
-      signal: AbortSignal.timeout(15_000),
+      signal: operationTimeout(15_000),
     });
 
     if (!statusRes.ok) {
@@ -337,12 +339,12 @@ export async function executeReleaseCommand(
           authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({}),
-        signal: AbortSignal.timeout(15_000),
+        signal: operationTimeout(15_000),
       }).catch(() => {});
     }
 
     const pollInterval = options.pollIntervalMs ?? statusData.pollAfterMs ?? 1000;
-    await new Promise((resolve) => setTimeout(resolve, Math.min(pollInterval, 3000)));
+    await delay(Math.min(pollInterval, 3000),undefined,{signal:operationSignal()});
   }
 
   throw new Error(`RELEASE_TIMEOUT: 发布作业在 ${timeoutMs}ms 内未达到终态 (当前状态: ${session.state})`);
@@ -386,7 +388,7 @@ export async function executeStatusCommand(
     redirect: 'error', headers: {
       authorization: `Bearer ${token}`,
     },
-    signal: AbortSignal.timeout(15_000),
+    signal: operationTimeout(15_000),
   });
 
   if (!res.ok) {

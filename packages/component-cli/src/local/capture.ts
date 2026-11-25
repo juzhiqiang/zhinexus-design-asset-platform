@@ -8,6 +8,7 @@ import type { CheckResult, ComponentExample, Renderer, ScreenshotRef } from '../
 import type { Framework } from '../contracts/release-manifest.js';
 import { text } from '../contracts/schema.js';
 import { captureBrowserEnvironment } from '../integration/browser-environment.js';
+import { operationSignal } from '../project/lifecycle.js';
 
 export type CaptureOptions = {
   url: string;
@@ -76,7 +77,9 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
 
   await fs.promises.mkdir(options.outputDir, { recursive: true });
 
+  const signal=operationSignal();
   const browser = await chromium.launch({ headless: true });
+  const aborted=()=>{void browser.close().catch(()=>{});};signal?.addEventListener('abort',aborted,{once:true});if(signal?.aborted)aborted();
 
   try {
     const context = await browser.newContext({
@@ -274,6 +277,7 @@ export async function captureExample(options: CaptureOptions): Promise<CaptureRe
       checks: scopeCheckNames(stateChecksForReport),
     };
   } finally {
+    signal?.removeEventListener('abort',aborted);
     await browser.close();
   }
 }

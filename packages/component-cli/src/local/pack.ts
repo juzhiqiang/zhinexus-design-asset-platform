@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { computeFileSha256 } from './digest.js';
+import { componentEnvironment, operationSignal, bindChild } from '../project/lifecycle.js';
 
 export type PackOptions = {
   packageDir: string;
@@ -61,6 +62,7 @@ export function resolvePnpmExecutable(startDir: string = process.cwd()): string 
  * 执行 pnpm pack 将指定包打包为候选 tarball，保存至 outputDir，并计算其全链路 SHA-256 与文件尺寸。
  */
 export async function packPackage(options: PackOptions): Promise<PackResult> {
+  operationSignal();
   const packageDir = path.resolve(options.packageDir);
   const outputDir = path.resolve(options.outputDir);
 
@@ -88,14 +90,17 @@ export async function packPackage(options: PackOptions): Promise<PackResult> {
       ['pack', '--pack-destination', outputDir],
       {
         cwd: packageDir,
+        detached: process.platform !== 'win32',
+        windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],
         shell: isCmd && process.platform === 'win32',
         env: {
-          ...process.env,
+          ...componentEnvironment(),
           SOURCE_DATE_EPOCH: process.env.SOURCE_DATE_EPOCH || '1700000000',
         },
       },
     );
+    bindChild(child);
 
     let stderr = '';
     child.stderr?.on('data', (d) => {

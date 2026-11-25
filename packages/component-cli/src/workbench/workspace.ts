@@ -17,7 +17,7 @@ export async function readWorkspace(input:string, configFile?:string):Promise<Co
     const real=await fs.realpath(await projectPath(root,config));
     if(paths.has(real)) continue; paths.add(real);
     const project=await readProject(root,config);
-    if(projects.some(p=>p.packageDir===project.packageDir)) throw new Error('PACKAGE_DUPLICATE: '+project.pkg.name);
+    if(projects.some(p=>p.packageDir===project.packageDir||p.pkg.name===project.pkg.name)) throw new Error('PACKAGE_DUPLICATE: '+project.pkg.name);
     for(const variant of project.config.variants) {
       const id=variant.componentId+'-'+variant.framework;
       if(ids.has(id)) throw new Error('CONFIG_DUPLICATE: '+id); ids.add(id);

@@ -14,13 +14,17 @@ export function checked(input:unknown):PlaygroundV1 {
   if(!result.ok) throw new Error('PLAYGROUND_INVALID: '+JSON.stringify(result.issues));
   return result.value;
 }
-export async function savePlayground(project:LoadedProject,variant:ProjectVariant,expected:string,input:unknown) {
-  if(!variant.playground) throw new Error('PLAYGROUND_NOT_CONFIGURED');
+export async function validateExample(project:LoadedProject,variant:ProjectVariant,input:unknown) {
   const value=checked(input); const api=await readVariantApi(project,variant);
   for(const values of [value,...value.states]) for(const prop of api.props) {
     if(prop.required && !Object.hasOwn(values.props,prop.name) && value.dataProp!==prop.name) throw new Error('PLAYGROUND_INVALID: required '+prop.name);
     if(Object.hasOwn(values.props,prop.name) && ['number','string','boolean'].includes(prop.type) && typeof values.props[prop.name]!==prop.type) throw new Error('PLAYGROUND_INVALID: '+prop.name);
   }
+  return value;
+}
+export async function savePlayground(project:LoadedProject,variant:ProjectVariant,expected:string,input:unknown) {
+  if(!variant.playground) throw new Error('PLAYGROUND_NOT_CONFIGURED');
+  const value=await validateExample(project,variant,input);
   const target=await projectPath(project.root,variant.playground); const lock=target+'.lock';
   let handle;
   try { handle=await fs.open(lock,'wx'); } catch { throw new Error('EXAMPLE_BUSY'); }
