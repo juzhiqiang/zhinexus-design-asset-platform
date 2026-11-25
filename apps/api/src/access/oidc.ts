@@ -13,7 +13,13 @@ const record = (value:unknown): value is Record<string,unknown> => !!value && ty
 
 export class CompanyOidc {
   readonly network: RestrictedHttps;
-  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>, private readonly accounts?:import('../accounts/service.js').ManagedAccountsService) {
+  /**
+   * `adminLogin` is present only when the platform issues its own tokens, and pairs the
+   * authorization endpoint the local identity service publishes with the admin page that renders
+   * the credential form. `start` compares the endpoint it is about to send a browser to against
+   * the first half, so a deployment whose web login points at a company issuer is untouched.
+   */
+  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>, private readonly accounts?:import('../accounts/service.js').ManagedAccountsService, private readonly adminLogin?:{authorizationEndpoint:string;loginUrl:string}) {
     this.network = new RestrictedHttps(settings.options.outbound,settings.options.ca,resolveAddress);
   }
   async metadata(config:OidcAccessConfig): Promise<{ metadata:Discovery; keys:ReturnType<typeof createLocalJWKSet> }> {
@@ -119,7 +125,12 @@ export class CompanyOidc {
     const { metadata } = await this.metadata(config);
     const state = randomBytes(32).toString('base64url'), browser = randomBytes(32).toString('base64url'), nonce = randomBytes(32).toString('base64url'), verifier = randomBytes(32).toString('base64url');
     await this.db.query(`INSERT INTO oidc_attempts(state_hash,browser_hash,revision,generation,candidate,verifier,nonce,web_target,expires_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp()+interval '5 minutes')`,[digest(state),digest(browser),candidate ?? active.revision?.id ?? null,active.generation,!!candidate,verifier,nonce,webTarget]);
-    const url = new URL(metadata.authorization_endpoint);
+    // A browser that must sign in with platform-issued credentials is sent to the admin login page
+    // instead: the local identity service answers a plain GET of its authorization endpoint with a
+    // JSON descriptor, which no browser can act on. The page posts the credentials straight back to
+    // that endpoint, so the redirect target only changes for the human, never for the protocol.
+    const adminLogin = webTarget === 'admin' ? this.adminLogin : undefined;
+    const url = new URL(adminLogin && metadata.authorization_endpoint === adminLogin.authorizationEndpoint ? adminLogin.loginUrl : metadata.authorization_endpoint);
     url.search = new URLSearchParams({ response_type:'code',client_id:config.webClientId,redirect_uri:config.webRedirectUri,scope:['openid',...(config.scopes ?? [])].join(' '),state,nonce,code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256' }).toString();
     return { location:url.href,cookie:`__Host-oidc=${browser}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=Lax` };
   }

@@ -29,16 +29,19 @@ export const ADMIN_NAV_ITEMS: readonly AdminNavItem[] = [
 /**
  * 按路径名解析当前高亮的导航项。
  * `/jobs/[jobId]` 是上传发布的子页面，.pen 的画板 02 同样高亮「上传发布」。
+ * `/login` 不属于任何导航项：登录页没有侧栏高亮，也不该让人以为已经在某个工作台里。
  */
-export function resolveActiveNavKey(pathname: string): AdminNavKey {
+export function resolveActiveNavKey(pathname: string): AdminNavKey | null {
   if (pathname.startsWith('/match')) return 'match';
   if (pathname.startsWith('/access-settings')) return 'access';
   if (pathname.startsWith('/users')) return 'users';
+  if (pathname.startsWith('/login')) return null;
   return 'upload';
 }
 
 /** 顶栏两段式标题：固定「管理平台」+ 当前页面名。 */
 export function resolveTopbarPage(pathname: string): string {
+  if (pathname.startsWith('/login')) return '账号登录';
   if (pathname.startsWith('/jobs')) return '发布作业';
   if (pathname.startsWith('/categories')) return '组件分类';
   if (pathname.startsWith('/match')) return '项目上下文匹配';

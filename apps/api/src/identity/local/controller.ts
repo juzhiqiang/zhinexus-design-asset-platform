@@ -1,6 +1,7 @@
-import { Body, Controller, Get, HttpCode, Inject, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Post, Query, Res } from '@nestjs/common';
 import { Platform } from '../../platform.js';
 import { PlatformError } from '../../errors.js';
+import { isBrowserForm, loginFailureReason, loginFailureUrl } from './login-page.js';
 import type { LocalIdentityService } from './service.js';
 
 /**
@@ -16,7 +17,7 @@ export class LocalIdentityController {
     if (!this.platform.localIdentity) throw new PlatformError('INFRA_UNAVAILABLE');
     return this.platform.localIdentity;
   }
-  /** Validates an authorization request and describes the credential form to render. */
+  /** JSON descriptor of an authorization request; see `LocalIdentityService.describeAuthorization`. */
   @Get('authorize')
   authorizeForm(@Query() query: Record<string, unknown>) {
     // Query and body names follow the OIDC wire format; the service fields are camelCase.
@@ -25,16 +26,28 @@ export class LocalIdentityController {
       codeChallenge: query['code_challenge'], scope: query['scope'], nonce: query['nonce'],
     });
   }
+  /**
+   * Accepts the credential form the admin login page submits. The happy path is a redirect to the
+   * OIDC callback, exactly like any other authorization endpoint. A rejection cannot be a JSON
+   * error page, because the browser is sitting on a form it just posted: a form navigation is sent
+   * back to the login page with a closed-set reason instead, and every other client keeps the JSON
+   * error it has always received.
+   */
   @Post('authorize') @HttpCode(303)
-  async authorize(@Body() body: Record<string, unknown>, @Res() response: { redirect(code: number, url: string): void }) {
-    const grant = await this.runtime().authorize({
-      clientId: body['client_id'], redirectUri: body['redirect_uri'], state: body['state'],
-      codeChallenge: body['code_challenge'], scope: body['scope'], nonce: body['nonce'],
-      username: body['username'], password: body['password'], newPassword: body['new_password'],
-    });
-    const url = new URL(grant.redirectUri);
-    url.search = new URLSearchParams({ code: grant.code, state: grant.state }).toString();
-    response.redirect(303, url.href);
+  async authorize(@Body() body: Record<string, unknown>, @Res() response: { redirect(code: number, url: string): void }, @Headers('accept') accept?: string) {
+    try {
+      const grant = await this.runtime().authorize({
+        clientId: body['client_id'], redirectUri: body['redirect_uri'], state: body['state'],
+        codeChallenge: body['code_challenge'], scope: body['scope'], nonce: body['nonce'],
+        username: body['username'], password: body['password'], newPassword: body['new_password'],
+      });
+      const url = new URL(grant.redirectUri);
+      url.search = new URLSearchParams({ code: grant.code, state: grant.state }).toString();
+      response.redirect(303, url.href);
+    } catch (error) {
+      if (!(error instanceof PlatformError) || !isBrowserForm(accept)) throw error;
+      response.redirect(303, loginFailureUrl(this.platform.adminOrigin, body, loginFailureReason(error)));
+    }
   }
   @Post('token') @HttpCode(200)
   token(@Body() body: Record<string, unknown>) {

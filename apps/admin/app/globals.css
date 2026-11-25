@@ -781,6 +781,16 @@ select.zn-input {
   color: var(--zn-subtle);
 }
 
+/* --- 登录页表单（/login）--- */
+
+.zn-login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  max-width: 560px;
+  margin-top: 14px;
+}
+
 /* --- 徽章 --- */
 
 .zn-badge {

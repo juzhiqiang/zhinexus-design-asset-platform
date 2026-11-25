@@ -65,11 +65,17 @@ const policy = (value: unknown): string => {
 export class LocalIdentityService {
   constructor(private readonly store: LocalIdentityStore, private readonly keys: LocalSigningKeys, private readonly options: LocalIdentityOptions) {}
 
+  /**
+   * Where a browser is sent to authenticate. The same value is published as the discovery
+   * document's `authorization_endpoint`, so there is exactly one place that builds it.
+   */
+  get authorizationEndpoint(): string { return this.options.issuer.replace(/\/$/, '') + '/authorize'; }
+
   discovery(): Record<string, unknown> {
     const base = this.options.issuer.replace(/\/$/, '');
     return {
       issuer: this.options.issuer,
-      authorization_endpoint: `${base}/authorize`,
+      authorization_endpoint: this.authorizationEndpoint,
       token_endpoint: `${base}/token`,
       jwks_uri: `${base}/jwks`,
       response_types_supported: ['code'],
@@ -84,9 +90,11 @@ export class LocalIdentityService {
   async jwks(): Promise<{ keys: unknown[] }> { return this.keys.publicJwks(); }
 
   /**
-   * Validates an authorization request and returns what a credential form must render. The form
-   * itself is rendered by the gallery: this round ships a JSON descriptor rather than a native
-   * HTML login page, which is recorded as a known limitation.
+   * Describes the authorization request as JSON. No browser is sent here any more: a web login is
+   * redirected to the admin login page (`CompanyOidc.start`), which posts the credentials back to
+   * `POST /identity/authorize` on this same endpoint. The GET therefore only serves clients that
+   * want to validate a request before building a form of their own, and it deliberately accepts
+   * nothing and stores nothing.
    */
   describeAuthorization(value: AuthorizationRequest): { clientId: string; redirectUri: string; state: string; codeChallenge: string; nonce: string; scope: string } {
     const request = this.request(value);

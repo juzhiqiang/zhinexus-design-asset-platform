@@ -39,6 +39,16 @@ const ACCESS_VIEW = {
   audit: [] as unknown[],
 };
 
+/** 形状合法的授权请求，与本地身份服务 `CompanyOidc.start` 生成的参数同形。 */
+const LOGIN_QUERY = {
+  client_id: 'zhinexus-web',
+  redirect_uri: 'https://api.example.com/v1/auth/oidc/callback',
+  state: 's'.repeat(43),
+  code_challenge: 'c'.repeat(43),
+  nonce: 'n'.repeat(43),
+  scope: 'openid',
+};
+
 vi.mock('react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react')>();
   return {
@@ -83,9 +93,18 @@ function collectUsage(html: string): { classes: Set<string>; vars: Set<string> }
   return { classes, vars };
 }
 
-async function renderPage(load: () => Promise<{ default: () => unknown }>, props: Record<string, unknown> = {}): Promise<string> {
+/**
+ * 渲染一个页面组件。服务端组件（`/login`）是 async 函数，调用后拿到的是元素；
+ * 客户端组件必须照旧走 `createElement` + `renderToStaticMarkup`——直接调用会让它的 hook 在
+ * React 渲染之外执行，dispatcher 是 null。所以按「是不是 async 函数」分流，而不是先调用再看。
+ *
+ * 加载器只承诺 `default` 存在：各画板的 props 形状不同（`params`、`searchParams`、无参），
+ * 写死成 `() => unknown` 会让带 props 的画板在类型上就不合法。
+ */
+async function renderPage(load: () => Promise<{ default: unknown }>, props: Record<string, unknown> = {}): Promise<string> {
   const module = await load();
-  const element = createElement(module.default as never, props as never);
+  const component = module.default as (props: Record<string, unknown>) => unknown;
+  const element = component.constructor?.name === 'AsyncFunction' ? await component(props) : createElement(component as never, props as never);
   return renderToStaticMarkup(element as never);
 }
 
@@ -186,20 +205,19 @@ describe('控制台各画板可渲染且不引用未定义的样式', () => {
   });
 
   it('全部画板的类名与 CSS 变量都在 globals.css 中有定义', async () => {
-    const pages = [
-      () => import('../../apps/admin/app/upload/page.js'),
-      () => import('../../apps/admin/app/jobs/[jobId]/page.js'),
-      () => import('../../apps/admin/app/access-settings/page.js'),
-      () => import('../../apps/admin/app/users/page.js'),
-      () => import('../../apps/admin/app/match/page.js'),
+    const pages: Array<{ load: () => Promise<{ default: unknown }>; props: Record<string, unknown> }> = [
+      { load: () => import('../../apps/admin/app/upload/page.js'), props: {} },
+      { load: () => import('../../apps/admin/app/jobs/[jobId]/page.js'), props: { params: Promise.resolve({ jobId: 'job-web-manual-001' }) } },
+      { load: () => import('../../apps/admin/app/access-settings/page.js'), props: {} },
+      { load: () => import('../../apps/admin/app/users/page.js'), props: {} },
+      { load: () => import('../../apps/admin/app/match/page.js'), props: {} },
+      { load: () => import('../../apps/admin/app/login/page.js'), props: { searchParams: Promise.resolve(LOGIN_QUERY) } },
     ];
     const missingClasses = new Set<string>();
     const missingVars = new Set<string>();
-    for (const load of pages) {
-      reactSeam.inject = load === pages[2] ? ACCESS_VIEW : SESSION;
-      const { classes, vars } = collectUsage(
-        await renderPage(load, load === pages[1] ? { params: Promise.resolve({ jobId: 'job-web-manual-001' }) } : {}),
-      );
+    for (const { load, props } of pages) {
+      reactSeam.inject = load === pages[2]!.load ? ACCESS_VIEW : SESSION;
+      const { classes, vars } = collectUsage(await renderPage(load, props));
       for (const name of classes) if (!defined.has(name) && !KNOWN_EXTERNAL_CLASSES.has(name)) missingClasses.add(name);
       for (const name of vars) if (!declared.has(name)) missingVars.add(name);
     }

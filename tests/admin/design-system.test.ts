@@ -155,12 +155,13 @@ describe('侧栏导航与顶栏标题', () => {
     expect(ADMIN_NAV_ITEMS.map(item => item.label)).toEqual(['上传发布', '项目上下文匹配', '接入设置', '用户与权限']);
   });
 
-  it('/jobs/[jobId] 归属上传发布分区', () => {
+  it('/jobs/[jobId] 归属上传发布分区，/login 不属于任何分区', () => {
     expect(resolveActiveNavKey('/upload')).toBe('upload');
     expect(resolveActiveNavKey('/jobs/job-web-manual-001')).toBe('upload');
     expect(resolveActiveNavKey('/match')).toBe('match');
     expect(resolveActiveNavKey('/access-settings')).toBe('access');
     expect(resolveActiveNavKey('/users')).toBe('users');
+    expect(resolveActiveNavKey('/login')).toBeNull();
   });
 
   it('顶栏页面名跟随路由', () => {
@@ -169,5 +170,6 @@ describe('侧栏导航与顶栏标题', () => {
     expect(resolveTopbarPage('/match')).toBe('项目上下文匹配');
     expect(resolveTopbarPage('/access-settings')).toBe('接入设置');
     expect(resolveTopbarPage('/users')).toBe('用户与权限');
+    expect(resolveTopbarPage('/login')).toBe('账号登录');
   });
 });

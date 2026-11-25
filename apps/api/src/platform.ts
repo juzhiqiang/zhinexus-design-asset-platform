@@ -163,7 +163,7 @@ export class Platform {
             options.identityAdapter ?? new KeycloakIdentityAdapter(network, options.identity!));
         }
       }
-      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts);
+      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts,this.localIdentity ? {authorizationEndpoint:this.localIdentity.authorizationEndpoint,loginUrl:this.adminOrigin+'/login'} : undefined);
       if (this.accounts) this.identityWorker = new IdentityWorker(this.accounts);
     }
   }

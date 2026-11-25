@@ -40,7 +40,7 @@ API 已实现两端精确 CORS/CSRF 检查。登录分别用 `?target=gallery` �
 
 替换两模板的主机名、TLS路径、可信CIDR、listener和upstream。loopback upstream仅适合同机进程；Docker入口应通过私有edge网络使用真实服务地址。3000、3001、5173、5177及存储源端口均不得直接对公网开放。预览继续按独立注册域名或已授权IP分HTTPS端口模式隔离。
 
-API入口请求体上限8MiB，与Nest的8mb JSON上限配套。保留身份端点限速；日志不记查询串、Cookie和Authorization。/identity/默认拒绝，本次未集成独立本地身份服务。
+API入口请求体上限8MiB，与Nest的8mb JSON上限配套。保留身份端点限速；日志不记查询串、Cookie和Authorization。/identity/在公网边缘模板仍默认拒绝（`location /identity/ { return 404; }`）：本地身份服务（`PLATFORM_IDENTITY_MODE=local`）不在该模板的分拆范围内，把它搬到公网边缘需要单独一轮入口评审与测试。管理端登录页 `${PLATFORM_ADMIN_ORIGIN}/login` 把凭据 POST 到同一 API origin 的 `/identity/authorize`，因此只有在浏览器到该 origin 的 `/identity/` 可达的部署形态（例如自管栈的 API 直接跑在宿主上）才能完成本地模式登录；公网边缘形态下这一步会拿到 404，与登录页上线前一致。
 
 ## 构建与启动
 
