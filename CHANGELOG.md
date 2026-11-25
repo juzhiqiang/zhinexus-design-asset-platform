@@ -1,5 +1,17 @@
 # 更新日志
 
+## [0.1.5] - 2026-11-25
+
+### 新增
+
+- `pnpm infra:self-managed:up` 在 `PLATFORM_IDENTITY_MODE=local` 下自动播种首个平台管理员：建完容器后写入启用且凭据已置的管理员行与 `must_change=true` 的本地凭据，临时口令只在控制台打印一次；已有管理员时打印 `SELF_MANAGED_ADMINISTRATOR_PRESENT` 并跳过，播种失败则让 `up` 失败关闭。未配置本地身份模式时 `up` 行为不变。
+- 本地身份服务补发 `id_token`：新增迁移 `016_local_identity_nonce.sql` 为授权码增加 nonce 列，授权请求的可选 `nonce` 经 43 位 base64url 校验后随授权码留存，`token()` 在携带 nonce 时签发只含 `sub/aud/iss/exp/iat/nbf/jti/nonce` 的 id_token；CLI 回环流程不发 nonce，响应保持不变。
+
+### 修复
+
+- 本地身份服务签发令牌的 `sub` 原先取 `managed_accounts.platform_subject`，而平台按 `managed_accounts.subject` 查找账号，导致自管账号的网页登录必然失败关闭。现在 `LocalIdentityStore` 分别返回身份主体与平台主体：令牌用前者，会话与预览授权的撤销用后者（`oidc_sessions.principal` 与 `preview_grants.subject` 存的是平台主体）。
+- `seedFirstLocalAdministrator` 用 `strict` 区分两种调用方：独立命令对已有管理员报错，避免误以为轮换了唯一管理员的凭据；`up` 将其视为已播种的正常情况。
+
 ## [0.1.4] - 2026-11-25
 
 ### 新增
