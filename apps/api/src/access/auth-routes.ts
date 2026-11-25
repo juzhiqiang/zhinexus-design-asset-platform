@@ -49,7 +49,8 @@ export class CompanyAuthController {
   @Get('session')
   async session(@Headers('authorization') auth:string | undefined,@Req() request:{requestId:string}) {
     const principal = await this.checked('oidc-session',request.requestId,()=>this.platform.authenticate(auth));
-    const administrator = this.platform.access?.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject) ?? false;
+    const administrator = this.platform.devAdmin?.subject === principal.subject
+      || (this.platform.access?.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject) ?? false);
     return {authenticated:true,administrator,subject:principal.subject,roles:principal.roles};
   }
   @Get('cli')

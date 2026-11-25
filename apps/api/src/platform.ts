@@ -22,9 +22,10 @@ import { LocalIdentityService, type LocalIdentityOptions } from './identity/loca
 import { LocalIdentityStore } from './identity/local/store.js';
 import { LocalSigningKeys } from './identity/local/keys.js';
 import { LocalIdentityAdapter } from './identity/local/adapter.js';
+import { DevAdminAuth, type DevAdminConfig } from './identity/local/dev-admin.js';
 import { CategoryService } from './categories/service.js';
 
-export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter;localIdentity?: LocalIdentityOptions };
+export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter;localIdentity?: LocalIdentityOptions;devAdmin?: DevAdminConfig };
 function validateWebOrigin(value: string): string {
   let url: URL;
   try { url = new URL(value); } catch { throw new PlatformError('INVALID_SCHEMA'); }
@@ -122,6 +123,8 @@ export class Platform {
   readonly identityWorker?: IdentityWorker;
   /** Present when the platform issues its own tokens instead of delegating to Keycloak. */
   readonly localIdentity?: LocalIdentityService;
+  /** Local development default administrator login; never active alongside real OIDC/access config. */
+  readonly devAdmin?: DevAdminAuth;
   constructor(options: PlatformOptions) {
     if (options.access) validateAccessOptions(options.access);
     if (options.localIdentity) {
@@ -166,6 +169,9 @@ export class Platform {
       this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts,this.localIdentity ? {authorizationEndpoint:this.localIdentity.authorizationEndpoint,loginUrl:this.adminOrigin+'/login'} : undefined);
       if (this.accounts) this.identityWorker = new IdentityWorker(this.accounts);
     }
+    if (options.devAdmin && !options.oidc && !options.access && !options.localIdentity && !options.identity) {
+      this.devAdmin = new DevAdminAuth(options.devAdmin);
+    }
   }
   allowsWebOrigin(origin: string | undefined): boolean {
     return origin !== undefined && (origin === this.galleryOrigin || origin === this.adminOrigin);
@@ -178,6 +184,7 @@ export class Platform {
   async authenticate(authorization:string | undefined) {
     if (this.companyOidc) return this.companyOidc.authenticate(authorization);
     await this.requireAccessConfiguration();
+    if (this.devAdmin) return this.devAdmin.verify(authorization);
     const principal=await this.verifier.verify(authorization);
     await this.requireAccessConfiguration();
     return principal;

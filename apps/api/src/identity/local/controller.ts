@@ -52,9 +52,15 @@ export class LocalIdentityController {
   /** Direct username/password sign-in without an OIDC redirect roundtrip. */
   @Post('login') @HttpCode(200)
   login(@Body() body: Record<string, unknown>) {
-    return this.runtime().passwordLogin({
-      username: body['username'], password: body['password'], newPassword: body['new_password'],
-    });
+    if (this.platform.localIdentity) {
+      return this.platform.localIdentity.passwordLogin({
+        username: body['username'], password: body['password'], newPassword: body['new_password'],
+      });
+    }
+    if (this.platform.devAdmin) {
+      return this.platform.devAdmin.login(body['username'], body['password']);
+    }
+    throw new PlatformError('INFRA_UNAVAILABLE');
   }
   @Post('token') @HttpCode(200)
   token(@Body() body: Record<string, unknown>) {
