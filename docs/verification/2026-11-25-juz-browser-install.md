@@ -17,6 +17,8 @@
 | `pnpm verify:workspace` | 通过；11 个成员，公开包和服务端依赖边界不变 |
 | `pnpm exec vitest run tests/integration/juz-browser-install.test.ts tests/unit/juz-distribution.test.ts tests/unit/component-cli-onboarding.test.ts` | 3 文件、19/19 通过，耗时 78.29 秒 |
 | `git diff --check` | 通过 |
+| `pnpm --filter @company/component-cli pack:juz` | 升版后通过，生成 `juz-cli-0.0.30.tgz` |
+| 最终 tgz 的 npm 全局 prefix 安装、`juz --version`、`juz --help` | 通过；实际执行 postinstall 并复用缓存，shim 输出 `0.0.30` 和五个常用命令 |
 
 测试先观察旧分发包正常 npm 安装没有执行 Chromium 准备钩子，新增测试按预期失败；实现后通过。先前共享浏览器缓存安装与启动已通过，再使用独立空缓存验证首次真实下载；最终回归包含审查反馈修正。
 
@@ -25,6 +27,13 @@
 失败场景使用本地 HTTP 503 下载源和空缓存，真实执行 `npm rebuild`，确认退出码 1 和可操作的补装提示；另验证 `PLAYWRIGHT_BROWSERS_PATH=0` 包内缓存的失败提示。显式设置 `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` 后再次 rebuild，确认退出成功、没有下载请求、空缓存中没有 Chromium。
 
 只读复核发现并修正两点：成功提示限定为“下载/缓存准备完成”；补装统一通过已安装 juz-cli 的 rebuild 执行，避免 npx 的包内缓存与实际 CLI 不一致。复核后未发现新的实质问题。
+
+## 最终本地产物
+
+- 根版本 `0.1.7`，CLI `0.0.30`；功能提交 `9e9f702c`。
+- 分发包：`packages/component-cli/.release/juz-cli-0.0.30.tgz`，511715 字节，SHA-256 为 `992bc39699723f0575c57fad9685cf70795a63ae9e77e7400158c1665e2dffe0`。
+- 最终安装使用 `npm install --global --prefix <仓库>/.release/juz-0.0.30-validation --foreground-scripts --no-audit --no-fund <tgz>`，明确启用安装脚本和默认下载。npm 输出 `juz-cli@0.0.30 postinstall` 和 Chromium 下载/缓存完成，6 秒安装 56 个包，退出 0。
+- 安装验证保留在忽略目录 `.release/juz-0.0.30-validation`；未改写用户正常全局 CLI 安装。
 
 ## 验证边界
 
