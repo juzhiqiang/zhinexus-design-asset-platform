@@ -56,3 +56,49 @@
 ## 6. 状态
 
 `bootstrap-local` 的播种逻辑已在沙箱跑过并做过变异测试；从「建出管理员」到「在浏览器里用管理员创建成员」的端到端链路**未验证**，在 §5 两处确认前不能声称后台创建账号已可用。
+
+---
+
+# 追加：2026-11-25 本地网页登录契约修复
+
+用户随后确认「默认需要提供一个管理员账号去分配」，并选择「建栈时自动播种」+「两处登录契约缺陷都修」。本轮在上一条结论之后做完三件事。
+
+## A. 建栈时自动播种
+
+`infra/scripts/self-managed.ts` 的 `up` 在建完容器后调用 `seedOnStackUp()`：仅当 `PLATFORM_IDENTITY_MODE=local`（默认值与 `platform.ts` 一致取 `keycloak`）时播种首个管理员，因此未配置本地身份模式时 `up` 行为与之前完全一致。已有管理员打印 `SELF_MANAGED_ADMINISTRATOR_PRESENT` 并跳过；播种失败让 `up` 失败关闭——声称成功却没有管理员的栈比起不来更糟。播种逻辑抽成 `seedFirstLocalAdministrator({ strict })`，用重载区分两种调用方：独立命令 `bootstrap-local` 传 `strict: true`，已有管理员即报错，避免操作者误以为刚刚轮换了唯一管理员的凭据；`up` 传 `strict: false`，把这当作正常的已播种情况。
+
+## B. 令牌 `sub` 与账号查找键对齐
+
+`LocalIdentityStore.account()` 与 `loginCandidate()` 现在分别返回 `subject`（`managed_accounts.subject`，令牌 `sub` 用）和 `platformSubject`（`managed_accounts.platform_subject`，会话与预览授权用）。`identity/local/service.ts` 用 `subject` 签令牌，`identity/local/adapter.ts` 的 `revokeSessions` 改用 `platformSubject`——因为 `access/oidc.ts` 把平台主体存进 `oidc_sessions.principal`，`preview/service.ts` 也把平台主体存进 `preview_grants.subject`，撤权必须按平台主体删。两个字段分开返回，而不是把某一列改名，正是因为这两类消费者要的不是同一个值。
+
+## C. 本地身份服务补发 `id_token`
+
+`access/oidc.ts:139-141` 要求 token 响应里有 `id_token`，按 `exp/iat/sub/nonce` 校验、audience 为 web client，并比较 `sub` 与 access token 一致、`nonce` 与 attempt 里生成的一致。本轮：
+
+- 新增迁移 `016_local_identity_nonce.sql`，给 `local_authorization_codes` 加 `nonce` 列（默认空串，保证可对存量表执行；授权码只活 60 秒，存量行早已过期；空 nonce 只能来自迁移前的行，会在平台的 nonce 比对处失败关闭）。
+- `AuthorizationRequest` 增加可选 `nonce`，`request()` 校验为 43 位 base64url；**畸形 nonce 报错而不是静默丢弃**——丢掉它会让网页回调拿到一个验不通过的令牌，比 400 难查得多。CLI 回环流程不发 nonce，因此保持可选。
+- `tokens.ts` 新增 `issueIdToken`，只签 `sub/aud/iss/exp/iat/nbf/jti/nonce`：平台从 access token 读 roles、账号版本与 auth_time，在浏览器可见的 id_token 里重复它们只会扩大暴露面。
+- `token()` 仅在授权码带了 nonce 时签发 id_token，CLI 路径响应不变（`packages/component-cli/src/commands/login.ts:53` 只校验 `access_token` 与 `token_type`，多一个字段无影响）。
+- `controller.ts` 的 GET/POST `authorize` 透传 `nonce`。
+
+## D. 沙箱已实测
+
+- **`tests/unit/local-identity.test.ts` 真跑 23/23 通过**。这条值得单独说明：该文件第 11 行 import 了 `platform.ts`，会连带拖进 pg、@aws-sdk、@nestjs 一整棵依赖树，而 9p 挂载下 `node_modules` 的顶层与包内相对符号链接全部断裂。沙箱里的做法是把 `apps/api/src` 与 `packages/contracts` 复制到 `/tmp`，用绝对符号链接指向 `.pnpm` 里的实体包，缺一个补一个迭代 12 轮补齐 pg 与 aws-sdk 闭包，再写一个把 `.js` 相对导入改写到 `.ts` 的 ESM resolver，用 `node --experimental-transform-types` 跑。断言用的是自写 vitest 兼容垫片，匹配器全部真实断言。测试文件本体是仓库原文件，只改了导入扩展名。
+- **变异测试 6 项全被抓到**：令牌 `sub` 用回 `platform_subject`、撤权改用身份主体、不签发 id_token、CLI 路径也签发 id_token、id_token 的 aud 用错、授权码不携带 nonce——每项都让对应新断言失败（1 至 4 条不等），每次改后都与仓库文件 `diff` 一致。
+- **`tests/infra/self-managed-bootstrap.test.ts` 6/6 通过**（重构后复跑）。
+- **类型检查**：用 `typescript@6.0.3`（仓库锁定的 7.0.2 在 Linux 无可执行文件，沿用既有偏差）+ `paths` 指向实体 `jose` 与 contracts 声明，按 `tsconfig.base.json` 逐项复刻严格配置，覆盖 `identity/local/*`、`identity/adapter.ts`、`errors.ts`、两个测试文件与 `self-managed.ts`：**改动范围内 0 错误**。全程序另有 35 个错误，全部位于我未改动的文件，且全是 `pg`/`@aws-sdk`/`@company/contracts/preview` 无法解析级联出的 TS7006/TS2307/TS18046；同一配置跑改动前的基线，同类错误同样存在。
+- 期间类型检查真抓到两个缺陷：`seedFirstLocalAdministrator({strict:true})` 的返回值收窄不了导致 `seeded.username` 报 TS2339（改用重访解决），以及重载插入时多写了一行实现签名造成 TS1005。
+
+## E. 仍未验证
+
+`apps/api` 全量 `typecheck` 与 `build`（无 pnpm、Node 22.23.5 vs 固定 26.13.0）；`tests/platform/**` 的真实 PostgreSQL 集成；修好 `sub` 与 `id_token` 之后的**真实网页登录回跳与首次改密**（需要真实 HTTPS 入口与浏览器）；CLI 真实 PKCE 回环。宿主待跑：
+
+```powershell
+.\scripts\pnpm.ps1 typecheck
+.\scripts\pnpm.ps1 build
+.\scripts\pnpm.ps1 exec vitest run tests/unit/local-identity.test.ts tests/infra/self-managed-bootstrap.test.ts
+.\scripts\pnpm.ps1 exec vitest run --config tests/platform/vitest.config.ts tests/platform/managed-accounts.test.ts
+.\scripts\pnpm.ps1 test:browser
+```
+
+判定口径：管理员能用临时口令登录并在首次登录时改密；网页回调拿到含正确 `nonce` 与 `sub` 的 id_token；CLI 回环登录不因新增 id_token 而回归；停用成员后已有会话与预览授权立即失效，且按平台主体删除。

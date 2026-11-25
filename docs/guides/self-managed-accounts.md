@@ -56,11 +56,13 @@ pnpm infra:self-managed:bootstrap-local
 
 必填只有上表两项：issuer 必须是 https 且不带 userinfo/query/fragment（与 `apps/api/src/platform.ts` 同一套校验），数据库地址指向自有栈的 PostgreSQL。可用 `PLATFORM_SELF_MANAGED_ADMIN_USERNAME`（默认 `platform-admin`）与 `PLATFORM_SELF_MANAGED_ADMIN_DISPLAY_NAME`（默认 `平台管理员`）覆盖默认值。引导只连数据库，不校验其他部署配置，避免无关配置挡住播种。
 
+**`pnpm infra:self-managed:up` 已经会自动做这一步**：建完容器后，若 `PLATFORM_IDENTITY_MODE=local`（默认取 `keycloak`，与 `platform.ts` 同一套默认值）就播种首个管理员，因此新栈不需要第二条命令。已有管理员时打印 `SELF_MANAGED_ADMINISTRATOR_PRESENT` 并跳过；播种失败则让 `up` 失败关闭——一个声称成功却没有管理员的栈比起不来的栈更糟。仍想手动执行时用 `pnpm infra:self-managed:bootstrap-local`，它对已有管理员报错而不是跳过，避免误以为刚刚轮换了唯一管理员的凭据。
+
 命令会：先执行平台迁移（幂等，按校验和防改写）；同一 issuer 下已有管理员即拒绝；写入 `administrator=true, enabled=true, awaiting_activation=false, credentials_set=true, sync_state='synced'` 且 `remote_user_id` 取账号自身 id 的管理员行；按 `LocalIdentityStore.putCredential` 同样的 upsert 写入 `local_credentials` 且 `must_change=true`；补一条审计事件。**临时口令只在 stdout 打印一次**，不落库、不写仓库、不进日志——库里只有 scrypt 摘要。
 
 之后按既有环境启动 API（`PLATFORM_IDENTITY_MODE=local` + 同一 issuer + Web/CLI 回调），用临时口令在管理端登录，首次登录强制改密，即可进入「用户与权限」创建成员。
 
-本地模式**尚未实测**的链路（见 `docs/verification/2026-11-25-local-administrator-bootstrap.md`）：真实网页登录回跳与首次改密、CLI PKCE 回环。其中「本地身份服务签发的 `sub` 取 `platform_subject`，而 `verifiedAccount` 按 `managed_accounts.subject` 查找」这一处契约不一致会阻断网页登录，须先在宿主确认后再排端到端验收。
+本地模式**尚未实测**的链路（见 `docs/verification/2026-11-25-local-administrator-bootstrap.md`）：真实网页登录回跳与首次改密、CLI PKCE 回环。本轮已按静态比对修掉两处会阻断网页登录的契约缺陷——本地身份服务签令牌的 `sub` 取 `platform_subject` 而平台按 `managed_accounts.subject` 查找、token 端点不返回 `id_token`——但均只在沙箱单测层验证，未在真实 HTTPS 入口与浏览器中跑通。
 
 ## 4. 从初始化到验收的试用步骤
 
@@ -81,4 +83,4 @@ pnpm infra:self-managed:bootstrap-local
 
 ## 6. 未验证项
 
-以下项目在本轮**未实测**，不能据本说明声称已完成：Keycloak 版本与镜像 digest；`platform_account_version` 与 `auth_time` 是否确实出现在 access token；首次改密后的登录与 `auth_time` 变化；realm 管理服务账号的最小角色集；真实浏览器验收与正式部署验收；`pnpm infra:self-managed:bootstrap-local` 的真实 PostgreSQL 播种与随后的网页登录。相关证据按设计第 8 节单独记录。
+以下项目在本轮**未实测**，不能据本说明声称已完成：Keycloak 版本与镜像 digest；`platform_account_version` 与 `auth_time` 是否确实出现在 access token；首次改密后的登录与 `auth_time` 变化；realm 管理服务账号的最小角色集；真实浏览器验收与正式部署验收；`pnpm infra:self-managed:bootstrap-local` 与 `up` 自动播种对真实 PostgreSQL 的写入；修好 `sub` 与 `id_token` 之后的真实网页登录回跳。相关证据按设计第 8 节单独记录。

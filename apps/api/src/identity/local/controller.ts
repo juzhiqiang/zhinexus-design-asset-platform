@@ -22,14 +22,14 @@ export class LocalIdentityController {
     // Query and body names follow the OIDC wire format; the service fields are camelCase.
     return this.runtime().describeAuthorization({
       clientId: query['client_id'], redirectUri: query['redirect_uri'], state: query['state'],
-      codeChallenge: query['code_challenge'], scope: query['scope'],
+      codeChallenge: query['code_challenge'], scope: query['scope'], nonce: query['nonce'],
     });
   }
   @Post('authorize') @HttpCode(303)
   async authorize(@Body() body: Record<string, unknown>, @Res() response: { redirect(code: number, url: string): void }) {
     const grant = await this.runtime().authorize({
       clientId: body['client_id'], redirectUri: body['redirect_uri'], state: body['state'],
-      codeChallenge: body['code_challenge'], scope: body['scope'],
+      codeChallenge: body['code_challenge'], scope: body['scope'], nonce: body['nonce'],
       username: body['username'], password: body['password'], newPassword: body['new_password'],
     });
     const url = new URL(grant.redirectUri);

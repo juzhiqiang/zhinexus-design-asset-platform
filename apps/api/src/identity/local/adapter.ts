@@ -36,10 +36,15 @@ export class LocalIdentityAdapter implements IdentityAdapter {
     await this.store.putCredential(remoteUserId, await hashPassword(password), true);
   }
 
+  /**
+   * Sessions and preview grants are keyed by the platform subject — `oidc_sessions.principal`
+   * holds `bound.subject` and `preview_grants.subject` the same value — so revocation must use
+   * `platformSubject`. The identity subject is what tokens carry, not what grants are filed under.
+   */
   async revokeSessions(remoteUserId: string): Promise<void> {
     const account = await this.store.account(remoteUserId);
     if (!account) return;
-    await this.store.revokeSubjectAccess(account.subject);
+    await this.store.revokeSubjectAccess(account.platformSubject);
   }
 
   async findByUsername(username: string): Promise<RemoteAccount | undefined> {

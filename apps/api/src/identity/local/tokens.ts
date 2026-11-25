@@ -22,6 +22,36 @@ export type TokenSubject = {
 };
 export type TokenIssuer = { issuer: string; audience: string; clientId: string };
 
+export type IdTokenSubject = {
+  /** Identity-service subject; must equal the access token's `sub`. */
+  subject: string;
+  /** The OIDC nonce from the authorization request, echoed back for the platform to compare. */
+  nonce: string;
+};
+export type IdTokenIssuer = { issuer: string; clientId: string };
+
+/**
+ * Issues the id_token the web callback requires. `access/oidc.ts` verifies it with
+ * `requiredClaims: ['exp','iat','sub','nonce']`, audience equal to the web client, and then checks
+ * `payload.sub` against the access token's subject and `payload.nonce` against the nonce it
+ * generated for the attempt. Only those claims are emitted: the platform reads roles, account
+ * version and auth_time from the access token, so duplicating them here would only widen what a
+ * browser-visible token discloses.
+ */
+export async function issueIdToken(key: CryptoKey, kid: string, subject: IdTokenSubject, config: IdTokenIssuer, now = Math.floor(Date.now() / 1000)): Promise<string> {
+  if (!subject.nonce) throw new Error('ID token must echo the request nonce');
+  return new SignJWT({ nonce: subject.nonce })
+    .setProtectedHeader({ alg: 'ES256', kid })
+    .setSubject(subject.subject)
+    .setIssuer(config.issuer)
+    .setAudience(config.clientId)
+    .setIssuedAt(now)
+    .setNotBefore(now)
+    .setExpirationTime(now + ACCESS_TOKEN_SECONDS)
+    .setJti(randomUUID())
+    .sign(key);
+}
+
 /** Rejects role names the verifier would refuse, so a bad record fails at issuance not at use. */
 const safeRoles = (roles: ManagedAccountRole[]): ManagedAccountRole[] => {
   const allowed = new Set<string>(MANAGED_ACCOUNT_ROLES);

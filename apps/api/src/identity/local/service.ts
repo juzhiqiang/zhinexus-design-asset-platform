@@ -3,7 +3,7 @@ import { PlatformError } from '../../errors.js';
 import type { ManagedAccountRole, ValidationIssue } from '@company/contracts';
 import { DUMMY_PASSWORD_HASH, PasswordPolicyError, assertPasswordPolicy, hashPassword, verifyPassword } from './password.js';
 import { LocalSigningKeys } from './keys.js';
-import { ACCESS_TOKEN_SECONDS, issueAccessToken } from './tokens.js';
+import { ACCESS_TOKEN_SECONDS, issueAccessToken, issueIdToken } from './tokens.js';
 import type { LocalIdentityStore } from './store.js';
 
 export type LocalIdentityOptions = {
@@ -18,6 +18,11 @@ export type LocalIdentityOptions = {
 };
 export type AuthorizationRequest = {
   clientId: unknown; redirectUri: unknown; state: unknown; codeChallenge: unknown; scope?: unknown;
+  /**
+   * OIDC nonce, echoed back in the id_token. The web flow always sends one (`CompanyOidc.start`);
+   * the CLI loopback flow does not and never receives an id_token, so it stays optional.
+   */
+  nonce?: unknown;
 };
 /** Credential submission; every field arrives from an untrusted request body. */
 export type AuthorizationSubmission = AuthorizationRequest & { username: unknown; password: unknown; newPassword?: unknown };
@@ -38,6 +43,16 @@ const detail = (path: string, message: string): ValidationIssue => ({ code: 'INV
 const clientId = (value: unknown): string | undefined => typeof value === 'string' && /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value) ? value : undefined;
 const challenge = (value: unknown): string | undefined => typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/.test(value) ? value : undefined;
 const state = (value: unknown): string | undefined => typeof value === 'string' && /^[A-Za-z0-9_-]{8,512}$/.test(value) ? value : undefined;
+/**
+ * The nonce has the shape `CompanyOidc.start` generates (32 random bytes, base64url). A nonce that
+ * is present but malformed is rejected rather than dropped: silently ignoring it would strand the
+ * web callback with a token it cannot verify, which is far harder to diagnose than a 400.
+ */
+const nonce = (value: unknown): string => {
+  if (value === undefined || value === null || value === '') return '';
+  if (typeof value !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(value)) throw new PlatformError('INVALID_SCHEMA');
+  return value;
+};
 /** Policy failures must surface as a 400 schema error, never as an unhandled exception. */
 const policy = (value: unknown): string => {
   try { assertPasswordPolicy(value); } catch (error) {
@@ -73,20 +88,20 @@ export class LocalIdentityService {
    * itself is rendered by the gallery: this round ships a JSON descriptor rather than a native
    * HTML login page, which is recorded as a known limitation.
    */
-  describeAuthorization(value: AuthorizationRequest): { clientId: string; redirectUri: string; state: string; codeChallenge: string; scope: string } {
+  describeAuthorization(value: AuthorizationRequest): { clientId: string; redirectUri: string; state: string; codeChallenge: string; nonce: string; scope: string } {
     const request = this.request(value);
     return { ...request, scope: 'openid' };
   }
 
   /** Validates an authorization request before any credential is shown or accepted. */
-  private request(value: AuthorizationRequest): { clientId: string; redirectUri: string; codeChallenge: string; state: string } {
+  private request(value: AuthorizationRequest): { clientId: string; redirectUri: string; codeChallenge: string; state: string; nonce: string } {
     const id = clientId(value.clientId);
     const allowed = id === this.options.webClientId ? this.options.webRedirectUris : id === this.options.cliClientId ? this.options.cliRedirectUris : [];
     const redirect = typeof value.redirectUri === 'string' && allowed.includes(value.redirectUri) ? value.redirectUri : undefined;
     const proof = challenge(value.codeChallenge);
-    const nonce = state(value.state);
-    if (!id || !redirect || !proof || !nonce) throw new PlatformError('INVALID_SCHEMA');
-    return { clientId: id, redirectUri: redirect, codeChallenge: proof, state: nonce };
+    const browser = state(value.state);
+    if (!id || !redirect || !proof || !browser) throw new PlatformError('INVALID_SCHEMA');
+    return { clientId: id, redirectUri: redirect, codeChallenge: proof, state: browser, nonce: nonce(value.nonce) };
   }
 
   /**
@@ -114,13 +129,21 @@ export class LocalIdentityService {
     const code = randomBytes(32).toString('base64url');
     await this.store.putAuthorizationCode(code, {
       accountId: candidate.accountId, clientId: request.clientId, redirectUri: request.redirectUri,
-      codeChallenge: request.codeChallenge, accountVersion: candidate.version, authTime: now,
+      codeChallenge: request.codeChallenge, accountVersion: candidate.version, authTime: now, nonce: request.nonce,
     });
     return { code, state: request.state, redirectUri: request.redirectUri };
   }
 
-  /** Exchanges a code for an access token. Every mismatch fails closed and silently. */
-  async token(value: { code: unknown; codeVerifier: unknown; clientId: unknown; redirectUri: unknown }): Promise<{ access_token: string; token_type: 'Bearer'; expires_in: number; scope: string }> {
+  /**
+   * Exchanges a code for tokens. Every mismatch fails closed and silently.
+   *
+   * The id_token is issued only when the authorization request carried a nonce, which is exactly
+   * the web flow: `access/oidc.ts` requires an id_token, verifies it against the web client as
+   * audience, and compares its `sub` with the access token's subject and its `nonce` with the nonce
+   * it generated. The CLI loopback flow sends no nonce and consumes only the access token, so it
+   * keeps receiving a response with no id_token.
+   */
+  async token(value: { code: unknown; codeVerifier: unknown; clientId: unknown; redirectUri: unknown }): Promise<{ access_token: string; id_token?: string; token_type: 'Bearer'; expires_in: number; scope: string }> {
     const id = clientId(value.clientId);
     const verifier = typeof value.codeVerifier === 'string' ? value.codeVerifier : '';
     if (!id || typeof value.code !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(verifier) || typeof value.redirectUri !== 'string') throw new PlatformError('INVALID_SCHEMA');
@@ -130,11 +153,18 @@ export class LocalIdentityService {
     const active = await this.accountFor(claimed.accountId);
     if (!active || !active.enabled) throw new PlatformError('UNAUTHENTICATED');
     const { kid, key } = await this.keys.active();
+    const now = Math.floor(Date.now() / 1000);
     const accessToken = await issueAccessToken(key, kid, {
       subject: active.subject, managedUserId: active.managedUserId, roles: active.roles as ManagedAccountRole[],
       accountVersion: claimed.accountVersion, authTime: claimed.authTime,
-    }, { issuer: this.options.issuer, audience: this.options.audience, clientId: claimed.clientId });
-    return { access_token: accessToken, token_type: 'Bearer', expires_in: ACCESS_TOKEN_SECONDS, scope: 'openid' };
+    }, { issuer: this.options.issuer, audience: this.options.audience, clientId: claimed.clientId }, now);
+    const response: { access_token: string; id_token?: string; token_type: 'Bearer'; expires_in: number; scope: string } = {
+      access_token: accessToken, token_type: 'Bearer', expires_in: ACCESS_TOKEN_SECONDS, scope: 'openid',
+    };
+    if (claimed.nonce) {
+      response.id_token = await issueIdToken(key, kid, { subject: active.subject, nonce: claimed.nonce }, { issuer: this.options.issuer, clientId: claimed.clientId }, now);
+    }
+    return response;
   }
 
   private async accountFor(accountId: string) { return this.store.account(accountId); }

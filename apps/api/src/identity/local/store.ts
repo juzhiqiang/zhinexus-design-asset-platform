@@ -3,11 +3,26 @@ import type { Queryable } from './keys.js';
 
 /** Credential record for one managed account; the hash is opaque to every other module. */
 export type StoredCredential = { accountId: string; passwordHash: string; mustChange: boolean };
-export type AuthorizationCode = { accountId: string; clientId: string; accountVersion: string; authTime: number };
+export type AuthorizationCode = { accountId: string; clientId: string; accountVersion: string; authTime: number; nonce: string };
 export const AUTHORIZATION_CODE_SECONDS = 60;
-/** An account as the identity service sees it: enough to decide a login and sign a token. */
+/**
+ * An account as the identity service sees it: enough to decide a login and sign a token.
+ *
+ * `subject` and `platformSubject` are deliberately separate. A signed token carries `subject` —
+ * the identity-service subject — because `resolveSelfManaged` looks the account up by
+ * `managed_accounts.subject`. Sessions and preview grants are keyed by `platformSubject`, because
+ * `access/oidc.ts` stores the platform subject in `oidc_sessions.principal` and
+ * `preview/service.ts` stores it in `preview_grants.subject`. Returning only one of the two made
+ * every self-managed web login fail closed, and no test could catch it: the unit fake had no
+ * `subject` column at all.
+ */
 export type LoginCandidate = {
-  accountId: string; subject: string; managedUserId: string; username: string;
+  accountId: string;
+  /** Identity-service subject; this is what a signed token carries as `sub`. */
+  subject: string;
+  /** Platform subject; what sessions and preview grants are keyed by. */
+  platformSubject: string;
+  managedUserId: string; username: string;
   roles: string[]; enabled: boolean; version: string; authTimeFloor: number;
 };
 
@@ -33,11 +48,11 @@ export class LocalIdentityStore {
   }
 
   /** Re-read at token time so a disable issued after the code was created still blocks the grant. */
-  async account(accountId: string): Promise<{ subject: string; managedUserId: string; roles: string[]; enabled: boolean } | undefined> {
-    const found = (await this.db.query<Record<string, unknown>>('SELECT platform_subject,roles,enabled FROM managed_accounts WHERE id=$1', [accountId])).rows[0];
+  async account(accountId: string): Promise<{ subject: string; platformSubject: string; managedUserId: string; roles: string[]; enabled: boolean } | undefined> {
+    const found = (await this.db.query<Record<string, unknown>>('SELECT subject,platform_subject,roles,enabled FROM managed_accounts WHERE id=$1', [accountId])).rows[0];
     if (!found) return undefined;
     const roles = Array.isArray(found['roles']) ? found['roles'].filter((value): value is string => typeof value === 'string') : [];
-    return { subject: String(found['platform_subject']), managedUserId: accountId, roles, enabled: found['enabled'] === true };
+    return { subject: String(found['subject']), platformSubject: String(found['platform_subject']), managedUserId: accountId, roles, enabled: found['enabled'] === true };
   }
 
   async usernameOf(accountId: string): Promise<string> {
@@ -49,12 +64,13 @@ export class LocalIdentityStore {
   /** Scoped by issuer so a username can never resolve against another identity source. */
   async loginCandidate(issuer: string, username: string): Promise<LoginCandidate | undefined> {
     const found = (await this.db.query<Record<string, unknown>>(
-      'SELECT id,platform_subject,username,display_name,roles,enabled,version,auth_time_floor FROM managed_accounts WHERE issuer=$1 AND username=$2',
+      'SELECT id,subject,platform_subject,username,display_name,roles,enabled,version,auth_time_floor FROM managed_accounts WHERE issuer=$1 AND username=$2',
       [issuer, username])).rows[0];
     if (!found) return undefined;
     const roles = Array.isArray(found['roles']) ? found['roles'].filter((value): value is string => typeof value === 'string') : [];
     return {
-      accountId: String(found['id']), subject: String(found['platform_subject']), managedUserId: String(found['id']),
+      accountId: String(found['id']), subject: String(found['subject']), platformSubject: String(found['platform_subject']),
+      managedUserId: String(found['id']),
       username: String(found['username']), roles, enabled: found['enabled'] === true,
       version: String(found['version']), authTimeFloor: Number(found['auth_time_floor'] ?? 0),
     };
@@ -62,12 +78,14 @@ export class LocalIdentityStore {
 
   /**
    * Stores a code bound to the client, redirect URI and PKCE challenge. The code itself is never
-   * persisted — only its digest — so a leaked table cannot be replayed.
+   * persisted — only its digest — so a leaked table cannot be replayed. The request nonce is kept
+   * beside it because the id_token must echo it and the platform compares it against the nonce it
+   * generated for the attempt.
    */
-  async putAuthorizationCode(code: string, value: { accountId: string; clientId: string; redirectUri: string; codeChallenge: string; accountVersion: string; authTime: number }): Promise<void> {
-    await this.db.query(`INSERT INTO local_authorization_codes(code_hash,account_id,client_id,redirect_uri,code_challenge,account_version,auth_time,expires_at)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,clock_timestamp()+interval '${AUTHORIZATION_CODE_SECONDS} seconds')`,
-      [digest(code), value.accountId, value.clientId, value.redirectUri, value.codeChallenge, value.accountVersion, value.authTime]);
+  async putAuthorizationCode(code: string, value: { accountId: string; clientId: string; redirectUri: string; codeChallenge: string; accountVersion: string; authTime: number; nonce: string }): Promise<void> {
+    await this.db.query(`INSERT INTO local_authorization_codes(code_hash,account_id,client_id,redirect_uri,code_challenge,account_version,auth_time,nonce,expires_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,clock_timestamp()+interval '${AUTHORIZATION_CODE_SECONDS} seconds')`,
+      [digest(code), value.accountId, value.clientId, value.redirectUri, value.codeChallenge, value.accountVersion, value.authTime, value.nonce]);
   }
 
   /**
@@ -80,10 +98,10 @@ export class LocalIdentityStore {
     const claimed = (await this.db.query<Record<string, unknown>>(
       `UPDATE local_authorization_codes SET consumed_at=clock_timestamp() WHERE code_hash=$1 AND consumed_at IS NULL AND expires_at>clock_timestamp()
         AND client_id=$2 AND redirect_uri=$3 AND code_challenge=$4
-       RETURNING account_id,account_version,auth_time`,
+       RETURNING account_id,account_version,auth_time,nonce`,
       [digest(code), clientId, redirectUri, challenge])).rows[0];
     if (!claimed) return undefined;
-    return { accountId: String(claimed['account_id']), clientId, accountVersion: String(claimed['account_version']), authTime: Number(claimed['auth_time']) };
+    return { accountId: String(claimed['account_id']), clientId, accountVersion: String(claimed['account_version']), authTime: Number(claimed['auth_time']), nonce: String(claimed['nonce'] ?? '') };
   }
 
   /** Drops every live session and preview grant for one subject; used by revocation. */

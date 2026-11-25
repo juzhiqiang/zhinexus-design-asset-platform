@@ -128,14 +128,22 @@ export async function seedLocalAdministrator(sql: SeedingSql, seed: LocalAdminis
   ['deployment:self-managed-bootstrap-local', 'MANAGED_ACCOUNT_CREATE', seed.username, JSON.stringify({ username: seed.username, result: 'passed', administrator: true })]);
 }
 
+export type SeededAdministrator = { created: true; username: string; temporaryPassword: string } | { created: false };
+
+export async function seedFirstLocalAdministrator(options: { strict: true }): Promise<{ created: true; username: string; temporaryPassword: string }>;
+export async function seedFirstLocalAdministrator(options: { strict: false }): Promise<SeededAdministrator>;
+
 /**
- * Keycloak-free first administrator for `PLATFORM_IDENTITY_MODE=local`. The platform's own
- * identity service holds credentials in `local_credentials` and exposes no administration
- * surface, so this is the only way an administrator can come to exist; without one,
- * `requireAdministrator` rejects every managed-account call and the console cannot create
- * accounts at all. Migrations run first so a fresh stack needs a single command.
+ * Seeds the first platform administrator for the local identity service, or reports that one
+ * already exists. Shared by `bootstrap-local` and by `up`, which seeds automatically so a fresh
+ * stack is usable without a second command: the default deployment must hand the operator an
+ * administrator, because without one no member can be created and no permission assigned.
+ *
+ * `strict` distinguishes the two callers. The standalone command refuses to run against a
+ * directory that already has an administrator, so an operator cannot silently think they just
+ * rotated the only administrator's credential; `up` treats that as the normal, already-seeded case.
  */
-async function bootstrapLocal(): Promise<void> {
+export async function seedFirstLocalAdministrator(options: { strict: boolean }): Promise<SeededAdministrator> {
   const issuer = assertSelfManagedIssuer(process.env['PLATFORM_SELF_MANAGED_ISSUER']);
   const databaseUrl = process.env['PLATFORM_DATABASE_URL'];
   if (!databaseUrl) throw new Error('PLATFORM_DATABASE_URL is required; the local identity service stores credentials in the platform database');
@@ -151,16 +159,35 @@ async function bootstrapLocal(): Promise<void> {
   try {
     await migrateRegistry(platform.db!);
     const id = randomUUID(), subject = randomUUID();
-    await platform.db!.transaction(async sql => {
-      if (await localAdministratorPresent(sql, issuer)) throw new Error('A platform administrator already exists for this issuer; this bootstrap only runs on an empty directory');
+    const seeded = await platform.db!.transaction(async sql => {
+      if (await localAdministratorPresent(sql, issuer)) {
+        if (options.strict) throw new Error('A platform administrator already exists for this issuer; this bootstrap only runs on an empty directory');
+        return false;
+      }
       await seedLocalAdministrator(sql, {
         id, subject, platformSubject: managedPlatformSubject(issuer, subject), issuer,
         username, displayName, roles: ['reader'], passwordHash: await hashPassword(password),
       });
+      return true;
     });
+    return seeded ? { created: true, username, temporaryPassword: password } : { created: false };
   } finally { await platform.onApplicationShutdown(); }
+}
+
+/**
+ * Keycloak-free first administrator for `PLATFORM_IDENTITY_MODE=local`. The platform's own
+ * identity service holds credentials in `local_credentials` and exposes no administration
+ * surface, so this is the only way an administrator can come to exist; without one,
+ * `requireAdministrator` rejects every managed-account call and the console cannot create
+ * accounts at all. Migrations run first so a fresh stack needs a single command.
+ */
+async function bootstrapLocal(): Promise<void> {
+  const seeded = await seedFirstLocalAdministrator({ strict: true });
   // The password is shown once, only to the operator, and never written to the repository.
-  process.stdout.write(JSON.stringify({ event: 'SELF_MANAGED_BOOTSTRAPPED_LOCAL', issuer, administrator: username, temporaryPassword: password, note: '首次登录必须更换该临时口令；口令只在本行输出一次' }, null, 2) + '\n');
+  process.stdout.write(JSON.stringify({
+    event: 'SELF_MANAGED_BOOTSTRAPPED_LOCAL', administrator: seeded.username, temporaryPassword: seeded.temporaryPassword,
+    note: '首次登录必须更换该临时口令；口令只在本行输出一次',
+  }, null, 2) + '\n');
 }
 
 async function bootstrap(): Promise<void> {
@@ -216,10 +243,32 @@ async function bootstrap(): Promise<void> {
   process.stdout.write(JSON.stringify({ event: 'SELF_MANAGED_BOOTSTRAPPED', issuer, realm: 'zhinexus', administrator: username, temporaryPassword: password, trustCa: join(directory, 'ca-certificate.pem') }, null, 2) + '\n');
 }
 
+/**
+ * Seeds the first administrator when the stack runs the platform's own identity service. A fresh
+ * local stack must hand the operator a usable administrator: without one, `requireAdministrator`
+ * rejects every managed-account request and the console can neither create accounts nor assign any
+ * permission. Failures are fatal — a stack that reports success while silently having no
+ * administrator is worse than one that refuses to come up.
+ */
+async function seedOnStackUp(): Promise<void> {
+  // The same default `apps/api/src/platform.ts` applies, so the gate cannot drift from the API's.
+  if ((process.env['PLATFORM_IDENTITY_MODE'] ?? 'keycloak') !== 'local') return;
+  const seeded = await seedFirstLocalAdministrator({ strict: false });
+  if (!seeded.created) {
+    process.stdout.write(JSON.stringify({ event: 'SELF_MANAGED_ADMINISTRATOR_PRESENT', note: '该 issuer 下已有平台管理员，未重复播种' }) + '\n');
+    return;
+  }
+  process.stdout.write(JSON.stringify({
+    event: 'SELF_MANAGED_ADMINISTRATOR_SEEDED', administrator: seeded.username, temporaryPassword: seeded.temporaryPassword,
+    note: '首次登录必须更换该临时口令；口令只在本行输出一次，不写入仓库',
+  }, null, 2) + '\n');
+}
+
 const command = process.argv[2];
 if (command === 'up') {
   initialize();
   docker(composeArgs(['up', '-d', '--wait']), { visible: true });
+  await seedOnStackUp();
   process.stdout.write(JSON.stringify({ event: 'SELF_MANAGED_STACK_UP', ...endpoints }) + '\n');
 } else if (command === 'stop') {
   docker(composeArgs(['down']), { visible: true });

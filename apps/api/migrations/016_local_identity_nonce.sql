@@ -1,0 +1,12 @@
+-- Local identity web login: the OIDC `nonce` must survive from the authorization request to the
+-- id_token. `apps/api/src/access/oidc.ts` verifies the id_token with
+-- `requiredClaims: ['exp','iat','sub','nonce']` and then compares `payload.nonce` against the nonce
+-- it generated for the attempt, so an authorization code that cannot carry its nonce can never
+-- produce an id_token the platform would accept.
+--
+-- The empty default keeps the column addable against a live table: codes live 60 seconds, so any row
+-- predating this migration is already expired and unreachable. The service validates the request
+-- nonce before storing it, so a new row always carries a 43-character base64url value; an empty
+-- nonce could only come from a pre-migration row and would fail the platform's nonce comparison,
+-- failing closed instead of issuing a token.
+ALTER TABLE local_authorization_codes ADD COLUMN nonce text NOT NULL DEFAULT '';
