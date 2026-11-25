@@ -47,6 +47,10 @@ export async function installProjectConsumer(project: LoadedProject, variant: Pr
     await fs.mkdir(path.dirname(path.join(target, relative)), { recursive: true });
     await fs.copyFile(path.join(template.root, relative), path.join(target, relative));
   }
+  if (variant.playground) {
+    const { readPlayground } = await import('../workbench/examples.js');
+    await fs.writeFile(path.join(target, 'playground.json'), JSON.stringify((await readPlayground(project, variant)).value, null, 2) + '\n');
+  }
   const pkg = { ...template.pkg, dependencies: { ...(template.pkg.dependencies as Record<string, string> ?? {}), [frozen.packageName]: 'file:' + frozen.tarballPath.replace(/\\/g, '/') } };
   await fs.writeFile(path.join(target, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
   await fs.writeFile(path.join(target, '.npmrc'), 'strict-peer-dependencies=true\nengine-strict=true\nignore-scripts=true\n');
@@ -69,7 +73,7 @@ export async function installProjectConsumer(project: LoadedProject, variant: Pr
   const moduleName = frozen.packageName + variant.exportPath.slice(1);
   const installedPackageRoot = await fs.realpath(path.join(target, 'node_modules', frozen.packageName));
   if (!inside(target, installedPackageRoot)) throw new Error('CONSUMER_SOURCE_LINK: frozen package root');
-  const releaseArtifacts = new Set(['.component-releases', '.component-release.json', '.component-release.json.tmp', '.release-session.json']);
+  const releaseArtifacts = new Set(['.component-state', '.component-releases', '.component-release.json', '.component-release.json.tmp', '.release-session.json']);
   async function rejectReleaseArtifacts(directory: string): Promise<void> {
     for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
       const absolute = path.join(directory, entry.name);

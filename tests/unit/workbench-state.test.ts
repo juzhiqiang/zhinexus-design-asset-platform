@@ -1,0 +1,32 @@
+import * as fs from 'node:fs/promises';
+import * as os from 'node:os';
+import * as path from 'node:path';
+import { afterEach,expect,it } from 'vitest';
+import { runCli } from '../../packages/component-cli/src/cli.js';
+it('serializes package mutations across callers and recovers a dead owner lock',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-lock-'));roots.push(root);await runCli(['create','demo','--framework','react'],'0.1.0',{cwd:root});
+ const {readWorkspace}=await import('../../packages/component-cli/src/workbench/workspace.js');
+ const {acquirePackageLock}=await import('../../packages/component-cli/src/workbench/lock.js');const project=(await readWorkspace(path.join(root,'demo'))).projects[0]!;
+ const first=await acquirePackageLock(project);await expect(acquirePackageLock(project)).rejects.toThrow('PACKAGE_BUSY');await first();const next=await acquirePackageLock(project);await next();
+ const {pointerPath}=await import('../../packages/component-cli/src/workbench/state.js');
+ await fs.writeFile((await pointerPath(project)).replace(/\.json$/,'.lock'),JSON.stringify({pid:2147483647,nonce:'stale'}));const recovered=await acquirePackageLock(project);await recovered();
+});
+const roots:string[]=[];
+afterEach(async()=>{for(const r of roots.splice(0))await fs.rm(r,{recursive:true,force:true});});
+it('uses independently owned recovery pointers and fingerprints real source, docs and example inputs',async()=>{
+ const root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-fingerprint-'));roots.push(root);
+ await runCli(['create','demo','--framework','all'],'0.1.0',{cwd:root});
+ const {readWorkspace}=await import('../../packages/component-cli/src/workbench/workspace.js');
+ const {inputFingerprint,pointerPath,readPointer}=await import('../../packages/component-cli/src/workbench/state.js');
+ const projects=(await readWorkspace(path.join(root,'demo'))).projects;const p=projects[0]!,other=projects[1]!;
+ expect(await pointerPath(p)).not.toBe(await pointerPath(other));
+ const first=await inputFingerprint(p);
+ await fs.writeFile(path.join(p.root,'pnpm-lock.yaml'),'lockfileVersion: 9');expect(await inputFingerprint(p)).not.toBe(first);
+ await fs.appendFile(path.join(p.root,p.config.variants[0]!.sourceEntry!),'\n// source edit');expect(await inputFingerprint(p)).not.toBe(first);
+ const source=await inputFingerprint(p);await fs.appendFile(path.join(p.root,p.config.variants[0]!.docs),'\nDoc edit');expect(await inputFingerprint(p)).not.toBe(source);
+ const docs=await inputFingerprint(p);const example=path.join(p.root,p.config.variants[0]!.playground!);await fs.writeFile(example,(await fs.readFile(example,'utf8')).replace('Hello juz','Saved'));expect(await inputFingerprint(p)).not.toBe(docs);
+ const before=await inputFingerprint(p);await fs.mkdir(path.join(p.packageDir,'dist'),{recursive:true});await fs.writeFile(path.join(p.packageDir,'dist/index.js'),'output');expect(await inputFingerprint(p)).toBe(before);
+ await fs.writeFile(path.join(p.root,'.component-release.json'),JSON.stringify({configFile:'wrong.json',packageName:p.pkg.name,packageVersion:p.pkg.version,bundleDir:'fake',configDigest:'0'.repeat(64),manifestDigest:'0'.repeat(64)}));
+ expect(await readPointer(p)).toBeUndefined();
+});
+

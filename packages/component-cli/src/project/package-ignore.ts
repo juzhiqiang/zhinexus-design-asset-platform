@@ -16,7 +16,7 @@ export async function excludeRootReleaseArtifacts(root: string): Promise<void> {
   };
   const existing = await readIgnore('.npmignore');
   const previous = existing ?? await readIgnore('.gitignore') ?? '';
-  const exclusions = '\n# juz local release artifacts\n/.component-releases/\n/.component-release.json\n/.component-release.json.tmp\n/.release-session.json\n';
+  const exclusions = '\n# juz local release artifacts\n/.component-releases/\n/.component-state/\n/.component-release.json\n/.component-release.json.tmp\n/.release-session.json\n';
   const target = await projectPath(root, '.npmignore', true);
   if (existing === undefined) await writeFile(target, previous + exclusions, { flag: 'wx' });
   else await appendFile(target, exclusions);

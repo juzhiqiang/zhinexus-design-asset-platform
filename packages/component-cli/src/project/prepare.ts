@@ -12,6 +12,7 @@ import { inside, projectPath, readVariantApi, type LoadedProject, type ProjectVa
 import { installProjectConsumer } from './consumer.js';
 import { buildProjectConsumer } from './vite-consumer.js';
 import { runLocal } from './process.js';
+import { inputFingerprint } from '../workbench/state.js';
 
 export async function loadProjectBundle(bundleDir: string) {
   const root = await fs.realpath(bundleDir);
@@ -71,6 +72,7 @@ export async function prepareProject(project: LoadedProject, variants: ProjectVa
   try { await fs.access(bundleDir); throw new Error('BUNDLE_EXISTS: 请恢复原材料或选择新的 --bundle-dir'); } catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error; }
   await fs.mkdir(bundleDir, { recursive: true });
   log('本地构建组件包'); await runLocal(project.config.build, project.packageDir, log, timeoutMs);
+  const inputDigest=await inputFingerprint(project);
   const staging = await fs.mkdtemp(path.join(os.tmpdir(), 'component-project-frozen-'));
   const consumers: string[] = [];
   try {
@@ -91,6 +93,9 @@ export async function prepareProject(project: LoadedProject, variants: ProjectVa
       log('实际安装解析: ' + JSON.stringify({ variantId, packageSha256: frozen.sha256, ...installed }));
       const provenance = await buildProjectConsumer(consumer, variant, installed.installedEntry, frozen.packageName + variant.exportPath.slice(1), log, timeoutMs);
       const built = await projectPath(consumer, variant.consumer.previewDir);
+      if (variant.playground) {
+        await fs.copyFile(path.join(consumer, 'playground.json'), path.join(built, 'playground.json'));
+      }
       const previewRelative = 'preview/' + variantId;
       const previewRoot = path.join(bundleDir, previewRelative);
       const copied = await previewFiles(built, previewRoot);
@@ -117,8 +122,9 @@ export async function prepareProject(project: LoadedProject, variants: ProjectVa
     }
     await verify(frozen);
     manifest.files.sort((a, b) => a.path.localeCompare(b.path));
+    if(await inputFingerprint(project)!==inputDigest)throw new Error('INPUTS_CHANGED_DURING_PREPARE: 输入在验证时发生变化，请重新准备候选材料');
     await fs.writeFile(path.join(bundleDir, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n', { flag: 'wx' });
-    return loadProjectBundle(bundleDir);
+    return {...await loadProjectBundle(bundleDir),inputDigest};
   } finally {
     for (const directory of [...consumers, staging]) {
       if (!inside(await fs.realpath(os.tmpdir()), directory) || !/^component-project-(consumer|frozen)-/.test(path.basename(directory))) throw new Error('REFUSING_UNOWNED_CLEANUP');

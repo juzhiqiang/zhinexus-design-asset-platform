@@ -5,14 +5,13 @@ import { doctorProject, publishingAccess, validateProjectFiles } from '../projec
 import { runLocal } from '../project/process.js';
 import { loadProjectBundle, prepareProject } from '../project/prepare.js';
 import { manifestDigest } from '../contracts/digests.js';
-import { z } from 'zod';
+import { readWorkspace, selectProject } from '../workbench/workspace.js';
+import { configRelative, inputFingerprint, readPointer, writePointer, stateKey } from '../workbench/state.js';
+import { acquirePackageLock } from '../workbench/lock.js';
 import { canonicalJson } from '../contracts/schema.js';
 import { computeBufferSha256 } from '../local/digest.js';
 import { createBundleZip } from '../project/archive.js';
 import { excludeRootReleaseArtifacts } from '../project/package-ignore.js';
-
-const pointerFile = '.component-release.json';
-const pointerSchema = z.strictObject({ configFile: z.string(), configDigest: z.string().regex(/^[a-f0-9]{64}$/), packageName: z.string(), packageVersion: z.string(), bundleDir: z.string(), manifestDigest: z.string().regex(/^[a-f0-9]{64}$/) });
 
 export type ProjectCliContext = { cwd?: string; onProgress?: (message: string) => void; prompt?: (label: string, defaultValue?: string) => Promise<string>; select?: (label: string, choices: { value: string; label: string }[]) => Promise<string> };
 
@@ -53,6 +52,7 @@ async function validateNewBundleDirectory(packageDir: string, bundleDir: string)
   }
 }
 export async function runProjectCommand(command: string, args: readonly string[], version: string, context: ProjectCliContext = {}) {
+  let releaseLock: (() => Promise<void>) | undefined;
   try {
     const options: Record<string, string> = {}; let prepareOnly = false;
     const allowed = ['--project', '--config', '--package', '--component', '--export', '--export-path', '--source', '--framework', '--category', '--api-url', '--token', '--bundle-dir', '--timeout', '--key', '--idempotency-key'];
@@ -110,7 +110,8 @@ export async function runProjectCommand(command: string, args: readonly string[]
       await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
       return { exitCode: 0, stdout: JSON.stringify({ configPath, next: '运行 juz dev 开发现有组件；填写 API/docs/消费者模板及就绪协议后运行 juz package 或 juz publish' }) + '\n', stderr: '' };
     }
-    const project = await readProject(root, configFile);
+    const project = await selectProject(await readWorkspace(root, options['--config']), options['--package'], context.select);
+    if (!['dev','doctor'].includes(command)) releaseLock = await acquirePackageLock(project);
     const configDigest = computeBufferSha256(canonicalJson(project.config));
     const timeoutMs = options['--timeout'] ? Number(options['--timeout']) : 120_000;
     if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) throw new Error('ARGUMENT_INVALID: --timeout');
@@ -118,18 +119,19 @@ export async function runProjectCommand(command: string, args: readonly string[]
     // Frozen materials are authoritative for recovery; current category enablement
     // and developer source edits cannot cause them to be rebuilt or packed again.
     if (command === 'release' && !prepareOnly) {
-      let pointer: z.infer<typeof pointerSchema> | undefined;
-      try { pointer = pointerSchema.parse(JSON.parse(await fs.readFile(await projectPath(root, pointerFile), 'utf8'))); }
-      catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') && !(error instanceof Error && error.message.startsWith('PROJECT_FILE_MISSING'))) throw error; }
+      const pointer = await readPointer(project);
       const explicitBundle = options['--bundle-dir'];
-      const relative = explicitBundle ?? (pointer?.configFile === configFile && pointer.packageName === project.pkg.name && pointer.packageVersion === project.pkg.version ? pointer.bundleDir : undefined);
+      const relative = explicitBundle ?? pointer?.bundleDir;
       if (relative && !explicitBundle && pointer?.configDigest !== configDigest) throw new Error('CONFIG_CHANGED: 配置已变化，请先升级组件包版本并 prepare-release 新材料；恢复原材料请显式 --bundle-dir ' + pointer?.bundleDir);
+      if (relative && !explicitBundle && pointer?.inputDigest && pointer.inputDigest !== await inputFingerprint(project)) throw new Error('INPUTS_CHANGED: 源码、示例、API 或文档已变化；请准备新候选材料。恢复原材料请显式 --bundle-dir ' + pointer.bundleDir);
       if (relative) {
         const bundleDir = await projectPath(root, relative, true);
         try { await fs.access(path.join(bundleDir, 'manifest.json')); }
         catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error; }
         if (await fs.stat(path.join(bundleDir, 'manifest.json')).catch(() => undefined)) {
           const prepared = await loadProjectBundle(bundleDir);
+          if (options['--category'] && prepared.manifest.variants.some(v => v.category !== options['--category'])) throw new Error('CONFIG_CHANGED: 冻结分类不可改写，请准备新候选材料');
+          if (!prepared.manifest.packages.some(p => p.name === project.pkg.name && p.version === project.pkg.version)) throw new Error('FROZEN_PACKAGE_MISMATCH');
           if (pointer && !explicitBundle && await manifestDigest(prepared.manifest) !== pointer.manifestDigest) throw new Error('FROZEN_MANIFEST_MISMATCH');
           log('恢复原冻结发布材料，复用原会话: ' + bundleDir);
           const { executeReleaseCommand } = await import('../local/release.js');
@@ -152,16 +154,15 @@ export async function runProjectCommand(command: string, args: readonly string[]
       await runLocal(dev, project.packageDir, log, options['--timeout'] ? timeoutMs : 0);
       return { exitCode: 0, stdout: JSON.stringify({ framework: selected, developed: true }) + '\n', stderr: '' };
     }
+    if (variants.some(v => !v.category)) throw new Error('CATEGORY_REQUIRED: 冻结前请分配分类，使用 --category <后台分类 ID> 或工作台分类面板');
     const access = command === 'package' ? (await validateProjectFiles(project, variants), undefined) : await doctorProject(project, variants, options['--api-url'], options['--token']);
     if (command === 'doctor' && access) return { exitCode: 0, stdout: JSON.stringify({ ok: true, subject: access.identity.subject, packageName: project.pkg.name, variants: variants.map(v => v.componentId + '-' + v.framework) }) + '\n', stderr: '' };
-    const relativeBundle = options['--bundle-dir'] ?? path.join('.component-releases', project.pkg.version + '-' + Date.now());
+    const relativeBundle = options['--bundle-dir'] ?? path.join('.component-releases', stateKey(project), project.pkg.version + '-' + Date.now());
     const bundleDir = await projectPath(root, relativeBundle, true);
     await validateNewBundleDirectory(project.packageDir, bundleDir);
     const prepared = await prepareProject(project, variants, bundleDir, version, log, timeoutMs);
-    const pointer = { configFile, configDigest, packageName: project.pkg.name, packageVersion: project.pkg.version, bundleDir: relativeBundle, manifestDigest: await manifestDigest(prepared.manifest) };
-    const pointerPath = await projectPath(root, pointerFile, true);
-    await fs.writeFile(pointerPath + '.tmp', JSON.stringify(pointer, null, 2) + '\n');
-    await fs.rename(pointerPath + '.tmp', pointerPath);
+    const pointer = { configFile: configRelative(project), configDigest, inputDigest: prepared.inputDigest, packageName: project.pkg.name, packageVersion: project.pkg.version, bundleDir: relativeBundle, manifestDigest: await manifestDigest(prepared.manifest) };
+    await writePointer(project, pointer);
     if (command === 'package') {
       const archivePath = await createBundleZip(prepared.bundleDir);
       return { exitCode: 0, stdout: JSON.stringify({ archivePath, bundleDir: prepared.bundleDir, manifest: prepared.manifest }) + '\n', stderr: '' };
@@ -171,4 +172,5 @@ export async function runProjectCommand(command: string, args: readonly string[]
     const result = await executeReleaseCommand({ bundleDir, apiUrl: access?.apiUrl, token: access?.token, timeoutMs, idempotencyKey: options['--key'] ?? options['--idempotency-key'], onProgress: log });
     return { exitCode: result.ok ? 0 : 1, stdout: JSON.stringify({ bundleDir, ...result }) + '\n', stderr: result.ok ? '' : (result.error ?? 'RELEASE_FAILED') + '\n' };
   } catch (error) { return { exitCode: 1, stdout: '', stderr: (error instanceof Error ? error.message : String(error)) + '\n' }; }
+  finally { await releaseLock?.(); }
 }

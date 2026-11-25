@@ -49,6 +49,8 @@ const DEFAULT_IGNORED_DIRS = new Set([
   'coverage',
   '.release-freeze',
   '.component-releases',
+  '.component-state',
+  '.superpowers',
 ]);
 
 const DEFAULT_IGNORED_EXTENSIONS = new Set([
