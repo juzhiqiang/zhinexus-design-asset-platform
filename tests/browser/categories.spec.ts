@@ -128,12 +128,39 @@ test.describe('built admin controls with mocked API responses (not persistence e
       expect(plan.subject).toBe('operator'); expect(plan.manifestDigest).toMatch(/^[0-9a-f]{64}$/);
     } finally { await rm(directory, { recursive: true, force: true }); }
   });
-  test('requires login and redirects unauthenticated visits to login', async ({ page }) => {
+  test('requires login and redirects unauthenticated visits to login with password and OIDC PKCE options', async ({ page }) => {
     await page.route('**/v1/auth/oidc/session', route => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
+    const directToken = `header.${Buffer.from(JSON.stringify({ sub: 'admin', roles: ['publisher'], azp: 'zhinexus-web' })).toString('base64url')}.sig`;
+    let loginCalls = 0;
+    await page.route('**/identity/login', async route => {
+      loginCalls += 1;
+      const body = route.request().postDataJSON();
+      if (loginCalls === 1) {
+        return route.fulfill({ status: 503, json: { code: 'INFRA_UNAVAILABLE' } });
+      }
+      if (!body.new_password) {
+        return route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED', details: [{ code: 'INVALID_SCHEMA', path: 'newPassword', message: '首次登录必须设置新密码' }] } });
+      }
+      return route.fulfill({ status: 200, json: { access_token: directToken, token_type: 'Bearer', expires_in: 300, scope: 'openid' } });
+    });
+    await page.route(`${api}/v1/categories**`, route => route.fulfill({ json: { items: [] } }));
     await page.goto('/categories');
     await expect(page).toHaveURL(/\/login\?next=%2Fcategories$/);
     await expect(page.getByRole('heading', { name: '管理员登录', exact: true })).toBeVisible();
+    await expect(page.getByRole('link', { name: '账号登录', exact: true })).toBeVisible();
     await expect(page.getByRole('button', { name: '创建分类', exact: true })).toHaveCount(0);
+
+    await page.getByLabel('用户名').fill('admin');
+    await page.getByLabel('密码', { exact: true }).fill('temp-pass-1234');
+    await page.getByRole('button', { name: '密码登录', exact: true }).click();
+    await expect(page.locator('main [role="alert"]')).toContainText('本地账号密码服务未启用');
+
+    await page.getByRole('button', { name: '密码登录', exact: true }).click();
+    await expect(page.getByLabel('新密码')).toBeVisible();
+    await page.getByLabel('新密码').fill('fresh-pass-5678');
+    await page.getByRole('button', { name: '密码登录', exact: true }).click();
+    await expect(page).toHaveURL(/\/categories$/);
+    await expect(page.getByRole('heading', { name: '组件分类', exact: true })).toBeVisible();
   });
   test('creates, renames and toggles a stable ID; stale CAS keeps edits until explicit refresh', async ({ page }) => {
     await login(page);

@@ -112,13 +112,8 @@ export class LocalIdentityService {
     return { clientId: id, redirectUri: redirect, codeChallenge: proof, state: browser, nonce: nonce(value.nonce) };
   }
 
-  /**
-   * Verifies credentials and, on success, mints a single-use authorization code bound to the
-   * request. A first login must supply a replacement password in the same submission, otherwise
-   * the platform-issued temporary credential could never be retired.
-   */
-  async authorize(value: AuthorizationSubmission): Promise<AuthorizationGrant> {
-    const request = this.request(value);
+  /** Shared credential verification with constant-time dummy fallback and first-login replacement. */
+  private async verifyCredentials(value: { username: unknown; password: unknown; newPassword?: unknown }) {
     const username = typeof value.username === 'string' ? value.username.trim().toLowerCase() : '';
     if (!username || typeof value.password !== 'string') throw new PlatformError('UNAUTHENTICATED', [detail('username', GENERIC_LOGIN_FAILURE)]);
     const candidate = await this.store.loginCandidate(this.options.issuer, username);
@@ -128,11 +123,22 @@ export class LocalIdentityService {
     if (!candidate || !credential || !passwordOk) throw new PlatformError('UNAUTHENTICATED', [detail('username', GENERIC_LOGIN_FAILURE)]);
     if (!candidate.enabled) throw new PlatformError('FORBIDDEN', [detail('username', GENERIC_LOGIN_FAILURE)]);
     if (credential.mustChange) {
-      if (value.newPassword === undefined) throw new PlatformError('UNAUTHENTICATED', [detail('newPassword', '首次登录必须设置新密码')]);
+      if (value.newPassword === undefined || value.newPassword === '') throw new PlatformError('UNAUTHENTICATED', [detail('newPassword', '首次登录必须设置新密码')]);
       const replacement = policy(value.newPassword);
       if (replacement === value.password) throw new PlatformError('INVALID_SCHEMA', [detail('newPassword', '新密码不能与当前密码相同')]);
       await this.store.putCredential(candidate.accountId, await hashPassword(replacement), false);
     }
+    return candidate;
+  }
+
+  /**
+   * Verifies credentials and, on success, mints a single-use authorization code bound to the
+   * request. A first login must supply a replacement password in the same submission, otherwise
+   * the platform-issued temporary credential could never be retired.
+   */
+  async authorize(value: AuthorizationSubmission): Promise<AuthorizationGrant> {
+    const request = this.request(value);
+    const candidate = await this.verifyCredentials(value);
     const now = Math.floor(Date.now() / 1000);
     const code = randomBytes(32).toString('base64url');
     await this.store.putAuthorizationCode(code, {
@@ -140,6 +146,18 @@ export class LocalIdentityService {
       codeChallenge: request.codeChallenge, accountVersion: candidate.version, authTime: now, nonce: request.nonce,
     });
     return { code, state: request.state, redirectUri: request.redirectUri };
+  }
+
+  /** Direct username/password sign-in for the admin login page, issuing a standard ES256 access token. */
+  async passwordLogin(value: { username: unknown; password: unknown; newPassword?: unknown }): Promise<{ access_token: string; token_type: 'Bearer'; expires_in: number; scope: string }> {
+    const candidate = await this.verifyCredentials(value);
+    const { kid, key } = await this.keys.active();
+    const now = Math.floor(Date.now() / 1000);
+    const accessToken = await issueAccessToken(key, kid, {
+      subject: candidate.subject, managedUserId: candidate.managedUserId, roles: candidate.roles as ManagedAccountRole[],
+      accountVersion: candidate.version, authTime: now,
+    }, { issuer: this.options.issuer, audience: this.options.audience, clientId: this.options.webClientId }, now);
+    return { access_token: accessToken, token_type: 'Bearer', expires_in: ACCESS_TOKEN_SECONDS, scope: 'openid' };
   }
 
   /**

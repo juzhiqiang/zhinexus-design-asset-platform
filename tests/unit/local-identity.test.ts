@@ -335,6 +335,32 @@ describe('standalone password change', () => {
   });
 });
 
+describe('direct password login', () => {
+  it('issues a verifiable ES256 access token and enforces first-login password replacement', async () => {
+    const { db, accounts, credentials } = fakeDatabase();
+    const store = new LocalIdentityStore(db);
+    const keys = new LocalSigningKeys(db);
+    const service = new LocalIdentityService(store, keys, options);
+    accounts.set('acct-1', { id: 'acct-1', subject: 'remote-lin', platform_subject: 'managed:lin.wei', username: 'lin.wei', roles: ['publisher'], enabled: true, version: '2', auth_time_floor: 0 });
+    credentials.set('acct-1', { passwordHash: await hashPassword('temp-pass-1234'), mustChange: true });
+
+    expect(codeOf(await capture(() => service.passwordLogin({ username: 'lin.wei', password: 'wrong-password' })))).toBe('UNAUTHENTICATED');
+    expect(codeOf(await capture(() => service.passwordLogin({ username: 'lin.wei', password: 'temp-pass-1234' })))).toBe('UNAUTHENTICATED');
+
+    const issued = await service.passwordLogin({ username: 'lin.wei', password: 'temp-pass-1234', newPassword: 'fresh-pass-5678' });
+    expect(issued.token_type).toBe('Bearer');
+    const jwks = await service.jwks();
+    const { payload } = await jwtVerify(issued.access_token, createLocalJWKSet(jwks as never), { issuer: ISSUER, audience: AUDIENCE });
+    expect(payload.sub).toBe('remote-lin');
+    expect(payload['roles']).toEqual(['publisher']);
+    expect(payload['platform_managed_user_id']).toBe('acct-1');
+    expect(credentials.get('acct-1')!.mustChange).toBe(false);
+
+    accounts.get('acct-1')!.enabled = false;
+    expect(codeOf(await capture(() => service.passwordLogin({ username: 'lin.wei', password: 'fresh-pass-5678' })))).toBe('FORBIDDEN');
+  });
+});
+
 describe('local identity environment configuration and dual-origin wiring', () => {
   const keys = [
     'PLATFORM_SELF_MANAGED_ISSUER', 'PLATFORM_IDENTITY_MODE', 'PLATFORM_API_ORIGIN',

@@ -49,6 +49,13 @@ export class LocalIdentityController {
       response.redirect(303, loginFailureUrl(this.platform.adminOrigin, body, loginFailureReason(error)));
     }
   }
+  /** Direct username/password sign-in without an OIDC redirect roundtrip. */
+  @Post('login') @HttpCode(200)
+  login(@Body() body: Record<string, unknown>) {
+    return this.runtime().passwordLogin({
+      username: body['username'], password: body['password'], newPassword: body['new_password'],
+    });
+  }
   @Post('token') @HttpCode(200)
   token(@Body() body: Record<string, unknown>) {
     if (body['grant_type'] !== 'authorization_code') throw new PlatformError('INVALID_SCHEMA');

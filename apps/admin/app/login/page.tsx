@@ -122,12 +122,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
       ) : (
         <section className="access-panel">
           <h2>登录后开放</h2>
-          <p className="access-hint">后台管理系统需验证平台身份后访问，请通过公司/自管账号或已有 OIDC 凭证登录。</p>
-          <p>
-            <a className="zn-btn zn-btn-primary zn-btn-block zn-btn-tall" href={companyLoginUrl}>
-              <ZnIcon name="key-round" size={15} color="var(--zn-on-primary)" />账号登录
-            </a>
-          </p>
+          <p className="access-hint">后台管理系统支持常规账号密码登录与 OIDC PKCE 统一登录两种方式。</p>
           <TokenLoginForm nextPath={nextPath} />
         </section>
       )}

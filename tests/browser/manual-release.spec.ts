@@ -13,6 +13,10 @@ const MOCK_AUTH_TOKEN =
   'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ3ZWItZGV2ZWxvcGVyLWFsaWNlIiwicm9sZXMiOlsicHVibGlzaGVyIiwibWFpbnRhaW5lciJdLCJhenAiOiJ3ZWIiLCJleHAiOjE5OTk5OTk5OTl9.test_sig';
 
 async function devLogin(page: Page) {
+  const summary = page.locator('details.zn-token-login summary');
+  if (await summary.isVisible()) {
+    await summary.click();
+  }
   await page.locator('#token-input').fill(MOCK_AUTH_TOKEN);
   await page.getByRole('button', { name: '凭证登录' }).click();
 }

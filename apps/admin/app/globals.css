@@ -2220,3 +2220,38 @@ a.filter-btn {
   color: var(--zn-muted);
   margin-bottom: 12px;
 }
+
+.zn-login-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.zn-login-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.zn-login-section-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--zn-text);
+}
+
+.zn-login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--zn-subtle);
+  font-size: 12px;
+}
+
+.zn-login-divider::before,
+.zn-login-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--zn-border);
+}

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { getStoredSession, loadCompanySession, saveSession } from '../lib/auth';
+import { companyLoginUrl, getStoredSession, loadCompanySession, platformApiOrigin, saveSession } from '../lib/auth';
 
 function safeNextTarget(value: string | undefined): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) {
@@ -14,8 +14,14 @@ function safeNextTarget(value: string | undefined): string {
 export function TokenLoginForm({ nextPath }: { nextPath?: string }) {
   const router = useRouter();
   const target = safeNextTarget(nextPath);
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [requireNewPassword, setRequireNewPassword] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [passwordError, setPasswordError] = useState('');
   const [tokenInput, setTokenInput] = useState('');
-  const [error, setError] = useState('');
+  const [tokenError, setTokenError] = useState('');
 
   useEffect(() => {
     if (getStoredSession()) {
@@ -33,39 +39,163 @@ export function TokenLoginForm({ nextPath }: { nextPath?: string }) {
     };
   }, [router, target]);
 
-  const handleSubmit = (event: React.FormEvent) => {
+  const handlePasswordSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError('');
+    setPasswordError('');
+    if (!username.trim() || !password) return;
+    setSubmitting(true);
+    try {
+      const response = await fetch(`${platformApiOrigin}/identity/login`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        body: JSON.stringify({
+          username: username.trim(),
+          password,
+          ...(requireNewPassword && newPassword ? { new_password: newPassword } : {}),
+        }),
+      });
+      const payload = (await response.json().catch(() => null)) as {
+        access_token?: unknown;
+        code?: unknown;
+        message?: unknown;
+        details?: Array<{ path?: string; message?: string }>;
+      } | null;
+      if (!response.ok) {
+        if (response.status === 503 || payload?.code === 'INFRA_UNAVAILABLE') {
+          setPasswordError('本地账号密码服务未启用，请改用下方 OIDC PKCE 登录，或在 API 侧开启 PLATFORM_IDENTITY_MODE=local。');
+          return;
+        }
+        const firstLoginIssue = payload?.details?.find((item) => item.path === 'newPassword');
+        if (firstLoginIssue) {
+          setRequireNewPassword(true);
+          setPasswordError(firstLoginIssue.message || '首次登录必须设置新密码（至少 12 个字符）。');
+          return;
+        }
+        if (response.status === 403) {
+          setPasswordError('该账号已停用，请联系平台管理员。');
+          return;
+        }
+        setPasswordError(payload?.details?.[0]?.message || (typeof payload?.message === 'string' ? payload.message : '') || '用户名或密码不正确。');
+        return;
+      }
+      if (typeof payload?.access_token !== 'string' || !saveSession(payload.access_token)) {
+        setPasswordError('登录响应缺少有效令牌，请重试或联系管理员。');
+        return;
+      }
+      router.replace(target);
+    } catch {
+      setPasswordError('无法连接到登录服务，请确认 API 服务已启动。');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleTokenSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    setTokenError('');
     if (!tokenInput.trim()) return;
     const saved = saveSession(tokenInput.trim());
     if (!saved) {
-      setError('凭证格式不正确，请粘贴有效的 JWT 令牌。');
+      setTokenError('凭证格式不正确，请粘贴有效的 JWT 令牌。');
       return;
     }
     router.replace(target);
   };
 
   return (
-    <details className="zn-token-login" open>
-      <summary>使用已有 OIDC 凭证登录</summary>
-      {error ? <p className="access-error" role="alert">{error}</p> : null}
-      <form className="zn-login-form" onSubmit={handleSubmit}>
-        <label className="zn-field" htmlFor="token-input">
-          <span className="zn-field-label">OIDC 凭证令牌</span>
-          <input
-            id="token-input"
-            className="zn-input"
-            type="password"
-            value={tokenInput}
-            placeholder="粘贴 OIDC Bearer JWT 令牌"
-            autoComplete="off"
-            onChange={(event) => setTokenInput(event.target.value)}
-          />
-        </label>
-        <button className="filter-btn" type="submit">
-          凭证登录
-        </button>
-      </form>
-    </details>
+    <div className="zn-login-modes">
+      <div className="zn-login-section">
+        <p className="zn-login-section-title">方式一：账号密码登录</p>
+        {passwordError ? <p className="access-error" role="alert">{passwordError}</p> : null}
+        <form className="zn-login-form" onSubmit={handlePasswordSubmit}>
+          <div className="zn-field-row">
+            <label className="zn-field" htmlFor="direct-username">
+              <span className="zn-field-label">用户名</span>
+              <input
+                id="direct-username"
+                className="zn-input"
+                name="username"
+                value={username}
+                autoComplete="username"
+                disabled={submitting}
+                required
+                onChange={(event) => setUsername(event.target.value)}
+              />
+            </label>
+            <label className="zn-field" htmlFor="direct-password">
+              <span className="zn-field-label">密码</span>
+              <input
+                id="direct-password"
+                className="zn-input"
+                name="password"
+                type="password"
+                value={password}
+                autoComplete="current-password"
+                disabled={submitting}
+                required
+                onChange={(event) => setPassword(event.target.value)}
+              />
+            </label>
+            {requireNewPassword ? (
+              <label className="zn-field" htmlFor="direct-new-password">
+                <span className="zn-field-label">新密码</span>
+                <input
+                  id="direct-new-password"
+                  className="zn-input"
+                  name="new_password"
+                  type="password"
+                  value={newPassword}
+                  autoComplete="new-password"
+                  disabled={submitting}
+                  required
+                  onChange={(event) => setNewPassword(event.target.value)}
+                />
+                <span className="zn-hint">至少 12 个字符，且不能与当前口令相同。</span>
+              </label>
+            ) : null}
+          </div>
+          <button className="zn-btn zn-btn-primary zn-btn-block zn-btn-tall" type="submit" disabled={submitting}>
+            {submitting ? '正在登录…' : '密码登录'}
+          </button>
+        </form>
+      </div>
+
+      <div className="zn-login-divider" role="separator">
+        <span>或使用 OIDC PKCE 统一登录</span>
+      </div>
+
+      <div className="zn-login-section">
+        <p className="zn-login-section-title">方式二：OIDC PKCE 登录</p>
+        <p className="access-hint">通过平台 OIDC 授权码 + PKCE 流程跳转认证并签发安全会话 Cookie。</p>
+        <p>
+          <a className="filter-btn active" href={companyLoginUrl}>
+            账号登录
+          </a>
+        </p>
+      </div>
+
+      <details className="zn-token-login">
+        <summary>使用已有 OIDC 凭证登录</summary>
+        {tokenError ? <p className="access-error" role="alert">{tokenError}</p> : null}
+        <form className="zn-login-form" onSubmit={handleTokenSubmit}>
+          <label className="zn-field" htmlFor="token-input">
+            <span className="zn-field-label">OIDC 凭证令牌</span>
+            <input
+              id="token-input"
+              className="zn-input"
+              type="password"
+              value={tokenInput}
+              placeholder="粘贴 OIDC Bearer JWT 令牌"
+              autoComplete="off"
+              onChange={(event) => setTokenInput(event.target.value)}
+            />
+          </label>
+          <button className="filter-btn" type="submit">
+            凭证登录
+          </button>
+        </form>
+      </details>
+    </div>
   );
 }
