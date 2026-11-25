@@ -257,7 +257,7 @@ describe('T10: component echarts check / verify CLI 集成与失败关闭约束'
   });
 
   it('帮助列出已支持的消费者保留、超时与跳过浏览器参数', async () => {
-    const result = await runCli(['--help'], '0.0.10');
+    const result = await runCli(['--help-all'], '0.0.10');
     const verifyHelp = result.stdout.split('\n').find(line => line.includes('component echarts verify'))!;
     for (const option of ['--consumer-root', '--keep', '--timeout', '--skip-browser']) expect(verifyHelp).toContain(option);
   });

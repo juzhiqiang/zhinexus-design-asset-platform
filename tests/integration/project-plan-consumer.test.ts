@@ -88,7 +88,7 @@ function expectPlanJson(r: RunResult, exit: number) {
 describe('P3 inspect surface', () => {
   it('root help advertises the two integrate commands', async () => {
     const c = await open({ framework: 'vue', packageManager: 'npm' });
-    const result = await runCliProcess(['--help'], { cwd: c.root });
+    const result = await runCliProcess(['--help-all'], { cwd: c.root });
     expect(result.exitCode).toBe(0);
     expect(result.stdout).toContain('integrate inspect');
     expect(result.stdout).toContain('integrate plan');

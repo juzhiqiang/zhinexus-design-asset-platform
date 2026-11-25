@@ -9,7 +9,8 @@
   "scripts": {
     "build": "node scripts/sync-contracts.mjs && tsc -p tsconfig.build.json && node scripts/package-probe.mjs && node scripts/package-probe.mjs --check",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "dev": "tsc -p tsconfig.build.json --watch"
+    "dev": "tsc -p tsconfig.build.json --watch",
+    "pack:juz": "pnpm run build && node scripts/pack-juz.mjs"
   },
   "exports": {
     ".": {
@@ -20,7 +21,11 @@
   "types": "./dist/index.d.ts",
   "main": "./dist/index.js",
   "bin": {
-    "component": "./dist/bin.js"
+    "component": "./dist/bin.js",
+    "juz": "./dist/bin.js"
+  },
+  "engines": {
+    "node": ">=24.6.0"
   },
   "dependencies": {
     "@modelcontextprotocol/server": "2.4.0",

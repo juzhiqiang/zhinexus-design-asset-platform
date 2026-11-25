@@ -39,6 +39,56 @@ async function api(overrides: { status?: number; roles?: string[]; categories?: 
 }
 
 describe('real project CLI configuration', () => {
+  it.each([
+    ['.', 'releases/v1'],
+    ['.', '.component-releases'],
+    ['.', '.component-releases/v1/../../releases/v1'],
+    ['component', 'component/releases/v1'],
+    ['component', 'component/.component-releases'],
+  ])('rejects new bundle %s / %s inside the package before local build', async (packageDir, bundleDir) => {
+    const root = await project(); const value = await config(root);
+    if (packageDir === '.') await fs.copyFile(path.join(root, 'component/package.json'), path.join(root, 'package.json'));
+    value.packageDir = packageDir;
+    value.build.args = ['-e', "require('fs').writeFileSync('built','yes'); process.exit(23)"];
+    await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
+    const result = await runCli(['package', '--bundle-dir', bundleDir], '1.0.0', { cwd: root });
+    expect(result.exitCode).toBe(1); expect(result.stderr).toContain('BUNDLE_DIR_UNSAFE');
+    expect(result.stderr).toContain('.component-releases');
+    await expect(fs.stat(path.join(root, packageDir, 'built'))).rejects.toThrow();
+    await expect(fs.stat(path.join(root, bundleDir))).rejects.toThrow();
+  });
+
+  it.each([
+    ['.', undefined],
+    ['.', '.component-releases/v1'],
+    ['component', undefined],
+    ['component', 'component/.component-releases/v1'],
+    ['component', 'releases/v1'],
+  ])('allows new bundle %s / %s to reach its real local build', async (packageDir, bundleDir) => {
+    const root = await project(); const value = await config(root);
+    if (packageDir === '.') await fs.copyFile(path.join(root, 'component/package.json'), path.join(root, 'package.json'));
+    value.packageDir = packageDir;
+    value.build.args = ['-e', "require('fs').writeFileSync('built','yes'); process.exit(23)"];
+    await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
+    const result = await runCli(['package', ...(bundleDir ? ['--bundle-dir', bundleDir] : [])], '1.0.0', { cwd: root });
+    expect(result.stderr).toContain('LOCAL_COMMAND_FAILED');
+    expect(await fs.readFile(path.join(root, packageDir, 'built'), 'utf8')).toBe('yes');
+    const directory = bundleDir ?? '.component-releases/' + (await fs.readdir(path.join(root, '.component-releases')))[0];
+    expect((await fs.stat(path.join(root, directory))).isDirectory()).toBe(true);
+  });
+
+  it('rejects a seemingly external bundle junction that resolves into the component package', async () => {
+    const root = await project(); const value = await config(root);
+    value.build.args = ['-e', "require('fs').writeFileSync('built','yes'); process.exit(23)"];
+    await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
+    await fs.mkdir(path.join(root, 'component/releases'));
+    await fs.symlink(path.join(root, 'component/releases'), path.join(root, 'release-link'), 'junction');
+    const result = await runCli(['package', '--bundle-dir', 'release-link/v1'], '1.0.0', { cwd: root });
+    expect(result.stderr).toContain('BUNDLE_DIR_UNSAFE');
+    await expect(fs.stat(path.join(root, 'component/built'))).rejects.toThrow();
+    expect(await fs.readdir(path.join(root, 'component/releases'))).toEqual([]);
+  });
+
   it('rejects legacy arbitrary consumer build commands with an explicit Vite adapter migration error before building', async () => {
     const root = await project(); const value = await config(root);
     const legacy = JSON.parse(JSON.stringify(value));
@@ -98,7 +148,7 @@ describe('real project CLI configuration', () => {
   });
   it('preserves SDK command help and version behavior', async () => {
     expect((await runCli(['--version'], '0.0.27')).stdout).toBe('0.0.27\n');
-    expect((await runCli(['--help'], '0.0.27')).stdout).toContain('echarts verify --bundle');
+    expect((await runCli(['--help-all'], '0.0.27')).stdout).toContain('echarts verify --bundle');
   });
   it('selects framework and enabled category interactively when explicit init arguments are absent', async () => {
     const root = await project(); const origin = await api(); const selections: string[] = [];
@@ -110,7 +160,9 @@ describe('real project CLI configuration', () => {
     const root = await project();
     const args = initArgs(root); args[6] = '../../invalid';
     const invalid = await runCli(args, '0.0.27'); expect(invalid.exitCode).toBe(1); expect(invalid.stderr).toContain('CONFIG_INVALID');
-    await config(root);
+    const value = await config(root);
+    value.variants.push({ ...value.variants[0]!, framework: 'vue' });
+    await fs.writeFile(path.join(root, 'component.config.json'), JSON.stringify(value));
     const result = await runCli(['dev'], '0.0.27', { cwd: root });
     expect(result.exitCode).toBe(1); expect(result.stderr).toContain('--framework');
     await expect(fs.stat(path.join(root, 'component/dev-started'))).rejects.toThrow();

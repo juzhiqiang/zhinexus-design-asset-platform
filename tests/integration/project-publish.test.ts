@@ -69,6 +69,39 @@ export default {
   if (includeOriginal) await fs.appendFile(path.join(root, 'consumers/vue/main.js'), "\nimport * as unusedOriginal from '@fixture/project-badge/vue?original-probe'; console.log(unusedOriginal.BadgeVue);\n");
 }
 describe('project frozen consumer publication', () => {
+  it.runIf(process.platform === 'win32')('installs juz-cli globally outside the workspace, packages locally and publishes with the saved account', async () => {
+    const f = await fixture();
+    const temporary = await fs.mkdtemp(path.join(os.tmpdir(), 'juz-installed-')); roots.push(temporary);
+    const packedOutput = await execute(process.execPath, [path.resolve('packages/component-cli/scripts/pack-juz.mjs'), '--out', temporary], { timeout: 120_000, windowsHide: true });
+    const packed = JSON.parse(packedOutput.stdout);
+    expect(packed.packageName).toBe('juz-cli');
+    const prefix = path.join(temporary, 'global');
+    const npmCli = path.join(path.dirname(process.execPath), 'node_modules/npm/bin/npm-cli.js');
+    await execute(process.execPath, [npmCli, 'install', '--global', '--prefix', prefix, '--ignore-scripts', '--no-audit', '--no-fund', packed.tarballPath], { timeout: 120_000, windowsHide: true });
+    const installed = path.join(prefix, 'node_modules/juz-cli');
+    const metadata = JSON.parse(await fs.readFile(path.join(installed, 'package.json'), 'utf8'));
+    expect(metadata.name).toBe('juz-cli'); expect(metadata.dependencies['@company/component-cli']).toBeUndefined(); expect(metadata.dependencies['@company/contracts']).toBeUndefined();
+    const env = { ...process.env, NODE_PATH: '', NODE_OPTIONS: '', PLATFORM_API_URL: '', ZHINEXUS_API_URL: '', PLATFORM_TOKEN: '', PLATFORM_API_TOKEN: '', ZHINEXUS_API_TOKEN: '', ZHINEXUS_TOKEN: '', ZHINEXUS_CREDENTIAL_FILE: path.join(temporary, 'login.local'), JUZ_TEST_SHIM: path.join(prefix, 'juz.ps1') };
+    const options = { cwd: f.root, env, timeout: 180_000, maxBuffer: 4 * 1024 * 1024, windowsHide: true };
+    const shimVersion = await execute('powershell.exe', ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-Command', '& $env:JUZ_TEST_SHIM --version'], options);
+    expect(shimVersion.stdout.trim()).toBe(metadata.version);
+    const bin = path.join(installed, 'dist/bin.js');
+    const cli = (args: string[], cwd = f.root) => execute(process.execPath, [bin, ...args], { ...options, cwd });
+    const material = JSON.parse((await cli(['package'])).stdout);
+    expect(await fs.stat(material.archivePath).then(s => s.size)).toBeGreaterThan(0);
+    expect(f.uploadCreates()).toBe(0);
+    await cli(['login', '--api-url', f.origin, '--token', 'test-token']);
+    expect(JSON.parse((await cli(['publish'])).stdout).state).toBe('READY');
+    expect(JSON.parse((await cli(['publish'])).stdout).jobId).toBe('project-job');
+    expect(f.uploadCreates()).toBe(1);
+    expect(await fs.readFile(path.join(f.root, 'component/build-count'), 'utf8')).toBe('build\n');
+    for (const ref of material.manifest.files) expect(f.uploaded.get(ref.path)).toEqual(await fs.readFile(path.join(material.bundleDir, ref.path)));
+    const fresh = await fixture();
+    await cli(['login', '--api-url', fresh.origin, '--token', 'test-token']);
+    expect(JSON.parse((await cli(['publish'], fresh.root)).stdout).state).toBe('READY');
+    expect(fresh.uploadCreates()).toBe(1);
+    expect(await fs.readFile(path.join(fresh.root, 'component/build-count'), 'utf8')).toBe('build\n');
+  }, 300_000);
   it('rejects partial implementation selection from a shared frozen package before consumer build, screenshots or upload', async () => {
     const { root, origin, uploadCreates } = await fixture(); const progress: string[] = [];
     const result = await runCli(['prepare-release', '--framework', 'react', '--bundle-dir', 'partial-bundle', '--api-url', origin, '--token', 'test-token'], '0.0.27', { cwd: root, onProgress: message => progress.push(message) });

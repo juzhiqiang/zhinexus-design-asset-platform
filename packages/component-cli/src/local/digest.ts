@@ -48,6 +48,7 @@ const DEFAULT_IGNORED_DIRS = new Set([
   '.turbo',
   'coverage',
   '.release-freeze',
+  '.component-releases',
 ]);
 
 const DEFAULT_IGNORED_EXTENSIONS = new Set([
@@ -59,6 +60,9 @@ const DEFAULT_IGNORED_EXTENSIONS = new Set([
 const DEFAULT_IGNORED_FILES = new Set([
   '.DS_Store',
   'Thumbs.db',
+  '.component-release.json',
+  '.component-release.json.tmp',
+  '.release-session.json',
 ]);
 
 /**

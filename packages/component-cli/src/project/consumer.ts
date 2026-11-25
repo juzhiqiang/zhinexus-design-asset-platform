@@ -69,6 +69,15 @@ export async function installProjectConsumer(project: LoadedProject, variant: Pr
   const moduleName = frozen.packageName + variant.exportPath.slice(1);
   const installedPackageRoot = await fs.realpath(path.join(target, 'node_modules', frozen.packageName));
   if (!inside(target, installedPackageRoot)) throw new Error('CONSUMER_SOURCE_LINK: frozen package root');
+  const releaseArtifacts = new Set(['.component-releases', '.component-release.json', '.component-release.json.tmp', '.release-session.json']);
+  async function rejectReleaseArtifacts(directory: string): Promise<void> {
+    for (const entry of await fs.readdir(directory, { withFileTypes: true })) {
+      const absolute = path.join(directory, entry.name);
+      if (releaseArtifacts.has(entry.name)) throw new Error('PACKAGE_RELEASE_ARTIFACT: ' + path.relative(installedPackageRoot, absolute) + '；请移除发布材料，将 package.json files 限制为 ["dist"] 等组件产物目录，然后重新打包验证');
+      if (entry.isDirectory()) await rejectReleaseArtifacts(absolute);
+    }
+  }
+  await rejectReleaseArtifacts(installedPackageRoot);
   const installedPkg = JSON.parse(await fs.readFile(path.join(installedPackageRoot, 'package.json'), 'utf8'));
   if (installedPkg.name !== frozen.packageName || installedPkg.version !== frozen.version) throw new Error('INSTALLED_PACKAGE_MISMATCH');
   const exports = installedPkg.exports;

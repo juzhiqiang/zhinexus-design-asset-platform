@@ -16,7 +16,7 @@ describe('bootstrap entry points', () => {
       expect(await runCli(['init'], '0.0.0', { cwd: root })).toEqual({
         exitCode: 1,
         stdout: '',
-        stderr: 'ARGUMENT_REQUIRED: --package\n',
+        stderr: 'ARGUMENT_REQUIRED: --component\n',
       });
       expect(await runCli(['dev'], '0.0.0', { cwd: root })).toEqual({
         exitCode: 1,
@@ -38,8 +38,8 @@ describe('bootstrap entry points', () => {
     });
     expect(result.stderr).toContain('component integrate inspect');
   });
-  it('explains the bootstrap scope in help', async () => {
-    expect((await runCli(['--help'], '0.0.0')).stdout).toContain('工程骨架');
+  it('explains project onboarding in help', async () => {
+    expect((await runCli(['--help'], '0.0.0')).stdout).toContain('juz init');
     expect((await runCli([], '0.0.0')).exitCode).toBe(0);
   });
   for (const [service, create] of [['api', buildServer], ['preview-gateway', buildPreviewServer]] as const) {

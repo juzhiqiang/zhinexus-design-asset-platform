@@ -1,102 +1,102 @@
-# 从真实项目发布已有组件
+# 从真实项目发布组件
 
-开发者维护组件、API、文档与消费者示例，CLI 负责本地构建、冻结、工作区外安装/截图和上传。独立组件工程、业务项目中的组件子包、平台仓库中的公开组件包均可登记；`init` 只创建配置，不生成业务组件。
+日常只需 `juz dev` 开发、`juz publish` 发布。第一次接入时登录并初始化一次，CLI 根据配置自动构建、校验、冻结、打包和上传。
 
-## 准备身份、包和分类
+## 开发测试安装
 
-本机使用 pnpm 12.18.0 与 Node >=24.6.0。本轮固定依赖验证使用 Node 26.13.0：Node 24.6.0 不满足锁定的 Angular Devkit 引擎约束，具体环境与结果见 [验证记录](../verification/2026-11-24-project-publishing.md)。消费者安装的框架和 Vite 依赖须为精确 registry 版本；本地 Chromium 需与 CLI 的 Playwright 版本匹配。
-
-管理员在内网后台「组件分类」创建稳定 ID 和名称，可重命名、启用或停用。更新使用 `expectedRevision`；遇到 409 保留草稿，显式刷新后再提交。分类不物理删除，旧版本保留发布时快照。管理员在「用户与权限」预登记并授权开发者对应的 component ID 与 npm 包名；分类选择不会增加发布或私有目录权限。
-
-安装已发布 CLI 后，在项目目录运行：
+在平台仓库根目录生成并安装本地 CLI：
 
 ```powershell
-pnpm add -D @company/component-cli@0.0.28
-pnpm exec component login --api-url https://api.assets.example.com
-pnpm exec component init --project . --package packages/button-react --component button --export Button --export-path ./button --framework react --category general
+pnpm --filter @company/component-cli pack:juz
+npm install -g .\packages\component-cli\.release\juz-cli-0.0.29.tgz
+juz --version
 ```
 
-CLI 登录沿用平台配置的身份体系；访问地址须经公司网络/VPN 的管理入口。显式 `--token`、环境 `PLATFORM_TOKEN`/`ZHINEXUS_API_TOKEN`、该 API origin 的已保存登录按顺序使用，不在配置或报告中写凭据。非交互调用必须明确选择框架和分类，交互调用可从当前启用分类选择。已有配置不会被覆盖。
+`pack:juz` 输出实际 tarball 路径。内部 workspace 包仍叫 `@company/component-cli`，生成的独立分发包叫 `juz-cli`，内置契约和运行材料，无需另外安装内部包。
 
-业务项目根 `package.json` 可以是 `private:true`，`--package` 必须指向现有可发布组件子包；子包需具有精确 name/version、公开 ESM 导出及 `build` 脚本。不能发布整个私有应用。路径以真实项目根为边界，不能通过 `../` 或符号链接跨出项目。
+本次没有执行 npm 发布。只有管理员将该分发包发布到目标 registry 后，其他开发者才能直接运行 `npm install juz-cli -g`。
 
-## 完成配置和消费者
+本机需 Node >=24.6.0 与 pnpm 12.18.0；CLI 使用 pnpm 冻结组件包、安装外部消费者。首次截图前安装匹配的 Chromium：仓库开发运行 `pnpm exec playwright install chromium`，独立安装运行 `npx --yes --package @playwright/test@1.65.0 playwright install chromium`。
 
-`init` 创建 `component.config.json`。开发者补齐 API、文档与消费者目录，并按实际导出调整配置，例如一个仅含 React 的包：
+## 首次接入
+
+进入开发者自己的组件项目：
+
+```powershell
+# 本地测试 API；部署后替换为平台 API origin
+juz login --api-url http://127.0.0.1:3000
+juz init
+juz dev
+```
+
+首次登录记住服务器地址，后续 `juz login`、`juz publish` 自动复用。login 打开平台登录页，也可用 `juz login --api-url <平台地址> --token <token>`。不从 token 猜测服务器；平台 API 地址由首次登录显式选择。`--api-url`、环境 `PLATFORM_API_URL` / `ZHINEXUS_API_URL` 优先于保存的地址，凭据只用于完全匹配的 origin。
+
+`juz init` 引导填写已有组件包目录（默认当前目录）、组件 ID、导出名称、Vue/React 框架及管理员维护的启用分类，创建 `component.config.json`。分类列表需要登录，所以首次推荐先 login 再 init。已知稳定分类 ID 时可用 `--category <id>` 先初始化。
+
+现有 build/dev 脚本作为本地命令，按项目 packageManager 或锁文件选择 npm/pnpm；没有声明时默认 npm。业务工程可以是私有项目，但必须选择其中可发布的组件子包，例如 `juz init --package packages/button`。目标包必须有准确的 name/version 和 build 脚本。已有配置不会被覆盖。
+
+组件包就是当前目录时，init 会保留现有 `.npmignore` 规则并追加发布材料排除项；没有 `.npmignore` 时先继承 `.gitignore`。组件包建议用 `package.json` 的 `files` 明确声明 `dist` 等需要分发的产物。若打出的包仍夹带发布记录，CLI 会在消费者导入组件前拒绝继续。
+
+## 一键发布或本地打包
+
+开发者首次补齐下一节的资料后，日常直接：
+
+```powershell
+juz publish
+```
+
+自动完成配置、账号、分类和权限检查 → 本地构建 → 打包冻结 → 外部消费者安装与验证、截图 → 上传 → 发布。单框架自动选择；同时配置 Vue/React 时发布全部实现。进度输出到 stderr，结果写 stdout。`juz dev` 在单框架时自动选择，双框架时交互选择，也可显式 `--framework vue|react`。
+
+只生成本地发布材料时：
+
+```powershell
+juz package
+```
+
+返回冻结目录 `bundleDir` 和 ZIP 文件 `archivePath`。此操作不需要平台登录，但安装消费者依赖仍可能访问 npm registry。ZIP 只包含清单及声明产物，不包含凭证、上传会话或项目源码目录。之后 `juz publish` 复用这份冻结材料。
+
+默认材料放在项目 `.component-releases/<版本-时间>/`，ZIP 与该版本目录并列。自定义 `--bundle-dir` 时请放在组件包外；若放在组件包内，必须位于该包 `.component-releases/` 的子目录，避免下一次打包包含先前的发布包。
+
+**当前后台操作：解压 ZIP → 导入 manifest.json → 批量导入解压后的材料目录。** 后台暂不直接读取 ZIP；网页提交按既有规则标记为 manual-upload，不继承 CLI 自动验证来源。
+
+上传中断后重复 `juz publish` 恢复同一份材料与任务。版本不可覆盖；修改组件后升级组件包版本再发布。只修改源码但保留相同版本时，重试仍发布原冻结材料。配置发生变化时 CLI 提示重新准备材料；显式 `--bundle-dir <项目内原目录>` 可恢复原版本。
+
+## 首次需要开发者提供的资料
+
+init 创建接入配置，组件代码、API、文档和消费示例仍由真实项目维护。可以按现有目录修改配置中的路径：
+
+| 配置 | 内容 |
+| --- | --- |
+| packageDir、build、dev | 现有组件包及本地脚本 |
+| componentId、framework、category | 平台组件 ID、真实框架及稳定分类 ID |
+| exportName、exportPath | 实际 ESM 命名导出与子路径，例如 Button / ./button |
+| api、docs | API JSON 与非空 Markdown 文档 |
+| consumer.templateDir | 安装真实组件包的 Vite 示例目录 |
+| readiness | 截图元素、需要验证的状态与尺寸 |
+
+API JSON 例子（按实际组件补充 props/events/notes）：
 
 ```json
 {
   "schemaVersion": 1,
-  "packageDir": "packages/button-react",
-  "build": { "program": "pnpm", "args": ["run", "build"] },
-  "dev": { "react": { "program": "pnpm", "args": ["run", "dev"] } },
-  "variants": [{
-    "componentId": "button",
-    "framework": "react",
-    "category": "general",
-    "exportName": "Button",
-    "exportPath": "./button",
-    "api": "api/button-react.json",
-    "docs": "docs/button-react.md",
-    "consumer": {
-      "adapter": "vite",
-      "templateDir": "consumers/react",
-      "previewDir": "dist",
-      "previewEntry": "index.html"
-    },
-    "readiness": {
-      "selector": "#app",
-      "states": ["default"],
-      "width": 800,
-      "height": 400,
-      "renderer": "canvas",
-      "theme": "light"
-    }
-  }]
+  "componentId": "button",
+  "framework": "react",
+  "exportName": "Button",
+  "exportPath": "./button",
+  "props": [],
+  "events": [],
+  "notes": []
 }
 ```
 
-`build`/`dev` 是本地程序与参数数组，在组件包目录执行。发布消费者只支持 `adapter: "vite"`：配置中的旧 `consumer.build` 会报 `CONSUMER_ADAPTER_REQUIRED`，须移除并迁移到 Vite 消费者模板。Vite/config/plugins 属于开发者本地执行信任边界；其他编译器、不同 Node/browser 条件入口尚未验收，入口不一致时拒绝。
+消费者目录包含 package.json、index.html 与框架挂载代码，以包名和真实 export subpath 导入组件。框架与 Vite 依赖使用精确版本；不能通过源码 alias、workspace/file/link 依赖代替安装包。CLI 复制到工作区外并以 --ignore-scripts 安装同一份冻结 tarball。
 
-每个消费者模板提供 `package.json`、`index.html` 和框架挂载代码，以包名和真实 export subpath 导入所选组件。Vue、React/ReactDOM、Vite 与需要的插件使用精确 registry 版本。模板不得含 workspace/override/import alias、源码 `file:`/`link:`、越界相对导入或 `node_modules`。CLI 将复制模板到工作区外，使用 `--ignore-scripts` 安装同一冻结 tarball；不能依赖安装生命周期脚本生成产物。
+示例需提供 `window.__COMPONENT_EXAMPLE__`：ready 是数据、字体、有效尺寸及挂载完成的 Promise；runState(name) 切换到配置状态并等待完成；getChecks() 返回非空实际检查数组 `{name,status:'passed'|'failed',message?}`。每个状态都需要真实运行通过。普通组件可省略图表相关 API 字段及 ECharts 版本。
 
-API JSON 的 `componentId/framework/exportName/exportPath` 须与配置一致，提供实际 `props/events/notes`。普通组件可以省略 `styleExport`、`readyMethod` 和 ECharts 版本；未用 ECharts 时不生成图表兼容记录。
+管理员在后台维护分类和组件/包发布授权；选择分类不会自动增加权限。一个 npm 包同时包含多个 JavaScript 实现时须登记全部实现，需要独立发布则先拆成独立组件包。
 
-消费者须设置 `window.__COMPONENT_EXAMPLE__`：`ready` 为数据、字体、有效尺寸及框架实际挂载完成的 Promise；`runState(name)` 将页面切换到声明状态并等待完成；`getChecks()` 返回非空实际检查数组 `{name,status:'passed'|'failed',message?}`。每个配置状态都须运行并通过。组件本身是否有 ready 方法与此宿主协议独立。CLI 还核对 Vite 实际解析入口及所选导出的框架渲染使用；错框架、仅 import 未渲染、源码 alias 和完整安装入口二次 alias 都拒绝。
+## 排障
 
-## 检查、冻结与发布
+`juz --help` 显示常用流程，`juz --help-all` 显示底层诊断、恢复和已有 component 兼容命令。检查失败按输出修改项目，再运行 package/publish；不要修改冻结 tarball 或上传后重新打包。
 
-```powershell
-pnpm exec component dev --project . --framework react
-pnpm exec component doctor --project . --framework react --api-url https://api.assets.example.com
-pnpm exec component prepare-release --project . --framework react --bundle-dir .component-releases/0.1.0 --api-url https://api.assets.example.com
-pnpm exec component release --project . --api-url https://api.assets.example.com --idempotency-key button-react-0.1.0
-```
-
-`--config <项目内相对路径>` 可选择其他配置；`--category <稳定ID>` 覆盖本次选中实现分类，`--timeout <毫秒>` 设置超时。`release --prepare-only --framework ...` 等价于只准备材料；没有旧材料时 `release --framework ...` 会先完整准备再上传。
-
-`doctor` 在构建前验证配置/文件、API 身份、当前登录、角色、类别及组件/包 ACL；真实包完整性在冻结安装后再次检查。`prepare-release` 构建一次、`pnpm pack` 一次，之后安装、静态构建、逐实现截图、检查报告、清单、上传与发布绑定同一份 tarball SHA-256。输出 Bundle 目录与清单；进度写 stderr。截图后不得重新打包。
-
-Vue-only 与 React-only 的独立包可各自 `--framework vue`/`react` 发布。一个包同时包含 Vue/React 时，使用 `--framework all`，配置并提交全部实现。同一个冻结包的每个 JavaScript export subpath 均须有实现材料，根聚合入口和静态 CSS/JSON 导出除外；部分选择会在消费者构建/截图/上传之前报 `PACKAGE_IMPLEMENTATIONS_INCOMPLETE`。需要单框架发布，应先拆成实际独立组件包，再构建、冻结和验证；不能裁掉共享包的兄弟实现、改标签或在截图后重新 pack。
-
-平台仓库使用同一配置流程，例如从仓库根执行 `pnpm component doctor --config <项目内配置> --framework all ...`。组件配置由开发者显式登记，保留旧 SDK 命令的默认路径选择；公开 SDK 框架包各自发布时仍遵守候选 core 依赖与完整实现材料约束。
-
-## 冻结恢复与旧路径
-
-重复运行项目 `release` 自动读取 `.component-release.json`，校验冻结清单/文件并复用 `.release-session.json` 的 uploadSessionId、jobId 和首次 idempotencyKey；后续传入的新 key 不替换原 key，也不重新 build/pack。API/worker 重启后仍沿同一持久作业继续。已创建成功的原作业重放不因分类后来停用而改写历史快照；新作业仍验证当前分类。
-
-旧版 `.release-session.json` 如果只有 `uploadSessionId`、尚无 `jobId`、上传计划和 `uploadComplete:true`，CLI 会先对原会话调用 `POST /v1/uploads/:id/complete`。只有服务端返回符合契约的完成证明后，CLI 才以原 uploadSessionId 和首次 idempotencyKey 提交发布作业。原会话缺少文件、服务端拒绝完成或响应无法验证时，CLI 以 `UPLOAD_COMPLETION_UNPROVEN` 失败关闭，并保留原 uploadSessionId、幂等键、manifest 摘要和冻结文件，不创建替代上传会话。旧会话已有 `jobId` 时不重复要求上传证明，直接继续轮询原作业。
-
-配置发生变化时自动恢复报 `CONFIG_CHANGED`。可显式 `--bundle-dir <原冻结目录>` 恢复原材料；新产物应升级组件版本并准备新目录。原上传签名过期且还有未传文件时失败关闭，保留材料和会话，需要平台续签同一会话授权，当前 CLI 不自动新建替代会话。
-
-无项目配置时旧 SDK/Bundle 入口继续可用，`--bundle-dir` 可指向既有完整材料，旧 category-absent 清单保持兼容：
-
-```powershell
-pnpm component check --framework all --staging-dir .checks/current
-pnpm component prepare-release --framework all --bundle-dir .release-bundle
-pnpm component release --bundle-dir .release-bundle --api-url https://api.assets.example.com
-pnpm component resume --bundle-dir .release-bundle --api-url https://api.assets.example.com
-pnpm component status --bundle-dir .release-bundle --api-url https://api.assets.example.com
-```
-
-后台手动提交仍上传预构建材料及逐实现有效手动截图，来源强制 `manual-upload`，同包实现联动选择；不伪造 CLI 自动检查记录。`Ready` 只表示包与预览资源可达，视觉基线、报告来源和索引状态独立。具体冻结摘要、实际本地验收和生产未覆盖项见 [本轮验证记录](../verification/2026-11-24-project-publishing.md)。
+凭据保存于用户目录，自定义路径可用 ZHINEXUS_CREDENTIAL_FILE。过期后重新登录；不要将 token、Cookie 或签名 URL 复制进配置、发布包或问题单。完整恢复边界见[发布与恢复](publishing.md)，本轮结果见[验证记录](../verification/2026-11-25-juz-simple-publishing.md)。

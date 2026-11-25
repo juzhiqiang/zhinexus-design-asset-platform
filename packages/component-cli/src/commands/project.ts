@@ -1,18 +1,57 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
-import { PROJECT_CONFIG_FILE, projectPath, readProject, readProjectPackage, validateProjectConfig, type ProjectConfig, type ProjectVariant } from '../project/config.js';
-import { doctorProject, publishingAccess } from '../project/doctor.js';
+import { PROJECT_CONFIG_FILE, inside, projectPath, readProject, readProjectPackage, validateProjectConfig, type ProjectConfig, type ProjectVariant } from '../project/config.js';
+import { doctorProject, publishingAccess, validateProjectFiles } from '../project/doctor.js';
 import { runLocal } from '../project/process.js';
 import { loadProjectBundle, prepareProject } from '../project/prepare.js';
 import { manifestDigest } from '../contracts/digests.js';
 import { z } from 'zod';
 import { canonicalJson } from '../contracts/schema.js';
 import { computeBufferSha256 } from '../local/digest.js';
+import { createBundleZip } from '../project/archive.js';
+import { excludeRootReleaseArtifacts } from '../project/package-ignore.js';
 
 const pointerFile = '.component-release.json';
 const pointerSchema = z.strictObject({ configFile: z.string(), configDigest: z.string().regex(/^[a-f0-9]{64}$/), packageName: z.string(), packageVersion: z.string(), bundleDir: z.string(), manifestDigest: z.string().regex(/^[a-f0-9]{64}$/) });
 
-export type ProjectCliContext = { cwd?: string; onProgress?: (message: string) => void; select?: (label: string, choices: { value: string; label: string }[]) => Promise<string> };
+export type ProjectCliContext = { cwd?: string; onProgress?: (message: string) => void; prompt?: (label: string, defaultValue?: string) => Promise<string>; select?: (label: string, choices: { value: string; label: string }[]) => Promise<string> };
+
+async function packageManager(root: string, packageDir: string): Promise<'npm' | 'pnpm'> {
+  let directory = await projectPath(root, packageDir);
+  while (true) {
+    const manifest = await fs.readFile(path.join(directory, 'package.json'), 'utf8').catch(error => { if (error.code === 'ENOENT') return '{}'; throw error; });
+    const manager: unknown = JSON.parse(manifest).packageManager;
+    if (typeof manager === 'string') {
+      if (manager.startsWith('npm@')) return 'npm';
+      if (manager.startsWith('pnpm@')) return 'pnpm';
+      throw new Error('PACKAGE_MANAGER_UNSUPPORTED: 目前支持 npm 或 pnpm');
+    }
+    for (const [file, program] of [['pnpm-lock.yaml', 'pnpm'], ['package-lock.json', 'npm'], ['npm-shrinkwrap.json', 'npm']] as const) {
+      try { await fs.access(path.join(directory, file)); return program; }
+      catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error; }
+    }
+    if (directory === root) return 'npm';
+    directory = path.dirname(directory);
+  }
+}
+async function validateNewBundleDirectory(packageDir: string, bundleDir: string): Promise<void> {
+  const packageRoot = await fs.realpath(packageDir);
+  const protectedRoot = path.join(packageRoot, '.component-releases');
+  // Resolve existing ancestors so a junction cannot hide a package-local output.
+  for (const output of [bundleDir, bundleDir + '.zip']) {
+    let ancestor = output;
+    while (true) {
+      try {
+        const resolved = path.resolve(await fs.realpath(ancestor), path.relative(ancestor, output));
+        if (inside(packageRoot, resolved) && (resolved === protectedRoot || !inside(protectedRoot, resolved))) throw new Error('BUNDLE_DIR_UNSAFE: 新发布材料必须使用默认 .component-releases/<版本> 目录，或组件包目录之外的项目内目录；不能使用 .component-releases 目录本身');
+        break;
+      } catch (error) {
+        if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error;
+        ancestor = path.dirname(ancestor);
+      }
+    }
+  }
+}
 export async function runProjectCommand(command: string, args: readonly string[], version: string, context: ProjectCliContext = {}) {
   try {
     const options: Record<string, string> = {}; let prepareOnly = false;
@@ -26,6 +65,11 @@ export async function runProjectCommand(command: string, args: readonly string[]
     }
     const root = await fs.realpath(options['--project'] ?? context.cwd ?? process.cwd());
     const configFile = options['--config'] ?? PROJECT_CONFIG_FILE;
+    const input = async (name: string, defaultValue?: string) => {
+      const value = options['--' + name] ?? (context.prompt ? (await context.prompt(name, defaultValue)).trim() || defaultValue : defaultValue);
+      if (!value) throw new Error('ARGUMENT_REQUIRED: --' + name);
+      return value;
+    };
     const choose = async (name: string, choices: { value: string; label: string }[]) => {
       const explicit = options['--' + name];
       const value = explicit ?? (context.select ? await context.select(name, choices) : undefined);
@@ -36,18 +80,33 @@ export async function runProjectCommand(command: string, args: readonly string[]
     if (command === 'init') {
       const configPath = await projectPath(root, configFile, true);
       try { await fs.access(configPath); throw new Error('CONFIG_EXISTS: ' + configFile); } catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error; }
-      for (const key of ['--package', '--component', '--export']) if (!options[key]) throw new Error('ARGUMENT_REQUIRED: ' + key);
+      const packageDir = await input('package', '.');
+      const component = await input('component');
+      const exportName = await input('export');
       const framework = await choose('framework', [{ value: 'vue', label: 'Vue' }, { value: 'react', label: 'React' }, { value: 'all', label: 'Vue + React' }]);
       if (!options['--category'] && !context.select) throw new Error('ARGUMENT_REQUIRED: 非交互调用必须提供 --category');
-      const category = options['--category'] ?? (await choose('category', (await publishingAccess(options['--api-url'], options['--token'])).options.categories.filter(item => item.enabled).map(item => ({ value: item.id, label: item.name }))));
-      const packageDir = options['--package']!; const { pkg } = await readProjectPackage(root, packageDir);
+      let category = options['--category'];
+      if (!category) {
+        let access: Awaited<ReturnType<typeof publishingAccess>>;
+        try { access = await publishingAccess(options['--api-url'], options['--token']); }
+        catch (error) {
+          if (error instanceof Error && error.message.startsWith('UNAUTHENTICATED')) throw new Error('UNAUTHENTICATED: 请先运行 juz login --api-url <平台地址>，然后重新运行 juz init 选择平台分类');
+          throw error;
+        }
+        const choices = access.options.categories.filter(item => item.enabled).map(item => ({ value: item.id, label: item.name }));
+        if (!choices.length) throw new Error('CATEGORY_UNAVAILABLE: 平台没有启用的分类，请联系管理员');
+        category = await choose('category', choices);
+      }
+      const { pkg } = await readProjectPackage(root, packageDir);
       if (!pkg.scripts?.build) throw new Error('BUILD_COMMAND_REQUIRED: 组件包必须提供 build script');
       const frameworks = framework === 'all' ? ['vue', 'react'] as const : [framework as 'vue' | 'react'];
-      const config: ProjectConfig = { schemaVersion: 1, packageDir, build: { program: 'pnpm', args: ['run', 'build'] }, dev: {}, variants: frameworks.map(framework => ({ componentId: options['--component']!, framework, category, exportName: options['--export']!, exportPath: options['--export-path'] ?? '.', api: `api/${options['--component']}-${framework}.json`, docs: `docs/${options['--component']}-${framework}.md`, consumer: { templateDir: `consumers/${framework}`, adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } })) };
-      if (pkg.scripts.dev) for (const framework of frameworks) config.dev[framework] = { program: 'pnpm', args: ['run', 'dev'] };
+      const program = await packageManager(root, packageDir);
+      const config: ProjectConfig = { schemaVersion: 1, packageDir, build: { program, args: ['run', 'build'] }, dev: {}, variants: frameworks.map(framework => ({ componentId: component, framework, category, exportName, exportPath: options['--export-path'] ?? '.', api: `api/${component}-${framework}.json`, docs: `docs/${component}-${framework}.md`, consumer: { templateDir: `consumers/${framework}`, adapter: 'vite', previewDir: 'dist', previewEntry: 'index.html' }, readiness: { selector: '#app', states: ['default'], width: 800, height: 400, renderer: 'canvas', theme: 'light' } })) };
+      if (pkg.scripts.dev) for (const framework of frameworks) config.dev[framework] = { program, args: ['run', 'dev'] };
       validateProjectConfig(config);
+      if (path.resolve(root, packageDir) === root) await excludeRootReleaseArtifacts(root);
       await fs.writeFile(configPath, JSON.stringify(config, null, 2) + '\n', { flag: 'wx' });
-      return { exitCode: 0, stdout: JSON.stringify({ configPath, next: '由开发者填写 API/docs/消费者模板及就绪协议后运行 doctor' }) + '\n', stderr: '' };
+      return { exitCode: 0, stdout: JSON.stringify({ configPath, next: '运行 juz dev 开发现有组件；填写 API/docs/消费者模板及就绪协议后运行 juz package 或 juz publish' }) + '\n', stderr: '' };
     }
     const project = await readProject(root, configFile);
     const configDigest = computeBufferSha256(canonicalJson(project.config));
@@ -79,8 +138,10 @@ export async function runProjectCommand(command: string, args: readonly string[]
       }
     }
     const frameworkChoices: { value: string; label: string }[] = [...new Set(project.config.variants.map(v => v.framework))].map(value => ({ value, label: value }));
-    frameworkChoices.push({ value: 'all', label: '全部配置实现' });
-    const selected = await choose('framework', frameworkChoices);
+    const onlyFramework = frameworkChoices.length === 1 ? frameworkChoices[0]!.value : undefined;
+    if (command !== 'dev') frameworkChoices.push({ value: 'all', label: '全部配置实现' });
+    const selected = options['--framework'] ?? onlyFramework ?? (command === 'dev' ? await choose('framework', frameworkChoices) : 'all');
+    if (!frameworkChoices.some(choice => choice.value === selected)) throw new Error('ARGUMENT_INVALID: --framework');
     const variants: ProjectVariant[] = project.config.variants.filter(v => selected === 'all' || v.framework === selected).map(v => ({ ...v, category: options['--category'] ?? v.category }));
     if (command === 'dev') {
       if (selected === 'all') throw new Error('ARGUMENT_INVALID: dev 请选择一个 --framework');
@@ -89,18 +150,23 @@ export async function runProjectCommand(command: string, args: readonly string[]
       await runLocal(dev, project.packageDir, log, options['--timeout'] ? timeoutMs : 0);
       return { exitCode: 0, stdout: JSON.stringify({ framework: selected, developed: true }) + '\n', stderr: '' };
     }
-    const access = await doctorProject(project, variants, options['--api-url'], options['--token']);
-    if (command === 'doctor') return { exitCode: 0, stdout: JSON.stringify({ ok: true, subject: access.identity.subject, packageName: project.pkg.name, variants: variants.map(v => v.componentId + '-' + v.framework) }) + '\n', stderr: '' };
+    const access = command === 'package' ? (await validateProjectFiles(project, variants), undefined) : await doctorProject(project, variants, options['--api-url'], options['--token']);
+    if (command === 'doctor' && access) return { exitCode: 0, stdout: JSON.stringify({ ok: true, subject: access.identity.subject, packageName: project.pkg.name, variants: variants.map(v => v.componentId + '-' + v.framework) }) + '\n', stderr: '' };
     const relativeBundle = options['--bundle-dir'] ?? path.join('.component-releases', project.pkg.version + '-' + Date.now());
     const bundleDir = await projectPath(root, relativeBundle, true);
+    await validateNewBundleDirectory(project.packageDir, bundleDir);
     const prepared = await prepareProject(project, variants, bundleDir, version, log, timeoutMs);
     const pointer = { configFile, configDigest, packageName: project.pkg.name, packageVersion: project.pkg.version, bundleDir: relativeBundle, manifestDigest: await manifestDigest(prepared.manifest) };
     const pointerPath = await projectPath(root, pointerFile, true);
     await fs.writeFile(pointerPath + '.tmp', JSON.stringify(pointer, null, 2) + '\n');
     await fs.rename(pointerPath + '.tmp', pointerPath);
+    if (command === 'package') {
+      const archivePath = await createBundleZip(prepared.bundleDir);
+      return { exitCode: 0, stdout: JSON.stringify({ archivePath, bundleDir: prepared.bundleDir, manifest: prepared.manifest }) + '\n', stderr: '' };
+    }
     if (command === 'prepare-release' || prepareOnly) return { exitCode: 0, stdout: JSON.stringify({ bundleDir: prepared.bundleDir, manifest: prepared.manifest }) + '\n', stderr: '' };
     const { executeReleaseCommand } = await import('../local/release.js');
-    const result = await executeReleaseCommand({ bundleDir, apiUrl: access.apiUrl, token: access.token, timeoutMs, idempotencyKey: options['--key'] ?? options['--idempotency-key'], onProgress: log });
+    const result = await executeReleaseCommand({ bundleDir, apiUrl: access?.apiUrl, token: access?.token, timeoutMs, idempotencyKey: options['--key'] ?? options['--idempotency-key'], onProgress: log });
     return { exitCode: result.ok ? 0 : 1, stdout: JSON.stringify({ bundleDir, ...result }) + '\n', stderr: result.ok ? '' : (result.error ?? 'RELEASE_FAILED') + '\n' };
   } catch (error) { return { exitCode: 1, stdout: '', stderr: (error instanceof Error ? error.message : String(error)) + '\n' }; }
 }

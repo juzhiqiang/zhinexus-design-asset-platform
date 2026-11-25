@@ -29,11 +29,17 @@ export async function doctorProject(project: LoadedProject, variants: ProjectVar
   for (const variant of variants) {
     if (!access.options.components.some(component => component.componentId === variant.componentId)) throw new Error('FORBIDDEN: 缺少组件发布 ACL: ' + variant.componentId);
     if (!access.options.categories.some(category => category.id === variant.category && category.enabled)) throw new Error('CATEGORY_DISABLED: ' + variant.category);
+  }
+  await validateProjectFiles(project, variants);
+  return access;
+}
+/** Local packaging does not require a platform account or an API connection. */
+export async function validateProjectFiles(project: LoadedProject, variants: ProjectVariant[]) {
+  for (const variant of variants) {
     await readVariantApi(project, variant);
     const docs = await fs.readFile(await projectPath(project.root, variant.docs), 'utf8');
     if (!docs.trim()) throw new Error('DOCS_EMPTY: ' + variant.docs);
     await projectPath(project.root, variant.consumer.templateDir);
     await consumerTemplate(project, variant);
   }
-  return access;
 }

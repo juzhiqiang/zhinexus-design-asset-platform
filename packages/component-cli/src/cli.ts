@@ -13,16 +13,38 @@ export async function runCli(
   if (args.length === 0 || (args.length === 1 && ['--help', '-h'].includes(args[0]!))) {
     return {
       exitCode: 0,
-      stdout: `component CLI v${version} — 工程骨架
+      stdout: `juz CLI v${version} — 组件开发与发布
+
+  juz init      为当前组件包创建配置，交互选择框架和平台分类
+  juz login     登录平台并记住 API 地址（首次可加 --api-url <origin>）
+  juz dev       运行项目配置中的开发命令
+  juz package   本地构建、验证冻结产物，生成本地 ZIP（后台需解压导入）
+  juz publish   构建并验证后发布；重试时复用已有冻结材料
+
+在已有组件项目目录运行；子包可通过 juz init --package <相对路径> 选择。
+分类选择需要登录；也可通过 --category <平台分类 ID> 明确配置。
+令牌登录：juz login --api-url <origin> --token <token>
+更多参数与兼容命令：juz --help-all
+版本：juz --version
+`,
+      stderr: '',
+    };
+  }
+  if (args.length === 1 && args[0] === '--help-all') {
+    return {
+      exitCode: 0,
+      stdout: `juz CLI v${version} — 完整命令（兼容 component）
 
 用法:
-  component login --api-url <origin> [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
+  component login [--api-url <origin>] [--token <token>] [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
   component check [--framework vue|react|all] [--staging-dir <dir>]
   component init --package <relative-dir> --component <id> --export <name> --framework vue|react|all --category <id> [--project <root>]
   component dev --framework vue|react [--project <root>]
   component doctor --framework vue|react|all [--project <root>] [--api-url <origin>]
-  component prepare-release --framework vue|react|all [--project <root>] [--bundle-dir <relative-dir>]
-  component release --framework vue|react|all [--project <root>] [--api-url <origin>]
+  component prepare-release [--framework vue|react|all] [--project <root>] [--bundle-dir <relative-dir>]
+  component package [--framework vue|react|all] [--project <root>] [--bundle-dir <relative-dir>]
+  component release [--framework vue|react|all] [--project <root>] [--api-url <origin>]
+  component publish [--framework vue|react|all] [--project <root>] [--api-url <origin>]
   component prepare-release [--bundle-dir <dir>] [--framework vue|react|all]
   component release --prepare-only [--bundle-dir <dir>]
   component baseline accept --report <path> --reason <text> [--api-url <url>] [--token <jwt>] [--expected-revision <rev>]
@@ -63,23 +85,26 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
     };
   }
 
-  const [command, ...rest] = args;
-  if (['init', 'dev', 'doctor', 'prepare-release', 'release'].includes(command ?? '') &&
-    (['init', 'dev', 'doctor'].includes(command ?? '') || rest.includes('--project') || rest.includes('--config') || existsSync(join(context.cwd ?? process.cwd(), 'component.config.json')))) {
+  const [requestedCommand, ...rest] = args;
+  const command = requestedCommand === 'publish' ? 'release' : requestedCommand;
+  if (['init', 'dev', 'doctor', 'package', 'prepare-release', 'release'].includes(command ?? '') &&
+    (['init', 'dev', 'doctor', 'package', 'publish'].includes(requestedCommand ?? '') || rest.includes('--project') || rest.includes('--config') || existsSync(join(context.cwd ?? process.cwd(), 'component.config.json')))) {
     const { runProjectCommand } = await import('./commands/project.js');
-    return runProjectCommand(command!, rest, version, context);
+    const result = await runProjectCommand(command!, rest, version, context);
+    const configFile = rest.includes('--config') ? rest[rest.indexOf('--config') + 1] : 'component.config.json';
+    if (['package', 'publish'].includes(requestedCommand!) && result.stderr.trim() === 'PROJECT_FILE_MISSING: ' + configFile) result.stderr += '请在组件项目目录先运行 juz init 创建 component.config.json。\n';
+    return result;
   }
   if (command === 'login') {
     try {
       const options:Record<string,string> = {};
       for (let i=0;i<rest.length;i+=2) {
         const key=rest[i]!,value=rest[i+1];
-        if (!['--api-url','--credential-file','--ca-file','--candidate'].includes(key) || !value || options[key]) throw new Error();
+        if (!['--api-url','--credential-file','--ca-file','--candidate','--token','--timeout'].includes(key) || !value || value.startsWith('--') || options[key] !== undefined) throw new Error();
         options[key]=value;
       }
-      if (!options['--api-url']) throw new Error();
       const { companyLogin } = await import('./commands/login.js');
-      const result = await companyLogin({ apiOrigin:options['--api-url'],credentialFile:options['--credential-file'],caFile:options['--ca-file'],candidate:options['--candidate'],administratorToken:process.env.ZHINEXUS_API_TOKEN });
+      const result = await companyLogin({ apiOrigin:options['--api-url'], token:options['--token'], credentialFile:options['--credential-file'],caFile:options['--ca-file'],candidate:options['--candidate'],administratorToken:process.env.ZHINEXUS_API_TOKEN, timeoutMs:options['--timeout'] === undefined ? undefined : Number(options['--timeout']) });
       return {exitCode:0,stdout:JSON.stringify(result)+'\n',stderr:''};
     } catch { return {exitCode:1,stdout:'',stderr:'公司登录失败：请检查接入地址、客户端、回调端口与授权。\n'}; }
   }
