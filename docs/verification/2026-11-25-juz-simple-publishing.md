@@ -19,6 +19,8 @@
 | 下列 11 文件窄范围 Vitest | 100/100 通过 |
 | `pnpm exec vitest run tests/integration/project-publish.test.ts -t "installs juz-cli globally"` | 1 通过，21 未选择；真实独立安装及发布链路通过 |
 | `git diff --check` | 通过 |
+| `pnpm --filter @company/component-cli pack:juz` | 升版后通过，生成 `juz-cli-0.0.29.tgz` |
+| 最终 tgz 的 npm 全局 prefix 安装、`juz --version` 与 `juz --help` | 通过，实际 shim 输出 `0.0.29` 及五个常用命令 |
 | `pnpm test` | 未通过；详见全仓阻塞 |
 | `pnpm exec tsc -p tsconfig.json --noEmit` | 未通过；56 条既有后台相关诊断，本轮新增测试类型错误修复后已消除 |
 
@@ -53,6 +55,7 @@ pnpm exec vitest run tests/unit/component-cli-onboarding.test.ts tests/unit/proj
 ## 交付边界及工作区情况
 
 - 本轮 CLI 可本地安装测试，尚未执行 npm 发布。后台当前需解压 ZIP，再导入 manifest 与材料目录；直接 ZIP 入口不属于本次 CLI 实现。
+- 最终安装包位于 `packages/component-cli/.release/juz-cli-0.0.29.tgz`，510507 字节，SHA-256 为 `a1115e9386c768db3a8d6fedad2bc90f1e520ca6e961d03ce7b0296cdb0bf61d`。最终安装验证保留在忽略目录 `.release/juz-0.0.29-validation`；带清理步骤的验证命令曾被策略整体拒绝，随后只执行安装与读取验证，未重试删除。
 - 初次接入仍需真实项目维护组件代码、API/docs、消费者示例和就绪协议；CLI 不生成虚假业务代码或验证结果。
 - 测试 RED 阶段暴露旧登录未遵守自定义凭据路径，合成测试凭据曾写入默认登录文件。确认该文件匹配本轮测试值后已移除，并修复路径统一及测试用户目录隔离；此前登录状态是否被覆盖无法确认，已有登录的用户需重新 `juz login`。
 - RED 阶段误走旧 SDK 路径产生未跟踪 `.release-bundle/`。自动审批拒绝清理，目录保留且排除提交；没有绕过拒绝再次删除。
