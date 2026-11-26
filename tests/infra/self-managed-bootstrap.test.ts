@@ -85,7 +85,7 @@ describe('local administrator seed', () => {
     const directory = statements.find(statement => /INSERT INTO managed_accounts/.test(statement.sql));
     expect(directory).toBeDefined();
     expect(directory!.values).toEqual([
-      seed.id, ISSUER, seed.subject, seed.platformSubject, seed.username, seed.displayName, '["reader"]',
+      seed.id, ISSUER, seed.subject, seed.platformSubject, seed.username, seed.displayName, ['reader'],
       true, true, false, true, 'synced', seed.id, 1, 0, 1,
     ]);
   });
