@@ -36,7 +36,11 @@ export type ZnIconName =
   | 'boxes'
   | 'package'
   | 'lock-keyhole'
-  | 'chart-no-axes-combined';
+  | 'chart-no-axes-combined'
+  | 'log-out'
+  | 'layers'
+  | 'list-checks'
+  | 'folder-tree';
 
 /** lucide 的 stroke 几何；`circles`/`lines` 用于避免手写圆与直线的路径数据。 */
 const GLYPHS: Record<ZnIconName, { paths?: string[]; circles?: [number, number, number][]; lines?: [number, number, number, number][] }> = {
@@ -71,6 +75,10 @@ const GLYPHS: Record<ZnIconName, { paths?: string[]; circles?: [number, number, 
   package: { paths: ['m7.5 4.27 9 5.15', 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z', 'm3.3 7 8.7 5 8.7-5', 'M12 22V12'] },
   'lock-keyhole': { paths: ['M12 17v4', 'M7 11V7a5 5 0 0 1 10 0v4', 'M3 11h18v10H3z'] },
   'chart-no-axes-combined': { paths: ['M4 20V10', 'M12 20V4', 'M20 20V14', 'M3 20h18'] },
+  'log-out': { paths: ['M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4', 'm16 17 5-5-5-5', 'M21 12H9'] },
+  layers: { paths: ['m12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z', 'm22 17.65-9.17 4.16a2 2 0 0 1-1.66 0L2 17.65', 'm22 12.65-9.17 4.16a2 2 0 0 1-1.66 0L2 12.65'] },
+  'list-checks': { paths: ['m3 17 2 2 4-4', 'm3 7 2 2 4-4', 'M13 6h8', 'M13 12h8', 'M13 18h8'] },
+  'folder-tree': { paths: ['M20 10a1 1 0 0 0 1-1V6a1 1 0 0 0-1-1h-2.5a1 1 0 0 1-.8-.4l-.9-1.2A1 1 0 0 0 15 3h-2a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z', 'M20 21a1 1 0 0 0 1-1v-3a1 1 0 0 0-1-1h-2.9a1 1 0 0 1-.88-.55l-.42-.85a1 1 0 0 0-.92-.6H13a1 1 0 0 0-1 1v5a1 1 0 0 0 1 1Z', 'M3 5a2 2 0 0 0 2 2h3', 'M3 3v13a2 2 0 0 0 2 2h3'] },
 };
 
 export type ZnIconProps = {

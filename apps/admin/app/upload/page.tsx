@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { manifestDigest, type PackageRef, type PublishingOptionsResponse, type ReleaseManifestV1, type VariantRef } from '@company/contracts';
-import { getStoredSession, saveSession, clearSession, loadCompanySession,companyLoginUrl,platformApiOrigin,type UserSession } from '../lib/auth';
+import { getStoredSession, loadCompanySession, platformApiOrigin, type UserSession } from '../lib/auth';
 import { CategoryApiError, readPublishingOptions } from '../lib/categories-client';
 import {
   validateVariantScreenshots,
@@ -33,16 +33,23 @@ const LOCAL_STORAGE_ACTIVE_SESSION = 'zhinexus_active_session_id';
 /** 画板 01 的 Command Motif（INGEST ORBIT / 01）。 */
 const MOTIF = COMMAND_MOTIFS[0]!;
 
+const EMPTY_WEB_MANIFEST: ReleaseManifestV1 = {
+  schemaVersion: 1,
+  channel: 'web',
+  packages: [],
+  variants: [],
+  reports: [],
+  files: [],
+};
+
 export default function WebUploadConsole() {
-  const [session, setSession] = useState<UserSession | null>(null);
-  const [tokenInput, setTokenInput] = useState('');
+  const [session, setSession] = useState<UserSession | null>(() => getStoredSession());
   const [apiUrl, setApiUrl] = useState<string>(platformApiOrigin);
-  
-  // 初始化覆盖 7 组件 14 实现的干净草稿结构（初始无截图，必须由用户上传有效展示截图）
-  const [initialData] = useState(() => createEmptySevenComponentsDraft('0.0.6'));
-  const [manifest, setManifest] = useState<ReleaseManifestV1>(initialData.manifest);
-  const [filesMap, setFilesMap] = useState<Map<string, Uint8Array>>(initialData.filesMap);
-  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>(initialData.manifest.variants.map(variant => variant.variantId));
+
+  // 默认空工作台：引导导入真实冻结产物清单与 tarball，演示草稿可手动一键加载
+  const [manifest, setManifest] = useState<ReleaseManifestV1>(EMPTY_WEB_MANIFEST);
+  const [filesMap, setFilesMap] = useState<Map<string, Uint8Array>>(() => new Map());
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [publishingOptions, setPublishingOptions] = useState<PublishingOptionsResponse | null>(null);
   const [optionsError, setOptionsError] = useState('');
   const [optionsLoading, setOptionsLoading] = useState(false);
@@ -241,25 +248,13 @@ export default function WebUploadConsole() {
     };
   }, [activeJobId, session, apiUrl]);
 
-  // 登录处理
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tokenInput.trim()) return;
-    const saved = saveSession(tokenInput.trim());
-    if (saved) {
-      setSession(saved);
-      setStatusMessage('');
-    } else {
-      setStatusMessage('Token 格式无效，无法解析身份');
-    }
-  };
-
-  // 退出登录
-  const handleLogout = () => {
-    clearSession();
-    setSession(null);
-    setPendingResumeKey(null);
-    setStatusMessage('');
+  // 加载 7 组件 14 实现演示草稿（用于演练与回归验证）
+  const handleLoadDemoDraft = () => {
+    const demo = createEmptySevenComponentsDraft('0.0.6');
+    setManifest(demo.manifest);
+    setFilesMap(demo.filesMap);
+    setSelectedVariantIds(demo.manifest.variants.map((variant) => variant.variantId));
+    setStatusMessage('已加载 7 组件 14 实现演示草稿，请为每个实现关联有效展示截图。');
   };
 
   // 单个变体上传真实展示截图
@@ -619,44 +614,6 @@ export default function WebUploadConsole() {
     }
   };
 
-  // 未登录状态展示（严格保持原有测试契约）
-  if (!session) {
-    return (
-      <main>
-        <div className="zn-page-header access-heading">
-          <div className="zn-header-copy">
-            <p className="eyebrow">01 / RELEASE MANIFEST</p>
-            <h1>登录后开放</h1>
-            <p className="lead">身份与权限服务接入后，此处提供组件发布功能。请输入开发者发布凭证（OIDC Bearer Token）登录控制台：</p>
-          </div>
-          <ZnCommandMotif motif={MOTIF} className="zn-motif" />
-          <div className="zn-header-actions">
-            <a className="filter-btn active" href={companyLoginUrl}><ZnIcon name="key-round" size={15} color="var(--zn-on-primary)" />账号登录</a>
-          </div>
-        </div>
-
-        <section className="access-panel">
-          <form onSubmit={handleLogin} className="auth-form">
-            <label htmlFor="token-input">
-              开发者 Bearer Token (或测试凭证):
-              <input
-                id="token-input"
-                type="text"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
-              />
-            </label>
-            <div className="zn-row">
-              <button type="submit" className="filter-btn active">凭证登录</button>
-            </div>
-            {statusMessage && <p className="access-error" role="alert">{statusMessage}</p>}
-          </form>
-        </section>
-      </main>
-    );
-  }
-
   const canSubmit =
     selection.ok &&
     validation.ok &&
@@ -670,20 +627,21 @@ export default function WebUploadConsole() {
     <main>
       <div className="zn-page-header access-heading">
         <div className="zn-header-copy">
-          <p className="eyebrow">01 / RELEASE MANIFEST</p>
+          <p className="eyebrow">02 / RELEASE MANIFEST</p>
           <h1>资产发布工作区 (Manual Release)</h1>
-          <p className="lead">装配预构建产物与双框架截图，校验通过后创建不可变发布作业。</p>
-          <p className="lead">
-            当前登录身份：<strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code> · API 服务: <code id="active-api-url">{apiUrl}</code>
-          </p>
+          <p className="lead">导入本地冻结产物清单与双框架截图，校验通过后创建不可变发布作业。</p>
+          {session ? (
+            <p className="lead">
+              当前登录身份：<strong>{session.subject}</strong> · 权限: <code>{session.roles.join(', ') || '未配置'}</code> · 渠道: <code>{session.channel}</code> · API 服务: <code id="active-api-url">{apiUrl}</code>
+            </p>
+          ) : null}
         </div>
         <ZnCommandMotif motif={MOTIF} className="zn-motif" />
-        <div className="zn-identity">
-          <span className="zn-identity-dot" />
-          <span className="zn-identity-text">{session.subject}</span>
-          <span className="zn-identity-role">{session.roles.join(' / ') || 'publisher'} · {session.channel}</span>
+        <div className="zn-header-actions">
+          <button type="button" className="filter-btn" disabled={isSubmitting} onClick={handleLoadDemoDraft}>
+            加载 7 组件演示草稿
+          </button>
         </div>
-        <button type="button" className="filter-btn" onClick={handleLogout}>退出登录</button>
       </div>
 
       <div className="zn-metrics">
@@ -853,6 +811,13 @@ export default function WebUploadConsole() {
               </tr>
             </thead>
             <tbody>
+              {manifest.variants.length === 0 && (
+                <tr>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--zn-muted)' }}>
+                    尚未导入冻结发布清单。请点击上方「导入 Manifest」与「批量导入」加载本地预构建产物，或点击右上角「加载 7 组件演示草稿」。
+                  </td>
+                </tr>
+              )}
               {manifest.variants.map((v) => {
                 const hasShot = v.screenshots && v.screenshots.length > 0;
                 const shot = v.screenshots?.[0];
@@ -975,9 +940,11 @@ export default function WebUploadConsole() {
             {validation.ok && fileIssues.length === 0 ? '发布前检查已通过' : '发布前检查未通过'}
           </strong>
           <span style={{ fontSize: 11 }}>
-            {validation.ok && fileIssues.length === 0
-              ? '全部 14 个实现均已关联有效截图，可以创建不可变发布作业。'
-              : `请补充${validation.missingVariantIds.map(id => manifest.variants.find(v => v.variantId === id)?.componentId).filter(Boolean).join('、') || '缺失'}的截图，然后重新运行校验。`}
+            {manifest.variants.length === 0
+              ? '请先导入冻结的 Manifest 清单与预构建产物文件。'
+              : validation.ok && fileIssues.length === 0
+                ? `全部 ${validationManifest.variants.length} 个实现均已关联有效截图，可以创建不可变发布作业。`
+                : `请补充${validation.missingVariantIds.map(id => manifest.variants.find(v => v.variantId === id)?.componentId).filter(Boolean).join('、') || '缺失'}的截图，然后重新运行校验。`}
           </span>
         </div>
         <button

@@ -42,10 +42,12 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     // 输入开发者凭据登录
     await devLogin(page);
 
-    // 确认进入工作区
+    // 确认进入工作区（默认为空态，可一键加载 7 组件演示草稿）
     await expect(page.locator('h1')).toContainText('资产发布工作区 (Manual Release)');
     await expect(page.locator('body')).toContainText('当前登录身份：web-developer-alice');
     await expect(page.locator('body')).toContainText('逐实现截图关联与必检清单');
+
+    await page.getByRole('button', { name: '加载 7 组件演示草稿' }).click();
 
     // 动态覆盖 7 组件 14 个实现变体
     const cards = page.locator('.variant-shot-card');
@@ -55,6 +57,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   test('缺图阻断：任意变体缺图时禁止提交并展示明确错误提示 (blocks_submit_when_any_variant_has_no_image)', async ({ page }) => {
     await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
+    await page.getByRole('button', { name: '加载 7 组件演示草稿' }).click();
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
     // 初始时从干净草稿启动，14 项实现全部无截图，提交按钮初始被禁用
@@ -193,6 +196,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   test('支持界面选择本地图片替换截图并动态更新大小与摘要', async ({ page }) => {
     await page.goto('http://127.0.0.1:5177/upload');
     await devLogin(page);
+    await page.getByRole('button', { name: '加载 7 组件演示草稿' }).click();
 
     // 针对 line-vue 变体，触发文件选择
     const fileInput = page.locator('tr.variant-shot-card').first().locator('input[type="file"]');

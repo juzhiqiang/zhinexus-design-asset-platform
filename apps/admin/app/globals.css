@@ -2255,3 +2255,59 @@ a.filter-btn {
   height: 1px;
   background: var(--zn-border);
 }
+
+.zn-topbar-user {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.zn-topbar-username {
+  font-family: var(--zn-font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--zn-text);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.zn-btn-logout {
+  height: 30px;
+  padding: 0 10px;
+  font-size: 11px;
+}
+
+.zn-state-card {
+  margin-top: 8px;
+}
+
+.zn-detail-kv {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.zn-detail-kv-item {
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: var(--zn-glass);
+  border: 1px solid var(--zn-border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.zn-detail-kv-label {
+  font-size: 11px;
+  color: var(--zn-subtle);
+}
+
+.zn-detail-kv-value {
+  font-family: var(--zn-font-mono);
+  font-size: 12px;
+  color: var(--zn-text);
+  word-break: break-all;
+}

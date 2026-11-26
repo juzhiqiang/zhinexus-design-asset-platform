@@ -125,6 +125,17 @@ export function saveSession(token: string): UserSession | null {
   return session;
 }
 
+export function getAuthHeaders(session: Pick<UserSession, 'token'> | null | undefined = getStoredSession()): Record<string, string> {
+  const token = session?.token;
+  if (!token || token === '__session__') return {};
+  return { authorization: `Bearer ${token}` };
+}
+
+export function getAuthCredentials(session: Pick<UserSession, 'token'> | null | undefined = getStoredSession()): RequestCredentials {
+  const token = session?.token;
+  return !token || token === '__session__' ? 'include' : 'omit';
+}
+
 export function clearSession(): void {
   if (typeof window === 'undefined') return;
   authGeneration += 1;
@@ -146,4 +157,9 @@ export function clearSession(): void {
       }
     });
   logoutInFlight = logoutPromise;
+}
+
+export function logoutAndRedirect(router: { replace(href: string): void }): void {
+  clearSession();
+  router.replace('/login');
 }

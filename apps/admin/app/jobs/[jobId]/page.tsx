@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getStoredSession,loadCompanySession,platformApiOrigin } from '../../lib/auth';
+import { getAuthCredentials, getAuthHeaders, getStoredSession, loadCompanySession, platformApiOrigin } from '../../lib/auth';
 import { fetchReleaseJob } from '../../lib/uploads/manifest-form';
 import { ZnIcon } from '../../lib/design/icons';
 import { COMMAND_MOTIFS, ZnCommandMotif } from '../../lib/design/motifs';
@@ -65,7 +65,16 @@ export default function JobDetailPage({
       }
     }
 
-    void loadCompanySession().then(session=>{token=session?.token;if(cancelled)return;if(token)void poll();else setError('未登录或未找到凭证，请先登录控制台');});
+    if (token) {
+      void poll();
+    } else {
+      void loadCompanySession().then((session) => {
+        token = session?.token;
+        if (cancelled) return;
+        if (token) void poll();
+        else setError('未登录或未找到凭证，请先登录控制台');
+      });
+    }
 
     return () => {
       cancelled = true;
@@ -79,10 +88,10 @@ export default function JobDetailPage({
     setRetrying(true);
     try {
       const res = await fetch(`${platformApiOrigin}/v1/releases/${jobId}/retry`, {
-        credentials: session.token === '__session__' ? 'include' : 'omit',
+        credentials: getAuthCredentials(session),
         redirect: 'error',
         method: 'POST',
-        headers: { authorization: `Bearer ${session.token}` },
+        headers: getAuthHeaders(session),
       });
       if (!res.ok) {
         throw new Error(await res.text());
@@ -115,7 +124,7 @@ export default function JobDetailPage({
   return (
     <main>
       <nav className="breadcrumb" aria-label="面包屑">
-        <Link href="/upload">发布控制台</Link>
+        <Link href="/jobs">发布作业</Link>
         <span>/</span>
         <span>作业跟踪</span>
       </nav>

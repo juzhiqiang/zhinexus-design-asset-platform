@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 管理端外壳：对应 `.pen` 每张画板的 `App Sidebar` + `Topbar` + `Aurora Flow Field`。
+ * 管理端外壳：`App Sidebar` + `Topbar` + `Aurora Flow Field`。
  *
  * 注意：这里渲染 `<div className="zn-content">` 而不是 `<main>`——各页面自己渲染
  * `<main>`，嵌套会产生多个 main 地标。
@@ -10,12 +10,11 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ZnIcon } from './icons';
-import { ADMIN_NAV_ITEMS, resolveActiveNavKey, resolveTopbarPage } from './nav';
-import { getStoredSession, loadCompanySession } from '../auth';
+import { ADMIN_NAV_ITEMS, ADMIN_TOOL_ITEMS, resolveActiveNavKey, resolveTopbarPage } from './nav';
+import { getStoredSession, loadCompanySession, logoutAndRedirect, platformApiOrigin } from '../auth';
 
 const SEARCH_TARGET = '/match';
 
-/** Aurora 流场的两个模糊色块（.pen Glacier / Mint Aurora Field）。 */
 function AuroraFlowField() {
   return (
     <div className="zn-aurora" aria-hidden="true">
@@ -47,7 +46,6 @@ function initialsOf(subject: string): string {
   return subject.slice(0, 2).toUpperCase();
 }
 
-/** 顶栏快速检索：跳到 `/match?q=`，由匹配页读取并预填检索框。 */
 function QuickSearch() {
   const router = useRouter();
   const [value, setValue] = useState('');
@@ -88,8 +86,10 @@ function QuickSearch() {
   );
 }
 
+type LinkHealth = { status: 'checking' | 'online' | 'offline'; latencyMs: number | null };
+
 export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
-  const pathname = usePathname() ?? '/upload';
+  const pathname = usePathname() ?? '/assets';
   const router = useRouter();
   const isLoginPage = pathname === '/login';
   const activeKey = resolveActiveNavKey(pathname);
@@ -97,6 +97,7 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'redirecting'>(() =>
     isLoginPage ? 'authenticated' : 'checking',
   );
+  const [health, setHealth] = useState<LinkHealth>({ status: 'checking', latencyMs: null });
 
   useEffect(() => {
     if (isLoginPage) {
@@ -130,6 +131,29 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
     };
   }, [isLoginPage, pathname, router]);
 
+  useEffect(() => {
+    if (isLoginPage || authStatus !== 'authenticated') return;
+    let cancelled = false;
+    const probe = async () => {
+      const started = performance.now();
+      try {
+        const res = await fetch(`${platformApiOrigin}/healthz`, {
+          cache: 'no-store',
+          signal: AbortSignal.timeout(4000),
+        });
+        if (cancelled) return;
+        const elapsed = Math.max(1, Math.round(performance.now() - started));
+        setHealth(res.ok ? { status: 'online', latencyMs: elapsed } : { status: 'offline', latencyMs: null });
+      } catch {
+        if (!cancelled) setHealth({ status: 'offline', latencyMs: null });
+      }
+    };
+    void probe();
+    return () => {
+      cancelled = true;
+    };
+  }, [isLoginPage, authStatus]);
+
   if (isLoginPage) {
     return (
       <div className="zn-login-shell">
@@ -159,12 +183,26 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
           <span className="zn-brand-name">ZHINEXUS</span>
         </div>
         <p className="zn-workspace-label">REGISTRY / 工作台</p>
-        <div className="zn-link-pulse">
+        <div className="zn-link-pulse" data-health={health.status}>
           <span className="zn-link-status">
-            <span className="zn-live-dot" />
-            <span className="zn-link-label">SYSTEM LINK</span>
+            <span
+              className="zn-live-dot"
+              style={{
+                background:
+                  health.status === 'online'
+                    ? 'var(--zn-success)'
+                    : health.status === 'offline'
+                      ? 'var(--zn-danger)'
+                      : 'var(--zn-warning)',
+              }}
+            />
+            <span className="zn-link-label">
+              {health.status === 'online' ? 'API ONLINE' : health.status === 'offline' ? 'API OFFLINE' : 'CHECKING API'}
+            </span>
           </span>
-          <span className="zn-link-latency">17ms</span>
+          <span className="zn-link-latency">
+            {health.status === 'online' && health.latencyMs !== null ? `${health.latencyMs}ms` : health.status === 'offline' ? '离线' : '…'}
+          </span>
         </div>
         <nav className="zn-nav" aria-label="控制台导航">
           {ADMIN_NAV_ITEMS.map((item) => (
@@ -182,18 +220,27 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
               </span>
             </Link>
           ))}
-          <Link
-            href="/categories"
-            className="zn-nav-item"
-            aria-current={pathname.startsWith('/categories') ? 'page' : undefined}
-          >
-            组件分类
-          </Link>
         </nav>
+
+        <p className="zn-workspace-label" style={{ marginTop: 10 }}>TOOLS / 辅助工具</p>
+        <nav className="zn-nav" aria-label="辅助工具" style={{ marginTop: 2 }}>
+          {ADMIN_TOOL_ITEMS.map((item) => (
+            <Link
+              key={item.key}
+              href={item.href}
+              className="zn-nav-item"
+              aria-current={activeKey === item.key ? 'page' : undefined}
+            >
+              <ZnIcon name={item.icon} size={16} className="zn-nav-icon" color={activeKey === item.key ? 'var(--zn-accent)' : '#7D8796'} />
+              <span>{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+
         <div className="zn-sidebar-spacer" />
         <div className="zn-env">
           <span className="zn-env-label">ENV / API</span>
-          <span className="zn-env-value">{process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://127.0.0.1:3000'}</span>
+          <span className="zn-env-value">{platformApiOrigin}</span>
         </div>
       </aside>
 
@@ -207,9 +254,20 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
           </div>
           <div className="zn-topbar-actions">
             <QuickSearch />
-            <span className="zn-avatar" title={subject || '未登录'} aria-hidden="true">
-              {subject ? initialsOf(subject) : 'ZN'}
-            </span>
+            <div className="zn-topbar-user">
+              <span className="zn-avatar" title={subject || '未登录'} aria-hidden="true">
+                {subject ? initialsOf(subject) : 'ZN'}
+              </span>
+              {subject ? <span className="zn-topbar-username">{subject}</span> : null}
+              <button
+                type="button"
+                className="zn-btn zn-btn-logout"
+                onClick={() => logoutAndRedirect(router)}
+              >
+                <ZnIcon name="log-out" size={14} color="var(--zn-muted)" />
+                退出登录
+              </button>
+            </div>
           </div>
         </header>
         <div className="zn-content">{children}</div>

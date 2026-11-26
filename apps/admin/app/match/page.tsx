@@ -1,9 +1,9 @@
 'use client';
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import type { ProjectContext, SearchCandidatesResponse, ValidationResult } from '@company/contracts';
-import { getStoredSession, saveSession, clearSession,loadCompanySession,companyLoginUrl,type UserSession } from '../lib/auth';
+import { getStoredSession, loadCompanySession, type UserSession } from '../lib/auth';
 import { buildProjectContext } from '../lib/project-context-form';
 import { searchCandidates } from '../lib/search-client';
 import { CandidateResults } from './CandidateResults';
@@ -56,8 +56,8 @@ type SearchState =
   | { kind: 'error'; message: string };
 
 export default function ProjectContextMatchPage() {
-  const [session, setSession] = useState<UserSession | null>(null);
-  const [tokenInput, setTokenInput] = useState('');
+  const router = useRouter();
+  const [session, setSession] = useState<UserSession | null>(() => getStoredSession());
 
   const [framework, setFramework] = useState('');
   const [frameworkVersion, setFrameworkVersion] = useState('');
@@ -120,7 +120,6 @@ export default function ProjectContextMatchPage() {
 
   /** 重置全部表单与检索状态（不触碰 session）。 */
   const resetFormState = () => {
-    setTokenInput('');
     setFramework('');
     setFrameworkVersion('');
     setEchartsVersion('');
@@ -135,13 +134,13 @@ export default function ProjectContextMatchPage() {
   };
 
   /**
-   * 失效会话清理：取消在途请求、回退登录门并清空全部表单/检索状态。
-   * 提交前、响应/错误落地时发现会话失效都必须走这里，绝不能留下 loading 或旧身份数据。
+   * 失效会话清理：取消在途请求、清空全部表单/检索状态并回登录页。
    */
   const invalidateSession = () => {
     cancelInFlight();
     resetFormState();
     setSession(null);
+    router.replace('/login?next=%2Fmatch');
   };
 
   // 身份变化防护：其他标签页改写会话（storage 事件）或本页重新聚焦时复核当前会话；
@@ -162,36 +161,6 @@ export default function ProjectContextMatchPage() {
       window.removeEventListener('focus', recheck);
     };
   }, [session]);
-
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!tokenInput.trim()) return;
-    const saved = saveSession(tokenInput.trim());
-    if (saved) {
-      setSession(saved);
-      setStatusMessage('');
-    } else {
-      setStatusMessage('Token 格式无效，无法解析身份');
-    }
-  };
-
-  const handleLogout = () => {
-    clearSession();
-    cancelInFlight();
-    setSession(null);
-    setTokenInput('');
-    setFramework('');
-    setFrameworkVersion('');
-    setEchartsVersion('');
-    setPackageManager('');
-    setRequirements([]);
-    setRequirementInput('');
-    setResult(null);
-    setStatusMessage('');
-    setSearchQuery('');
-    setReactDomVersion('');
-    setSearchState({ kind: 'idle' });
-  };
 
   // 任意字段/草稿/增删编辑都清理上一次校验结果与提示，过期成功/错误不得残留；
   // 同时取消在途检索并清理其结果，旧响应不得回显
@@ -307,41 +276,8 @@ export default function ProjectContextMatchPage() {
     }
   };
 
-  // 未登录：复用控制台登录门（仅展示，安全性由服务端 Bearer 强制）
   if (!session) {
-    return (
-      <main>
-        <div className="zn-page-header access-heading">
-          <div className="zn-header-copy">
-            <p className="eyebrow">06 / PROJECT INTELLIGENCE</p>
-            <h1>登录后开放</h1>
-            <p className="lead">项目上下文匹配需要登录。请输入开发者凭证（OIDC Bearer Token）以继续：</p>
-          </div>
-          <ZnCommandMotif motif={MOTIF} className="zn-motif" />
-          <div className="zn-header-actions">
-            <a className="filter-btn active" href={companyLoginUrl}><ZnIcon name="key-round" size={15} color="var(--zn-on-primary)" />账号登录</a>
-          </div>
-        </div>
-        <section className="access-panel">
-          <form onSubmit={handleLogin} className="auth-form">
-            <label htmlFor="token-input">
-              开发者 Bearer Token (或测试凭证):
-              <input
-                id="token-input"
-                type="text"
-                value={tokenInput}
-                onChange={(e) => setTokenInput(e.target.value)}
-                placeholder="eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..."
-              />
-            </label>
-            <div className="zn-row">
-              <button type="submit" className="filter-btn active">凭证登录</button>
-            </div>
-            {statusMessage && <p className="access-error" role="alert">{statusMessage}</p>}
-          </form>
-        </section>
-      </main>
-    );
+    return null;
   }
 
   const issues = result && !result.ok ? result.issues : [];
@@ -371,16 +307,6 @@ export default function ProjectContextMatchPage() {
           </p>
         </div>
         <ZnCommandMotif motif={MOTIF} className="zn-motif" />
-        <div className="zn-identity">
-          <span className="zn-avatar" style={{ width: 24, height: 24, flex: '0 0 24px', fontSize: 9, background: 'var(--zn-panel)', color: 'var(--zn-accent)' }}>
-            {session.subject.slice(0, 2).toUpperCase()}
-          </span>
-          <span className="zn-stack-sm" style={{ gap: 1 }}>
-            <span className="zn-identity-text">{session.subject}</span>
-            <span className="zn-identity-role">{session.channel} 渠道</span>
-          </span>
-          <button type="button" className="filter-btn" onClick={handleLogout}>退出登录</button>
-        </div>
       </div>
 
       <div className="zn-notice" role="note">

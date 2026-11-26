@@ -6,7 +6,7 @@ import {
   AURORA_FLOW_PATHS,
 } from '../../apps/admin/app/lib/design/motifs.js';
 import { ZN_COLOR_TOKENS, ZN_FONT_TOKENS, ZN_TOKENS, ZN_TOKEN_DECLARATIONS } from '../../apps/admin/app/lib/design/tokens.js';
-import { ADMIN_NAV_ITEMS, resolveActiveNavKey, resolveTopbarPage } from '../../apps/admin/app/lib/design/nav.js';
+import { ADMIN_NAV_ITEMS, ADMIN_TOOL_ITEMS, resolveActiveNavKey, resolveTopbarPage } from '../../apps/admin/app/lib/design/nav.js';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const PEN_PATH = join(REPO_ROOT, 'docs', 'design', 'management-api.pen');
@@ -146,30 +146,38 @@ describe('外壳结构约束', () => {
 });
 
 describe('侧栏导航与顶栏标题', () => {
-  it('导航为固定 4 项，序号 01–04', () => {
-    expect(ADMIN_NAV_ITEMS.map(item => item.order)).toEqual(['01', '02', '03', '04']);
-    expect(ADMIN_NAV_ITEMS.map(item => item.href)).toEqual(['/upload', '/match', '/access-settings', '/users']);
+  it('主导航为 6 个真实业务域，序号 01–06，辅助工具包含项目上下文匹配', () => {
+    expect(ADMIN_NAV_ITEMS.map(item => item.order)).toEqual(['01', '02', '03', '04', '05', '06']);
+    expect(ADMIN_NAV_ITEMS.map(item => item.href)).toEqual(['/assets', '/upload', '/jobs', '/categories', '/users', '/access-settings']);
+    expect(ADMIN_TOOL_ITEMS.map(item => item.href)).toEqual(['/match']);
   });
 
   it('导航标签使用完整名称，保证 getByRole link 名称可命中', () => {
-    expect(ADMIN_NAV_ITEMS.map(item => item.label)).toEqual(['上传发布', '项目上下文匹配', '接入设置', '用户与权限']);
+    expect(ADMIN_NAV_ITEMS.map(item => item.label)).toEqual(['资产管理', '上传发布', '发布作业', '组件分类', '成员与权限', '接入与配置']);
+    expect(ADMIN_TOOL_ITEMS.map(item => item.label)).toEqual(['项目上下文匹配']);
   });
 
-  it('/jobs/[jobId] 归属上传发布分区，/login 不属于任何分区', () => {
+  it('路由与分区高亮一一对应，/login 不属于任何分区', () => {
+    expect(resolveActiveNavKey('/assets')).toBe('assets');
     expect(resolveActiveNavKey('/upload')).toBe('upload');
-    expect(resolveActiveNavKey('/jobs/job-web-manual-001')).toBe('upload');
-    expect(resolveActiveNavKey('/match')).toBe('match');
-    expect(resolveActiveNavKey('/access-settings')).toBe('access');
+    expect(resolveActiveNavKey('/jobs')).toBe('jobs');
+    expect(resolveActiveNavKey('/jobs/job-web-manual-001')).toBe('jobs');
+    expect(resolveActiveNavKey('/categories')).toBe('categories');
     expect(resolveActiveNavKey('/users')).toBe('users');
+    expect(resolveActiveNavKey('/access-settings')).toBe('access');
+    expect(resolveActiveNavKey('/match')).toBe('match');
     expect(resolveActiveNavKey('/login')).toBeNull();
   });
 
   it('顶栏页面名跟随路由', () => {
+    expect(resolveTopbarPage('/assets')).toBe('资产管理');
     expect(resolveTopbarPage('/upload')).toBe('上传发布');
+    expect(resolveTopbarPage('/jobs')).toBe('发布作业');
     expect(resolveTopbarPage('/jobs/job-web-manual-001')).toBe('发布作业');
+    expect(resolveTopbarPage('/categories')).toBe('组件分类');
+    expect(resolveTopbarPage('/users')).toBe('成员与权限');
+    expect(resolveTopbarPage('/access-settings')).toBe('接入与配置');
     expect(resolveTopbarPage('/match')).toBe('项目上下文匹配');
-    expect(resolveTopbarPage('/access-settings')).toBe('接入设置');
-    expect(resolveTopbarPage('/users')).toBe('用户与权限');
     expect(resolveTopbarPage('/login')).toBe('账号登录');
   });
 });

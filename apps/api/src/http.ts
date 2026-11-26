@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { Body, Catch, Controller, Get, Headers, HttpCode, Inject, Param, Post, Req, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
+import { Body, Catch, Controller, Get, Headers, HttpCode, Inject, Param, Post, Query, Req, type ArgumentsHost, type ExceptionFilter } from '@nestjs/common';
 import type { ApiError } from '@company/contracts';
 import { AuthFailure } from './auth/oidc.js';
 import { PlatformError } from './errors.js';
@@ -27,6 +27,10 @@ export class PlatformController {
   @Post('releases') @HttpCode(202)
   createRelease(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Headers('idempotency-key') key: string | undefined, @Req() request: Request) {
     return this.platform.run(auth, 'upload', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads).create(body, key, context));
+  }
+  @Get('releases')
+  listReleases(@Query() query: Record<string, unknown>, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
+    return this.platform.run(auth, 'read', request.requestId!, (context, uploads, db) => new ReleaseService(db, uploads).list(query, context));
   }
   @Get('releases/:id')
   getRelease(@Param('id') id: string, @Headers('authorization') auth: string | undefined, @Req() request: Request) {

@@ -6,7 +6,7 @@ import { companyLoginUrl, getStoredSession, loadCompanySession, platformApiOrigi
 
 function safeNextTarget(value: string | undefined): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) {
-    return '/upload';
+    return '/assets';
   }
   return value;
 }

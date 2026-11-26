@@ -7,7 +7,21 @@ import { validatePlatformBundle } from '../uploads/validator.js';
 import { PlatformError } from '../errors.js';
 import { registerReleaseCategories } from '../categories/service.js';
 
-type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null; missing_artifacts: string[] };
+type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null; missing_artifacts: string[]; created_at?: Date; updated_at?: Date };
+const VALID_JOB_STATES = new Set(['PENDING', 'RUNNING', 'RETRY_WAIT', 'READY', 'REJECTED', 'CONFLICT']);
+export type ReleaseJobSummary = {
+  jobId: string;
+  channel: string;
+  subject: string;
+  state: ApiMessages['releaseJobResponse']['state'];
+  stage: ApiMessages['releaseJobResponse']['stage'];
+  attempt: number;
+  createdAt: string;
+  updatedAt: string;
+  packages: Array<{ name: string; version: string }>;
+  variantCount: number;
+  lastError?: ApiMessages['releaseJobResponse']['lastError'];
+};
 export class ReleaseService {
   constructor(private readonly db: Database, private readonly uploads: UploadService) {}
   async create(input: unknown, key: string | undefined, context: RequestContext): Promise<ApiMessages['createReleaseResponse']> {
@@ -88,6 +102,52 @@ export class ReleaseService {
       }
     }
     return job;
+  }
+  async list(input: unknown, context: RequestContext): Promise<{ items: ReleaseJobSummary[] }> {
+    const query = input && typeof input === 'object' && !Array.isArray(input) ? (input as Record<string, unknown>) : {};
+    const rawState = typeof query.state === 'string' && query.state.trim() ? query.state.trim().toUpperCase() : null;
+    if (rawState && !VALID_JOB_STATES.has(rawState)) throw new PlatformError('INVALID_SCHEMA');
+    let limit = 50;
+    if (query.limit !== undefined && query.limit !== '') {
+      const parsed = typeof query.limit === 'number' ? query.limit : typeof query.limit === 'string' && /^[1-9][0-9]*$/.test(query.limit) ? Number(query.limit) : NaN;
+      if (!Number.isSafeInteger(parsed) || parsed < 1 || parsed > 100) throw new PlatformError('INVALID_SCHEMA');
+      limit = parsed;
+    }
+    const isMaintainer = context.principal.roles.includes('maintainer');
+    const result = await this.db.query<Job>(
+      `SELECT id,subject,client_id,channel,state,stage,attempt,last_error,manifest,created_at,updated_at
+       FROM release_jobs
+       WHERE ($1::text IS NULL OR state=$1) AND ($2::boolean OR subject=$3)
+       ORDER BY created_at DESC LIMIT $4`,
+      [rawState, isMaintainer, context.principal.subject, isMaintainer ? Math.min(limit * 3, 200) : limit],
+    );
+    const items: ReleaseJobSummary[] = [];
+    for (const row of result.rows) {
+      if (items.length >= limit) break;
+      if (row.subject !== context.principal.subject) {
+        try {
+          await requireComponents(this.db, context.principal.subject, row.manifest.variants.map(variant => variant.componentId), true);
+          await requirePackages(this.db, context.principal.subject, row.manifest.packages.map(pkg => pkg.name));
+        } catch (error) {
+          if (error instanceof PlatformError && error.code === 'FORBIDDEN') continue;
+          throw error;
+        }
+      }
+      items.push({
+        jobId: row.id,
+        channel: row.channel,
+        subject: row.subject,
+        state: row.state,
+        stage: row.stage,
+        attempt: row.attempt,
+        createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : new Date().toISOString(),
+        updatedAt: row.updated_at instanceof Date ? row.updated_at.toISOString() : new Date().toISOString(),
+        packages: (row.manifest?.packages ?? []).map(pkg => ({ name: pkg.name, version: pkg.version })),
+        variantCount: row.manifest?.variants?.length ?? 0,
+        ...(row.last_error ? { lastError: row.last_error } : {}),
+      });
+    }
+    return { items };
   }
   async get(jobId: string, context: RequestContext): Promise<ApiMessages['releaseJobResponse']> {
     const job = await this.readable(this.db, jobId, context);

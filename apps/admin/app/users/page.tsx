@@ -5,6 +5,7 @@ import {
   createManagedAccount,
   listManagedAccounts,
   managedAccountAudit,
+  ManagedAccountApiError,
   mutateManagedAccount,
   readManagedAccount,
   setManagedAccountPassword,
@@ -13,9 +14,9 @@ import {
   SYNC_LABELS,
   type ManagedAccountDraft,
 } from '../lib/managed-accounts-client';
-import { companyLoginUrl, loadCompanySession, type UserSession } from '../lib/auth';
 import { ZnIcon } from '../lib/design/icons';
 import { COMMAND_MOTIFS, ZnCommandMotif } from '../lib/design/motifs';
+import { ServiceUnavailableState } from '../lib/design/ServiceUnavailableState';
 import type { ManagedAccountDetail, ManagedAccountRole } from '@company/contracts';
 
 const emptyDraft: ManagedAccountDraft = { username: '', displayName: '', roles: ['reader'], componentGrants: [], packageGrants: [] };
@@ -35,7 +36,6 @@ function grantText(account: ManagedAccountDetail): string {
 }
 
 export default function ManagedAccountsConsole() {
-  const [session, setSession] = useState<UserSession | null>(null);
   const [accounts, setAccounts] = useState<ManagedAccountDetail[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [draft, setDraft] = useState<ManagedAccountDraft>(emptyDraft);
@@ -43,7 +43,7 @@ export default function ManagedAccountsConsole() {
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ status?: number; message: string } | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [audit, setAudit] = useState<{ at: string; actor: string; action: string; username: string; result: string }[]>([]);
 
@@ -57,11 +57,15 @@ export default function ManagedAccountsConsole() {
       });
       setAccounts(list.items as ManagedAccountDetail[]);
       if (selected) setAccounts(current => current.some(item => item.id === selected) ? current : [...current, ...(list.items as ManagedAccountDetail[])]);
-    } catch (failure) { setError(failure instanceof Error ? failure.message : '读取成员列表失败。'); }
+    } catch (failure) {
+      setError({
+        status: failure instanceof ManagedAccountApiError ? failure.status : undefined,
+        message: failure instanceof Error ? failure.message : '读取成员列表失败。',
+      });
+    }
     finally { setBusy(false); }
   }, [query, selected, statusFilter]);
 
-  useEffect(() => { void loadCompanySession().then(setSession); }, []);
   useEffect(() => { void reload(); }, [reload]);
 
   const current = accounts.find(item => item.id === selected);
@@ -88,7 +92,12 @@ export default function ManagedAccountsConsole() {
       setNotice(message);
       setPassword('');
       await reload();
-    } catch (failure) { setError(failure instanceof Error ? failure.message : '操作失败，请刷新后重试。'); }
+    } catch (failure) {
+      setError({
+        status: failure instanceof ManagedAccountApiError ? failure.status : undefined,
+        message: failure instanceof Error ? failure.message : '操作失败，请刷新后重试。',
+      });
+    }
     finally { setBusy(false); }
   };
 
@@ -97,20 +106,19 @@ export default function ManagedAccountsConsole() {
       <div className="access-heading zn-page-header">
         <div className="zn-header-copy">
           <p className="eyebrow">05 / IDENTITY LEDGER</p>
-          <h1>用户与权限</h1>
+          <h1>成员与权限</h1>
           <p className="lead">管理成员身份、业务角色与资产授权，敏感操作均保留审计轨迹。</p>
         </div>
         <ZnCommandMotif motif={MOTIF} className="zn-motif" />
         <div className="zn-header-actions">
-          <a className="filter-btn" href={companyLoginUrl}><ZnIcon name="key-round" size={15} color="var(--zn-muted)" />账号登录</a>
           <button className="filter-btn" disabled={busy} onClick={() => void reload()}><ZnIcon name="refresh-cw" size={15} color="var(--zn-muted)" />刷新列表</button>
         </div>
       </div>
 
-      {!session && <section className="access-panel"><h2>管理员登录</h2><p className="access-hint">成员管理仅接受部署登记的平台管理员身份；业务角色不授予后台权限。</p><p><a className="filter-btn active" href={companyLoginUrl}>账号登录</a></p></section>}
-
-      {session && <>
-        {error && <p className="access-error" role="alert">{error}</p>}
+      {error?.status === 503 || error?.status === 403 ? (
+        <ServiceUnavailableState status={error.status} message={error.message} onRetry={() => void reload()} />
+      ) : <>
+        {error && <p className="access-error" role="alert">{error.message}</p>}
         {notice && <p className="access-message" role="status">{notice}</p>}
 
         <div className="zn-metrics">
@@ -213,7 +221,7 @@ export default function ManagedAccountsConsole() {
                           </span>
                         </td>
                         <td>
-                          <button className="filter-btn" disabled={busy} onClick={() => void readManagedAccount(account.id).then(account => setSelected(account.id)).catch(failure => setError(failure instanceof Error ? failure.message : '读取详情失败。'))}>
+                          <button className="filter-btn" disabled={busy} onClick={() => void readManagedAccount(account.id).then(account => setSelected(account.id)).catch(failure => setError({ status: failure instanceof ManagedAccountApiError ? failure.status : undefined, message: failure instanceof Error ? failure.message : '读取详情失败。' }))}>
                             详情<ZnIcon name="arrow-up-right" size={13} color="var(--zn-accent)" />
                           </button>
                         </td>
@@ -293,7 +301,7 @@ export default function ManagedAccountsConsole() {
             <section className="zn-card" aria-label="身份操作记录">
               <div className="zn-card-head">
                 <h2 className="zn-card-title">身份操作记录</h2>
-                <button className="filter-btn" disabled={busy} onClick={() => void managedAccountAudit().then(value => setAudit(value.items)).catch(() => setError('读取操作记录失败。'))}>读取记录</button>
+                <button className="filter-btn" disabled={busy} onClick={() => void managedAccountAudit().then(value => setAudit(value.items)).catch(() => setError({ message: '读取操作记录失败。' }))}>读取记录</button>
               </div>
               {audit.length ? (
                 <div className="zn-checks">

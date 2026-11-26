@@ -64,20 +64,23 @@ test.describe('built admin controls with mocked API responses (not persistence e
     newPost.open(); await expect(page.getByRole('row').filter({ hasText: 'charts' })).toContainText('Current identity name');
     await expect(page.getByRole('button', { name: '保存分类' })).toBeEnabled();
   });
-  test('clears private creation drafts on API changes and logout', async ({ page }) => {
+  test('clears private creation drafts on logout and re-login as another admin', async ({ page }) => {
     await login(page);
     await page.route('**/v1/categories**', route => route.fulfill({ json: { items: [category] } }));
     await page.route('**/v1/auth/oidc/logout', route => route.fulfill({ status: 204 }));
     await page.goto('/categories');
-    await page.getByLabel('分类 ID').fill('private-draft'); await page.getByLabel('分类名称', { exact: true }).fill('Private category');
-    await page.getByLabel('API 服务').fill('http://127.0.0.1:3999');
-    await expect(page.getByLabel('分类 ID')).toHaveValue(''); await expect(page.getByLabel('分类名称', { exact: true })).toHaveValue('');
-    await page.getByLabel('分类 ID').fill('private-after-api'); await page.getByLabel('分类名称', { exact: true }).fill('Other private category');
+    await page.getByLabel('分类 ID').fill('private-draft');
+    await page.getByLabel('分类名称', { exact: true }).fill('Private category');
     await page.getByRole('button', { name: '退出登录' }).click();
+    await expect(page).toHaveURL(/\/login$/);
     await expect(page.getByRole('heading', { name: '管理员登录' })).toBeVisible();
+    await page.locator('details.zn-token-login summary').click();
     const payload = Buffer.from(JSON.stringify({ sub: 'next-admin', roles: ['reader'] })).toString('base64url');
-    await page.getByLabel('开发者 Bearer Token').fill(`header.${payload}.signature`); await page.getByRole('button', { name: '凭证登录' }).click();
-    await expect(page.getByLabel('分类 ID')).toHaveValue(''); await expect(page.getByLabel('分类名称', { exact: true })).toHaveValue('');
+    await page.locator('#token-input').fill(`header.${payload}.signature`);
+    await page.getByRole('button', { name: '凭证登录' }).click();
+    await page.goto('/categories');
+    await expect(page.getByLabel('分类 ID')).toHaveValue('');
+    await expect(page.getByLabel('分类名称', { exact: true })).toHaveValue('');
   });
   for (const deniedStatus of [401, 403]) test(`preflight ${deniedStatus} clears previous publishing ACL without losing frozen materials or creating uploads`, async ({ page }) => {
     await login(page); const fixture = await createValidBundle(); const directory = await mkdtemp(join(tmpdir(), 'categories-denied-'));
