@@ -1,17 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import * as assetsClient from '../../apps/admin/app/lib/assets-client.js';
+import { parseProbeEvidenceInput, validateAdminPreviewBootstrapUrl } from '../../apps/admin/app/lib/assets-client.js';
 
 describe('admin assets-client 预览隔离校验与兼容证据解析', () => {
   it('validateAdminPreviewBootstrapUrl 严格拒绝非 HTTPS、与管理端或 API 同源、或带凭证/非法路径的预览地址', () => {
-    const validate = (assetsClient as unknown as {
-      validateAdminPreviewBootstrapUrl?: (
-        raw: unknown,
-        adminLocation: { origin: string; hostname: string; port: string },
-        apiOrigin: string,
-      ) => { url: string; isolation: 'domain' | 'ip-port' } | null;
-    }).validateAdminPreviewBootstrapUrl;
-
-    expect(typeof validate).toBe('function');
     const adminLoc = { origin: 'https://admin.assets.example.com', hostname: 'admin.assets.example.com', port: '' };
     const apiOrigin = 'https://api.assets.example.com';
     const releaseId = '11111111-1111-4111-8111-111111111111';
@@ -20,7 +11,7 @@ describe('admin assets-client 预览隔离校验与兼容证据解析', () => {
 
     // 合法独立预览域
     expect(
-      validate!(
+      validateAdminPreviewBootstrapUrl(
         { bootstrapUrl: `https://r-${releaseId}.preview.example.com/bootstrap?grant=${grantToken}`, expiresAt: future, mode: 'domain' },
         adminLoc,
         apiOrigin,
@@ -32,14 +23,14 @@ describe('admin assets-client 预览隔离校验与兼容证据解析', () => {
 
     // 拒绝与管理端同源或与 API 同源
     expect(
-      validate!(
+      validateAdminPreviewBootstrapUrl(
         { bootstrapUrl: `https://admin.assets.example.com/bootstrap?grant=${grantToken}`, expiresAt: future, mode: 'domain' },
         adminLoc,
         apiOrigin,
       ),
     ).toBeNull();
     expect(
-      validate!(
+      validateAdminPreviewBootstrapUrl(
         { bootstrapUrl: `https://api.assets.example.com/bootstrap?grant=${grantToken}`, expiresAt: future, mode: 'domain' },
         adminLoc,
         apiOrigin,
@@ -48,14 +39,14 @@ describe('admin assets-client 预览隔离校验与兼容证据解析', () => {
 
     // 拒绝 HTTP 降级与过期授权
     expect(
-      validate!(
+      validateAdminPreviewBootstrapUrl(
         { bootstrapUrl: `http://r-${releaseId}.preview.example.com/bootstrap?grant=${grantToken}`, expiresAt: future, mode: 'domain' },
         adminLoc,
         apiOrigin,
       ),
     ).toBeNull();
     expect(
-      validate!(
+      validateAdminPreviewBootstrapUrl(
         { bootstrapUrl: `https://r-${releaseId}.preview.example.com/bootstrap?grant=${grantToken}`, expiresAt: '2020-01-01T00:00:00.000Z', mode: 'domain' },
         adminLoc,
         apiOrigin,
@@ -64,19 +55,10 @@ describe('admin assets-client 预览隔离校验与兼容证据解析', () => {
   });
 
   it('parseProbeEvidenceInput 校验 T10 兼容实测证据并提取默认 candidate 三元组', () => {
-    const parse = (assetsClient as unknown as {
-      parseProbeEvidenceInput?: (jsonText: string) => {
-        ok: true;
-        candidate: { version: string; integrity: string; source: string };
-        evidence: Record<string, unknown>;
-      } | { ok: false; message: string };
-    }).parseProbeEvidenceInput;
+    expect(parseProbeEvidenceInput('not json').ok).toBe(false);
+    expect(parseProbeEvidenceInput('{"schemaVersion":1}').ok).toBe(false);
 
-    expect(typeof parse).toBe('function');
-    expect(parse!('not json').ok).toBe(false);
-    expect(parse!('{"schemaVersion":1}').ok).toBe(false);
-
-    const valid = parse!(
+    const valid = parseProbeEvidenceInput(
       JSON.stringify({
         schemaVersion: 1,
         kind: 'a-t10-sdk-probe',

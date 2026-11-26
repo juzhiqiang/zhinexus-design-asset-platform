@@ -115,6 +115,10 @@ test.describe('成员与权限管理体验回归 (/users)', () => {
     expect(lastUpdatePayload).toMatchObject({
       expectedRevision: '2',
       roles: ['reader', 'publisher', 'maintainer'],
+      componentGrants: [
+        { componentId: 'line', canPublish: true, canMaintain: false },
+        { componentId: 'bar', canRead: true, canPublish: false, canMaintain: false },
+      ],
       packageGrants: ['@company/charts-vue', '@company/charts-react'],
     });
 
@@ -124,7 +128,7 @@ test.describe('成员与权限管理体验回归 (/users)', () => {
 
     // 4. 通过原生 <dialog> 新建成员
     await page.getByRole('button', { name: '新建成员' }).click();
-    const dialog = page.locator('dialog.zn-dialog');
+    const dialog = page.getByRole('dialog', { name: '新建成员账号' });
     await expect(dialog).toBeVisible();
     await dialog.getByLabel('用户名').fill('bob.wu');
     await dialog.getByLabel('显示名').fill('吴博');

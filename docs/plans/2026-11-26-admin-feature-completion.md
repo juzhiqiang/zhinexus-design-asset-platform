@@ -27,7 +27,7 @@
 
 ## 执行与验证清单
 
-- [ ] 任务 1（RED → GREEN）：修复 `tests/admin/console-render.test.ts`、作业状态筛选与 `RETRY_WAIT` 重试、顶栏搜索、`/users` 分页与自助改密，提交独立聚焦 commit。
-- [ ] 任务 2（RED → GREEN）：更新 `@company/contracts` 并重生成 JSON Schema，新增迁移 `017`、组件可见性接口、`can_read` 授权同步与基线 `expectedRevision` 更新，补齐契约与服务单测，提交独立聚焦 commit。
-- [ ] 任务 3（RED → GREEN）：实现历史/废弃版本查询接口，补齐 `/assets` 分类分页、沙箱预览、截图/文档/API/报告查看与兼容实测证据提交，补齐单测与渲染测试，提交独立聚焦 commit。
-- [ ] 任务 4（验收与升版）：运行 `pnpm verify:workspace`、`pnpm --filter @company/contracts schemas:generate`、`pnpm build`、`pnpm typecheck`、`pnpm test`（及可运行的专项测试），核对 `component-platform-architecture.md` SHA-256，记录验证报告，并独立提交语义化版本号升级与 `CHANGELOG.md`。
+- [x] 任务 1（RED → GREEN）：修复 `tests/admin/console-render.test.ts`、作业状态筛选与 `RETRY_WAIT` 重试、顶栏搜索、`/users` 分页与自助改密，提交独立聚焦 commit。
+- [x] 任务 2（RED → GREEN）：更新 `@company/contracts` 并重生成 JSON Schema，新增迁移 `017`、组件可见性接口、`can_read` 授权同步与基线 `expectedRevision` 更新，补齐契约与服务单测，提交独立聚焦 commit。
+- [x] 任务 3（RED → GREEN）：实现历史/废弃版本查询接口，补齐 `/assets` 分类分页、沙箱预览、截图/文档/API/报告查看与兼容实测证据提交，补齐单测与渲染测试，提交独立聚焦 commit。
+- [x] 任务 4（验收与升版）：运行 `pnpm verify:workspace`、`pnpm --filter @company/contracts schemas:generate`、`pnpm build`、`pnpm typecheck`、`pnpm test`（及隔离端口 Playwright 浏览器测试），核对 `component-platform-architecture.md` SHA-256，记录验证报告，并独立提交语义化版本号升级与 `CHANGELOG.md`。
