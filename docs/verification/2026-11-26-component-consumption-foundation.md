@@ -95,4 +95,4 @@ Rulings I made：
 - default 只作注解，不隐式注入；递归无引用子集由共享运行时校验。代价：调用者须显式初始化值或使用组件自身默认值，不能只依靠外层生成 Schema。
 - 无关后台六项基线失败不混入本轮修复，保留完整失败记录。代价：全仓 test 门禁仍未通过，不能据本轮结果批准集成或正式发布。
 
-独立审查未列出需延期的 Minor。实现及分发包保留于 feat/component-consumption-foundation；本轮 scratch 日志在结果持久化后清理，以上实际命令、结果和摘要作为可复核记录保留。
+独立审查未列出需延期的 Minor。实现及分发包保留于 feat/component-consumption-foundation。结果持久化后的临时目录清理命令被自动策略拒绝（blocked by policy），因此保留 .superpowers/sdd/2026-11-26-component-consumption-foundation 中的本轮日志；未改用其他删除方式。以上实际命令、结果和摘要同时保留为已提交的可复核记录。
