@@ -24,12 +24,12 @@ T05 提供身份验证、上传/冻结、发布登记、基线维护和审计。
 
 API 跨域仅允许 GET/POST/OPTIONS、Authorization/Content-Type/Idempotency-Key，并暴露 X-Request-Id；不允许跨域 Cookie 凭证。OPTIONS 不要求 Bearer，实际业务请求仍使用原 OIDC/角色/组件权限校验。MinIO 预签名 PUT 的 CORS 与 ETag 暴露须在存储端独立配置和验证，API 的配置不会替代它。
 
-OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时间与 azp/client_id。角色读取 token 的 roles 数组（reader/publisher/maintainer）；身份服务需配置该 claim 映射。web/cli 来源根据已验证客户端确定。CLI PKCE 与网页登录由客户端实现；当前公司资源未提供，无开发后门。缺 OIDC 时业务请求 401；认证通过但缺存储配置时 503。healthz 仅表示进程存活。
+OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时间与 azp/client_id。角色读取 token 的 roles 数组（reader/publisher/maintainer）；身份服务需配置该 claim 映射。web/cli 来源根据已验证客户端确定。CLI PKCE 与网页登录由客户端实现；当前公司资源未提供，无开发后门。缺 OIDC 时业务请求 401；缺 PostgreSQL 配置时数据库业务请求 503；上传及产物读取等依赖对象存储的请求在缺 MinIO/S3 配置时 503。仅查询 PostgreSQL 元数据的目录请求不需要 MinIO。healthz 仅表示进程存活。
 
 ## 初始化和运行
 
-1. 本地三存储可用根 `pnpm infra:up` 启动。管理员创建专用数据库和私有 bucket，把凭证注入以上环境变量；API 不把 bucket 改为公开。
-2. 构建服务并显式迁移（不会在启动时隐式修改 schema）：
+1. 本地三存储可用根 `pnpm infra:up` 启动。开发环境从根目录运行 `pnpm dev` 会在未显式设置连接串时读取 `.tools/g2-local/credentials.json` 并配置 PostgreSQL；新数据库须先执行 `pnpm dev:infra-migrate`。迁移不会随 API 启动自动执行。API 不把 bucket 改为公开。
+2. 生产环境构建服务并显式迁移：
 
 ```powershell
 pnpm build:services

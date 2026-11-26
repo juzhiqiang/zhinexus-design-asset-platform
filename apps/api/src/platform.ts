@@ -206,12 +206,12 @@ export class Platform {
     }
   }
   async run<T>(authorization: string | undefined, action: 'read'|'upload'|'baseline'|'deprecate', requestId: string,
-    operation: (context: RequestContext, uploads: UploadService, db: Database) => Promise<T>): Promise<T> {
+    operation: (context: RequestContext, uploads: UploadService | undefined, db: Database) => Promise<T>): Promise<T> {
     let principal: Principal | undefined;
     try {
       principal = await this.authenticate(authorization);
       requireRole(principal, action);
-      if (!this.db || !this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
+      if (!this.db || (action === 'upload' && !this.uploads)) throw new PlatformError('INFRA_UNAVAILABLE');
       if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1', [principal.subject])).rowCount) throw new PlatformError('FORBIDDEN');
       await requireCurrentIdentity(this.db,{principal,requestId},action);
       return await operation({ principal, requestId }, this.uploads, this.db);

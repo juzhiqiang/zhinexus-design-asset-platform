@@ -42,11 +42,11 @@ export class PlatformController {
   }
   @Post('uploads')
   createUpload(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
-    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads) => uploads.create(body, context));
+    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads) => uploads!.create(body, context));
   }
   @Post('uploads/:id/complete') @HttpCode(200)
   completeUpload(@Param('id') id: string, @Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
-    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads) => uploads.complete(id, body, context));
+    return this.platform.run(auth, 'upload', request.requestId!, (context, uploads) => uploads!.complete(id, body, context));
   }
 }
 @Catch()

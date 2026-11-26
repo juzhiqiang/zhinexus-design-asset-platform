@@ -23,12 +23,13 @@ export type ReleaseJobSummary = {
   lastError?: ApiMessages['releaseJobResponse']['lastError'];
 };
 export class ReleaseService {
-  constructor(private readonly db: Database, private readonly uploads: UploadService) {}
+  constructor(private readonly db: Database, private readonly uploads?: UploadService) {}
   async create(input: unknown, key: string | undefined, context: RequestContext): Promise<ApiMessages['createReleaseResponse']> {
     if (!key || !/^[A-Za-z0-9._:-]{1,256}$/.test(key)) throw new PlatformError('INVALID_SCHEMA');
     if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).sort().join(',') !== 'manifest,uploadSessionId' ||
       !('uploadSessionId' in input) || typeof input.uploadSessionId !== 'string' || !('manifest' in input)) throw new PlatformError('INVALID_SCHEMA');
     // These buffers and the HTTP body are owned by this request. Only immutable frozen objects are read.
+    if (!this.uploads) throw new PlatformError('INFRA_UNAVAILABLE');
     const frozen = await this.uploads.frozen(input.uploadSessionId, context);
     const checked = await validatePlatformBundle(input.manifest, frozen.files, context.principal.channel);
     if (!checked.ok) throw new PlatformError(checked.issues[0]?.code ?? 'INVALID_SCHEMA', checked.issues);

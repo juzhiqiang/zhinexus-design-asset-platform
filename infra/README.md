@@ -37,6 +37,10 @@ pnpm infra:stop
 | Verdaccio | `http://127.0.0.1:14873` | 7.1.0；`g2publisher` 写入，`g2reader` 只读 |
 | MinIO | `http://127.0.0.1:19000` | RELEASE.2025-10-15T17-29-55Z；S3 API，关闭控制台 |
 
+启动仓库开发服务时运行根目录 `pnpm dev`。它会在未显式设置 `PLATFORM_DATABASE_URL` 时，从 `.tools/g2-local/credentials.json` 为本地 API 注入 PostgreSQL 连接配置；显式环境变量优先。新数据库需要迁移时，先执行 `pnpm dev:infra-migrate`，再启动开发服务。迁移仍是显式操作，不会随 `infra:up` 或 API 启动自动执行。
+
+若现有 Compose 数据卷仍在但 `.tools/g2-local` 凭证缺失，请从受保护备份恢复凭证。`infra:up` 会为避免覆盖已有数据而拒绝生成新凭证；不要删除或重建数据卷来绕过该检查。
+
 所有端口仅绑定回环地址；Compose 项目固定为 `zhinexus-g2`，三个命名卷独立于其他项目。命令只启动、重启或停止本项目，不删除卷。PostgreSQL/MinIO 管理凭证仅供本地设施探针，后续 API 业务账号和最小权限需在 T05 中单独实现。
 
 `infra:up` 首次生成随机凭证到 Git 忽略目录 `.tools/g2-local/`，通过 Compose secrets 注入。再次启动复用凭证和卷；发现已有卷但缺凭证时拒绝初始化。请保管这个目录，不要把密码、token、`.npmrc` 或备份贴入提交、日志或群聊。Windows 文件继承当前用户 ACL；这套本机 HTTP/凭证方案不用于共享主机或生产环境。

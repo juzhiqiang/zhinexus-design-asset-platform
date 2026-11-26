@@ -11,7 +11,8 @@
   "scripts": {
     "build": "turbo run build --cache=local:rw",
     "typecheck": "pnpm build:services && turbo run typecheck --cache=local:rw && tsc -p tsconfig.json --noEmit && tsc -p tests/admin/tsconfig.json --noEmit",
-    "dev": "turbo run dev --concurrency=12 --cache=local:rw",
+    "dev": "tsx scripts/dev.ts",
+    "dev:infra-migrate": "tsx scripts/dev.ts migrate",
     "test": "pnpm build:services && pnpm test:t10 && vitest run",
     "test:t10": "pnpm --filter @company/contracts build && node --test tests/acceptance/t10-sdk/probe.test.mjs tests/acceptance/t10-sdk/package-probe.test.mjs tests/unit/t10-evidence.test.mjs",
     "test:installed-compatibility": "pnpm build:services && vitest run --config tests/acceptance/installed-compatibility.config.ts",
