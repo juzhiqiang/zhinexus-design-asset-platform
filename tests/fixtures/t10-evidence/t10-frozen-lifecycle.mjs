@@ -7,8 +7,8 @@ import { pathToFileURL } from 'node:url';
 import { gunzipSync } from 'node:zlib';
 import tar from 'tar-stream';
 import { validateOwnedConsumers } from './t10-consumer-ownership.mjs';
-import { readFrozenBundle } from '../tests/acceptance/t10-sdk/bundle.mjs';
-import { readBrowserRevision } from '../tests/acceptance/t10-sdk/browser.mjs';
+import { readFrozenBundle } from '../../acceptance/t10-sdk/bundle.mjs';
+import { readBrowserRevision } from '../../acceptance/t10-sdk/browser.mjs';
 
 const sha = bytes => createHash('sha256').update(bytes).digest('hex');
 const equalPath = (a, b) => path.relative(path.resolve(a), path.resolve(b)) === '';

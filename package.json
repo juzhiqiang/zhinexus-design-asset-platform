@@ -34,10 +34,8 @@
     "ops:retention": "node apps/api/dist/operations/retention.js",
     "rehearse:backup": "pnpm build:services && vitest run --config tests/platform/vitest.config.ts tests/platform/backup-restore.test.ts",
     "rehearse:recovery": "pnpm build:services && vitest run --config tests/platform/vitest.config.ts tests/platform/platform-acceptance.test.ts tests/platform/preview.test.ts",
-    "rehearse:capacity": "pnpm build:services && tsx scripts/rehearse-capacity.ts",
     "infra:check-access": "pnpm --filter @company/contracts build && tsx infra/scripts/access.ts",
     "verify:workspace": "tsx scripts/verify-workspace.ts",
-    "versions:resolve": "node scripts/resolve-versions.mjs",
     "build:services": "turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw",
     "component": "node packages/component-cli/dist/bin.js"
   },

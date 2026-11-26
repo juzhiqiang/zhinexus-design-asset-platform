@@ -9,7 +9,6 @@ Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18
   - `@company/contracts`、核心状态机、摘要计算、环境键计算与错误分类优先使用 Vitest 单元测试，同时覆盖合法样例与反例 fixtures（缺图、错框架、错摘要、伪造 `'local-automatic'` 来源、路径穿越等）。
   - NestJS 服务测试必须加载 `dist/` 真实编译产物，验证依赖注入、控制器到服务链路及真实 HTTP 响应，不得只验证 mock 被调用。
 - **浏览器与双框架渲染测试（`test:browser`）**：先执行 `pnpm build` 并释放 `5173–5177` 端口，再运行 `pnpm test:browser`，验证 React 画廊（`5173`）、内网管理端（`5177`）、Vue 示例（`5174`）、React 示例（`5175`）及双框架组件在零尺寸、`ResizeObserver`、`StrictMode`、`KeepAlive`、系列删减和卸载清理下的真实行为。
-- **引导脚本验证（`verify.ps1 -Bootstrap`）**：修改 `scripts/bootstrap.ps1`、`.node-version` 或 `packageManager` 后，必须运行 `.\scripts\verify.ps1 -Bootstrap`，在独立临时目录中验证首次下载、哈希校验、版本探测和缓存重跑；该模式不执行日常全套检查。
 - **画廊缓存专项回归（`test:gallery-cache`）**：运行 `pnpm test:gallery-cache`，执行 `tests/integration/gallery-cache.mjs` 的四轮真实构建与 HTTP sitemap 检查；不纳入普通 Vitest 或 Turbo 测试缓存。
 - **生成契约文件**：运行 `pnpm --filter @company/contracts schemas:generate`，先构建 contracts 再生成 JSON Schema；`tests/contracts/api-schema.test.ts` 在普通 test 中检查内容和格式精确一致性。
 
@@ -25,7 +24,7 @@ Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18
 
 - 遵循语义化版本 `MAJOR.MINOR.PATCH`：四个公开包（`@company/charts-core`、`@company/charts-vue`、`@company/charts-react`、`@company/component-cli`）以各自 `package.json` 的 `version` 字段为唯一事实来源；平台整体版本以根 `package.json` 的 `version` 为唯一事实来源。
 - 当前 `G0` 工程骨架阶段，根包与四个公开包版本均为 `0.0.0`，尚不可作为业务组件发布。
-- 外部依赖在 `package.json` 中必须锁定精确版本 `x.y.z`（禁止 `^`、`~`、`*`），与根 `pnpm-lock.yaml` 保持一致。`pnpm versions:resolve` 仅刷新 `docs/versions.discovery.json` 官方候选发现记录，不修改已安装版本，也不证明兼容。
+- 外部依赖在 `package.json` 中必须锁定精确版本 `x.y.z`（禁止 `^`、`~`、`*`），与根 `pnpm-lock.yaml` 保持一致。
 
 ### 递增时机
 
@@ -64,4 +63,4 @@ Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18
   - 超时或重启恢复时，先核对 MinIO 对象与 Verdaccio 包版本的存在性及 SHA-256 摘要；
   - 摘要一致则跳过重复写入并补齐后续登记；同名同版本摘要不一致则立即标记 `CONFLICT` 并失败关闭，绝不覆盖已有版本。
 - **ECharts 升级与回退**：升级 ECharts 候选版本必须在本地完成双框架构建、类型、生命周期与固定环境视觉对比；只有实测通过才可记录 `compatibility_records` 为 `'passed'`，并同时保留上一已验证组合与锁文件回退步骤。
-- **本地验证诚实边界**：运行 `.\scripts\verify.ps1` 通过仅证明当前工程基线与已有测试通过；缺少 G1 契约运行时校验、G2 真实基础设施（PostgreSQL / Verdaccio / MinIO / OIDC / 独立预览域）或真实消费者证据时，必须记录阻塞，不得将相关任务标为完成。
+- **本地验证诚实边界**：运行本地 `pnpm verify:workspace`、`pnpm build`、`pnpm typecheck`、`pnpm test` 通过仅证明当前工程基线与已有测试通过；缺少 G1 契约运行时校验、G2 真实基础设施（PostgreSQL / Verdaccio / MinIO / OIDC / 独立预览域）或真实消费者证据时，必须记录阻塞，不得将相关任务标为完成。

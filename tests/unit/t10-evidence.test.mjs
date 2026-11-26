@@ -8,10 +8,10 @@ import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { canonicalJson, environmentKey, environmentProjection } from '@company/contracts';
-import { createOwnedRoot, validateOwnedConsumers } from '../../scripts/t10-consumer-ownership.mjs';
+import { createOwnedRoot, validateOwnedConsumers } from '../fixtures/t10-evidence/t10-consumer-ownership.mjs';
 
-const auditScript = fileURLToPath(new URL('../../scripts/audit-t10-evidence.mjs', import.meta.url));
-const ownershipScript = new URL('../../scripts/t10-consumer-ownership.mjs', import.meta.url);
+const auditScript = fileURLToPath(new URL('../fixtures/t10-evidence/audit-t10-evidence.mjs', import.meta.url));
+const ownershipScript = new URL('../fixtures/t10-evidence/t10-consumer-ownership.mjs', import.meta.url);
 const components = ['line', 'bar', 'pie', 'scatter', 'trend-card', 'ranking', 'proportion'];
 const presentations = ['light-canvas', 'dark-canvas', 'light-svg', 'dark-svg'];
 const sha256 = bytes => createHash('sha256').update(bytes).digest('hex');

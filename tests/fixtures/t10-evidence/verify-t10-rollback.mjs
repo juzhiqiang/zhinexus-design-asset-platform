@@ -3,9 +3,9 @@ import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
-import { npm, readResolvedVersions, runBuild, runSsrImport, runTypechecks, PUBLIC_SUBPATHS } from '../tests/acceptance/t10-sdk/consumer.mjs';
+import { npm, readResolvedVersions, runBuild, runSsrImport, runTypechecks, PUBLIC_SUBPATHS } from '../../acceptance/t10-sdk/consumer.mjs';
 import { validateOwnedConsumers, cleanupOwnedPair } from './t10-consumer-ownership.mjs';
-import { readFrozenBundle } from '../tests/acceptance/t10-sdk/bundle.mjs';
+import { readFrozenBundle } from '../../acceptance/t10-sdk/bundle.mjs';
 
 const [input, output, ownerFile] = process.argv.slice(2);
 assert(input && output && ownerFile, 'baseline evidence, output directory and C ownership file required');

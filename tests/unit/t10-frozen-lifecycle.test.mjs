@@ -5,8 +5,8 @@ import path from 'node:path';
 import { test } from 'node:test';
 import { gzipSync } from 'node:zlib';
 import tar from 'tar-stream';
-import { createOwnedRoot } from '../../scripts/t10-consumer-ownership.mjs';
-import { loadPlaywright, parseArguments, validateLifecycleInputs, verifyInstalledTarball } from '../../scripts/t10-frozen-lifecycle.mjs';
+import { createOwnedRoot } from '../fixtures/t10-evidence/t10-consumer-ownership.mjs';
+import { loadPlaywright, parseArguments, validateLifecycleInputs, verifyInstalledTarball } from '../fixtures/t10-evidence/t10-frozen-lifecycle.mjs';
 
 test('loads a usable Chromium launcher from the repository Playwright installation', async () => {
   const { chromium } = await loadPlaywright(path.resolve(import.meta.dirname, '../..'));

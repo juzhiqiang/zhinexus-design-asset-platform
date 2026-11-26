@@ -4,7 +4,7 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { afterEach, expect, it, vi } from 'vitest';
-import { createOwnedRoot } from '../../scripts/t10-consumer-ownership.mjs';
+import { createOwnedRoot } from '../fixtures/t10-evidence/t10-consumer-ownership.mjs';
 
 const state = vi.hoisted(() => ({ fail: '', calls: [] as string[] }));
 vi.mock('../../tests/acceptance/t10-sdk/consumer.mjs', () => ({
@@ -71,7 +71,7 @@ async function fixture() {
 
 it('回退按冻结 manifest 的独立包版本复原两消费者，并保持原锁文件字节', async () => {
   const f = await fixture();
-  await expect(import('../../scripts/verify-t10-rollback.mjs')).resolves.toBeDefined();
+  await expect(import('../fixtures/t10-evidence/verify-t10-rollback.mjs')).resolves.toBeDefined();
   const evidence = JSON.parse(await readFile(path.join(f.output, 'rollback-evidence.json'), 'utf8'));
   expect(evidence.passed).toBe(true);
   expect(evidence.bundle.manifestSha256).toBe(sha(await readFile(path.join(f.report.bundle.root, 'manifest.json'))));
@@ -84,7 +84,7 @@ it('回退按冻结 manifest 的独立包版本复原两消费者，并保持原
 
 it.each(['candidate', 'restore'])('%s 失败时仍尝试恢复两消费者，保留目录及失败证据', async fail => {
   const f = await fixture(); state.fail = fail;
-  await expect(import('../../scripts/verify-t10-rollback.mjs')).rejects.toThrow('rollback evidence contains failures');
+  await expect(import('../fixtures/t10-evidence/verify-t10-rollback.mjs')).rejects.toThrow('rollback evidence contains failures');
   const evidence = JSON.parse(await readFile(path.join(f.output, 'rollback-evidence.json'), 'utf8'));
   expect(evidence.passed).toBe(false);
   expect(state.calls.filter(call => call === 'restore')).toHaveLength(2);
@@ -98,7 +98,7 @@ it.each(['candidate', 'restore'])('%s 失败时仍尝试恢复两消费者，保
 it('基线报告包版本与冻结清单不符时，在安装和清理前拒绝', async () => {
   const f = await fixture(); f.report.bundle.packages[0]!.version = '0.0.99';
   await writeFile(f.input, JSON.stringify(f.report));
-  await expect(import('../../scripts/verify-t10-rollback.mjs')).rejects.toThrow('baseline package differs from frozen bundle');
+  await expect(import('../fixtures/t10-evidence/verify-t10-rollback.mjs')).rejects.toThrow('baseline package differs from frozen bundle');
   expect(state.calls).toEqual([]);
   for (const combo of f.report.combinations) expect(existsSync(combo.consumer.root)).toBe(true);
 });
