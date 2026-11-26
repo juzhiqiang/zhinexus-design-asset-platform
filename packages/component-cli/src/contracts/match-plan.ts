@@ -1,5 +1,7 @@
 import type { ValidationIssue } from './errors.js';
 import type { ValidationResult } from './release-manifest.js';
+import type { ComponentApiV1 } from './component-api.js';
+import { componentInputIssues } from './component-values.js';
 import { designIdInputSchema, validateDesignIdInput, type DesignIdInputV1 } from './design-id.js';
 import { projectContextSchema, type ProjectContext } from './project-context.js';
 import { duplicateIssues, propSchema, eventSchema, memberName, exportNameSchema, exportPathSchema, styleExportSchema } from './component-api.js';
@@ -15,7 +17,7 @@ export type MatchTarget = {
   examples:{id:string;previewEntry:string}[];styleExport:string;readyMethod:string;notes:string[];
 };
 export type MatchElement = {instanceId:string;designId:string;status:'mapped'|'gap';target?:MatchTarget;
-  props:{name:string;type:string;required:boolean;source?:string}[];events:{name:string;payload:string;handler?:string}[];layout?:string;gaps:MatchGap[]};
+  props:(ComponentApiV1['props'][number]&{source?:string})[];events:(ComponentApiV1['events'][number]&{handler?:string})[];layout?:string;gaps:MatchGap[]};
 export type MatchPlanV1 = {schemaVersion:1;source:'design-id';inputDigest:string;ruleSetId:string;revision:string;context:ProjectContext;
   elements:MatchElement[];exactDependencies:{name:string;version:string}[];gaps:MatchGap[]};
 
@@ -31,7 +33,7 @@ export const matchTargetSchema=object({
 });
 export const matchPlanSchema=object({schemaVersion:{type:'integer',const:1},source:{type:'string',const:'design-id'},inputDigest:hash,ruleSetId:text,revision:text,context:projectContextSchema,
   elements:array(object({instanceId:text,designId:text,status:choice('mapped','gap'),target:matchTargetSchema,
-    props:array(object({...propSchema.properties!,source:text},['source'])),events:array(object({...eventSchema.properties!,handler:text},['handler'])),layout:text,gaps:array(gapSchema)},['target','layout'])),
+    props:array(object({...propSchema.properties!,source:text},['source','schema','editor'])),events:array(object({...eventSchema.properties!,handler:text},['handler','schema'])),layout:text,gaps:array(gapSchema)},['target','layout'])),
   exactDependencies:array(object({name:packageName,version:exactVersion})),gaps:array(gapSchema),
 });
 
@@ -74,6 +76,7 @@ export function validateMatchPlan(input:unknown):ValidationResult<MatchPlanV1>{
     for(const kind of ['api','docs'])if(!target.evidence.some(e=>e.kind===kind))add(path+'/target/evidence','API and docs evidence are required');
     if(!plan.exactDependencies.some(d=>d.name===target.packageName&&d.version===target.packageVersion)&&!element.gaps.some(g=>g.code==='DEPENDENCY_CONFLICT'))add(path+'/target','Target package must appear in exact dependencies or carry a dependency conflict');
     issues.push(...duplicateIssues(element.props.map(p=>p.name),path+'/props','name'),...duplicateIssues(element.events.map(e=>e.name),path+'/events','name'));
+    issues.push(...componentInputIssues(element).map(issue=>({...issue,path:path+issue.path})));
   });
   return issues.length?{ok:false,issues:issues.slice(0,100)}:checked;
 }

@@ -28,6 +28,7 @@ const filesToSync = [
   'search.ts',
   'design-id.ts',
   'component-api.ts',
+  'component-values.ts',
   'match-plan.ts',
   'component-match.ts',
   'integration-plan.ts',

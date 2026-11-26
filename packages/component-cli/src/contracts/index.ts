@@ -34,3 +34,4 @@ export type BootstrapHealth = {
   stage: 'bootstrap';
 };
 export * from './playground.js';
+export * from './component-values.js';
