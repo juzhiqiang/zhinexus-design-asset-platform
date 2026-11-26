@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { companyLoginUrl, getStoredSession, loadCompanySession, platformApiOrigin, saveSession } from '../lib/auth';
+import { ZnIcon } from '../lib/design/icons';
 
 function safeNextTarget(value: string | undefined): string {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/login')) {
@@ -105,75 +106,72 @@ export function TokenLoginForm({ nextPath }: { nextPath?: string }) {
 
   return (
     <div className="zn-login-modes">
-      <div className="zn-login-section">
-        <p className="zn-login-section-title">方式一：账号密码登录</p>
-        {passwordError ? <p className="access-error" role="alert">{passwordError}</p> : null}
-        <form className="zn-login-form" onSubmit={handlePasswordSubmit}>
-          <div className="zn-field-row">
-            <label className="zn-field" htmlFor="direct-username">
-              <span className="zn-field-label">用户名</span>
-              <input
-                id="direct-username"
-                className="zn-input"
-                name="username"
-                value={username}
-                autoComplete="username"
-                disabled={submitting}
-                required
-                onChange={(event) => setUsername(event.target.value)}
-              />
-            </label>
-            <label className="zn-field" htmlFor="direct-password">
-              <span className="zn-field-label">密码</span>
-              <input
-                id="direct-password"
-                className="zn-input"
-                name="password"
-                type="password"
-                value={password}
-                autoComplete="current-password"
-                disabled={submitting}
-                required
-                onChange={(event) => setPassword(event.target.value)}
-              />
-            </label>
-            {requireNewPassword ? (
-              <label className="zn-field" htmlFor="direct-new-password">
-                <span className="zn-field-label">新密码</span>
-                <input
-                  id="direct-new-password"
-                  className="zn-input"
-                  name="new_password"
-                  type="password"
-                  value={newPassword}
-                  autoComplete="new-password"
-                  disabled={submitting}
-                  required
-                  onChange={(event) => setNewPassword(event.target.value)}
-                />
-                <span className="zn-hint">至少 12 个字符，且不能与当前口令相同。</span>
-              </label>
-            ) : null}
-          </div>
-          <button className="zn-btn zn-btn-primary zn-btn-block zn-btn-tall" type="submit" disabled={submitting}>
-            {submitting ? '正在登录…' : '密码登录'}
-          </button>
-        </form>
-      </div>
+      {passwordError ? <p className="access-error" role="alert">{passwordError}</p> : null}
+
+      <form className="zn-login-form" onSubmit={handlePasswordSubmit}>
+        <label className="zn-field" htmlFor="direct-username">
+          <span className="zn-field-label">用户名</span>
+          <input
+            id="direct-username"
+            className="zn-input"
+            name="username"
+            value={username}
+            placeholder="输入管理员用户名"
+            autoComplete="username"
+            disabled={submitting}
+            required
+            onChange={(event) => setUsername(event.target.value)}
+          />
+        </label>
+
+        <label className="zn-field" htmlFor="direct-password">
+          <span className="zn-field-label">密码</span>
+          <input
+            id="direct-password"
+            className="zn-input"
+            name="password"
+            type="password"
+            value={password}
+            placeholder="输入密码"
+            autoComplete="current-password"
+            disabled={submitting}
+            required
+            onChange={(event) => setPassword(event.target.value)}
+          />
+        </label>
+
+        {requireNewPassword ? (
+          <label className="zn-field" htmlFor="direct-new-password">
+            <span className="zn-field-label">新密码</span>
+            <input
+              id="direct-new-password"
+              className="zn-input"
+              name="new_password"
+              type="password"
+              value={newPassword}
+              placeholder="设置新密码（至少 12 个字符）"
+              autoComplete="new-password"
+              disabled={submitting}
+              required
+              onChange={(event) => setNewPassword(event.target.value)}
+            />
+            <span className="zn-hint">至少 12 个字符，且不能与当前口令相同。</span>
+          </label>
+        ) : null}
+
+        <button className="zn-btn zn-btn-primary zn-btn-block zn-btn-tall" type="submit" disabled={submitting}>
+          {submitting ? '正在登录…' : '密码登录'}
+        </button>
+      </form>
 
       <div className="zn-login-divider" role="separator">
-        <span>或使用 OIDC PKCE 统一登录</span>
+        <span>或</span>
       </div>
 
-      <div className="zn-login-section">
-        <p className="zn-login-section-title">方式二：OIDC PKCE 登录</p>
-        <p className="access-hint">通过平台 OIDC 授权码 + PKCE 流程跳转认证并签发安全会话 Cookie。</p>
-        <p>
-          <a className="filter-btn active" href={companyLoginUrl}>
-            账号登录
-          </a>
-        </p>
-      </div>
+      <a className="zn-btn zn-btn-block zn-btn-tall" href={companyLoginUrl}>
+        <ZnIcon name="shield-check" size={16} color="currentColor" />
+        账号登录
+      </a>
 
       <details className="zn-token-login">
         <summary>使用已有 OIDC 凭证登录</summary>
@@ -183,7 +181,7 @@ export function TokenLoginForm({ nextPath }: { nextPath?: string }) {
             <span className="zn-field-label">OIDC 凭证令牌</span>
             <input
               id="token-input"
-              className="zn-input"
+              className="zn-input zn-input-mono"
               type="password"
               value={tokenInput}
               placeholder="粘贴 OIDC Bearer JWT 令牌"
@@ -191,7 +189,7 @@ export function TokenLoginForm({ nextPath }: { nextPath?: string }) {
               onChange={(event) => setTokenInput(event.target.value)}
             />
           </label>
-          <button className="filter-btn" type="submit">
+          <button className="zn-btn zn-btn-block" type="submit">
             凭证登录
           </button>
         </form>

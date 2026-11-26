@@ -1,9 +1,9 @@
 /*
- * 管理端设计系统：Apple macOS / App Store Connect 风格重构版。
+ * 管理端设计系统：Apple macOS Sequoia / Liquid Glass 精雕版。
  *
  * `:root` 保留与 docs/design/management-api.pen 逐值对应的 26 个变量与 10 个派生变量
- * （供 tests/admin/design-system.test.ts 契约校验），实际视觉层由 `body` 上的
- * Apple 语义表面、排版、微动效与自适配明暗主题驱动。
+ * （供 tests/admin/design-system.test.ts 契约校验），实际视觉层由 `body` 与
+ * `html[data-theme]` 驱动，支持浅色（Porcelain Glass）/ 深色（Obsidian Vibrancy）/ 自动跟随系统。
  */
 
 /* ============================== 1. 令牌与基础 ============================== */
@@ -41,7 +41,7 @@
   --zn-mono: 'IBM Plex Mono';
   --zn-display: 'Manrope';
 
-  /* --- 本地优先字体栈（不引入外网字体） --- */
+  /* --- 本地优先字体栈 --- */
   --zn-font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --zn-font-mono: 'IBM Plex Mono', 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --zn-font-display: 'Manrope', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -57,42 +57,58 @@
   --zn-on-primary: #04131B;
 }
 
-/* --- Apple 语义主题层（自动随系统明暗模式切换，含旧浏览器降级） --- */
+/* --- Apple Light (Porcelain & Liquid Glass) --- */
 body {
   --ap-font-sans: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'PingFang SC', 'Hiragino Sans GB', 'Noto Sans SC', 'Helvetica Neue', sans-serif;
   --ap-font-mono: 'SF Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 
-  --ap-bg: #F5F5F7;
-  --ap-surface: #FFFFFF;
-  --ap-surface-elevated: #FFFFFF;
-  --ap-fill-subtle: rgba(118, 118, 128, 0.08);
-  --ap-fill-hover: rgba(118, 118, 128, 0.13);
-  --ap-sidebar-bg: rgba(245, 245, 247, 0.78);
-  --ap-topbar-bg: rgba(255, 255, 255, 0.76);
+  --ap-bg: #F2F2F7;
+  --ap-canvas-glow:
+    radial-gradient(960px 540px at 16% -6%, rgba(0, 122, 255, 0.065) 0%, transparent 62%),
+    radial-gradient(820px 520px at 92% 8%, rgba(88, 86, 214, 0.045) 0%, transparent 58%),
+    #F2F2F7;
+
+  --ap-surface: rgba(255, 255, 255, 0.88);
+  --ap-surface-solid: #FFFFFF;
+  --ap-surface-elevated: rgba(255, 255, 255, 0.96);
+  --ap-fill-subtle: rgba(120, 120, 128, 0.08);
+  --ap-fill-hover: rgba(120, 120, 128, 0.13);
+  --ap-sidebar-bg: rgba(246, 246, 250, 0.72);
+  --ap-topbar-bg: rgba(249, 249, 252, 0.74);
 
   --ap-text: #1D1D1F;
   --ap-text-secondary: #515154;
   --ap-text-tertiary: #86868B;
 
-  --ap-border: rgba(0, 0, 0, 0.07);
-  --ap-border-strong: rgba(0, 0, 0, 0.13);
+  --ap-border: rgba(0, 0, 0, 0.065);
+  --ap-border-strong: rgba(0, 0, 0, 0.12);
+  --ap-specular: rgba(255, 255, 255, 0.92);
 
   --ap-accent: #0071E3;
+  --ap-accent-top: #1E88FF;
   --ap-accent-hover: #0077ED;
   --ap-accent-soft: rgba(0, 113, 227, 0.10);
   --ap-on-accent: #FFFFFF;
 
-  --ap-success: #248A3D;
+  --ap-success: #1E8E3E;
   --ap-success-soft: rgba(52, 199, 89, 0.14);
   --ap-warning: #B25000;
   --ap-warning-soft: rgba(255, 149, 0, 0.14);
   --ap-danger: #D70015;
   --ap-danger-soft: rgba(255, 59, 48, 0.11);
 
-  --ap-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
-  --ap-shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.05), 0 12px 32px rgba(0, 0, 0, 0.06);
+  --ap-shadow-card:
+    inset 0 1px 0 var(--ap-specular),
+    0 1px 2px rgba(0, 0, 0, 0.035),
+    0 8px 24px -6px rgba(0, 0, 0, 0.055);
+  --ap-shadow-raised:
+    inset 0 1px 0 var(--ap-specular),
+    0 2px 6px rgba(0, 0, 0, 0.04),
+    0 20px 48px -12px rgba(0, 0, 0, 0.10);
+  --ap-shadow-pill:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 2px 8px rgba(0, 0, 0, 0.04);
 
-  /* 将子组件引用的 --zn-* 语义令牌覆写为 Apple 色板，保证内联样式也统一 */
   --zn-bg: var(--ap-bg);
   --zn-text: var(--ap-text);
   --zn-muted: var(--ap-text-secondary);
@@ -121,24 +137,41 @@ body {
   scrollbar-color: var(--ap-border-strong) transparent;
 }
 
+/* --- Apple Pro Dark (Obsidian & Vibrancy) --- */
+html[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+html[data-theme='light'] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  body {
-    --ap-bg: #0B0B0D;
-    --ap-surface: #1C1C1E;
-    --ap-surface-elevated: #242426;
-    --ap-fill-subtle: rgba(118, 118, 128, 0.20);
-    --ap-fill-hover: rgba(118, 118, 128, 0.30);
-    --ap-sidebar-bg: rgba(24, 24, 26, 0.78);
-    --ap-topbar-bg: rgba(18, 18, 20, 0.76);
+  html:not([data-theme='light']) body {
+    --ap-bg: #000000;
+    --ap-canvas-glow:
+      radial-gradient(960px 540px at 18% -10%, rgba(10, 132, 255, 0.14) 0%, transparent 62%),
+      radial-gradient(820px 520px at 90% 6%, rgba(94, 92, 230, 0.10) 0%, transparent 58%),
+      #09090B;
+
+    --ap-surface: rgba(28, 28, 30, 0.82);
+    --ap-surface-solid: #1C1C1E;
+    --ap-surface-elevated: rgba(36, 36, 38, 0.88);
+    --ap-fill-subtle: rgba(120, 120, 128, 0.22);
+    --ap-fill-hover: rgba(120, 120, 128, 0.32);
+    --ap-sidebar-bg: rgba(22, 22, 24, 0.76);
+    --ap-topbar-bg: rgba(16, 16, 18, 0.74);
 
     --ap-text: #F5F5F7;
     --ap-text-secondary: #AEAEB2;
     --ap-text-tertiary: #8E8E93;
 
-    --ap-border: rgba(255, 255, 255, 0.08);
+    --ap-border: rgba(255, 255, 255, 0.085);
     --ap-border-strong: rgba(255, 255, 255, 0.15);
+    --ap-specular: rgba(255, 255, 255, 0.09);
 
     --ap-accent: #0A84FF;
+    --ap-accent-top: #329BFF;
     --ap-accent-hover: #409CFF;
     --ap-accent-soft: rgba(10, 132, 255, 0.18);
     --ap-on-accent: #FFFFFF;
@@ -150,22 +183,67 @@ body {
     --ap-danger: #FF453A;
     --ap-danger-soft: rgba(255, 69, 58, 0.16);
 
-    --ap-shadow-card: 0 1px 2px rgba(0, 0, 0, 0.35), 0 6px 20px rgba(0, 0, 0, 0.22);
-    --ap-shadow-raised: 0 4px 12px rgba(0, 0, 0, 0.45), 0 16px 40px rgba(0, 0, 0, 0.35);
+    --ap-shadow-card:
+      inset 0 1px 0 var(--ap-specular),
+      0 1px 2px rgba(0, 0, 0, 0.45),
+      0 12px 28px -8px rgba(0, 0, 0, 0.42);
+    --ap-shadow-raised:
+      inset 0 1px 0 var(--ap-specular),
+      0 6px 18px rgba(0, 0, 0, 0.55),
+      0 24px 56px -12px rgba(0, 0, 0, 0.65);
+    --ap-shadow-pill:
+      inset 0 1px 0 rgba(255, 255, 255, 0.10),
+      0 2px 8px rgba(0, 0, 0, 0.35);
   }
 }
 
-@supports (color: light-dark(white, black)) {
-  body {
-    --ap-bg: light-dark(#F5F5F7, #0B0B0D);
-    --ap-surface: light-dark(#FFFFFF, #1C1C1E);
-    --ap-surface-elevated: light-dark(#FFFFFF, #242426);
-    --ap-text: light-dark(#1D1D1F, #F5F5F7);
-    --ap-text-secondary: light-dark(#515154, #AEAEB2);
-    --ap-text-tertiary: light-dark(#86868B, #8E8E93);
-    --ap-accent: light-dark(#0071E3, #0A84FF);
-    --ap-accent-hover: light-dark(#0077ED, #409CFF);
-  }
+html[data-theme='dark'] body {
+  --ap-bg: #000000;
+  --ap-canvas-glow:
+    radial-gradient(960px 540px at 18% -10%, rgba(10, 132, 255, 0.14) 0%, transparent 62%),
+    radial-gradient(820px 520px at 90% 6%, rgba(94, 92, 230, 0.10) 0%, transparent 58%),
+    #09090B;
+
+  --ap-surface: rgba(28, 28, 30, 0.82);
+  --ap-surface-solid: #1C1C1E;
+  --ap-surface-elevated: rgba(36, 36, 38, 0.88);
+  --ap-fill-subtle: rgba(120, 120, 128, 0.22);
+  --ap-fill-hover: rgba(120, 120, 128, 0.32);
+  --ap-sidebar-bg: rgba(22, 22, 24, 0.76);
+  --ap-topbar-bg: rgba(16, 16, 18, 0.74);
+
+  --ap-text: #F5F5F7;
+  --ap-text-secondary: #AEAEB2;
+  --ap-text-tertiary: #8E8E93;
+
+  --ap-border: rgba(255, 255, 255, 0.085);
+  --ap-border-strong: rgba(255, 255, 255, 0.15);
+  --ap-specular: rgba(255, 255, 255, 0.09);
+
+  --ap-accent: #0A84FF;
+  --ap-accent-top: #329BFF;
+  --ap-accent-hover: #409CFF;
+  --ap-accent-soft: rgba(10, 132, 255, 0.18);
+  --ap-on-accent: #FFFFFF;
+
+  --ap-success: #30D158;
+  --ap-success-soft: rgba(48, 209, 88, 0.16);
+  --ap-warning: #FF9F0A;
+  --ap-warning-soft: rgba(255, 159, 10, 0.16);
+  --ap-danger: #FF453A;
+  --ap-danger-soft: rgba(255, 69, 58, 0.16);
+
+  --ap-shadow-card:
+    inset 0 1px 0 var(--ap-specular),
+    0 1px 2px rgba(0, 0, 0, 0.45),
+    0 12px 28px -8px rgba(0, 0, 0, 0.42);
+  --ap-shadow-raised:
+    inset 0 1px 0 var(--ap-specular),
+    0 6px 18px rgba(0, 0, 0, 0.55),
+    0 24px 56px -12px rgba(0, 0, 0, 0.65);
+  --ap-shadow-pill:
+    inset 0 1px 0 rgba(255, 255, 255, 0.10),
+    0 2px 8px rgba(0, 0, 0, 0.35);
 }
 
 * {
@@ -180,7 +258,8 @@ body {
 }
 
 body {
-  background: var(--ap-bg);
+  background: var(--ap-canvas-glow);
+  background-attachment: fixed;
   color: var(--ap-text);
   font-family: var(--ap-font-sans);
   font-size: 13.5px;
@@ -231,7 +310,7 @@ kbd {
 :focus-visible {
   outline: 2.5px solid var(--ap-accent);
   outline-offset: 2px;
-  border-radius: 6px;
+  border-radius: 8px;
 }
 
 .zn-sr-only {
@@ -246,7 +325,7 @@ kbd {
   border: 0;
 }
 
-/* ============================== 2. 外壳 ============================== */
+/* ============================== 2. 外壳（macOS Vibrancy Sidebar & Topbar） ============================== */
 
 .zn-shell {
   position: relative;
@@ -260,64 +339,166 @@ kbd {
   position: sticky;
   top: 0;
   z-index: 30;
-  flex: 0 0 248px;
-  width: 248px;
+  flex: 0 0 244px;
+  width: 244px;
   height: 100vh;
   overflow-y: auto;
   padding: 20px 14px 16px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
   background: var(--ap-sidebar-bg);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  backdrop-filter: blur(28px) saturate(190%);
+  -webkit-backdrop-filter: blur(28px) saturate(190%);
   border-right: 1px solid var(--ap-border);
-}
-
-.zn-sidebar-rail {
-  display: none;
 }
 
 .zn-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  height: 36px;
-  padding: 0 10px;
-  margin-bottom: 6px;
+  gap: 11px;
+  padding: 4px 10px 14px;
 }
 
 .zn-brand-mark {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 26px;
-  border-radius: 7px;
-  background: var(--ap-accent);
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 9px;
+  background: linear-gradient(180deg, var(--ap-accent-top) 0%, var(--ap-accent) 100%);
   color: #FFFFFF;
-  font-family: var(--ap-font-sans);
-  font-size: 13px;
+  font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  box-shadow: 0 1px 3px rgba(0, 113, 227, 0.28);
+  letter-spacing: -0.03em;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    0 2px 8px rgba(0, 113, 227, 0.30);
+}
+
+.zn-brand-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
 }
 
 .zn-brand-name {
-  font-family: var(--ap-font-sans);
   font-size: 15px;
-  font-weight: 600;
-  letter-spacing: -0.02em;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  line-height: 1.15;
   color: var(--ap-text);
 }
 
+.zn-brand-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ap-text-tertiary);
+}
+
 .zn-workspace-label {
-  font-family: var(--ap-font-sans);
   font-size: 11px;
   font-weight: 600;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.01em;
   color: var(--ap-text-tertiary);
-  padding: 6px 10px 2px;
+  padding: 8px 12px 4px;
+}
+
+.zn-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.zn-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: 10px;
+  color: var(--ap-text-secondary);
+  font-size: 13.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease, transform 100ms ease-out;
+}
+
+.zn-nav-item:hover {
+  background: var(--ap-fill-subtle);
+  color: var(--ap-text);
+}
+
+.zn-nav-item:active {
+  transform: scale(0.975);
+}
+
+.zn-nav-item[aria-current='page'] {
+  background: var(--ap-surface-solid);
+  color: var(--ap-text);
+  font-weight: 600;
+  box-shadow: var(--ap-shadow-pill);
+}
+
+.zn-nav-icon {
+  flex: 0 0 16px;
+  color: var(--ap-text-tertiary);
+  transition: color 140ms ease;
+}
+
+.zn-nav-item[aria-current='page'] .zn-nav-icon {
+  color: var(--ap-accent);
+}
+
+/* 视觉上隐藏机械序号，保持 macOS Finder 般纯粹（数据层仍保留 order） */
+.zn-nav-order {
+  display: none;
+}
+
+.zn-sidebar-spacer {
+  flex: 1 1 auto;
+  min-height: 16px;
+}
+
+.zn-sidebar-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--ap-border);
+}
+
+.zn-theme-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px;
+  padding: 3px;
+  border-radius: 9px;
+  background: var(--ap-fill-subtle);
+}
+
+.zn-theme-option {
+  height: 26px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ap-text-secondary);
+  font-family: var(--ap-font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
+}
+
+.zn-theme-option[aria-pressed='true'] {
+  background: var(--ap-surface-solid);
+  color: var(--ap-text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
 }
 
 .zn-link-pulse {
@@ -325,12 +506,8 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  height: 32px;
-  padding: 0 10px;
-  margin: 2px 2px 6px;
+  padding: 4px 10px;
   border-radius: 8px;
-  background: var(--ap-fill-subtle);
-  border: 1px solid var(--ap-border);
 }
 
 .zn-link-status {
@@ -350,6 +527,7 @@ kbd {
 
 .zn-link-pulse[data-health='online'] .zn-live-dot {
   background: var(--ap-success);
+  box-shadow: 0 0 0 3px var(--ap-success-soft);
 }
 
 .zn-link-pulse[data-health='offline'] .zn-live-dot {
@@ -361,101 +539,15 @@ kbd {
   font-size: 10px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--ap-text-secondary);
-  white-space: nowrap;
+  color: var(--ap-text-tertiary);
 }
 
 .zn-link-latency {
   font-family: var(--ap-font-mono);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--ap-text-tertiary);
-  white-space: nowrap;
-}
-
-.zn-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.zn-nav-item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  height: 34px;
-  padding: 0 10px;
-  border-radius: 8px;
-  color: var(--ap-text-secondary);
-  font-family: var(--ap-font-sans);
-  font-size: 13px;
-  font-weight: 500;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  transition: background 140ms ease, color 140ms ease, transform 100ms ease-out;
-}
-
-.zn-nav-item:hover {
-  background: var(--ap-fill-subtle);
-  color: var(--ap-text);
-}
-
-.zn-nav-item:active {
-  transform: scale(0.98);
-}
-
-.zn-nav-item[aria-current='page'] {
-  background: var(--ap-accent-soft);
-  color: var(--ap-accent);
-  font-weight: 600;
-}
-
-.zn-nav-icon {
-  flex: 0 0 16px;
-  opacity: 0.85;
-}
-
-.zn-nav-item[aria-current='page'] .zn-nav-icon {
-  opacity: 1;
-}
-
-.zn-nav-order {
-  font-family: var(--ap-font-mono);
-  font-size: 11px;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.55;
-  margin-right: 4px;
-}
-
-.zn-sidebar-spacer {
-  flex: 1 1 auto;
-  min-height: 16px;
-}
-
-.zn-env {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 10px 12px;
-  border-radius: 10px;
-  background: var(--ap-fill-subtle);
-  border: 1px solid var(--ap-border);
-}
-
-.zn-env-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: var(--ap-text-tertiary);
-}
-
-.zn-env-value {
-  font-family: var(--ap-font-mono);
-  font-size: 11px;
-  color: var(--ap-text-secondary);
-  word-break: break-all;
 }
 
 .zn-body {
@@ -466,11 +558,6 @@ kbd {
   flex-direction: column;
 }
 
-/* 克制背景：移除喧宾夺主的霓虹极光块，保留极简纯净画布 */
-.zn-aurora {
-  display: none;
-}
-
 .zn-topbar {
   position: sticky;
   top: 0;
@@ -479,11 +566,11 @@ kbd {
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  height: 54px;
-  padding: 0 28px;
+  height: 56px;
+  padding: 0 32px;
   background: var(--ap-topbar-bg);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
   border-bottom: 1px solid var(--ap-border);
 }
 
@@ -498,22 +585,18 @@ kbd {
   font-size: 13px;
   font-weight: 500;
   color: var(--ap-text-tertiary);
-  white-space: nowrap;
 }
 
 .zn-topbar-divider {
-  flex: 0 0 14px;
+  flex: 0 0 13px;
   color: var(--ap-text-tertiary);
-  opacity: 0.7;
+  opacity: 0.65;
 }
 
 .zn-topbar-page {
-  font-size: 13px;
+  font-size: 13.5px;
   font-weight: 600;
   color: var(--ap-text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .zn-topbar-actions {
@@ -525,16 +608,14 @@ kbd {
 .zn-quick-search {
   display: flex;
   align-items: center;
-  gap: 7px;
-  width: 224px;
-  height: 32px;
-  padding: 0 10px;
+  gap: 8px;
+  width: 236px;
+  height: 34px;
+  padding: 0 12px;
   border-radius: 999px;
   background: var(--ap-fill-subtle);
   border: 1px solid transparent;
   color: var(--ap-text-tertiary);
-  font: inherit;
-  font-size: 12.5px;
   transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
 }
 
@@ -543,9 +624,9 @@ kbd {
 }
 
 .zn-quick-search:focus-within {
-  background: var(--ap-surface);
+  background: var(--ap-surface-solid);
   border-color: var(--ap-accent);
-  box-shadow: 0 0 0 3px var(--ap-accent-soft);
+  box-shadow: 0 0 0 3.5px var(--ap-accent-soft);
 }
 
 .zn-quick-search-icon {
@@ -559,7 +640,7 @@ kbd {
   background: none;
   color: var(--ap-text);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 13px;
   padding: 0;
 }
 
@@ -572,12 +653,11 @@ kbd {
 }
 
 .zn-quick-search kbd {
-  font-family: var(--ap-font-mono);
   font-size: 10px;
   color: var(--ap-text-tertiary);
-  padding: 1px 5px;
-  border-radius: 4px;
-  background: var(--ap-surface);
+  padding: 2px 5px;
+  border-radius: 5px;
+  background: var(--ap-surface-solid);
   border: 1px solid var(--ap-border);
 }
 
@@ -585,7 +665,7 @@ kbd {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding-left: 8px;
+  padding-left: 10px;
   border-left: 1px solid var(--ap-border);
 }
 
@@ -596,15 +676,14 @@ kbd {
   height: 28px;
   flex: 0 0 28px;
   border-radius: 999px;
-  background: var(--ap-accent-soft);
-  color: var(--ap-accent);
-  font-family: var(--ap-font-sans);
+  background: linear-gradient(180deg, var(--ap-accent-top) 0%, var(--ap-accent) 100%);
+  color: #FFFFFF;
   font-size: 11px;
   font-weight: 600;
 }
 
 .zn-topbar-username {
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--ap-text);
   max-width: 120px;
@@ -614,9 +693,10 @@ kbd {
 }
 
 .zn-btn-logout {
-  height: 28px;
-  padding: 0 10px;
+  height: 30px;
+  padding: 0 11px;
   font-size: 12px;
+  border-radius: 999px;
 }
 
 .zn-content {
@@ -625,38 +705,41 @@ kbd {
   flex: 1 1 auto;
   min-width: 0;
   width: 100%;
-  max-width: 1320px;
+  max-width: 1280px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  padding: 28px 32px 48px;
+  gap: 24px;
+  padding: 32px 36px 56px;
 }
 
 .zn-content > main {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 24px;
 }
 
-/* ============================== 3. 设计原语 ============================== */
+/* ============================== 3. 设计原语（Liquid Glass & Bento） ============================== */
 
 .zn-panel,
-.zn-card {
+.zn-card,
+.zn-panel-raised,
+.zn-card-raised,
+.access-panel,
+.catalog-toolbar {
   background: var(--ap-surface);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid var(--ap-border);
-  border-radius: 14px;
-  padding: 20px 22px;
+  border-radius: 18px;
+  padding: 22px 24px;
   box-shadow: var(--ap-shadow-card);
 }
 
-.zn-panel-raised,
-.zn-card-raised {
-  background: var(--ap-surface-elevated);
-  border: 1px solid var(--ap-border);
-  border-radius: 14px;
-  padding: 20px 22px;
-  box-shadow: var(--ap-shadow-card);
+.catalog-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .zn-page-header {
@@ -666,8 +749,9 @@ kbd {
   justify-content: space-between;
   gap: 20px;
   flex-wrap: wrap;
-  padding: 4px 2px 6px;
+  padding: 2px 2px 4px;
   background: transparent;
+  backdrop-filter: none;
   border: 0;
   border-radius: 0;
   box-shadow: none;
@@ -678,45 +762,45 @@ kbd {
   flex-direction: column;
   gap: 6px;
   min-width: 0;
-  flex: 1 1 360px;
+  flex: 1 1 380px;
 }
 
+/* 克制的微标签，不抢主标题风头 */
 .zn-eyebrow,
 .eyebrow {
-  font-family: var(--ap-font-sans);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
-  color: var(--ap-accent);
+  color: var(--ap-text-tertiary);
 }
 
 .zn-page-title,
 .access-heading h1,
 .access-panel h1 {
-  font-size: 28px;
+  font-size: 32px;
   font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  line-height: 1.12;
+  letter-spacing: -0.03em;
   color: var(--ap-text);
 }
 
 .zn-page-description,
 .lead {
-  font-size: 13.5px;
+  font-size: 14px;
   line-height: 1.5;
   color: var(--ap-text-secondary);
-  max-width: 720px;
+  max-width: 680px;
 }
 
 .zn-header-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
-/* 保留 pointer-events: none 契约，但隐藏赛博装饰图层以保持苹果极简克制 */
+/* 保留 pointer-events: none 契约，隐藏赛博装饰图层 */
 .zn-motif {
   position: absolute;
   top: 0;
@@ -728,7 +812,7 @@ kbd {
   overflow: hidden;
 }
 
-/* --- 按钮（Apple 触感：按下瞬时微缩，清晰层级） --- */
+/* --- 按钮（Apple 立体高光胶囊与精致次按钮） --- */
 
 .zn-btn,
 .filter-btn {
@@ -736,11 +820,11 @@ kbd {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  min-height: 32px;
-  padding: 0 13px;
-  border-radius: 8px;
+  min-height: 34px;
+  padding: 0 15px;
+  border-radius: 999px;
   border: 1px solid var(--ap-border-strong);
-  background: var(--ap-surface);
+  background: var(--ap-surface-solid);
   color: var(--ap-text);
   font-family: var(--ap-font-sans);
   font-size: 13px;
@@ -749,10 +833,12 @@ kbd {
   cursor: pointer;
   white-space: nowrap;
   user-select: none;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease, transform 100ms ease-out;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease, transform 100ms ease-out;
 }
 
-a.filter-btn {
+a.filter-btn,
+a.zn-btn {
   text-decoration: none;
 }
 
@@ -763,28 +849,31 @@ a.filter-btn {
 
 .zn-btn:active:not(:disabled),
 .filter-btn:active:not(:disabled) {
-  transform: scale(0.975);
+  transform: scale(0.97);
 }
 
 .zn-btn:disabled,
 .filter-btn:disabled {
-  opacity: 0.42;
+  opacity: 0.40;
   cursor: not-allowed;
 }
 
 .zn-btn-primary,
 .filter-btn.active,
 .filter-btn.primary {
-  background: var(--ap-accent);
+  background: linear-gradient(180deg, var(--ap-accent-top) 0%, var(--ap-accent) 100%);
   border-color: transparent;
   color: var(--ap-on-accent);
   font-weight: 600;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.28),
+    0 2px 8px rgba(0, 113, 227, 0.28);
 }
 
 .zn-btn-primary:hover:not(:disabled),
 .filter-btn.active:hover:not(:disabled),
 .filter-btn.primary:hover:not(:disabled) {
-  background: var(--ap-accent-hover);
+  filter: brightness(1.05);
   color: var(--ap-on-accent);
 }
 
@@ -793,6 +882,7 @@ a.filter-btn {
   border-color: transparent;
   color: var(--ap-danger);
   font-weight: 600;
+  box-shadow: none;
 }
 
 .zn-btn-danger:hover:not(:disabled) {
@@ -805,11 +895,12 @@ a.filter-btn {
 }
 
 .zn-btn-tall {
-  min-height: 38px;
-  font-size: 14px;
+  min-height: 44px;
+  font-size: 14.5px;
+  border-radius: 12px;
 }
 
-/* --- 字段与表单（Apple 精细输入框 + :user-invalid） --- */
+/* --- 表单与输入框（macOS 精致控件 + 自定义 select 箭头） --- */
 
 .zn-field {
   display: flex;
@@ -822,7 +913,7 @@ a.filter-btn {
 .match-label {
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--ap-text);
+  color: var(--ap-text-secondary);
 }
 
 .zn-input,
@@ -833,15 +924,34 @@ a.filter-btn {
 .access-fields textarea,
 .auth-form input {
   width: 100%;
-  min-height: 36px;
-  padding: 0 12px;
-  border-radius: 9px;
-  background: var(--ap-surface);
-  border: 1px solid var(--ap-border-strong);
+  min-height: 38px;
+  padding: 0 13px;
+  border-radius: 10px;
+  background: var(--ap-fill-subtle);
+  border: 1px solid transparent;
   color: var(--ap-text);
   font-family: var(--ap-font-sans);
   font-size: 13.5px;
-  transition: border-color 140ms ease, box-shadow 140ms ease, background 140ms ease;
+  transition: background 140ms ease, border-color 140ms ease, box-shadow 140ms ease;
+}
+
+select.zn-input,
+select.match-control,
+select.search-box,
+.access-fields select {
+  appearance: none;
+  padding-right: 32px;
+  background-image: linear-gradient(45deg, transparent 50%, var(--ap-text-tertiary) 50%),
+    linear-gradient(135deg, var(--ap-text-tertiary) 50%, transparent 50%);
+  background-position: calc(100% - 16px) 50%, calc(100% - 11px) 50%;
+  background-size: 5px 5px, 5px 5px;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.zn-input:hover:not(:focus),
+.match-control:hover:not(:focus) {
+  background-color: var(--ap-fill-hover);
 }
 
 .zn-input::placeholder,
@@ -856,8 +966,9 @@ a.filter-btn {
 .access-fields select:focus,
 .access-fields textarea:focus,
 .auth-form input:focus {
+  background-color: var(--ap-surface-solid);
   border-color: var(--ap-accent);
-  box-shadow: 0 0 0 3px var(--ap-accent-soft);
+  box-shadow: 0 0 0 3.5px var(--ap-accent-soft);
   outline: none;
 }
 
@@ -873,8 +984,8 @@ a.filter-btn {
 
 textarea.zn-input,
 .access-fields textarea {
-  min-height: 76px;
-  padding: 9px 12px;
+  min-height: 80px;
+  padding: 10px 13px;
   line-height: 1.5;
   resize: vertical;
 }
@@ -897,7 +1008,7 @@ textarea.zn-input,
   color: var(--ap-text-tertiary);
 }
 
-/* --- 徽章（柔和苹果胶囊） --- */
+/* --- 徽章 --- */
 
 .zn-badge,
 .tag,
@@ -905,8 +1016,8 @@ textarea.zn-input,
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  height: 22px;
-  padding: 0 9px;
+  height: 23px;
+  padding: 0 10px;
   border-radius: 999px;
   border: 0;
   font-size: 11.5px;
@@ -949,25 +1060,35 @@ textarea.zn-input,
   color: var(--ap-accent);
 }
 
-/* --- 指标卡（纯净 Apple Bento 指标） --- */
+/* --- Apple Bento 指标卡 --- */
 
 .zn-metrics,
 .status-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
 }
 
 .zn-metric,
 .status-card {
+  position: relative;
   display: flex;
   align-items: flex-start;
+  justify-content: space-between;
   gap: 12px;
-  padding: 16px 18px;
-  border-radius: 14px;
+  padding: 20px 22px;
+  border-radius: 18px;
   background: var(--ap-surface);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
   border: 1px solid var(--ap-border);
   box-shadow: var(--ap-shadow-card);
+  transition: transform 180ms cubic-bezier(0.22, 1, 0.36, 1), box-shadow 180ms ease;
+}
+
+.zn-metric:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--ap-shadow-raised);
 }
 
 .status-card {
@@ -982,7 +1103,7 @@ textarea.zn-input,
 .zn-metric-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -991,18 +1112,17 @@ textarea.zn-input,
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 500;
   color: var(--ap-text-secondary);
 }
 
 .zn-metric-value,
 .status-card .value {
-  font-family: var(--ap-font-sans);
-  font-size: 26px;
+  font-size: 32px;
   font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.025em;
+  line-height: 1.08;
+  letter-spacing: -0.035em;
   font-variant-numeric: tabular-nums;
   color: var(--ap-text);
   word-break: break-all;
@@ -1010,33 +1130,34 @@ textarea.zn-input,
 
 .zn-metric-value-sm {
   font-family: var(--ap-font-mono);
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
 }
 
 .status-card .value {
-  font-size: 18px;
+  font-size: 20px;
 }
 
 .status-card .value.ready {
   color: var(--ap-success);
 }
 
-/* --- 布局工具类 --- */
+/* --- 布局与卡片头部 --- */
 
 .zn-card-head {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 
 .zn-card-title {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  letter-spacing: -0.015em;
+  letter-spacing: -0.02em;
   color: var(--ap-text);
 }
 
@@ -1049,8 +1170,8 @@ textarea.zn-input,
 .zn-grid-2,
 .access-columns {
   display: grid;
-  grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
-  gap: 18px;
+  grid-template-columns: minmax(0, 1.65fr) minmax(0, 1fr);
+  gap: 20px;
   align-items: start;
 }
 
@@ -1064,7 +1185,7 @@ textarea.zn-input,
 .zn-stack {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 18px;
 }
 
 .zn-stack-sm {
@@ -1084,30 +1205,35 @@ textarea.zn-input,
   justify-content: space-between;
 }
 
-/* --- 表格（macOS Finder / App Store Connect 细线表） --- */
+/* --- 表格（Apple 极简通透细线表） --- */
 
 .zn-table-scroll,
-.spec-table-container,
 .candidate-table {
   overflow-x: auto;
   border-radius: 12px;
-  background: var(--ap-surface);
   border: 1px solid var(--ap-border);
+  background: var(--ap-surface-solid);
 }
 
 .spec-table-container {
+  border-radius: 18px;
+  background: var(--ap-surface);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--ap-border);
   box-shadow: var(--ap-shadow-card);
   overflow: hidden;
 }
 
 .spec-table-container > div:first-child {
-  padding: 16px 20px;
+  padding: 18px 24px;
   border-bottom: 1px solid var(--ap-border);
 }
 
 .spec-table-container h2 {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
+  letter-spacing: -0.02em;
   color: var(--ap-text);
 }
 
@@ -1136,12 +1262,10 @@ textarea.zn-input,
   top: 0;
   background: var(--ap-fill-subtle);
   color: var(--ap-text-tertiary);
-  font-family: var(--ap-font-sans);
   font-size: 11.5px;
   font-weight: 600;
-  letter-spacing: 0.01em;
   text-align: left;
-  padding: 10px 14px;
+  padding: 11px 16px;
   border-bottom: 1px solid var(--ap-border);
   white-space: nowrap;
 }
@@ -1150,10 +1274,11 @@ textarea.zn-input,
 .spec-table td,
 .candidate-table td,
 .access-audit td {
-  padding: 12px 14px;
+  padding: 13px 16px;
   border-bottom: 1px solid var(--ap-border);
   color: var(--ap-text-secondary);
   vertical-align: middle;
+  transition: background 120ms ease;
 }
 
 .zn-table tbody tr:last-child td,
@@ -1165,7 +1290,7 @@ textarea.zn-input,
 
 .zn-table tbody tr:hover td,
 .spec-table tbody tr:hover td {
-  background: var(--ap-accent-soft);
+  background: var(--ap-fill-subtle);
 }
 
 .zn-table tbody tr[data-selected='true'] td {
@@ -1183,17 +1308,16 @@ textarea.zn-input,
   font-variant-numeric: tabular-nums;
 }
 
-/* --- 分段控制 / 标签页（Apple Segmented Control） --- */
+/* --- 分段控制（Apple Segmented Control） --- */
 
 .zn-tabs,
 .access-tabs {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   padding: 4px;
-  border-radius: 10px;
+  border-radius: 11px;
   background: var(--ap-fill-subtle);
-  border: 1px solid var(--ap-border);
   align-self: flex-start;
 }
 
@@ -1204,29 +1328,29 @@ textarea.zn-input,
   height: 30px;
   padding: 0 14px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 8px;
   background: transparent;
   color: var(--ap-text-secondary);
-  font-family: var(--ap-font-sans);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   white-space: nowrap;
+  box-shadow: none;
   transition: background 140ms ease, color 140ms ease, box-shadow 140ms ease;
 }
 
 .zn-tab[aria-selected='true'] {
-  background: var(--ap-surface);
+  background: var(--ap-surface-solid);
   color: var(--ap-text);
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  box-shadow: var(--ap-shadow-pill);
 }
 
 .zn-tab-icon {
   flex: 0 0 14px;
 }
 
-/* --- 步骤器（发布作业流水线） --- */
+/* --- 步骤器 --- */
 
 .zn-stepper {
   display: flex;
@@ -1241,10 +1365,10 @@ textarea.zn-input,
   display: flex;
   flex-direction: column;
   gap: 7px;
-  padding: 12px;
-  border-radius: 10px;
+  padding: 13px;
+  border-radius: 12px;
   border: 1px solid var(--ap-border);
-  background: var(--ap-bg);
+  background: var(--ap-fill-subtle);
 }
 
 .pipeline-step {
@@ -1313,11 +1437,11 @@ textarea.zn-input,
   position: absolute;
   inset: 0 auto 0 0;
   border-radius: 999px;
-  background: var(--ap-accent);
-  transition: width 240ms cubic-bezier(0.22, 1, 0.36, 1);
+  background: linear-gradient(90deg, var(--ap-accent) 0%, var(--ap-accent-top) 100%);
+  transition: width 260ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* --- 检查清单 / 时间线 --- */
+/* --- 检查清单 / 时间线 / 提示条 --- */
 
 .zn-checks,
 .access-checks {
@@ -1334,7 +1458,7 @@ textarea.zn-input,
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 40px;
+  min-height: 42px;
   padding: 8px 0;
   border-bottom: 1px solid var(--ap-border);
   font-size: 13px;
@@ -1410,18 +1534,16 @@ textarea.zn-input,
   color: var(--ap-text-tertiary);
 }
 
-/* --- 提示条 / 状态卡 --- */
-
 .zn-notice,
 .match-banner {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
-  border-radius: 12px;
+  padding: 13px 18px;
+  border-radius: 14px;
   background: var(--ap-warning-soft);
   color: var(--ap-warning);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .zn-notice-block {
@@ -1447,7 +1569,7 @@ textarea.zn-input,
 }
 
 .blocker-alert {
-  padding: 14px 20px;
+  padding: 14px 24px;
   border-bottom: 1px solid var(--ap-border);
   font-size: 12.5px;
 }
@@ -1470,8 +1592,8 @@ textarea.zn-input,
   justify-content: space-between;
   gap: 14px;
   flex-wrap: wrap;
-  padding: 16px 20px;
-  border-radius: 14px;
+  padding: 16px 22px;
+  border-radius: 16px;
   background: var(--ap-accent-soft);
   border: 1px solid var(--ap-accent);
   color: var(--ap-text);
@@ -1486,32 +1608,13 @@ textarea.zn-input,
   color: var(--ap-text);
   background: var(--ap-fill-subtle);
   border-radius: 6px;
-  padding: 2px 7px;
+  padding: 3px 8px;
   word-break: break-all;
-}
-
-.catalog-toolbar {
-  background: var(--ap-surface);
-  border: 1px solid var(--ap-border);
-  border-radius: 14px;
-  padding: 18px 22px;
-  box-shadow: var(--ap-shadow-card);
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-}
-
-.access-panel {
-  background: var(--ap-surface);
-  border: 1px solid var(--ap-border);
-  border-radius: 14px;
-  padding: 20px 22px;
-  box-shadow: var(--ap-shadow-card);
 }
 
 .access-panel > h2,
 .access-panel > .access-title h2 {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
   color: var(--ap-text);
 }
@@ -1522,7 +1625,7 @@ textarea.zn-input,
   justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .access-badge {
@@ -1536,9 +1639,9 @@ textarea.zn-input,
   flex-direction: column;
   gap: 4px;
   padding: 12px 14px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: var(--ap-fill-subtle);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   font-size: 12px;
   color: var(--ap-text-secondary);
 }
@@ -1562,14 +1665,14 @@ textarea.zn-input,
   gap: 6px;
   font-size: 12.5px;
   font-weight: 500;
-  color: var(--ap-text);
+  color: var(--ap-text-secondary);
 }
 
 .access-actions {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-  margin-top: 14px;
+  margin-top: 16px;
 }
 
 .access-history {
@@ -1612,7 +1715,7 @@ textarea.zn-input,
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 12.5px;
   color: var(--ap-text-tertiary);
 }
 
@@ -1654,7 +1757,7 @@ textarea.zn-input,
   gap: 10px;
   margin-top: 8px;
   padding: 8px 12px;
-  border-radius: 9px;
+  border-radius: 10px;
   background: var(--ap-fill-subtle);
   font-size: 12.5px;
   color: var(--ap-text);
@@ -1674,9 +1777,9 @@ textarea.zn-input,
 .candidate-icon {
   display: grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
-  flex: 0 0 28px;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
   border-radius: 8px;
   background: var(--ap-accent-soft);
   color: var(--ap-accent);
@@ -1705,8 +1808,8 @@ textarea.zn-input,
 .design-panel,
 .query-panel {
   margin-top: 16px;
-  padding: 18px 20px;
-  border-radius: 14px;
+  padding: 20px 22px;
+  border-radius: 18px;
   background: var(--ap-surface);
   border: 1px solid var(--ap-border);
   box-shadow: var(--ap-shadow-card);
@@ -1714,14 +1817,13 @@ textarea.zn-input,
 
 .zn-detail-kv {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
   gap: 10px;
-  margin-top: 4px;
 }
 
 .zn-detail-kv-item {
-  padding: 10px 12px;
-  border-radius: 10px;
+  padding: 11px 13px;
+  border-radius: 12px;
   background: var(--ap-fill-subtle);
   display: flex;
   flex-direction: column;
@@ -1741,7 +1843,7 @@ textarea.zn-input,
   word-break: break-all;
 }
 
-/* --- 登录页（Apple 居中独立面板） --- */
+/* --- Apple ID / iCloud 风格居中登录卡片 --- */
 
 .zn-login-shell {
   position: relative;
@@ -1749,74 +1851,89 @@ textarea.zn-input,
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 32px 20px;
-  background: var(--ap-bg);
+  padding: 36px 20px;
+  background: var(--ap-canvas-glow);
 }
 
 .zn-login-content {
   position: relative;
   z-index: 10;
   width: 100%;
-  max-width: 520px;
+  max-width: 420px;
 }
 
-.zn-login-content > main {
+.zn-login-main {
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  align-items: center;
+  gap: 16px;
 }
 
-.zn-login-content .access-panel {
-  padding: 28px;
-  border-radius: 18px;
+.zn-login-card {
+  width: 100%;
+  padding: 36px 32px 28px;
+  border-radius: 24px;
+  background: var(--ap-surface-elevated);
+  backdrop-filter: blur(28px) saturate(180%);
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
+  border: 1px solid var(--ap-border);
   box-shadow: var(--ap-shadow-raised);
+}
+
+.zn-login-brand {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+  margin-bottom: 24px;
+}
+
+.zn-login-app-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--ap-accent-top) 0%, var(--ap-accent) 100%);
+  color: #FFFFFF;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  margin-bottom: 6px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.36),
+    0 8px 20px rgba(0, 113, 227, 0.32);
+}
+
+.zn-login-brand h1 {
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+.zn-login-subtitle {
+  font-size: 13.5px;
+  color: var(--ap-text-tertiary);
+}
+
+.zn-login-modes {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .zn-login-form {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  margin-top: 12px;
 }
 
-.zn-auth-checking {
-  text-align: center;
-  color: var(--ap-text-secondary);
+.zn-login-form .zn-input {
+  min-height: 44px;
+  border-radius: 12px;
+  padding: 0 14px;
   font-size: 14px;
-  padding: 48px 0;
-}
-
-.zn-token-login {
-  margin-top: 12px;
-  padding-top: 14px;
-  border-top: 1px solid var(--ap-border);
-}
-
-.zn-token-login summary {
-  cursor: pointer;
-  font-size: 12.5px;
-  color: var(--ap-text-secondary);
-  margin-bottom: 10px;
-}
-
-.zn-login-modes {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  margin-top: 12px;
-}
-
-.zn-login-section {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.zn-login-section-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--ap-text);
 }
 
 .zn-login-divider {
@@ -1825,6 +1942,7 @@ textarea.zn-input,
   gap: 12px;
   color: var(--ap-text-tertiary);
   font-size: 12px;
+  margin: 2px 0;
 }
 
 .zn-login-divider::before,
@@ -1833,6 +1951,43 @@ textarea.zn-input,
   flex: 1;
   height: 1px;
   background: var(--ap-border);
+}
+
+.zn-token-login {
+  margin-top: 6px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ap-border);
+}
+
+.zn-token-login summary {
+  cursor: pointer;
+  font-size: 12.5px;
+  color: var(--ap-text-tertiary);
+  text-align: center;
+  list-style: none;
+  user-select: none;
+}
+
+.zn-token-login summary::-webkit-details-marker {
+  display: none;
+}
+
+.zn-token-login[open] summary {
+  margin-bottom: 12px;
+  color: var(--ap-text-secondary);
+}
+
+.zn-login-footnote {
+  font-size: 12px;
+  color: var(--ap-text-tertiary);
+  text-align: center;
+}
+
+.zn-auth-checking {
+  text-align: center;
+  color: var(--ap-text-secondary);
+  font-size: 14px;
+  padding: 48px 0;
 }
 
 .zn-state-card {
@@ -1864,7 +2019,7 @@ textarea.zn-input,
   }
 
   .zn-sidebar-spacer,
-  .zn-env {
+  .zn-sidebar-footer {
     display: none;
   }
 
@@ -1879,7 +2034,7 @@ textarea.zn-input,
   }
 
   .zn-content {
-    padding: 20px 16px 32px;
+    padding: 20px 16px 36px;
   }
 }
 
@@ -1900,7 +2055,7 @@ textarea.zn-input,
   .access-heading h1,
   .access-panel h1,
   .zn-page-title {
-    font-size: 22px;
+    font-size: 24px;
   }
 
   .zn-stepper {
@@ -1915,15 +2070,22 @@ textarea.zn-input,
   }
   .zn-btn:active,
   .filter-btn:active,
-  .zn-nav-item:active {
+  .zn-nav-item:active,
+  .zn-metric:hover {
     transform: none !important;
   }
 }
 
 @media (prefers-reduced-transparency: reduce) {
   .zn-sidebar,
-  .zn-topbar {
-    background: var(--ap-surface);
+  .zn-topbar,
+  .zn-panel,
+  .zn-card,
+  .zn-card-raised,
+  .zn-metric,
+  .access-panel,
+  .zn-login-card {
+    background: var(--ap-surface-solid);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
   }

@@ -679,24 +679,27 @@ export default function WebUploadConsole() {
         <h2 style={{ fontSize: 16 }}>选择实际框架实现与分类</h2>
         <p className="match-hint">只选择当前清单中已有的实现。框架由预构建产物、API 与截图确定；发布另一框架请导入它的真实产物。</p>
         <p className="match-note">同一冻结包的全部实现一起选择，保留 tarball 与导出的完整对应关系。</p>
-        <div style={{ display: 'flex', gap: 16, alignItems: 'center', flexWrap: 'wrap' }}>
-          <label>待发布框架 <select className="search-box" disabled={isSubmitting} value={
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <label className="zn-row" style={{ gap: 8 }}>
+            <span className="zn-field-label">待发布框架</span>
+            <select className="zn-input" style={{ width: 170, minHeight: 34 }} disabled={isSubmitting} value={
             selectedVariantIds.length === manifest.variants.length ? 'all'
               : selectedVariantIds.length && manifest.variants.filter(variant => selectedVariantIds.includes(variant.variantId)).every(variant => variant.framework === 'vue') ? 'vue'
                 : selectedVariantIds.length && manifest.variants.filter(variant => selectedVariantIds.includes(variant.variantId)).every(variant => variant.framework === 'react') ? 'react' : 'custom'
           } onChange={event => setSelectedVariantIds(manifest.variants.filter(variant => event.target.value === 'all' || variant.framework === event.target.value).map(variant => variant.variantId))}>
-            <option value="all">全部现有实现</option>
-            <option value="vue" disabled={!manifest.variants.some(variant => variant.framework === 'vue')}>仅 Vue 3</option>
-            <option value="react" disabled={!manifest.variants.some(variant => variant.framework === 'react')}>仅 React 19</option>
-            <option value="custom" disabled>逐实现选择</option>
-          </select></label>
+              <option value="all">全部现有实现</option>
+              <option value="vue" disabled={!manifest.variants.some(variant => variant.framework === 'vue')}>仅 Vue 3</option>
+              <option value="react" disabled={!manifest.variants.some(variant => variant.framework === 'react')}>仅 React 19</option>
+              <option value="custom" disabled>逐实现选择</option>
+            </select>
+          </label>
           <button type="button" className="filter-btn" disabled={optionsLoading || isSubmitting} onClick={() => setOptionsRefresh(value => value + 1)}>刷新发布选项</button>
-          <span role="status">{optionsLoading ? '正在读取发布选项…' : `已选择 ${selectedVariantIds.length} / ${manifest.variants.length} 个实现`}</span>
+          <span role="status" className="zn-hint">{optionsLoading ? '正在读取发布选项…' : `已选择 ${selectedVariantIds.length} / ${manifest.variants.length} 个实现`}</span>
         </div>
-        {optionsError && <p className="field-error" role="alert">{optionsError} 分类选择暂不可用；旧清单未指定分类时继续兼容。</p>}
+        {optionsError && manifest.variants.length > 0 && <p className="field-error" role="alert">{optionsError} 分类选择暂不可用；旧清单未指定分类时继续兼容。</p>}
         {publishingOptions && <p className="match-note">当前发布授权：组件 {publishingOptions.components.map(item => item.componentId).join('、') || '无'} · 包 {publishingOptions.packages.join('、') || '无'}。最终权限由 API 校验。</p>}
         {publishingOptions?.components.filter(item => !publishingOptions.categories.some(category => category.id === item.category && category.enabled) && manifest.variants.some(variant => variant.componentId === item.componentId)).map(item => <p key={item.componentId} className="field-error">{item.componentId} 当前分类 {item.category} 未知或已停用</p>)}
-        {!selection.ok && <div id="publishing-selection-alert" className="match-errors" role="alert">阻断发布：{selection.issues.map(issue => issue.message).join('；')}</div>}
+        {manifest.variants.length > 0 && !selection.ok && <div id="publishing-selection-alert" className="match-errors" role="alert">阻断发布：{selection.issues.map(issue => issue.message).join('；')}</div>}
       </section>
 
       {/* 断点恢复卡片（当检测到上次未完成的发布会话时展示） */}
@@ -779,8 +782,8 @@ export default function WebUploadConsole() {
           </span>
         </div>
 
-        {/* 缺图与错配报警区 (blocks_submit_when_any_variant_has_no_image) */}
-        {(!validation.ok || fileIssues.length > 0) && (
+        {/* 缺图与错配报警区 (仅在已导入清单后展示，空工作台保持克制) */}
+        {manifest.variants.length > 0 && (!validation.ok || fileIssues.length > 0) && (
           <div id="missing-screenshots-alert" className="blocker-alert">
             <strong>阻断发布：存在未关联有效截图的组件实现 (SCREENSHOT_REQUIRED / 框架错配):</strong>
             <ul>

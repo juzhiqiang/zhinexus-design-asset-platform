@@ -1,7 +1,7 @@
 'use client';
 
 /**
- * 管理端外壳：`App Sidebar` + `Topbar` + `Aurora Flow Field`。
+ * 管理端外壳：Apple macOS Sequoia / App Store Connect 风格侧栏与通透顶栏。
  *
  * 注意：这里渲染 `<div className="zn-content">` 而不是 `<main>`——各页面自己渲染
  * `<main>`，嵌套会产生多个 main 地标。
@@ -14,31 +14,8 @@ import { ADMIN_NAV_ITEMS, ADMIN_TOOL_ITEMS, resolveActiveNavKey, resolveTopbarPa
 import { getStoredSession, loadCompanySession, logoutAndRedirect, platformApiOrigin } from '../auth';
 
 const SEARCH_TARGET = '/match';
-
-function AuroraFlowField() {
-  return (
-    <div className="zn-aurora" aria-hidden="true">
-      <span className="zn-aurora-glacier" />
-      <span className="zn-aurora-mint" />
-      <svg viewBox="0 0 1208 1120" preserveAspectRatio="none" focusable="false">
-        <defs>
-          <linearGradient id="zn-aurora-glacier-stroke" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#8CCFFF" stopOpacity="0" />
-            <stop offset="48%" stopColor="#8CCFFF" stopOpacity="0.36" />
-            <stop offset="100%" stopColor="#8CCFFF" stopOpacity="0" />
-          </linearGradient>
-          <linearGradient id="zn-aurora-mint-stroke" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#78E7C2" stopOpacity="0" />
-            <stop offset="50%" stopColor="#78E7C2" stopOpacity="0.29" />
-            <stop offset="100%" stopColor="#78E7C2" stopOpacity="0" />
-          </linearGradient>
-        </defs>
-        <path d="M0 430c220-310 520 130 1120-310" transform="translate(40 80)" fill="none" stroke="url(#zn-aurora-glacier-stroke)" strokeWidth="2" strokeLinecap="round" opacity="0.48" />
-        <path d="M0 120c360 290 710-120 1160 180" transform="translate(10 350)" fill="none" stroke="url(#zn-aurora-mint-stroke)" strokeWidth="3" strokeLinecap="round" opacity="0.34" />
-      </svg>
-    </div>
-  );
-}
+const THEME_KEY = 'zhinexus_admin_theme';
+type ThemeMode = 'auto' | 'light' | 'dark';
 
 function initialsOf(subject: string): string {
   const parts = subject.split(/[-_.\s]+/).filter(Boolean);
@@ -71,7 +48,7 @@ function QuickSearch() {
         router.push(query ? `${SEARCH_TARGET}?q=${encodeURIComponent(query)}` : SEARCH_TARGET);
       }}
     >
-      <ZnIcon name="search" color="var(--zn-subtle)" size={15} className="zn-quick-search-icon" />
+      <ZnIcon name="search" color="currentColor" size={14} className="zn-quick-search-icon" />
       <input
         id="zn-quick-search-input"
         className="zn-quick-search-input"
@@ -94,10 +71,29 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
   const isLoginPage = pathname === '/login';
   const activeKey = resolveActiveNavKey(pathname);
   const [subject, setSubject] = useState('');
+  const [theme, setTheme] = useState<ThemeMode>('auto');
   const [authStatus, setAuthStatus] = useState<'checking' | 'authenticated' | 'redirecting'>(() =>
     isLoginPage ? 'authenticated' : 'checking',
   );
   const [health, setHealth] = useState<LinkHealth>({ status: 'checking', latencyMs: null });
+
+  useEffect(() => {
+    const saved = (localStorage.getItem(THEME_KEY) as ThemeMode | null) ?? 'auto';
+    if (saved === 'light' || saved === 'dark' || saved === 'auto') {
+      setTheme(saved);
+      document.documentElement.dataset.theme = saved;
+    }
+  }, []);
+
+  const applyTheme = (next: ThemeMode) => {
+    setTheme(next);
+    document.documentElement.dataset.theme = next;
+    try {
+      localStorage.setItem(THEME_KEY, next);
+    } catch {
+      // ignore
+    }
+  };
 
   useEffect(() => {
     if (isLoginPage) {
@@ -157,7 +153,6 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
   if (isLoginPage) {
     return (
       <div className="zn-login-shell">
-        <AuroraFlowField />
         <div className="zn-login-content">{children}</div>
       </div>
     );
@@ -166,7 +161,6 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
   if (authStatus !== 'authenticated') {
     return (
       <div className="zn-login-shell">
-        <AuroraFlowField />
         <div className="zn-login-content">
           <p className="zn-auth-checking">{authStatus === 'redirecting' ? '正在前往登录页…' : '正在核验登录状态…'}</p>
         </div>
@@ -177,23 +171,15 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <div className="zn-shell">
       <aside className="zn-sidebar" aria-label="管理侧栏">
-        <span className="zn-sidebar-rail" />
         <div className="zn-brand">
-          <span className="zn-brand-mark">Z</span>
-          <span className="zn-brand-name">Zhinexus</span>
+          <span className="zn-brand-mark" aria-hidden="true">Z</span>
+          <div className="zn-brand-copy">
+            <span className="zn-brand-name">Zhinexus</span>
+            <span className="zn-brand-sub">资产管理控制台</span>
+          </div>
         </div>
-        <p className="zn-workspace-label">管理工作台</p>
-        <div className="zn-link-pulse" data-health={health.status}>
-          <span className="zn-link-status">
-            <span className="zn-live-dot" />
-            <span className="zn-link-label">
-              {health.status === 'online' ? 'API ONLINE' : health.status === 'offline' ? 'API OFFLINE' : 'CHECKING API'}
-            </span>
-          </span>
-          <span className="zn-link-latency">
-            {health.status === 'online' && health.latencyMs !== null ? `${health.latencyMs}ms` : health.status === 'offline' ? '离线' : '…'}
-          </span>
-        </div>
+
+        <p className="zn-workspace-label">工作台</p>
         <nav className="zn-nav" aria-label="控制台导航">
           {ADMIN_NAV_ITEMS.map((item) => (
             <Link
@@ -205,15 +191,14 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
               <ZnIcon name={item.icon} size={16} className="zn-nav-icon" color="currentColor" />
               <span>
                 <span className="zn-nav-order">{item.order}</span>
-                {' '}
                 {item.label}
               </span>
             </Link>
           ))}
         </nav>
 
-        <p className="zn-workspace-label" style={{ marginTop: 12 }}>辅助工具</p>
-        <nav className="zn-nav" aria-label="辅助工具" style={{ marginTop: 2 }}>
+        <p className="zn-workspace-label" style={{ marginTop: 14 }}>工具</p>
+        <nav className="zn-nav" aria-label="辅助工具">
           {ADMIN_TOOL_ITEMS.map((item) => (
             <Link
               key={item.key}
@@ -228,18 +213,40 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
         </nav>
 
         <div className="zn-sidebar-spacer" />
-        <div className="zn-env">
-          <span className="zn-env-label">ENV / API</span>
-          <span className="zn-env-value">{platformApiOrigin}</span>
+
+        <div className="zn-sidebar-footer">
+          <div className="zn-theme-switch" role="group" aria-label="外观模式">
+            {([['light', '浅色'], ['dark', '深色'], ['auto', '自动']] as const).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className="zn-theme-option"
+                aria-pressed={theme === mode}
+                onClick={() => applyTheme(mode)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="zn-link-pulse" data-health={health.status} title={`API: ${platformApiOrigin}`}>
+            <span className="zn-link-status">
+              <span className="zn-live-dot" />
+              <span className="zn-link-label">
+                {health.status === 'online' ? 'API ONLINE' : health.status === 'offline' ? 'API OFFLINE' : 'CHECKING'}
+              </span>
+            </span>
+            <span className="zn-link-latency">
+              {health.status === 'online' && health.latencyMs !== null ? `${health.latencyMs}ms` : health.status === 'offline' ? '离线' : '…'}
+            </span>
+          </div>
         </div>
       </aside>
 
       <div className="zn-body">
-        <AuroraFlowField />
         <header className="zn-topbar">
           <div className="zn-topbar-context">
             <span className="zn-topbar-section">管理平台</span>
-            <ZnIcon name="chevron-right" size={14} color="var(--zn-subtle)" className="zn-topbar-divider" />
+            <ZnIcon name="chevron-right" size={13} color="currentColor" className="zn-topbar-divider" />
             <span className="zn-topbar-page">{resolveTopbarPage(pathname)}</span>
           </div>
           <div className="zn-topbar-actions">
@@ -254,7 +261,7 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
                 className="zn-btn zn-btn-logout"
                 onClick={() => logoutAndRedirect(router)}
               >
-                <ZnIcon name="log-out" size={14} color="var(--zn-muted)" />
+                <ZnIcon name="log-out" size={13} color="currentColor" />
                 退出登录
               </button>
             </div>
