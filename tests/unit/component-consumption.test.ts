@@ -30,10 +30,10 @@ it.each(['react', 'vue'])('%s 模板通过公开参数描述独立数字颜色�
 
 it('API 的结构化参数约束校验实际绑定数据和每个状态，旧控件不能放宽约束', async () => {
   const p = await project(), variant = p.config.variants[0]!;
+  const raw = (await readPlayground(p, variant)).value;
   const api = await readVariantApi(p, variant);
   api.props.push({ name: 'config', type: 'MetricConfig', required: true, schema: { type: 'object', properties: { digits: { type: 'integer', minimum: 0, maximum: 4 } }, required: ['digits'], additionalProperties: false } });
   await fs.writeFile(path.join(p.root, variant.api), JSON.stringify(api));
-  const raw = (await readPlayground(p, variant)).value;
   const valid = { ...raw, dataProp: 'config', props: { ...raw.props, config: { digits: 'ignored' } }, data: { digits: 2 }, states: [] };
   await expect(validateExample(p, variant, valid)).resolves.toMatchObject({ data: { digits: 2 } });
   await expect(validateExample(p, variant, { ...valid, data: { digits: 8 } })).rejects.toThrow('PLAYGROUND_INVALID');

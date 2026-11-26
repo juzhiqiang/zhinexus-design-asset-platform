@@ -8,7 +8,7 @@ import { computeBufferSha256 } from '../local/digest.js';
 export async function readPlayground(project:LoadedProject, variant:ProjectVariant) {
   if(!variant.playground) return {value:{schemaVersion:1,adapter:'custom',props:{},controls:[],states:[]} as PlaygroundV1,digest:''};
   const bytes=await fs.readFile(await projectPath(project.root,variant.playground));
-  return {value:checked(JSON.parse(bytes.toString('utf8'))),digest:computeBufferSha256(bytes)};
+  return {value:await validateExample(project,variant,JSON.parse(bytes.toString('utf8'))),digest:computeBufferSha256(bytes)};
 }
 export function checked(input:unknown):PlaygroundV1 {
   const result=validatePlayground(input);

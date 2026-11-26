@@ -22,7 +22,11 @@
 - Task 3 验证：contracts schemas:generate、CLI build 通过；pnpm exec vitest run tests/contracts tests/unit/component-binding.test.ts tests/integration/component-query.test.ts tests/integration/match-plan.test.ts tests/integration/project-plan.test.ts tests/integration/project-apply.test.ts tests/integration/project-verify-browser-assertions.test.ts tests/acceptance/t16-a/t16-a-api-cases.test.ts：29 文件、782 通过、1 个既有跳过。无 ECharts 环境的真实 Chromium 验证 13/13 通过；不伪造视觉基线 PASS。
 - Task 3 实际消费者：pnpm exec vitest run tests/integration/component-generated-consumer.test.ts 通过。分别构建真实 React/Vue 包、打包并安装到工作区外消费者，从安装后的 API 生成普通接入源码，分别以 tsc / vue-tsc 严格类型检查；不安装 ECharts 或 charts-core，不导入不存在的样式/类型。
 - 能力边界：平台的已接受兼容记录仍以 ECharts 组合建模，本轮不迁移数据库或伪造普通组件兼容记录；非图表组件如实返回 COMPATIBILITY_UNVERIFIED，静态发现/描述/类型生成与可执行接入门槛分开。
-- Task 4：待执行。
+- Task 4：交付验证执行中。新增跨边界回归先观察到 8 项预期失败：4 个已知事件载荷类型冲突、保存示例的初始值/状态/dataProp、首次目录加载；无 playground 的自定义消费者兜底保持可读。
+- 独立最终审查发现 2 项 Important、无 Critical/Minor：事件 payload 与结构化 Schema 可能冲突；首次读取保存示例未应用 API 值校验。两项均已复现，按同一轮 RED→GREEN 修复。
+- 审查修复结果：事件基础类型/数组 Schema 复用属性一致性校验；配置了 playground 的文件在首次读取时执行 validateExample，覆盖目录、开发消费者及冻结消费者入口；未配置的自定义消费者不把兜底空对象作为真实参数验证。定向回归 5 文件 40/40 通过；扩大回归 36 文件 808 通过、1 个既有跳过（66.63s）。contracts schemas:generate、CLI typecheck/build 通过。
+- 基线核对：在独立的 fix/juz-component-development（db65ce3e）工作区执行 pnpm exec vitest run tests/admin/console-render.test.ts，仍为 6 失败、1 通过；本分支没有改动后台源码和这份测试。失败包含过期页面文案/类名断言及缺少 Next App Router 测试上下文，不扩展本轮范围修复。
+- 首次全仓测试使用 T17 默认的缺失 .tools/playwright 浏览器缓存，出现 14 项启动失败，并复现 6 项后台基线失败；已主动停止该轮以修正环境并在最终代码上重跑，不以该次部分输出作为最终计数。T17 重跑显式使用 T17_MATRIX_PLAYWRIGHT_BROWSERS_PATH 指定系统已有 Chromium 1254 缓存。
 
 ## 明确边界
 

@@ -86,7 +86,7 @@ export function componentInputIssues(api: Pick<ComponentApiV1, 'props' | 'events
     if (member.schema) {
       const checked = validateComponentValueSchema(member.schema);
       if (!checked.ok) issues.push(...checked.issues.map(issue => ({ ...issue, path: base + '/schema' + issue.path })));
-      else if ('type' in member && !schemaMatchesType(member.schema, member.type.trim())) issues.push({ code:'INVALID_SCHEMA', path:base+'/schema/type', message:'Schema conflicts with the public primitive type' });
+      else if (!schemaMatchesType(member.schema, ('type' in member ? member.type : member.payload).trim())) issues.push({ code:'INVALID_SCHEMA', path:base+'/schema/type', message:'Schema conflicts with the public primitive type' });
     }
     if ('type' in member && member.editor) {
       if (!editorMatches(member.editor, member.schema, member.type)) issues.push({ code: 'INVALID_SCHEMA', path: base + '/editor', message: 'Editor does not match the property schema' });
