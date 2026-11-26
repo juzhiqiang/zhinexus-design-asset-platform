@@ -34,6 +34,9 @@
       "env": ["NEXT_PUBLIC_SITE_URL", "NEXT_PUBLIC_PLATFORM_API_URL", "NEXT_PUBLIC_PLATFORM_PREVIEW_MODE"],
       "cache": false
     },
+    "@company/platform-api#dev": {
+      "passThroughEnv": ["PLATFORM_*"]
+    },
     "typecheck": {
       "dependsOn": [
         "^build"
