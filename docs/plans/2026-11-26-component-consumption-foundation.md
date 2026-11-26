@@ -66,8 +66,9 @@
 
 ## Task 4: 交付与验证
 
-- [ ] 更新 README、使用指南、范围说明和独立验证记录，记录每项实际命令与未覆盖项。
-- [ ] pnpm verify:workspace；pnpm --filter @company/contracts schemas:generate；CLI typecheck/build；专用 Playwright；pnpm typecheck；pnpm exec turbo run build --force；pnpm test。
-- [ ] 真实 CLI tgz 在仓库外安装，验证新建、元数据、工作台和普通包类型/构建；不把 mock HTTP 当真实平台验收。
-- [ ] 审查全部改动，修复可重现问题。独立升级 CLI PATCH 与根版本，更新 CHANGELOG 并提交。
-- [ ] 交付 tgz、摘要、指南、验证结果和明确未覆盖边界；保留分支，不自动合并/推送/发布。
+- [x] 更新 README、使用指南、范围说明和独立验证记录，记录每项实际命令与未覆盖项。
+- [x] 已执行 pnpm verify:workspace、contracts schemas:generate、CLI typecheck/build、专用 Playwright、pnpm typecheck、强制 typecheck/build 和 pnpm test；全仓测试结果保留失败，不视为门禁通过。
+- [x] 真实 CLI 0.1.2 tgz 在仓库外安装；创建、接入、开发、冻结、只读预览及发布恢复通过。另验证真实 React/Vue 普通包构建与生成源码类型检查；发布平台为 mock HTTP。
+- [x] 一次独立审查的两项 Important 均经 RED→GREEN 修复；扩大回归 808 通过、1 跳过。独立升级 CLI 0.1.2、平台 0.2.5、API 0.1.6 并更新 CHANGELOG。
+- [x] 交付 .release/juz-cli-0.1.2.tgz、摘要、指南与验证记录；保留分支，未合并/推送/发布。
+- [ ] 全仓验收门禁通过：仍被已在基线复现的 6 项后台渲染失败阻塞；本轮 Vitest 2671 通过、6 失败、2 跳过，T10 161 通过、7 跳过。真实存储发布、生产 OIDC/TLS 与普通组件已接受兼容记录也不由本轮 mock/静态生成验证替代。
