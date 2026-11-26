@@ -1,6 +1,7 @@
 # SDK 图表组件验证汇编（T02–T09）
 
 > 本文件由 `docs/verification/` 下 19 篇逐次验证记录合并而成（2026-11-22，`chore/docs-consolidation` 分支）；原件已按主题合并删除，git 历史可追溯；每篇原记录以 `### <原文件名>` 为标题完整保留于「逐条合并记录」。总索引见 `docs/README.md`。
+> 2026-11-26（分支 `chore/docs-slim-round3` 的后续收尾）删除原有的「历史脉络」一节（原 7965 字符）：该节按时间序复述各原记录的过程，其事实由「终态结论」与「逐条合并记录」承载，未在别处出现的硬事实已压入终态结论末尾的「历史脉络硬事实」。原文可经 `git show 789addf7:docs/verification/sdk-charts.md` 完整恢复。
 
 ## 终态结论
 
@@ -57,6 +58,10 @@
 12. **`pointClientPosition` 的扇形几何回退依赖 zrender 内部结构**（显示列表 `type === 'sector'`、系列顺序），ECharts 升级（T10）若改变该结构，兼容矩阵会暴露；zrender 散点符号元素类型是 `path` 而非 `symbol`。
 13. **真实三存储闭环在 A 侧未执行**：Verdaccio / PostgreSQL / MinIO 完整发布链路只由 C 在隔离环境完成（三存储发布 READY + 逐预览/截图摘要）。
 14. **共享工作树纪律相关遗留**：空合并事故 `1161e03` 已进入 main 历史（其上叠了 T06 工作，不做历史重写）；`feat/t04-t06-release-registry` 尖端 `0560a19` 未经由 main 合入，待 branch 所有者确认；`feat/t09-trend` / `feat/t09-trend-merge` / `feat/t09-trend-main` 三个分支与三个 scratch worktree（`outputs/t09-main`、`outputs/t09-merge`、`outputs/t09-trend`）待仓库负责人确认清理；多处合并明确「未 push，需用户显式授权」。
+
+#### 历史脉络硬事实（叙述已删，2026-11-26）
+
+测试计数演进主线（全量口径，按交付批次）：T02 `pnpm test` 2 files / 17 passed、`test:browser` 10 → T03 3 files / 26、浏览器 14 → T09 bar 分支 11 files / 192、合入 main 16 files / 220、浏览器 31 → pie 分支 16 files / 236、合入 18 files / 246、浏览器 46 → 实心增补 23 files / 477、浏览器 58 → scatter 23 files / 491、浏览器 71 → trend-card 分支 23 files / 512、浏览器 86，修复后 538 passed / 4 skipped、最终合并 545 passed / 4 skipped、浏览器 89 → ranking/proportion `chart-semantics` 105、全量 vitest 563 passed / 4 skipped / 1 failed（`cli-release` infra 依赖）、`test:browser` 117 → T09/T10 补齐后全量浏览器口径 **185 passed**（基线 122 + 新增 63）。打包体积护栏初始校准值为 Vue 585,318 / React 742,797 / CSS 69 字节，护栏上限 1 MiB。三包版本演进 0.0.1 → 0.0.7，末次 Windows 原生验收为 0.0.6。
 
 ## 逐条合并记录
 
@@ -466,50 +471,3 @@
 - 结论与状态：阻塞（从未回填）。
 - 交叉引用：`t09-trend-card.md`、`t09-bar-windows-native.md`、`t09-scatter-windows-native.md`、`docs/specs/2026-11-12-sdk-trend-card-protocol.md`、`rules/platform.md`、`tests/browser/gallery-rendering.spec.ts`。
 - 过时或矛盾点：预期 512/86 与散点篇一致（同一时点），但已被 ranking-proportion 篇（117）与 evidence-audit 篇（122 基线 / 185 全量）刷新；人工目视项列出的 meta 文案（「前期 160 ▲ 40 (25.0%)」）与 t09-trend-card.md 实测的 `summarySlots()` 断言完全一致，可互为印证。
-
-## 历史脉络
-
-#### 交付顺序与版本演进（按时间）
-
-| 日期 | 批次 | 分支 | 新增图表 / 能力 | 三包版本 | 关键合入提交 |
-| --- | --- | --- | --- | --- | --- |
-| 2026-11-11 | T02 | `feat/t02-core` | 共享图表核心（types/data/format/theme/engine/controller）+ 折线图 `buildLineOption` | 0.0.1 | —（未记录合入 commit） |
-| 2026-11-12 | T03 | `feat/t03-adapters` | charts-vue / charts-react 双框架折线图组件 + `./line` + 消费者模板 | 0.0.1 | —（未记录合入 commit） |
-| 2026-11-12 | T03/T04（B 侧） | — | charts-core 0.0.1 工作区外消费者验收 + T04 摘要/冻结/消费者基础设施 | 0.0.1 | — |
-| 2026-11-12 | T09 第一批 | `feat/t09-bar` | 柱状图（`buildBarOption` / `./bar` / 6 状态 fixture）；`ensureLineModules` → `ensureChartModules` | 0.0.2 | `6993e11`（合入 main） |
-| 2026-11-12 | T09 第二批 | `feat/t09-pie` | 饼图 / 环形图（`buildPieOption` / `pieTotal` / `formatPercent` / `./pie`） | 0.0.3 | `1fde33e`（合入 main） |
-| 2026-11-12 | 饼图实心增补 | `feat/t09-pie-solid` | 实心（非环形）饼图渲染覆盖，5 个 `solid-*` 状态 + `sectorRadii` 钩子（不改包产物） | 0.0.3 | `e4469ac`（经空合并事故后重新落地） |
-| 2026-11-12 | T09 第三批 | `feat/t09-scatter` | 散点图（`buildScatterOption` / `./scatter` / `[x, y]` 事件载荷 / `runState` 幂等修复） | 0.0.4 | `254cee9`（合入 main） |
-| 2026-11-12（2026-11-13 收尾） | T09 第四批 | `feat/t09-trend` | 趋势卡片（首个组合场景：`buildTrendCardOption` + `computeTrendSummary` / `./trend-card` / graphic 三稳定槽位） | 0.0.5 | `8439a8d`（第一轮）→ `f93f1f5`（2026-11-13 最终合并） |
-| 2026-11-13 | T09 第五批 | `feat/t09-ranking-proportion`（基线 `eb1d054`） | 排行榜 + 占比（`buildRankingOption` / `computeRanking` / `buildProportionOption` / `computeProportionShares` / `./ranking` / `./proportion` / `scene-slots.ts`） | 0.0.6 | 分支验证记录未记合入 commit |
-| 2026-11-13 | T09 收口 + T10 | `feat/t10-sdk-compatibility`（基线 main `885792b`） | 补齐两处证据缺口：`presentation-matrix` 56 例 + `core-lifecycle` 7 例；`compatibility.ts`；三包 0.0.6 → 0.0.7 | 0.0.7（工作树） | 提交 `383d165` `6ba03e7` `96b9cd4` `afa92ad` `bf0bfa1` 等 |
-
-#### 阶段叙述
-
-- **T02（2026-11-11）**：从零建立框架无关的共享图表核心与折线图。`ChartController` 承担生命周期（零尺寸延迟初始化、`update` / `resize` / `setPresentation` / `onPointClick` / `whenRendered` / 幂等 `dispose`），`buildLineOption` 输出稳定 series id + `replaceMerge` 语义。此时全量 `pnpm test` 2 files / 17 tests passed，`test:browser` 10 passed；折线的浏览器生命周期（series 删减无残留、0×0 不初始化、`dispose` 幂等、`setPresentation` 重建）成为后续所有图表复用与回归的基准。
-- **T03（2026-11-12）**：把核心包成 Vue 3 / React 19 两个框架适配包，新增 `./line` 子路径与 `tests/consumers/{vue,react}` 消费者模板，首次用工作区外冻结 tarball 验证「真实消费者」而非工作区内链接。全量 `pnpm test` 3 files / 26 tests passed，`test:browser` 14 passed；同时建立打包体积护栏的初始校准值（Vue 585,318 / React 742,797 / CSS 69 字节，护栏 1 MiB）。双框架点击载荷等价（`{seriesId:'revenue', dataIndex:0, value:['周一',120], nativeType:'click'}`）自此成为每个新图表的固定断言。
-- **T03/T04（B 侧，2026-11-12，Windows 11 x64）**：本主题唯一在 Windows 上真正跑通的记录，`.\scripts\verify.ps1` 退出码 0，同时验证 T04 的摘要计算与产物冻结基础设施（`digest.ts` / `pack.ts` / `freeze.ts` / `consumer.ts`，`verifyFrozenTarball` 对单字节篡改返回 `TARBALL_MUTATION_DETECTED`）。范围限于 charts-core 0.0.1 折线图，为后续所有「工作区外真实 tarball 消费」提供了模板。
-- **T09 第一批 柱状图（2026-11-12）**：控制器从「折线专用」泛化为 `AnyChartConfig` 图表类型联合，`ensureLineModules` 改名为 `ensureChartModules(chart, renderer)`，并抽出 `option-overrides.ts` 供折线与柱状共用。新增 `chart-semantics.test.ts`（16 项）与 `component-matrix.spec.ts`（13 项双框架矩阵）两份此后每批递增的测试文件。分支期 11 files / 192 passed、`test:browser` 28 passed；合入 main（`6993e11`）后为 16 files / 220 passed、`test:browser` 31 passed。首批 Windows 原生复验清单在本批成形（预期 220/31），此后每批复制同一模式。
-- **T09 第二批 饼图 / 环形图（2026-11-12）**：`ChartType` 扩到三种；饼图把 `optionOverrides` 白名单按图表类型收窄（只有 `tooltip` / `legend` / `title`），`formatPercent` 让 tooltip 与 label 占比口径一致；负值语义与折线/柱状显式分叉（抛 `ChartDataError` 且 `path` 指向 `series[0].points[1].y`）。分支期 16 files / 236 passed、`test:browser` 46 passed；合入 main（`1fde33e`）后 18 files / 246 passed、46 passed。
-- **饼图实心增补（`feat/t09-pie-solid`，2026-11-12）**：只补测试与示例接线、不改包产物，新增 5 个 `solid-*` 状态与 `sectorRadii` 钩子，`chart-semantics` 32 → 33、饼图矩阵 15 → 27、`test:browser` 46 → 58；并首次做出双框架逐字节等价截图（16,084 / 14,577 / 17,557 字节）。这次增补因 `.git/index.lock` 事故一度丢失（空合并 `1161e03`），后经 `e4469ac` 重新落地，事故教训（合并后必须核对 diff 非空）成为后续每次合并的固定检查。合入后 23 files / 477 passed、`test:browser` 58 passed。
-- **T09 第三批 散点图（2026-11-12）**：`ChartType` 扩到四种；`ChartEvent` 首次支持 `[x, y]` 数值对载荷（`params.value` 为数组、`params.name` 为 `''`）；修复 `runState` 重复应用当前状态必超时的就绪协议缺陷（改为幂等返回），并借 CLI `captureExample` 真实驱动完成截图验证（environmentKey `5b63f34ea4d4aa7b6fff9e74de7b24e33db367afcb5af8bdd0a5f34b5b261430`，default 截图 26,259 字节稳定）。23 files / 491 passed、`test:browser` 71 passed，分支与合入 main（`254cee9`，50 个文件）数字一致。本批首次把 B 侧 `component-cli` 材料生成缺口正式记录在案。
-- **T09 第四批 趋势卡片（2026-11-12，2026-11-13 收尾）**：第一个「组合场景」——同一实例内 graphic 数值摘要 + sparkline。`computeTrendSummary` 6 项 + option 构建 15 项共 21 项语义；GREEN 期间发现并修复数值摘要 staleness 缺陷（`2a02bae`，改用三个稳定 graphic 槽位）。分支期 23 files / 512 passed、`test:browser` 86 passed。合并过程是本主题最曲折的一段：两次合并（`a925248` → `8439a8d`）、合并暴露跨团队缺陷 `ARTIFACT_MISMATCH: npm runtime component subpath has no declared implementation`、RED `93f31c6` → GREEN `70138d2`（component-cli 覆盖 trend-card 并加子路径回归护栏，护栏经「移除 trend-card」与「临时注入 `./ranking`」两次反向验证），修复后 24 passed / 1 failed / 1 skipped、538 passed / 4 skipped；2026-11-13 最终合并 `f93f1f5`（60 个文件）后 main 上 28 passed / 1 failed / 1 skipped、545 passed / 4 skipped、`test:browser` 89 passed。本批还留下 tarball 摘要勘误（错误值 30,260/5,692/10,296，正确 30,254/5,686/10,300），根因是 `tar` 同步工作树带入 `0700` 文件模式。
-- **T09 第五批 排行榜 + 占比（2026-11-13）**：T09 最后两个组合场景，`ChartType` 扩到七种，7 个逻辑组件、14 个框架实现至此齐套。新增 `scene-slots.ts` 复用趋势卡片槽位逻辑，`sumDefinedValues` / `assertSingleSeries` / `assertUniqueNames` 成为组合场景的共享守卫。冻结语义：竞赛排名 `1,2,2,4` 且名次在 `limit` 截断前计算；占比保持输入顺序不排序、缺失值不进分母、零总量显示「暂无数据」。`chart-semantics` 68 → 105 passed、`component-matrix` 86 → 117 passed（全量 `test:browser` 117 passed）、全量 vitest 563 passed / 4 skipped / 1 failed（`cli-release` infra 依赖）、`cli-bundle` 扩到 7 组件 × 2 框架 = 14 变体。同批由 A 侧代 B 第三次扩展 `component-cli`（本次为 7 组件）。踩坑集中在大小写不敏感文件系统（`ranking.ts` vs `RankingChart.tsx` → `TS5056`，改名 `RankingChart.*`）与沙箱同步残留文件。
-- **T09 收口 + T10（2026-11-13，`feat/t10-sdk-compatibility`，基线 main `885792b`）**：按验收标准逐面核对 14 个实现的证据，补齐两处缺口——light/dark × Canvas/SVG 声明支持矩阵（`presentation-matrix` 7 组件 × 2 主题 × 2 渲染器 × 2 框架 = 56 例，示例页新增 `?theme=dark&renderer=svg` 与 `appliedPresentation()` 钩子）与 core 层 `setPresentation` 只覆盖折线图（`core-lifecycle` 4 → 11 例）。回归：`component-matrix` 96 passed、其余浏览器套件合计 11 passed。三包版本 0.0.6 → 0.0.7（工作树），末次 Windows 原生验收为 0.0.6。全量浏览器口径最终为 185 passed（基线 122 + 新增 63）。
-
-#### 测试计数的演进主线（全量口径）
-
-- T02：`pnpm test` 2 files / 17 tests passed；`test:browser` 10 passed。
-- T03：`pnpm test` 3 files / 26 tests passed；`test:browser` 14 passed。
-- T09 bar（分支）：11 files / 192 tests passed，4 skipped；`test:browser` 28 passed。
-- T09 bar 合入 main：16 files / 220 tests passed，4 skipped；`test:browser` 31 passed。
-- T09 pie（分支）：16 files / 236 tests passed，4 skipped；`test:browser` 46 passed；合入 main 18 files / 246 passed。
-- 饼图实心增补：22 files / 463 tests passed；`test:browser` 58 passed；`chart-semantics` 33。
-- 合入 main（T06 后）：23 files / 477 tests passed；`test:browser` 58 passed。
-- T09 scatter（分支与合入 main 数字一致）：23 files / 491 tests passed，4 skipped；`test:browser` 71 passed；`chart-semantics` 46。
-- T09 trend-card（分支）：23 files / 512 tests passed，4 skipped；`test:browser` 86 passed；`chart-semantics` 68、`component-matrix` 86、`packed-consumer-frameworks` 9（+`packed-consumer` 1 = 10）。
-- trend-card 合并（修复 cli-bundle 后）：24 passed / 1 failed / 1 skipped，538 passed / 4 skipped；`test:browser` 86 → 89（含 T07）。
-- trend-card 最终合并（T11/T12 后）：28 passed / 1 failed / 1 skipped，545 passed / 4 skipped；`test:browser` 89 passed。
-- T09 ranking/proportion：`chart-semantics` 105 passed；全量 vitest 563 passed / 4 skipped / 1 failed（`cli-release` infra 依赖）；`test:browser` 117 passed（main 基线 89 + 28）；`cli-bundle` 14 变体（vue 7 + react 7）。
-- T09 收口补齐后（`885792b` 基线）：`presentation-matrix` 56 passed；`core-lifecycle` 11 passed；`component-matrix` 96 passed；`framework-lifecycle`/`bootstrap`/`contracts-runtime`/`capture-ready` 11 passed；T10 `sdk-compatibility` 20 passed；C 在 Windows 于 `885792b`/SDK 0.0.6 测得完整浏览器 122 passed、unit/contracts 322、packed-consumer + cli-bundle 12。
-- 最终全量浏览器口径（T09/T10 补齐后，Linux 实测）：185 passed（基线 122 + 新增 63，其中 `presentation-matrix` 56、`core-lifecycle` +7）。

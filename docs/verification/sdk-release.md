@@ -1,6 +1,7 @@
 # SDK 兼容性、探针与发布验收汇编（T10 及发布链）
 
 > 本文件由 docs/verification/ 下 30 篇逐次验证记录合并而成（2026-11-22，chore/docs-consolidation 分支）；原件已按主题合并删除，git 历史可追溯；每篇原记录以 `### <原文件名>` 为标题完整保留于「逐条合并记录」。总索引见 docs/README.md。
+> 2026-11-26（分支 `chore/docs-slim-round3` 的后续收尾）删除原有的「历史脉络」一节（原 3860 字符）：该节按时间序复述各原记录的过程，其事实由「终态结论」与「逐条合并记录」承载，未在别处出现的硬事实已压入终态结论末尾的「历史脉络硬事实」。原文可经 `git show 789addf7:docs/verification/sdk-release.md` 完整恢复。
 
 阅读提示（承自抽取稿，全主题通用）：所有 SHA-256 均为小写十六进制；`.tools/` 目录在仓库中被忽略、不提交；除特别说明外，`.\scripts\pnpm.ps1` 是仓库统一的 pnpm wrapper（固定 Node 26.13.0 / pnpm 12.18.0）。
 
@@ -85,6 +86,10 @@
 8. **共享 `.tools/g2-local/credentials.json` 缺失**导致根 `test` / `test:platform` 的旧套件长期不全绿（多次出现 599+1、588+1、61 failed/2 passed/24 skipped 等）；**不得**初始化、轮换或重启共享服务凭据，也不得生成新密码覆盖原服务；若需全套重跑应先恢复原凭据或将旧套件迁入隔离设施。
 9. **历史工作树清理被自动审批 `blocked by policy` 拒绝**，备份及原目录保留，详见 `four-agent-merge-cleanup-2026-11-16.md`。
 10. **多处计数口径需按范围取用**：探针单测 104（未配 `A10_FROZEN_BUNDLE`）/ 114+7skip / 121（随包形态）/ 167 / 168（`test:t10` 全套，随用例增长）；SDK 单测 191 → 192、浏览器 169 → 170 → 185 → 257（唯一、跨两轮）→ 270；`typecheck` 10 包 → 14/14（成员数增长）。引用时必须连同命令与范围一起引用，不能跨篇替换。
+
+#### 历史脉络硬事实（叙述已删，2026-11-26）
+
+角色口径（全文「A/B/C 侧」按此解读）：A = SDK 兼容策略与版本发布、B = CLI 与画廊 Next 基线、C = 平台侧独立验收与收口、综合 = 固定操作步骤与消费方交接材料。本主题由这四条线在 2026-11-13 至 2026-11-16 三天内交织而成。
 
 ## 逐条合并记录
 
@@ -687,27 +692,3 @@
 - **结论与状态**：完成（交接材料定稿）。本文的 SDK 使用与回退内容此后未再改动（仅第十节新增指针）。其「可用已验版本」表随后被新候选（core 0.0.11 + vue/react 0.0.12）超越，但本文未随之更新——引用时以 `sdk-label-adopt-acceptance-2026-11-16.md` 为最新。
 - **交叉引用**：`docs/guides/echarts-upgrade.md`、`docs/guides/publishing.md`、`docs/guides/release-acceptance.md`、`t10-a-to-b-interface-handover.md`、`t09-sdk-evidence-audit.md`、`t09-chart-component-handover.md`、`t08-web-upload-cross-review-2026-11-13.md`、`c-a-sdk0010-handover-2026-11-13.md`。
 - **过时或矛盾点**：① 本文以 `190b60b`（0.0.10 三包同版本）为准，而 `a-t10-frozen-policy-2026-11-16.md` 之后出现 core 0.0.10 + vue/react 0.0.11、`sdk-label-adopt-acceptance-2026-11-16.md` 出现 core 0.0.11 + vue/react 0.0.12；② 本文「0.0.7/0.0.8/0.0.9 有已知缺陷」与 `c-a-sdk007-windows-2026-11-13.md` 的记录一致，不矛盾。
-
-## 历史脉络
-
-本主题由四条并行线在 2026-11-13 至 2026-11-16 三天内交织而成：A 负责 SDK 兼容策略与版本发布，B 负责 CLI 与画廊的 Next 基线，C 负责平台侧独立验收与收口，另有综合文档固定操作步骤与消费方交接材料。
-
-**2026-11-13：策略奠基与平台验收基线**
-
-当天 A 在 `feat/t10-sdk-compatibility`（基线 main `885792b`）实现 `packages/charts-core/src/engine/compatibility.ts`，先红后绿写出 20 例单测，并用 `echarts@6.0.0` 走完「版本差异处理」路径：官方 `latest` 恰为 6.1.0 与基线同版本，「无新上游版本」分支成立；6.0.0 严格 peer 安装被 `ERESOLVE` 拒绝（退出码 1），绕过 peer 后类型/运行/交互双框架通过但视觉 not-run，且存在 `skipLibCheck: false` 下的类型静默降级，结论 `hold`。0.0.6 → 0.0.7 只改 `package.json`，版本号单独成提交 `bf0bfa1`。同一天 C 在 Windows 原生复验了 0.0.7（提交 `f35ebc9`，20/20、13/13、67/67、1/1），复现出三个 Important 策略缺陷，明确「当前兼容策略保持未验收」；C 同时完成 SDK 0.0.6 七组件十四实现的本地验收（122 项浏览器、三存储 READY、14 个 HTTPS 预览），这成为末次全图验收基线。B 侧则交付 T04 本地视觉基线闭环（`compareBaseline` + `component baseline accept`）、修复画廊提交前 WebCrypto busy 锁死，并把 `web-upload-real-e2e.spec.ts` 改为强制读取 `ZHINEXUS_SDK_BUNDLE_DIR`，CLI 版本停在未发布的 0.0.8 草稿、gallery 记到 0.0.5 草稿。
-
-**2026-11-13 至 11-14：探针交接与三处策略误判修复**
-
-A 紧接着交付可运行的 T10 探针（`tests/acceptance/t10-sdk/` 七个模块 + `probe.test.mjs`，104 例单测），在隔离 Linux 工具链上跑完 2 框架 × 7 组件 × 4 展示 = 56 个精确组合且四维全 `passed`，`recommendation = adopt`；同时用 `t10-a-to-b-interface-handover.md` 冻结 A→B 接口契约（`supported` 为唯一事实来源、探针收到的是候选版本、覆盖按精确组合一一对应）。C 在固定 `f35ebc9` 上复现的三处误判推动了三轮修复：0.0.8 修「探针收到基线版本、覆盖只按 framework、混合基线随数组顺序翻转」（用例 20 → 33）；0.0.9 修「篡改某一行 echartsVersion 骗取 adopt」与盲信 `peerSatisfied`（33 → 41），并把 `baselineEchartsVersion` 从必填改回可选以修正 0.0.8 的破坏性公开类型变更，同时修掉 `charts-vue` 声明文件裸 `.vue` 说明符的 NodeNext 缺陷（`5393fea`，0.0.9 tarball 真实消费者四组退出码 0）；0.0.10 修「报告基线未绑定 supported」与「单框架齐验也 adopt」（41 → 51，`b901dc4`）。C 同期在 Windows 完成 0.0.10 固定提交 `190b60b` 的本地专项（344 包 0 下载、build/typecheck 20/20 零缓存、unit+contracts 379、TS6/7 × Bundler/NodeNext 四组 0 错误、17 公开入口、三存储 READY、浏览器 185 项）与交接文档片段复验。B 侧 11-14 一天内连推 `echarts check/verify` 两阶段、P2 四项复核、C 复核四项补强，以及 B1/B2（包内默认探针入口 + 兼容证据提交/零信任校验/持久化/查询闭环）与三轮 C 复核修正，根全量 699/701 passed、`typecheck` 14/14。
-
-**2026-11-14：探针随包分发与 CLI 0.0.10 阻塞埋点**
-
-C 在 Windows 实跑后指出 A 探针的十二处自身缺陷与三个阻断，A 全部先红后绿修掉，并把探针打成白名单明确的运行材料（`package-probe.mjs` → `dist/probe/`，73 个文件 / 397,979 字节），随包单测 121/121 通过、安装形态外部实测 43.9 秒。这批修复使 A 侧 `test:t10` 从 167 走到 168 passed / 0 skipped，也让「三包版本不全等但各自合法」的冻结产物能被探针接受（`a-t10-frozen-policy`）。
-
-**2026-11-16：版本升档、阻塞爆发与解除**
-
-A 在 `feat/t13-a-eval` 上修掉三个 `useChart` 缺陷（Vue 未监听 optionOverrides、同时改展示与业务配置丢失业务配置、切回默认 theme/renderer 丢失累计覆盖），单测 6 文件 191 → 192 项、浏览器 169 → 170 项，charts-vue/react 独立升到 0.0.11 并由 C 复核冻结产物（core 0.0.10 + vue/react 0.0.11，真实三存储 READY、各 7 个精确 Registry 导出）。B/C 则把 CLI 修好两处 staging 来源错绑缺陷后从 0.0.9 升到 0.0.10（业务修复 `0ed4a04d` + 版本递增分开提交），分发包 `0261b846…`（218759 bytes）仅 pack 一次、外部安装、`component --version` 0.0.10、TS 7.0.2 + `@types/node` 26.6.6 NodeNext/strict/`skipLibCheck:false` 通过；配套 70 项针对性测试与跨两轮 257 个唯一浏览器测试。问题也随之暴露：这份 CLI 0.0.10 对 core 0.0.10 + vue/react 0.0.11 的混合版本冻结产物，在 `readAndVerifyFrozenBundle` 阶段就被自己的同版本闸门拒掉，`b-installed-probe-next-2026-11-16.md` 把阻塞细化为三处闸门（CLI 自身 `INVALID_BUNDLE_MANIFEST`、tarball 内旧 `bundle.mjs` 的 `PROBE_INPUT 版本不一致`、CLI 与探针的 `BUNDLE_EVIDENCE_MISMATCH`）并列出 A1/B1/B2/C1 解除路径。C 同日在 Windows 宿主实测复现 exit 1 / `INVALID_BUNDLE_MANIFEST`。
-
-**2026-11-16 收尾：CLI 0.0.11 走通完整 adopt 链**
-
-C 用冻结 CLI 0.0.11（`14775474…`，220135 bytes）先对原候选（core 0.0.10 + vue/react 0.0.11）跑 56 组合无基线探测，得到 exit 1 / `PROBE_HOLD`，逐张审查发现排行榜 `180次`、占比 `120次（40.0%）` 右侧裁切，遂按 ECharts 文字测量修复标签宽度并补 `scene-label-bounds.spec.ts`（最终 10 passed），源码集成门禁全绿（build 10/10、typecheck 14/14、T10 168/0 skipped、Vitest 70 文件 1113、浏览器 270 passed）。随后 core/vue/react 独立升版成新候选（core 0.0.11 + vue/react 0.0.12）重新冻结，用已安装 CLI 0.0.11 完整走通：首轮 hold → 56 张截图人工审查 → 全新工作区外消费者 adopt（CLI exit 0，2026-11-16 16:09:06–16:09:43 Asia/Shanghai）→ 四条 6.0.0 strict/strict-only 路径 exit 1 / `PROBE_PEER_REJECTED` → 显式 legacy 只测量 → 原双消费者真实锁文件回退 `passed=true` → `test:installed-compatibility` 在隔离三存储上验收 201/409/400/404 → `test:t10` 168/0/0。至此 T10 的本地分发、采纳/拒绝、回退与兼容接口专项全部闭环，而 G2、T11/T12 真实试点与一期上线的门槛仍在仓库之外。

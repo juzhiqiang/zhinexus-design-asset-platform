@@ -5,6 +5,7 @@
 > 一条贯穿全部 16 篇原记录的不变事实：**原始架构文档 `component-platform-architecture.md` 的 SHA-256 始终为 `e59bb77ede1497d349fcc5eae49bf892e1c92572f4777535ff13b89e1a371723`**（多数记录写作全大写 `E59BB77...`，同一值），每一次验证前后核对均未变化。
 >
 > 原始记录中的命令、路径、hash、分支名、退出码一律按当时原貌保留；早期记录里的旧入口命令（如 `scripts/verify-bootstrap.ps1`、`scripts/generate-contract-schemas.ts`）已被 `scripts-maintenance-2026-11-12.md` 的入口映射表取代，阅读早期记录时不要直接复跑其中的命令。
+> 2026-11-26（分支 `chore/docs-slim-round3` 的后续收尾）删除原有的「历史脉络」一节（原 3439 字符）：该节按时间序复述各原记录的过程，其事实由「终态结论」与「逐条合并记录」承载，未在别处出现的硬事实已压入终态结论末尾的「历史脉络硬事实」。原文可经 `git show 789addf7:docs/verification/gates-infra.md` 完整恢复。
 
 ## 终态结论
 
@@ -62,6 +63,10 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
 8. **gallery Turbo 输出缓存**：因 A→B→A route-cache 残留仍为 `cache: false`（每次重建），待干净恢复机制经验证后再恢复。
 9. **遗留告警未治理**：React 示例约 504 kB chunk 超 Vite 500 kB 阈值、Node DEP0190、NO_COLOR/FORCE_COLOR 提示，均未导致失败也未扩大为治理任务。
 10. **已知未覆盖边界**（跨主题）：CLI 上传未完成的中断恢复、异常代理回执后继续执行、浏览器 JS 跨域读取 multipart ETag 的生产配置、画廊查询超过单页 100 条明确不可用、截图报告浏览器修订默认填 1000（实测环境为 Chromium 安装修订 1254）、真实 npm 包/图片文件头/MIME/尺寸/受限解包/符号链接/真实消费者安装/源码集合摘要算法/浏览器 ready 信号实现/冻结后重打包流程、容量数字非生产 SLA、`Σ.md`/`ς.md` 本机覆盖风险未证实、SemVer 任意位数主/次/修订号不虚构安全整数上限、npm 工具可安装性留 T04/T05。
+
+#### 历史脉络硬事实（叙述已删，2026-11-26）
+
+跨记录反复出现的两个失败模式，阅读早期小节时仍适用：共享 `.tools/g2-local/credentials.json` 缺失会令 `tests/integration/cli-release.test.ts` 失败；platform 与 browser 两类测试不得并行执行（2026-11-22 曾因并行跑根类型检查与服务构建得退出 1，顺序复跑才通过，失败原件未隐藏）。2026-11-11 首次 bootstrap 的独立审查结论为 Critical 0 / Important 1 / Minor 0，唯一 Important 是 PowerShell 首次下载需确认；同日「审查员未验收范围」清单（G1 schema/运行时、G2 三存储/OIDC/域名/TLS/镜像、T02–T17、非 Windows x64 保证、人员容量）由 `docs/README.md`「尚未关闭的事项」延续。
 
 ## 逐条合并记录
 
@@ -469,18 +474,6 @@ docs 顶层的 5 篇操作手册——`access-settings.md`、`operations.md`、`
 - 结论与状态：**阻塞/未完成（T11 标准项 1 与 5 未完成）。** 依赖 `g1-t10-closeout-2026-11-21.md` 的基线与冻结产物。
 - 交叉引用：`g1-t10-closeout-2026-11-21.md`、`docs/acceptance/pilot-report.md`、`docs/guides/operations.md`、`docs/guides/quickstart.md`、`docs/AGENTS.md`。
 - 过时或矛盾点：**最容易误读的一篇。** 文中「本轮完成」仅指合成演练范围内的交付，不推断 T11/T12、公司 OIDC、生产独立预览域、完整生产 G2、真实业务试点任何一项。另「容量验收输入仅 C 本地预演验证」与 `docs/guides/operations.md` 中的 `rehearse:capacity` 描述一致（p95 初始目标 500ms / 30s，nearest-rank），但两者都不是生产 SLA。
-
-## 历史脉络
-
-**2026-11-11：一天之内的三重奠基。** 上午先做首次工程初始化（`bootstrap.md`、`bootstrap-review.md`、`turbo-baseline.md`）：把 Node 26.13.0 / pnpm 12.18.0 / Turbo 2.11.10 固定到项目 `.tools`，处理 pnpm 12 原生平台包、workspace YAML `allowBuilds`、Windows PowerShell 5.1 `-UseBasicParsing` 三项适配，得到 workspace 10 成员 / 4 公开包壳 / build 10/10 / typecheck 14 个 Turbo 任务 / test 5/5 / browser 3/3；独立审查（`fbbddd8..90015e8`）给出 Critical 0 / Important 1 / Minor 0，唯一 Important 即 PowerShell 首次下载需确认，并留下「审查员未验收范围」9 行清单（G1 schema/运行时、G2 三存储/OIDC/域名/TLS/镜像、T02–T17、非 Windows x64 保证、人员容量）。同日随后按用户要求把 API 与预览网关改为 NestJS（`nest-react-bootstrap.md`，端口 3000/3001，Express 适配器 + TS 6.0.3，独立审查 `09742a0..8e72a87` 仅 1 项 Important 并已修），确立 G0 工程基线完成；同日又把画廊宿主迁到 React 19.3.1 + Next.js 16.4.6 App Router（`gallery-next-migration.md`，端口仍 5173），固定 `(public)`/`(console)` 渲染边界与 sitemap 语义，并因 A→B→A 域名切换的 route-cache 残留给 gallery 单独关掉 Turbo 输出缓存。此时后端仍是 Fastify 叙事、画廊仍是 React+Vite，二者随后分别被上述两篇取代。
-
-**2026-11-12：G1 契约候选与 G2 本地三存储同日落地，随后合并与入口收敛。** C 在 `feat/g1-platform-contracts`（基线 `8304bff`）落地 23 份 JSON Schema、合成 fixtures 与 RED→GREEN 阶梯，契约经两轮 hardening 从 124/124 到 145/145，独立审查（`2b51b25`）揪出 4 项 P2 并全修；同篇明确「代码候选验证通过；G1 人工门槛仍未通过」「没有替 A/B 伪造业务签字」。同日 `g2-example-contract-2026-11-12.md` 把 `ComponentExample.states` 定为可选只读枚举（146/146），`g2-local-infra-2026-11-12.md` 建独立 Compose `zhinexus-g2`（回环 15432/14873/19000）跑通两轮真实设施探针，`infra:check-access` 未配置退出 2、`g2Ready: false`；独立审查 2 项 P2（S3 15 秒 deadline、预览域需核对管理 API）均修。`g2-main-merge-2026-11-12.md` 把 main 从 `471ae8e` 快进到 `35725fb` 并复验（198/198、15/15、10/10、14/14），**合并不代表生产或业务发布验收**。同日 `scripts-maintenance-2026-11-12.md` 把根 scripts 从 8 个文件减为 5 个，确立四组入口迁移，并规定历史记录中的旧命令保留当时原貌——这一条成为此后阅读全部早期记录的前提。
-
-**2026-11-13：A/B/C 三侧 Windows 真实证据。** 该批 `.evidence.json` 原件（SDK 0.0.7 的十四实现发布、SDK 0.0.10 的 Windows 全链路与 strict/ Bundler 矩阵、画廊 0.0.4 真实网页上传终局复验、C 侧十四实现三存储全链路验收）构成本主题 G1/T10 收口的素材基础，也记录了同一天的两个反复出现失败模式：共享 `.tools/g2-local/credentials.json` 缺失导致 `tests/integration/cli-release.test.ts` 失败，以及「不要并行执行 platform/browser」的并发约束。
-
-**2026-11-21：G1/T10 技术收口与预览 IP 端口、T11 合成演练。** `g1-t10-closeout-2026-11-21.md`（基线 `d289cc88`，提交 `2bf96932`）把契约推到 18 文件 522/522，T10 五项技术验收全过（6.1.0 hold 56 图标、CLI 0.0.24→0.0.25 冻结重做、仓外冻结消费者生命周期 11/11、画廊 154 测试、真实三存储 14 实现），工程门禁 2271/2271 与 306/306；结论仍是「A/B 技术审查及修正复核已完成，实际评审人的业务回执和人工通过结论待签署」。同日 `preview-ip-port-2026-11-21.md`（基线 `2cd035ff`）验证同 IPv4 分 HTTPS 端口试用模式，并明确它是试用模式而非 G2 替代。同日 `t11-pilot-rehearsal-2026-11-21.md`（基线 `7eb5e521`）交付合成演练与承载它的验收测试，`satisfiesRealBusinessPilot` 恒为 `false`，标准项 1 与 5 未完成。
-
-**2026-11-22：G2 五项实测、接入设置落地、自管账号合入与 G1 人工放行。** `g2-five-items-2026-11-22.md`（基线 `6511ba77`）给出本主题最权威的 G2 结论：七轮真实三存储实测，第五/六/七轮各 9 条检查通过，前四轮失败原件保留，PostgreSQL/Verdaccio/MinIO 三项 `local-measured-passed`，OIDC 与预览接入 `unconfigured`、退出码 2、`g2Ready: false`；收尾还因并行执行根类型检查与服务构建导致退出 1，顺序复跑才通过，失败原件未被隐藏。同日 `g2-access-settings-2026-11-22.md`（分支 `feat/g2-access-settings`）用 9 个实现提交把接入设置能力完整落地，独立审查 Critical 0 / Important 9 全修，`test:platform` 148/148、根 test 2306+2（总 2308）、`test:t10` 168/168、双模式浏览器 317 + 4，`verify:deployment` 给出 `templateValidated=true / environmentValidated=false / productionAcceptance=false`。同日 `self-managed-accounts-2026-11-22.md`（基线 `d700802d`）在 Linux 沙箱自建轻量环境跑出 contracts 20 文件 550 测试、合并后 52 文件 950 断言，修 4 个实现缺陷，以 `--no-ff` 合入 main（`8ce44290`，父 `b6656819` + `b4ea3cdf`，62 文件约 3600 行），版本升至根 0.0.10 / API 0.0.12 / 画廊 0.0.13 / 网关 0.0.5 / CLI 0.0.27，main 领先 origin/main 8 个提交未 push。**同日做出 G1 人工放行决定（A/B 业务回执不作前置）**——该决定只覆盖 G1，不涉及 G2：G2 仍缺真实外部资源。
 
 ## 证据文件
 

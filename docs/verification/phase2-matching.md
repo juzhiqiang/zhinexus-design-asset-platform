@@ -3,6 +3,7 @@
 > 本文件由 `docs/verification/` 下 45 篇逐次验证记录合并而成（2026-11-22，`chore/docs-consolidation` 分支）。原件已按主题合并删除，git 历史可追溯，信息不灭失。每篇原记录以 `### <原文件名>` 为标题完整保留于「逐条合并记录」。总索引见 `docs/README.md`。
 >
 > 覆盖范围：ProjectContext、组件画像、评分与评测 runner、候选展示、文本搜索、ID 匹配、查询 API。角色缩写：A = SDK（Antigravity / Claude 桌面端）、B = CLI/画廊、C = 平台（Codex）、D = 消费者黑盒、综合 = 多方集成/收口。
+> 2026-11-26（分支 `chore/docs-slim-round3` 的后续收尾）删除原有的「历史脉络」一节（原 3836 字符）：该节按时间序复述各原记录的过程，其事实由「终态结论」与「逐条合并记录」承载，该节没有未在别处出现的硬事实，故未设「历史脉络硬事实」块。原文可经 `git show 789addf7:docs/verification/phase2-matching.md` 完整恢复。
 
 ## 终态结论
 
@@ -1026,15 +1027,3 @@ D（消费者黑盒，Claude Code CLI）交付：`tests/evaluation/id-matching.t
 - 过时或矛盾点：无。
 
 ---
-
-## 历史脉络
-
-2026-11-15，二期开工。B 先在 `b-phase2-matching` worktree（基点 `fa24ab52`）做只读审计，盘清画廊/控制台/表单/测试结构与接入边界：`apps/gallery` 为 Next.js `16.4.6` App Router，控制台无真实 OIDC、DTO 全部来自 `@company/contracts`，`apps/api/src` 尚无 `search`/`matching` 目录，并指出 T14 计划里的 `apps/gallery/src/pages/DesignMatch.vue` 是迁移前旧路径。审计同时确认沙箱内 `rm` 被禁、只能由宿主提交的协作约束。C 随即冻结 `ProjectContext` 契约（`e8248fb3`）：新增 `validateProjectContext` 与 `project-context-v1` schema、18 项契约测试、补齐 CLI 固定清单内联，A 的非作者审查提交 `f172dbac` 判定无阻断。A 同期在 `feat/a-phase2-profiles` 交付组件档案 `component-profiles.md` 与评估协议 `evaluation-protocol.md`（7 组件 × 14 实现导出名、4 项指标、5 类陷阱、包版本 `0.0.10` 与 peer 基线），并经独立审查修订源码证据路径（56 文件 Missing=0）、把 `top5Recall` 分母修为所有真实样本、确立 real/synthetic 隔离与零分母 N/A 规则，最后把 `reactDomVersion` 从 `projectContext` 移入独立 `evalEnvironment`，同时澄清 `assertJson` 放行 `null`、真正拒绝来自 `type: 'object'`。
-
-契约就绪后三方并行落地。A 实现离线评分器 `scoreEvaluation`（8 项测试起步，real 组 6 条门槛）与文件型 runner `runEvaluationCli`（退出码 0/2/1 语义），再修订出 `noMatchRejection >= 0.9` 门禁与稀疏数组防御（12 项）和错误分类脱敏（18 项），C 以 `bbb0bf7f`/`f092f240` 独立验收通过。B 在 `/match` 落地 B1 项目上下文本地校验表单（纯转换 + 白名单，不接检索、不伪造结果），首轮浏览器实测页面 404、noindex 用例被误判，修订为每个用例补 HTTP 200 断言；宿主复跑又暴露草稿残留提示与换身份残留需求两项回归，B 引入 `clearOutcome()` 并补齐 `handleLogout` 重置后关闭。C 在 Windows 固定工具链上验收：3 文件 53 项单测、浏览器 25 项（上下文 10）全绿，Gallery 独立升 `0.0.6`。
-
-接着 C 冻结候选契约 `e0a7f5ee`（27 项新契约测试、契约总计 198 项）并实现 `filterEligibleCandidates`：首轮过滤 + 返回前复读权限/Ready/废弃/revision/provider、peer 精确匹配不猜测、兼容记录逐项 `validateApiMessage`、A 审查提交 `15511ec9` 无阻断。B 原样接入（`dcb4d52e`）交付解析层与纯展示组件，并因「框架标签写死 Vue 3/React 19」被 C 的新增回归抓住，改为 `Vue`/`React` 后 24 项通过；C 宿主 3 文件 60 项、全图 build 10/10、根 test 818 项验收。同批 C 又冻结检索请求契约 `95ec3726`（三字段、12 项新测试）并交付 PostgreSQL 文本检索：`008_search.sql` 迁移、GIN tsvector、outbox `SKIP LOCKED` + SAVEPOINT 原子回滚、鉴权 HTTP 单条 SQL 共享快照；B 接入 B3 检索页面，经历取消语义（`throwIfAborted` 三处检查点）、token/subject 双重身份快照与 `invalidateSession()` 统一清理三轮修订，最终 51 项单测、B1+B3 浏览器 28/28、根 test 845 项，Gallery 升 `0.0.7`。C 还完成真实联调：随机隔离 PG/MinIO/Verdaccio + 签名 JWT + 已构建 Gallery 经 3000 端口透明代理，点击后显示真实 Vue line 候选，禁用 alice 后登录失效且候选清空。三方成果由 `phase2-main-merge-2026-11-15.md` 合入 main：`d4bb8791`/`9cdc4eb8`/`cba7b022`，根 test 55 文件 895 项、浏览器 223 个用例经首轮或定向复验全覆盖，main 后续快进到 `a89b3676`。
-
-2026-11-15 起二期范围被用户明确调整为「不接大模型、改用设计 ID 规则匹配」。C 以 `487d1ad9` 调整范围，`f8639d4c` 冻结输入契约（design-id 36 项新测试、契约总计 246 项），`01e95e16` 冻结装配 + 组件 API 契约，`e6e9a639` 交付确定性 API 服务。A 交付组件 API 材料与 `evaluateIdMatching`（复用 `validateMatchPlan`、严格 real/synthetic 隔离），因 worktree 未链接工具链三条命令未实跑，改由 C 宿主确认 RED 后集成；A 又补 4 项硬违规边界测试（16/16）。B 交付设计 ID 配置输入、`match-plan-client.ts`（先核对 `inputDigest`、三处取消检查点、失败分类固定文案）与 `DesignIdMatch.tsx`，强调「只有显式点击才 POST」与「不生成链接、不编造结论」，并修正两处自测测试缺陷。D 交付 `runner-id-cli.ts` 与观测交接规范，样例实跑 exit 1（real=0、synthetic=1、`productionAcceptance: false`）。C 集成后全量验证：全图 20/20、根 test 62 文件 1041 项、平台真实隔离 9/9、`matching-gallery` 1/1、浏览器 53/53；API 评估 synthetic 精确命中 5/5、real 0 条 N/A，规模量测 200/1000 条下 ID 409ms/1796ms、文本 33ms/25ms（本机单次样本，非 SLA）。
-
-2026-11-16 二期进入组件查询 API 收口。C 以 `53117379` 冻结 `ComponentMatchQueryV1`/`ComponentMatchResponseV1`（P0，36 项 RED、83 项 GREEN）；A 建 14 项 SDK 预期矩阵（P2，默认 8 项/冻结输入 9 项，`manifest.files` 199 项为权威清单）；B 实现 GET 权威查询与 Gallery 查询入口（P1），先补失败测试、经宿主 RED 112 项 = 72 过 / 40 败后做最小修复，包括 target 逐字段构造、白名单落到解码后 `pairs`、歧义判定先于资格过滤、`readApi` 复查前移、存储错误归一（`UPLOAD_INCOMPLETE`/`LIMIT_EXCEEDED` → `NOT_FOUND`，`INFRA_UNAVAILABLE` 仍 503），最终宿主复跑 112/112、36/36、51/51、根 tsc 0；D 以独立消费者视角写 HTTP 测试、可校验示例与使用说明（P3，5/5 + 3/3）；C 用冻结 bundle `881238b3-2214-4ec8-bf0c-af5238b7fcd3`（manifest SHA-256 `04a7c4fb...`，core `0.0.11`、Vue/React `0.0.12`）完成 P4 真实 SDK + Gallery 联调 15/15。最终收口于产品提交 `19c4289789613bbfacf0c7b7359530efdda4998e`：全图 20/20、根 test T10 168/168 + Vitest 75 文件 1249 项、平台 45/45、二期浏览器 70/70、P4 15/15、D 5/5 + 3/3，五个开发分支安全删除，main 经 `a89b3676` 含全部成果；归档时 junction 清理误伤共享 Node/pnpm/Playwright 缓存，已从原 ZIP/tgz 恢复并复验通过。全程仍未跨过的门槛是：真实标注集 0 条、真实设计 ID 规则未定、公司 OIDC/独立预览域/真实业务试点等外部条件未就绪，故 T13/T14 业务验收保持开放。

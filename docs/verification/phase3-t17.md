@@ -1,6 +1,7 @@
 # 三期 T17 矩阵与黑盒验证汇编（phase3）
 
 > 本文件由 `docs/verification/` 下 38 篇逐次验证记录合并而成（2026-11-22，`chore/docs-consolidation` 分支）；原件已按主题合并删除，git 历史可追溯。每篇原记录以 `### <原文件名>` 为标题完整保留于「逐条合并记录」。总索引见 docs/README.md。
+> 2026-11-26（分支 `chore/docs-slim-round3` 的后续收尾）删除原有的「历史脉络」一节（原 8784 字符）：该节按时间序复述各原记录的过程，其事实由「终态结论」与「逐条合并记录」承载，未在别处出现的硬事实已压入终态结论末尾的「历史脉络硬事实」。原文可经 `git show 789addf7:docs/verification/phase3-t17.md` 完整恢复。
 
 ## 终态结论
 
@@ -24,6 +25,10 @@
 - 清理保留项（归属证据不足或被策略拦截，不得宣称全局临时目录清空）：工程平台 `.tools/recovery/f8074e4f-541a-4e83-939e-ddd69bb03e95` 仍保留四个普通凭证配置文件（缺创建时 marker/首见 native 身份，未发删除命令；`root-engineering-cleanup-boundary-audit.json` 11785 bytes / SHA-256 `726ac0548317e28b199c8e2772ef303a5a5170273c5025aa31e9bc331b02a6c1`）；0.0.22 黑盒八个根因自动审批 `blocked by policy` 在进程启动前被拒（`t17-d-live-C94XDQ`、`t17-d-blackbox-dL4Teo`、`zhinexus-t15-installed-QQY7Hr`、`zhinexus-t16-installed-VF79Eb`、`t16-d-AqrLQT`、`t17-d-0022-redaction-AQSE8T`、`.tools/recovery/76181669-7754-4a5b-b831-d554a85cf8fb`、`.tools/recovery/ff069d9c-b890-487d-8dc3-3af7ff39662c`）；0.0.21 五个被拒目录与宿主旧轮两个被拒路径、0.0.19 轮三个被拒路径同样保留。成功清理仅限 0.0.23 宿主 3 个 owned parent、黑盒 12 个新根（`deleted=12`、`remaining=[]`，`native-cleanup-result.json` 2892 字节 / SHA-256 `08caebc73a7898631c6bb8541988969ff282f5d0c30e7f533db815d7991bd36c`）与矩阵 59 个 owned parent，三者范围独立。
 - T17 设计来源为设计稿 `2026-11-19-phase3-t17-design.md`（原位于 `docs/specs/`，本轮不在合并范围，已保留并移至 `docs/specs/2026-11-19-phase3-t17-design.md`）。全主题所有产品、契约、矩阵与黑盒行为均以该设计为验收依据；本文不重复其内容。
 - 分支 `feat/t17-integration`；全程未 push、未 tag、未合并、未生产发布。
+
+#### 历史脉络硬事实（叙述已删，2026-11-26）
+
+CLI 各轮冻结与失败轨迹（均单次 pack，`packCount=1`）：0.0.18（`b46ef834`，451148 bytes / `08d201fa...`）暴露 T16 Next App Router 失败（13 passed / 1 failed，exit 1）；0.0.19（`1615dfc5`，451225 bytes / `45a514e9...`）修工具链定位后 T16 转 14/14，但首轮固定 33 格 0/20 正向 + 6/13 拒绝（seal `2a8acbd3...`，908/908 files）；0.0.20（451327 bytes / `8d56d87e...`）首轮完整矩阵 9/20（Vue 4/10、React 5/10）+ 4/13、`matrixAccepted=false`，首次完整根 test 2123 passed / 3 failed；0.0.21（`3fbcfa9b`，451414 bytes / `7dd4874f...`）正式矩阵 20/20、12/13、exit 1（唯一 N10 请求夹具 HTTP 400，2975.21s，57 roots / 22739 files，根 seal `4ce1ae4e...`）；0.0.22（`f96af5ee`，453485 bytes / `d3da0874...`）R08 browser `BEHAVIOR_FAILED`、产品 verify exit 2、1826ms，正向 19/20 + 拒绝 13/13，归 Important/P1（250ms 异步文本更新在 `timeoutMs=1500` 下过早失败，独立 Chromium 实测约 252ms），判定不作最终交付；0.0.23（`edb985ec`，454155 bytes / `93c90124...`）完整矩阵正向 20/20、拒绝 13/13。字节归档：0.0.20 50 roots / 18542 files（archive-map `8036a039...`）；0.0.21 57 roots / 22739 files（archive-map `74e6d337...`）；0.0.22 59 roots / 23162 files / 493332540 bytes（archive-map `09b3a3af...`，Root 复读 `ee0f8ac0...`）；0.0.23 59 roots / 23162 files / 493327325 bytes（archive-map `441cba52...`，Root 复读 `13e50a60...`），0.0.23 矩阵 seal 2447465 bytes / `3fdf1427...`（33 receipts + 1635 files）。设计基线 main@`7e10ba19`；0.0.22 重点审查 Git 范围 `5a172921..2da99161...`（148 文件 / 24388 行新增 / 22 行删除，Critical 0 / Important 0）。两项基础设施修正：隔离 OIDC fixture 令牌 1h → 有界 3h（最终 GREEN 要求 `8100 <= remainingSeconds <= 10800`，实测 `issuedLifetimeSeconds=10800`、`remainingSeconds=10782`）；T17 `local-services.ts` 内联配置遗漏 5m、实际为 Verdaccio 默认 30s（容器日志 `echarts-6.1.0.tgz` / `ETIMEDOUT` / `requestTimeoutMs=30000` / `totalMs=30003`）。`validateIntegrationApplyResult` 不得伪造 `installedVersions`；回归预算四个 it 分别 30/30/45/15 秒；pnpm 隔离两修（`--config.verifyDepsBeforeRun=false`，RED 时 poison registry 实收 21 次请求；`--pm-on-fail=ignore`，RED 时精确声明工程 `changedFiles=[pnpm-lock.yaml]`）。源快照上限 4 MiB / 10000 文件 / 256 MiB。黑盒安装时序探针：同步 130ms / 延迟 360ms / 383ms（browser passed 但 overall failed + visual NEW）/ 永久负例 1620ms；0.0.22 黑盒四配置封存 336 files / 3,188,592 bytes / 17 receipts，宿主封存 34681 files / 6605 dirs / 2586571483 bytes。
 
 ## 逐条合并记录
 
@@ -920,61 +925,3 @@
 - 结论与状态：完成。对应提交 `aa801478`（见 t17-host-0021、t17-integration 03:32 节）；0.0.20 首轮矩阵因 401 后段失败的事实保留。
 - 交叉引用：`t17-host-0021-2026-11-20.md`、`t17-matrix-executor-2026-11-20.md`、`t17-local-registry-timeout-2026-11-20.md`、`t17-integration-2026-11-20.md`。
 - 过时或矛盾点：无。
-
-## 历史脉络
-
-T17 全主题沿一条主线推进：**设计（2026-11-19）→ 支架与 runner 冒烟（2026-11-19）→ 矩阵定义与静态实作（2026-11-19）→ 真实矩阵执行器与评分器（2026-11-20 凌晨）→ 0.0.18/0.0.19/0.0.20 失败与诊断轮 → 0.0.21 冻结与工程/宿主/T15/T16/黑盒全绿（矩阵 20/20、12/13、exit 1）→ 两个 Important 修复 → 0.0.22 冻结（工程 2198/2198 全绿、黑盒 49/49、宿主 1/1，但正式矩阵 R08 失败 19/20）→ R08 异步断言 Important/P1 确认与 `10ca2957` 修复 → 0.0.23 单次冻结 → 同包全量重验（工程 2210/2210、黑盒 49/49、宿主 1/1 四链 6/6、矩阵 20/20+13/13）→ final review / delivery review / completion 收口**。
-
-关键节点按时间顺序如下。
-
-1. **2026-11-19 设计基线**：T17 设计稿 `2026-11-19-phase3-t17-design.md`（起点 main@`7e10ba19`，已移至 `docs/specs/2026-11-19-phase3-t17-design.md`）冻结 verify/repair 产品接口、四契约、CLI 退出码 0/1/2、MCP 只暴露四工具、视觉阈值 0.1/0.001、源快照 4 MiB/10000 文件/256 MiB、20 正向 + 13 拒绝与 80% 门槛、temporary/synthetic 授权与清理规则。同日的 no-install 语义由提交 `8def5ad1993b9bd8fa1643279041135ef82bf1ce` 确认（设计第 70 行、实施计划第 17/49–51 行）。
-2. **2026-11-19 支架期**：`t17-a1-hardening-2026-11-19.md`（A1 本地验证器安全边界回归，版本 0.0.14 → 0.0.15，10/10、1847 项通过、浏览器 1/1）；`t17-host-runner-2026-11-19.md`（host runner 以 CLI 0.0.17 完成 Vue/React `integrate inspect` 冒烟，43/43、seal 9 文件）；`t17-blackbox-2026-11-19.md`（D 黑盒支架 global-setup 冻结输入校验、junction 快照、stdio 往返就绪但无冻结包，阻塞）；`t17-matrix-2026-11-19.md`（B 侧冻结 20+13 场景定义与评分/封存规则，12/12，明确未做真实执行）。
-3. **2026-11-20 凌晨：执行器与评分器**：`t17-matrix-executor-2026-11-20.md` 交付正式入口 `tests/acceptance/t17-matrix/product.vitest.config.ts`，单元入口 12 文件 185/185；`t17-matrix-scoring-2026-11-20.md` 让评分器诚实计分（真实失败计入失败）并为 N10 三重身份（N10 + budget + repair-budget）开两轮真实写入的证据特例。
-4. **0.0.18 / 0.0.19 / 0.0.20 失败与诊断轮**：0.0.18（`b46ef834`，451148 bytes / `08d201fa...`）暴露 T16 Next App Router 失败（13 passed / 1 failed，exit 1）与 `install.ts` 工具链定位缺陷；0.0.19（`1615dfc5`，451225 bytes / `45a514e9...`）修工具链定位后 T16 转 14/14，但首轮固定 33 格实得 0/20 正向、6/13 拒绝（seal `2a8acbd3...`，908/908 files）；0.0.20（451327 bytes / `8d56d87e...`）首轮完整矩阵仅 9/20 + 4/13（Vue 4/10、React 5/10），且一小时后测试令牌过期致 401，首次完整根 test 2123 passed / 3 failed（exit 1）。
-5. **两项基础设施修正**：`t17-service-token-budget-2026-11-20.md` 把隔离 OIDC fixture 从 1h 改为有界 3h（最终 GREEN 要求 `8100 <= remainingSeconds <= 10800`，实测 `issuedLifetimeSeconds=10800`、`remainingSeconds=10782`，提交 `aa801478`）；`t17-local-registry-timeout-2026-11-20.md` 发现 T17 `local-services.ts` 内联配置遗漏 5m、实际为 Verdaccio 默认 30s（容器日志 `echarts-6.1.0.tgz` / `ETIMEDOUT` / `requestTimeoutMs=30000` / `totalMs=30003`），修为 `timeout: 5m`，`local-services.test.ts` 7/7、1.60 秒（提交 `10cfb5fd`）。
-6. **两项 pnpm 隔离修正**：`t17-pnpm-no-install-2026-11-20.md` 增加 `--config.verifyDepsBeforeRun=false`（RED 时 poison registry 实收 21 次请求；GREEN 2/2；五套件 110/110）；`t17-pnpm-manager-bootstrap-2026-11-20.md` 追加 `--pm-on-fail=ignore`（RED 时精确声明工程 `changedFiles=[pnpm-lock.yaml]`；GREEN 2/2；五套件 111/111）。两项由提交 `805c7341` 一并纳入 0.0.21。
-7. **no-install 契约对齐**（`t17-no-install-2026-11-20.md`，依据 `8def5ad1993b9bd8fa1643279041135ef82bf1ce`）：`validateIntegrationApplyResult` 不得伪造 `installedVersions`；RED 2 failed / 87 passed → 六套件 254/254、49.73 秒。
-8. **测试稳定性两次修正**：`t17-regression-stability-2026-11-20.md`（0.0.20，两项外层预算 30 秒/20 秒 + 一项浏览器断言采样缺陷；窄测 6 文件 117/117）与 `t17-regression-budgets-2026-11-20.md`（0.0.21，四个 it 分别 30/30/45/15 秒；定向 105/105）。
-9. **宿主夹具与守卫**：`t17-host-fixtures-2026-11-20.md`（三处夹具缺陷：构建图插件、TEMP/TMP 缓存、本地 Playwright 路径；支架 10 文件 118/118、20.53 秒；Chromium 158.0.8127.18；第二轮宿主仍失败 218.49 秒）与 `t17-host-guards-2026-11-20.md`（install-delivery journal 所有权、receipt 回读、npm cache 外移；9 文件 111/111、15.75 秒；独立审查 88/88、9.46 秒）。
-10. **0.0.21 冻结**（`3fbcfa9b66900c55e254f15e73f318055c6a104f`，451414 bytes / `7dd4874f...`，03:17:48.0927238+08:00 单次 pack）：工程 20/20、根测 121 文件 2187/2187、平台 137/137、浏览器 288/288、T15 25/25、T16 14/14、黑盒 live 5/5 + legacy 5/5、宿主 1/1、858.50 秒、四链 6/6；但完整矩阵 **20/20、12/13、exit 1**（唯一 N10 请求夹具 HTTP 400，2975.21s，57 roots / 22739 files，根 seal `4ce1ae4e...`）。
-11. **两个 Important 修复**：`672582ba`（`t17-repair-source-continuity-2026-11-20.md`）修复 repair 私有基线不完整与源变更后仍继续修复（RED 3 failed/10 skipped 与 1 failed/13 skipped；GREEN 14/14、101/101、118/118、独立 6/6）；`b193406c`（`t17-mcp-sdk-redaction-2026-11-20.md`）新增 `mcp/transport.ts` 在 send 序列化前清洗 result/error/params 与已知凭据的原始及 JSON 转义表示（RED 2/2 预期失败；GREEN 8/8、10.69 秒；probe 73/73）。
-12. **C0 依赖与官方来源核验**：`t17-c0-current-evidence-2026-11-20.md` 只读取证固定 `@modelcontextprotocol/server` 2.4.0 / `client` 2.4.0 / `zod` 4.6.7 与完整根测试 121 文件 2187/2187、594.49 秒；`t17-c0-official-supplement-2026-11-20.md` 补核四页官方来源，其"四页均已实际打开"表述随后被 `t17-c0-official-correction-2026-11-20.md`（2026-11-20 04:19–04:20 逐页补验）认定为证据记录错误并更正。
-13. **0.0.22 冻结**（`f96af5ee59cfbd007ba4ff50aad3de60cebafb60`，453485 bytes / `d3da0874...`，04:39:01+08:00 单次 pack）：`bf65180a` 修正 N10 请求夹具（矩阵支架 13 文件 187/187；N10 诊断 1/1、278.67s，3 roots / 429 files / 17487244 bytes）；工程全绿（T10 168/168、Vitest 123 文件 2198/2198、平台 137/137、浏览器 288/288）；黑盒四配置 49/49（336 files / 3,188,592 bytes / 17 receipts）；宿主 1/1（四链 6/6，清理前封存 34681 files / 6605 dirs / 2586571483 bytes）。**但正式矩阵 R08（React StrictMode/pnpm）browser `BEHAVIOR_FAILED`、产品 verify exit 2、1826ms，正向 19/20（Vue 10/10、React 9/10）、拒绝 13/13、3340.98s**；两次真实产品探针确认 250ms 异步文本更新在 `timeoutMs=1500` 下过早失败（独立 Chromium 实测更新约 252ms），归为 **Important/P1**，判定 0.0.22 不作最终交付。`t17-final-review-2026-11-20.md` 于 0.0.22 时点做重点代码审查（Git 范围 `5a172921..2da99161...`，148 文件 / 24388 行新增 / 22 行删除，Critical 0、Important 0；含 Service Worker 绕流假设实测不成立的浏览器探针）。
-14. **R08 修复与 0.0.23 冻结**：`10ca2957602d0f225c906acc8b534c6be2ff96e5` 建立 `Date.now() + browser.timeoutMs` 共享截止、25ms 短间隔重采样，保留 first/trim/精确 count/非零尺寸语义；有效 RED `8 failed | 4 passed (12)`，GREEN 12/12 → 52/52 + browser 1/1；独立 reviewer Approved（Critical 0、Important 0）；控制方重开 273 项 / 344840 bytes。`edb985ec0f9ee1b79a5882e935832f8caa9f0daf` 独立升版 0.0.23，`2026-11-20T05:51:34.8465368+08:00` 仅 pack 一次，454155 bytes / `93c90124...`。
-15. **0.0.23 同包全量重验**：工程 T10 168/168、Vitest 124 文件 2210/2210、平台 137/137、浏览器 288/288；黑盒四配置 49/49 + installed 时序探针（同步 130ms / 延迟 360ms / 383ms browser passed 但 overall failed + visual NEW；永久负例 1620ms browser failed + visual not-run）+ SDK 脱敏 probe；宿主 1/1、1235.87s、四链 6/6、visual PASS、清理前封存 34681 files / 6612 dirs / 2586567819 bytes；矩阵完整 33 格 session `93391`、3481.91s、**正向 20/20（Vue/React 各 10/10）、拒绝 13/13**，原 seal 2447465 bytes / `3fdf1427...`（33 receipts + 1635 files），Root 只读重评分 `matrixAccepted=true`、`failures/errors=[]`；59 roots / 23162 files / 493327325 bytes 全字节复读、59 parents ENOENT。
-16. **收口**：`t17-final-delivery-review-0023-2026-11-20.md`（Approved，Critical/Important/Minor 均 0；231 个相对文档链接均存在）、`t17-completion-2026-11-20.md`（终态汇总）。分支 `feat/t17-integration`，全程未 push、未 tag、未合并、未生产发布。
-
-关键聚焦提交一览：
-
-| commit | 内容 |
-| --- | --- |
-| `8def5ad1993b9bd8fa1643279041135ef82bf1ce` | 2026-11-19，T17 设计/实施计划中确认 no-install 语义（设计第 70 行、实施计划第 17/49–51 行） |
-| `aa8014785185c6d972425d4ada8390a5fe6cee59` | 隔离服务令牌 fixture 生命周期 3h 修正（READY 后 RED/GREEN） |
-| `b46ef8343949bb3ea06d7839404377f1ab4d4b70` | 环境指纹采集；0.0.18 冻结来源 |
-| `c14ab932` | repair 评分与真实空输出证据修复 |
-| `3cecc0cc` | MCP 证据物理目录固定、拒绝运行目录链接 |
-| `c901d5d3` | CLI 升 0.0.18（当时未冻结） |
-| `388c75e5` | 仓外安装 CLI 从实际 Node 定位固定工具链 |
-| `1615dfc5c6761aa8ccde76708893d5b8e48e797c` | 独立升级 CLI 至 0.0.19 |
-| `abfcba8b` | 矩阵多 ready 元素与失败请求保留；异步 count/text/visible 有界等待 |
-| `10cfb5fd` | 隔离验收 Verdaccio upstream request timeout 提至有界 5m |
-| `805c7341` | pnpm 固定管理器重新引导修复（`--pm-on-fail=ignore` + `--config.verifyDepsBeforeRun=false`） |
-| `3fbcfa9b66900c55e254f15e73f318055c6a104f` | 独立升级 CLI 至 0.0.21 |
-| `ef835de6` | 诚实失败计分与真实 N10 两轮耗尽证据校验 |
-| `672582ba` | repair 完整源报告快照与源变更立即停止 |
-| `b193406c` | stdio 序列化前清洗 SDK 自动校验错误（新增 mcp/transport.ts） |
-| `43aa9bbf` | 单独升级 CLI 0.0.22 |
-| `f96af5ee59cfbd007ba4ff50aad3de60cebafb60` | 修正回归测试判别类型；0.0.22 冻结来源 |
-| `bf65180a1961421362dca34fd393fe89b6e1809e` | 修正独立 N10 请求夹具（按 designId/framework 去重） |
-| `10ca2957602d0f225c906acc8b534c6be2ff96e5` | 异步 DOM 断言等待最小修复（R08 Important/P1） |
-| `9fb5f215` | 0.0.22 矩阵记录提交 |
-| `2da99161` | 0.0.22 黑盒记录提交 |
-| `e7c9a6b6` | 0.0.22 宿主记录提交 |
-| `edb985ec0f9ee1b79a5882e935832f8caa9f0daf` | 独立升级 CLI 至 0.0.23；0.0.23 冻结来源 |
-| `7ec3a665` | 0.0.23 双框架宿主记录 |
-| `33e5e13c` | 0.0.23 完整工程回归记录 |
-| `cc494f21` | 0.0.23 独立 CLI/MCP 黑盒、T15/T16 及十二新根清理 |
-| `011694e5` | 0.0.23 完整矩阵 20/20+13/13、原件正式评分、59 根字节归档与清理审计 |
-| `8121f180` | 官方来源后补核验记录（其访问范围表述后被 t17-c0-official-correction 认定为证据记录错误） |
-
-各轮历史失败全部保留、不被覆盖：0.0.18 T16 13 passed/1 failed（Next App Router，exit 1）；0.0.19 首轮 33 格 0/20 正向 + 6/13 拒绝（seal `2a8acbd3...`，908/908 files）；0.0.20 首轮完整矩阵 9/20（Vue 4/10、React 5/10）+ 4/13、`matrixAccepted=false`，首次完整根 test 2123 passed / 3 failed（exit 1）；0.0.21 正式矩阵 20/20、12/13、exit 1（N10 请求夹具 HTTP 400，2975.21s）；0.0.22 正式矩阵 R08 failed、19/20 + 13/13。各轮字节归档：0.0.20 50 roots / 18542 files（archive-map `8036a039...`）；0.0.21 57 roots / 22739 files（根 seal `4ce1ae4e...`，archive-map `74e6d337...`）；0.0.22 59 roots / 23162 files / 493332540 bytes（archive-map `09b3a3af...`，Root 复读 `ee0f8ac0...`）；0.0.23 59 roots / 23162 files / 493327325 bytes（archive-map `441cba52...`，Root 复读 `13e50a60...`）。
