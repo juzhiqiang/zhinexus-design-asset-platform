@@ -86,7 +86,7 @@ docs/
 
 ### 二期 `docs/phases/phase2/`
 
-`component-query-api.md`（**GET /v1/matching/components 用法，测试直接读取其中的 example**）、`component-profiles.md`（组件档案审计）、`component-query-sdk-matrix.md`（双框架真实 SDK 预期矩阵）、`evaluation-protocol.md`（离线评估协议与标注规范）、`evaluation-runner.md`（A3 Runner 规范）、`id-evaluation-runner.md`（ID 离线评估入口与报告模板）。
+`component-query-api.md`（**GET /v1/matching/components 用法，测试直接读取其中的 example**）、`component-profiles.md`（组件档案审计）、`component-query-sdk-matrix.md`（双框架真实 SDK 预期矩阵）、`evaluation-protocol.md`（离线评估协议与标注规范）、`evaluation-runner.md`（A3 Runner 规范）、`id-evaluation-runner.md`（ID 离线评估入口与报告模板），另有报告样例 `id-evaluation-report.example.json`。
 
 ### 三期 `docs/phases/phase3/`
 

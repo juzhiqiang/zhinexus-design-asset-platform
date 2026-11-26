@@ -562,7 +562,7 @@ flowchart LR
 
 2026-11-12 T07 C本地实现补充：已完成公开/私有目录分离、精确releaseId档案与材料/报告读取、一次性5分钟预览授权、独立域静态分发和逐请求撤权/摘要校验。新增兼容端点不替代B的画廊页面；真实OIDC、生产DNS/TLS、目标浏览器Cookie策略和当前SDK八实现闭环尚未验收，T07整体保持未完成。命令与审查证据见 [T07 C验证](docs/verification/platform-services.md)。
 
-2026-11-12 C补充：T07已合并；T11/T12可提前的本地运维准备按 [执行计划](../guides/release-acceptance.md) 实施。日志指标、真实故障预演、隔离三存储备份恢复与部署模板是C子交付；完整任务验收状态见 [release-acceptance](docs/guides/release-acceptance.md)，不替代M2/T08/T10及业务试点。
+2026-11-12 C补充：T07已合并；T11/T12可提前的本地运维准备按 [T11/T12 运维准备执行记录](../verification/platform-services.md) 实施。日志指标、真实故障预演、隔离三存储备份恢复与部署模板是C子交付；完整任务验收状态见 [release-acceptance](docs/guides/release-acceptance.md)，不替代M2/T08/T10及业务试点。
 
 2026-11-13 C补充：按 [本轮执行计划](../verification/platform-services.md) 验证当前SDK五组件十实现的真实冻结发布、两类精确Registry消费者及预览资源摘要；补充T08网页后端交接测试和 `rehearse:capacity`。200组件/400实现为隔离DB合成目录规模，100MiB为40+40+20MiB总提交分片恢复；本地量测不替代生产SLA、T08页面、T10或业务试点。新增结果见 [本轮记录](docs/verification/platform-services.md)，保留此前历史状态。
 

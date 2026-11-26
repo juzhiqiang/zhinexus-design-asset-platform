@@ -139,4 +139,4 @@ pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/wor
 
 常见错误：`PORT_IN_USE` 选其他端口；`PROJECT_DEPENDENCIES_REQUIRED` 先安装项目依赖；`PROJECT_TOOLCHAIN_REQUIRED` 在项目安装精确版本 Vite/框架插件；`EXAMPLE_CONFLICT` 重新载入后确认文件；`INPUTS_CHANGED` 重新准备或显式恢复原 Bundle；`PACKAGE_BUSY` 等待本包现有操作结束；`CATEGORY_REQUIRED/DISABLED` 冻结前选择有效分类。不要通过删除已发布版本或改写旧 manifest 绕过错误。
 
-本轮验证证据及生产环境未覆盖边界见[独立验证记录](./juz-workbench.md)。
+本轮验证证据及生产环境未覆盖边界的原始记录（2026-11-26 文档精简时移除，git 历史可追溯）；操作口径以上文各节为准。

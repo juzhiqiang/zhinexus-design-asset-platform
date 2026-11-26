@@ -22,7 +22,7 @@
 2. 唯一能建出首个平台管理员的 `infra/scripts/self-managed.ts` 的 `bootstrap()` 是 **Keycloak 专属**：它先取 master realm 令牌、创建 realm、轮换服务账号密钥，再调 Keycloak  admin REST 建用户。
 3. 那个栈**根本起不来**：`infra/compose.self-managed.yaml` 要求 `${SELF_MANAGED_KEYCLOAK_IMAGE:?...}`，而 `infra/self-managed-versions.json` 的 `keycloak.image` 是 `null`、`status` 为 `pending-official-verification`，`infra/scripts/self-managed.ts:18` 因此不注入该变量，compose 按设计失败关闭。
 
-实施计划汇编 [`docs/plans/2026-11-22-self-managed-accounts.md`](./self-managed-accounts.md) 中「2026-11-23-local-identity-service.md」小节要求退役这些 Keycloak 专属部分，并记录「尚未退役 / 保持未完成」。于是 `PLATFORM_IDENTITY_MODE=local` 这条已实现、已单测的身份服务**没有播种入口**：没有任何管理员能被建出来，`requireAdministrator`（`accounts/service.ts:66`）永远抛 `FORBIDDEN`，后台创建账号永远不可用。这正是诉求描述的现象。
+原实施计划汇编 `docs/plans/2026-11-22-self-managed-accounts.md`（2026-11-26 文档精简时移除，git 历史可追溯），其中要求退役这些 Keycloak 专属部分，并记录「尚未退役 / 保持未完成」。于是 `PLATFORM_IDENTITY_MODE=local` 这条已实现、已单测的身份服务**没有播种入口**：没有任何管理员能被建出来，`requireAdministrator`（`accounts/service.ts:66`）永远抛 `FORBIDDEN`，后台创建账号永远不可用。这正是诉求描述的现象。
 
 #### 2. 本轮改动
 

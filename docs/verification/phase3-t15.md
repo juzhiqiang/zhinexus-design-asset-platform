@@ -92,7 +92,7 @@ P0–P4 的 TDD 计数轨迹（按轮次，均已先红后绿）：P0 契约自�
 - **目的**：核对 T15 设计、四方执行计划与入口文档，确认依赖安排可执行，产品实现尚未开始。
 - **承重事实**：
   - 读取基线 `b35498ac9bddcfcc63ff4fdd85c7befaf29e6c0f`；开始时 main 干净。
-  - 交付范围：[T15 设计](./phase3-t15.md)（只读项目识别、安装计划、证据和边界）；[四方执行计划](./phase3-t15.md)，分工为 **P0 契约、P1 Claude 桌面端主要开发、P2 Antigravity 独立矩阵、P3 Claude Code 黑盒、P4 Codex 真实集成与收口**，附 T16/T17 接续；README、总体实施评估、T01–T17 计划及分工入口增加本轮指引。
+  - 交付范围：T15 设计（只读项目识别、安装计划、证据和边界）与四方执行计划两份来源文档（2026-11-26 文档精简时移除，git 历史可追溯）；分工为 **P0 契约、P1 Claude 桌面端主要开发、P2 Antigravity 独立矩阵、P3 Claude Code 黑盒、P4 Codex 真实集成与收口**，附 T16/T17 接续；README、总体实施评估、T01–T17 计划及分工入口增加本轮指引。
   - 创建本轮规划分支 `chore/phase3-t15-planning`；产品开发分支尚未创建，未向实际开发客户端派发。
   - `git status --porcelain=v1` / `git branch --show-current` / `git rev-parse HEAD`：main 干净，基线如上。
   - `git diff --check`：exit 0。

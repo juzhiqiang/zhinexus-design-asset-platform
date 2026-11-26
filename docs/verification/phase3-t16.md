@@ -29,7 +29,7 @@ T16 的技术推进从基线 `main@c067c81d2751b1d7cf9a04e7c15b6d7d276d014d` 开
 - 运行时竞态未声称：冷 stale-ref 控制不声称运行时竞态，并发不能完全由字符串校验证明。
 - 静态 AST 断言不承诺任意 JavaScript 运行时语义，也不替代仓外真实 `vue-tsc`/`tsc`/`vite build`；备份临时文件独占、rename 前后父链置换与更宽并发窗口尚未形成完整独立 RED。
 
-T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内（被保留并移至新路径），本文不重复其内容：设计 `2026-11-18-phase3-t16-design.md` 新路径为 `docs/specs/2026-11-18-phase3-t16-design.md`，实施计划 `2026-11-18-phase3-t16-safe-apply.md` 新路径为 `docs/plans/2026-11-18-phase3-t16-safe-apply.md`。两篇原位于 `docs/specs/` 与 `docs/plans/`（设计文档实际在 specs/ 而非任务清单所写 plans/）。
+T16 的设计与计划来源另有两篇文档，不在本汇编合并范围内，本文不重复其内容：设计 `2026-11-18-phase3-t16-design.md` 与实施计划 `2026-11-18-phase3-t16-safe-apply.md`（2026-11-26 文档精简时移除，git 历史可追溯），验收依据以本汇编终态结论与逐条合并记录为准。两篇原位于 `docs/specs/` 与 `docs/plans/`（设计文档实际在 specs/ 而非任务清单所写 plans/）。
 
 #### 历史脉络硬事实（叙述已删，2026-11-26）
 

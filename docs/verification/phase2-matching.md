@@ -101,7 +101,7 @@ D（消费者黑盒，Claude Code CLI）交付：`tests/evaluation/id-matching.t
 
 #### docs/phases/phase2/ 规范文档去向
 
-`docs/phases/phase2/` 下 8 篇文档（`component-profiles.md`、`component-query-api.md`、`component-query-sdk-matrix.md`、`evaluation-protocol.md`、`evaluation-runner.md`、`id-evaluation-runner.md`、`id-observation-handoff-2026-11-16.md`、`id-evaluation-report.example.json`）不属于本次合并范围：它们是二期契约/工具文档，被保留并移动到 `docs/phases/phase2/` 下，其内容不在本文重复。本文引用的这些文档名均指向新路径 `docs/phases/phase2/`。
+`docs/phases/phase2/` 下的二期契约/工具文档不属于本次合并范围，其内容不在本文重复；本文引用的这些文档名均指向 `docs/phases/phase2/`。2026-11-26 精简后该目录保留 6 篇 .md（`component-profiles.md`、`component-query-api.md`、`component-query-sdk-matrix.md`、`evaluation-protocol.md`、`evaluation-runner.md`、`id-evaluation-runner.md`）与报告样例 `id-evaluation-report.example.json`；`id-observation-handoff-2026-11-16.md`（2026-11-26 文档精简时移除，git 历史可追溯）。
 
 ## 逐条合并记录
 
