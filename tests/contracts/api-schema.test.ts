@@ -26,11 +26,23 @@ describe('G1 API and generated JSON Schema', () => {
     const fixture = makeApiFixtures().createBaselineRequest as Record<string, unknown>;
     expect(contracts.validateApiMessage('createBaselineRequest', { ...fixture, environmentKey: 'unknown-manual' }).ok).toBe(false);
   });
-  it('does not infer baseline or index state from Ready', () => {
+  it('does not infer baseline or index state from Ready, and accepts optional governance metadata on variantReleaseResponse', () => {
     const fixture = makeApiFixtures().variantReleaseResponse;
     const validated = contracts.validateApiMessage('variantReleaseResponse', fixture);
     expect(validated.ok).toBe(true);
     if (validated.ok) expect(validated.value).toMatchObject({ availability: 'Ready', reportSource: 'manual-upload', baselineStatus: 'unconfirmed', indexStatus: 'pending' });
+
+    const enriched = contracts.validateApiMessage('variantReleaseResponse', {
+      ...(fixture as Record<string, unknown>),
+      isPublic: false,
+      deprecatedReason: '已被 0.2.0 替代',
+      baselineHeads: [{ exampleId: 'default', environmentKey: 'a'.repeat(64), revisionId: '11111111-1111-4111-8111-111111111111', screenshotId: 'shot-line-vue-default' }],
+    });
+    expect(enriched.ok).toBe(true);
+    expect(contracts.validateApiMessage('variantReleaseResponse', {
+      ...(fixture as Record<string, unknown>),
+      baselineHeads: [{ exampleId: 'default', environmentKey: 'unknown-manual', revisionId: 'bad', screenshotId: 'shot-1' }],
+    }).ok).toBe(false);
   });
   it('generates every committed schema from the runtime definitions without drift', () => {
     for (const [name, schema] of Object.entries({ ...contracts.CONTRACT_SCHEMAS, ...contracts.API_SCHEMAS })) {

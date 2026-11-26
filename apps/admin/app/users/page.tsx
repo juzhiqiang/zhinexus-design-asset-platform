@@ -16,6 +16,8 @@ import {
 } from '../lib/managed-accounts-client';
 import { ZnIcon } from '../lib/design/icons';
 import { ServiceUnavailableState } from '../lib/design/ServiceUnavailableState';
+import { getStoredSession, platformApiOrigin } from '../lib/auth';
+import { readPublishingOptions } from '../lib/categories-client';
 import type {
   ManagedAccountComponentGrant,
   ManagedAccountDetail,
@@ -50,40 +52,53 @@ function generateStrongPassword(length = 16): string {
 
 function sameGrants(a: ManagedAccountComponentGrant[], b: ManagedAccountComponentGrant[]): boolean {
   if (a.length !== b.length) return false;
-  return a.every((g, i) => g.componentId === b[i]!.componentId && g.canPublish === b[i]!.canPublish && g.canMaintain === b[i]!.canMaintain);
+  return a.every(
+    (g, i) =>
+      g.componentId === b[i]!.componentId &&
+      Boolean(g.canRead) === Boolean(b[i]!.canRead) &&
+      g.canPublish === b[i]!.canPublish &&
+      g.canMaintain === b[i]!.canMaintain,
+  );
 }
 
-/** 结构化组件与包授权编辑器（替代手写 CSV 文本框） */
+/** 结构化组件与包授权编辑器（支持只读 / 发布 / 维护三档权限及已知候选补全） */
 function GrantsEditor({
   componentGrants,
   packageGrants,
+  knownComponents = [],
+  knownPackages = [],
   disabled,
   onChangeComponents,
   onChangePackages,
 }: {
   componentGrants: ManagedAccountComponentGrant[];
   packageGrants: string[];
+  knownComponents?: string[];
+  knownPackages?: string[];
   disabled?: boolean;
   onChangeComponents: (next: ManagedAccountComponentGrant[]) => void;
   onChangePackages: (next: string[]) => void;
 }) {
   const [newCompId, setNewCompId] = useState('');
-  const [newCompPublish, setNewCompPublish] = useState(true);
+  const [newCompRead, setNewCompRead] = useState(true);
+  const [newCompPublish, setNewCompPublish] = useState(false);
   const [newCompMaintain, setNewCompMaintain] = useState(false);
   const [newPkg, setNewPkg] = useState('');
 
   const addComponent = () => {
     const id = newCompId.trim();
-    if (!id) return;
+    if (!id || !(newCompRead || newCompPublish || newCompMaintain)) return;
+    const nextGrant: ManagedAccountComponentGrant = {
+      componentId: id,
+      ...(newCompRead ? { canRead: true } : {}),
+      canPublish: newCompPublish,
+      canMaintain: newCompMaintain,
+    };
     const existing = componentGrants.find((g) => g.componentId === id);
     if (existing) {
-      onChangeComponents(
-        componentGrants.map((g) =>
-          g.componentId === id ? { ...g, canPublish: newCompPublish, canMaintain: newCompMaintain } : g,
-        ),
-      );
+      onChangeComponents(componentGrants.map((g) => (g.componentId === id ? nextGrant : g)));
     } else {
-      onChangeComponents([...componentGrants, { componentId: id, canPublish: newCompPublish, canMaintain: newCompMaintain }]);
+      onChangeComponents([...componentGrants, nextGrant]);
     }
     setNewCompId('');
   };
@@ -109,12 +124,33 @@ function GrantsEditor({
                     <input
                       type="checkbox"
                       disabled={disabled}
-                      checked={grant.canPublish}
-                      onChange={(e) =>
+                      checked={Boolean(grant.canRead)}
+                      onChange={(e) => {
+                        const nextRead = e.target.checked;
+                        if (!(nextRead || grant.canPublish || grant.canMaintain)) return;
                         onChangeComponents(
-                          componentGrants.map((g) => (g.componentId === grant.componentId ? { ...g, canPublish: e.target.checked } : g)),
-                        )
-                      }
+                          componentGrants.map((g) =>
+                            g.componentId === grant.componentId
+                              ? { componentId: g.componentId, ...(nextRead ? { canRead: true } : {}), canPublish: g.canPublish, canMaintain: g.canMaintain }
+                              : g,
+                          ),
+                        );
+                      }}
+                    />
+                    读取
+                  </label>
+                  <label className="zn-grant-check">
+                    <input
+                      type="checkbox"
+                      disabled={disabled}
+                      checked={grant.canPublish}
+                      onChange={(e) => {
+                        const nextPub = e.target.checked;
+                        if (!(Boolean(grant.canRead) || nextPub || grant.canMaintain)) return;
+                        onChangeComponents(
+                          componentGrants.map((g) => (g.componentId === grant.componentId ? { ...g, canPublish: nextPub } : g)),
+                        );
+                      }}
                     />
                     发布
                   </label>
@@ -123,11 +159,13 @@ function GrantsEditor({
                       type="checkbox"
                       disabled={disabled}
                       checked={grant.canMaintain}
-                      onChange={(e) =>
+                      onChange={(e) => {
+                        const nextMaint = e.target.checked;
+                        if (!(Boolean(grant.canRead) || grant.canPublish || nextMaint)) return;
                         onChangeComponents(
-                          componentGrants.map((g) => (g.componentId === grant.componentId ? { ...g, canMaintain: e.target.checked } : g)),
-                        )
-                      }
+                          componentGrants.map((g) => (g.componentId === grant.componentId ? { ...g, canMaintain: nextMaint } : g)),
+                        );
+                      }}
                     />
                     维护
                   </label>
@@ -151,9 +189,10 @@ function GrantsEditor({
           <input
             className="zn-input zn-input-mono"
             style={{ minHeight: 34 }}
+            list="zn-known-components"
             value={newCompId}
             disabled={disabled}
-            placeholder="输入组件 ID，如 line"
+            placeholder="输入或选择组件 ID，如 line"
             aria-label="新增组件授权 ID"
             onChange={(e) => setNewCompId(e.target.value)}
             onKeyDown={(e) => {
@@ -163,6 +202,15 @@ function GrantsEditor({
               }
             }}
           />
+          <datalist id="zn-known-components">
+            {knownComponents.map((id) => (
+              <option key={id} value={id} />
+            ))}
+          </datalist>
+          <label className="zn-grant-check">
+            <input type="checkbox" disabled={disabled} checked={newCompRead} onChange={(e) => setNewCompRead(e.target.checked)} />
+            读取
+          </label>
           <label className="zn-grant-check">
             <input type="checkbox" disabled={disabled} checked={newCompPublish} onChange={(e) => setNewCompPublish(e.target.checked)} />
             发布
@@ -171,7 +219,7 @@ function GrantsEditor({
             <input type="checkbox" disabled={disabled} checked={newCompMaintain} onChange={(e) => setNewCompMaintain(e.target.checked)} />
             维护
           </label>
-          <button type="button" className="zn-btn" disabled={disabled || !newCompId.trim()} onClick={addComponent}>
+          <button type="button" className="zn-btn" disabled={disabled || !newCompId.trim() || !(newCompRead || newCompPublish || newCompMaintain)} onClick={addComponent}>
             添加
           </button>
         </div>
@@ -203,9 +251,10 @@ function GrantsEditor({
           <input
             className="zn-input zn-input-mono"
             style={{ minHeight: 34 }}
+            list="zn-known-packages"
             value={newPkg}
             disabled={disabled}
-            placeholder="输入包名，如 @company/charts-vue"
+            placeholder="输入或选择包名，如 @company/charts-vue"
             aria-label="新增包授权名称"
             onChange={(e) => setNewPkg(e.target.value)}
             onKeyDown={(e) => {
@@ -215,6 +264,11 @@ function GrantsEditor({
               }
             }}
           />
+          <datalist id="zn-known-packages">
+            {knownPackages.map((pkg) => (
+              <option key={pkg} value={pkg} />
+            ))}
+          </datalist>
           <button type="button" className="zn-btn" disabled={disabled || !newPkg.trim()} onClick={addPackage}>
             添加包
           </button>
@@ -265,6 +319,21 @@ export default function ManagedAccountsConsole() {
   const createDialogRef = useRef<HTMLDialogElement | null>(null);
   const [draft, setDraft] = useState<ManagedAccountDraft>(emptyDraft);
   const [createError, setCreateError] = useState<string | null>(null);
+  const [knownComponents, setKnownComponents] = useState<string[]>([]);
+  const [knownPackages, setKnownPackages] = useState<string[]>([]);
+
+  useEffect(() => {
+    const session = getStoredSession();
+    if (!session) return;
+    const controller = new AbortController();
+    void readPublishingOptions({ apiUrl: platformApiOrigin, token: session.token, signal: controller.signal })
+      .then((opts) => {
+        setKnownComponents(opts.components.map((c) => c.componentId));
+        setKnownPackages(opts.packages);
+      })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -769,6 +838,8 @@ export default function ManagedAccountsConsole() {
                         <GrantsEditor
                           componentGrants={editComponents}
                           packageGrants={editPackages}
+                          knownComponents={knownComponents}
+                          knownPackages={knownPackages}
                           disabled={mutating}
                           onChangeComponents={setEditComponents}
                           onChangePackages={setEditPackages}
@@ -1086,6 +1157,8 @@ export default function ManagedAccountsConsole() {
           <GrantsEditor
             componentGrants={draft.componentGrants}
             packageGrants={draft.packageGrants}
+            knownComponents={knownComponents}
+            knownPackages={knownPackages}
             disabled={mutating}
             onChangeComponents={(next) => setDraft((prev) => ({ ...prev, componentGrants: next }))}
             onChangePackages={(next) => setDraft((prev) => ({ ...prev, packageGrants: next }))}

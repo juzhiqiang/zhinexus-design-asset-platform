@@ -90,6 +90,7 @@ export function acceptVisualBaseline(payload: {
   environmentKey: string;
   screenshotId: string;
   reason: string;
+  expectedRevision?: string;
 }) {
   return requestJson<ApiMessages['createBaselineResponse']>('/v1/baselines', {
     method: 'POST',

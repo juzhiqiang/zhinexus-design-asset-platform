@@ -35,9 +35,10 @@ const uuid: Schema = { ...text, pattern: '^[a-f0-9]{8}-[a-f0-9]{4}-[1-8][a-f0-9]
 const roles: Schema = array(choice(...MANAGED_ACCOUNT_ROLES), 1);
 const componentGrant = object({
   componentId,
+  canRead: { type: 'boolean' },
   canPublish: { type: 'boolean' },
   canMaintain: { type: 'boolean' },
-});
+}, ['canRead']);
 const summary = object({
   id: uuid,
   username: { ...text, maxLength: 64, pattern: MANAGED_ACCOUNT_USERNAME_PATTERN },
@@ -85,7 +86,7 @@ const auditEntry = object({
   requestId: { ...text, maxLength: 128 },
 }, ['requestId']);
 
-export type ManagedAccountComponentGrant = { componentId: string; canPublish: boolean; canMaintain: boolean };
+export type ManagedAccountComponentGrant = { componentId: string; canRead?: boolean; canPublish: boolean; canMaintain: boolean };
 export type ManagedAccountSummary = {
   id: string; username: string; displayName: string; roles: ManagedAccountRole[];
   enabled: boolean; credentialState: ManagedAccountCredentialState; syncState: ManagedAccountSyncState;
@@ -132,6 +133,9 @@ export function validateCreateManagedAccount(input: unknown): ValidationResult<C
     ...duplicates(value.packageGrants ?? [], '/packageGrants'),
     ...duplicates(value.roles, '/roles'),
   ];
+  if ((value.componentGrants ?? []).some(grant => !(grant.canRead || grant.canPublish || grant.canMaintain))) {
+    issues.push({ code: 'INVALID_SCHEMA', path: '/componentGrants', message: 'At least one component permission is required' });
+  }
   if ((value.componentGrants?.length ?? 0) > MANAGED_ACCOUNT_LIMITS.componentGrants) issues.push({ code: 'INVALID_SCHEMA', path: '/componentGrants', message: 'Too many component grants' });
   if ((value.packageGrants?.length ?? 0) > MANAGED_ACCOUNT_LIMITS.packageGrants) issues.push({ code: 'INVALID_SCHEMA', path: '/packageGrants', message: 'Too many package grants' });
   return issues.length ? failure(issues) : parsed;
@@ -147,6 +151,9 @@ export function validateUpdateManagedAccount(input: unknown): ValidationResult<U
   issues.push(...duplicates((value.componentGrants ?? []).map(grant => grant.componentId), '/componentGrants'));
   issues.push(...duplicates(value.packageGrants ?? [], '/packageGrants'));
   issues.push(...duplicates(value.roles ?? [], '/roles'));
+  if ((value.componentGrants ?? []).some(grant => !(grant.canRead || grant.canPublish || grant.canMaintain))) {
+    issues.push({ code: 'INVALID_SCHEMA', path: '/componentGrants', message: 'At least one component permission is required' });
+  }
   if ((value.componentGrants?.length ?? 0) > MANAGED_ACCOUNT_LIMITS.componentGrants) issues.push({ code: 'INVALID_SCHEMA', path: '/componentGrants', message: 'Too many component grants' });
   if ((value.packageGrants?.length ?? 0) > MANAGED_ACCOUNT_LIMITS.packageGrants) issues.push({ code: 'INVALID_SCHEMA', path: '/packageGrants', message: 'Too many package grants' });
   return issues.length ? failure(issues) : parsed;

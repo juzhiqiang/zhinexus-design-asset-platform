@@ -83,10 +83,15 @@ export class ManagedAccountsService {
     };
   }
   private async grants(sql: Sql, id: string): Promise<{ componentGrants: ManagedAccountComponentGrant[]; packageGrants: string[] }> {
-    const components = (await sql.query<{ component_id: string; can_publish: boolean; can_maintain: boolean }>('SELECT component_id,can_publish,can_maintain FROM managed_account_component_grants WHERE account_id=$1 ORDER BY component_id', [id])).rows;
+    const components = (await sql.query<{ component_id: string; can_read?: boolean; can_publish: boolean; can_maintain: boolean }>('SELECT component_id,can_read,can_publish,can_maintain FROM managed_account_component_grants WHERE account_id=$1 ORDER BY component_id', [id])).rows;
     const packages = (await sql.query<{ package_name: string }>('SELECT package_name FROM managed_account_package_grants WHERE account_id=$1 ORDER BY package_name', [id])).rows;
     return {
-      componentGrants: components.map(row => ({ componentId: row.component_id, canPublish: row.can_publish, canMaintain: row.can_maintain })),
+      componentGrants: components.map(row => ({
+        componentId: row.component_id,
+        ...(row.can_read ? { canRead: true } : {}),
+        canPublish: row.can_publish,
+        canMaintain: row.can_maintain,
+      })),
       packageGrants: packages.map(row => row.package_name),
     };
   }
@@ -144,8 +149,10 @@ export class ManagedAccountsService {
       const ids = componentGrants.map(grant => grant.componentId);
       await sql.query('DELETE FROM managed_account_component_grants WHERE account_id=$1 AND NOT (component_id = ANY($2::text[]))', [row.id, ids]);
       for (const grant of componentGrants) {
-        await sql.query('UPDATE managed_account_component_grants SET can_publish=$3,can_maintain=$4 WHERE account_id=$1 AND component_id=$2 AND (can_publish<>$3 OR can_maintain<>$4)', [row.id, grant.componentId, grant.canPublish, grant.canMaintain]);
-        await sql.query('UPDATE component_permissions SET can_publish=$3,can_maintain=$4 WHERE subject=$1 AND component_id=$2 AND (can_publish<$3 OR can_maintain<$4)', [row.platform_subject, grant.componentId, grant.canPublish, grant.canMaintain]);
+        const canRead = Boolean(grant.canRead);
+        await sql.query('UPDATE managed_account_component_grants SET can_read=(can_read AND $3),can_publish=(can_publish AND $4),can_maintain=(can_maintain AND $5) WHERE account_id=$1 AND component_id=$2 AND ((can_read AND NOT $3) OR (can_publish AND NOT $4) OR (can_maintain AND NOT $5)) AND ((can_read AND $3) OR (can_publish AND $4) OR (can_maintain AND $5))', [row.id, grant.componentId, canRead, grant.canPublish, grant.canMaintain]);
+        await sql.query('DELETE FROM managed_account_component_grants WHERE account_id=$1 AND component_id=$2 AND NOT ((can_read AND $3) OR (can_publish AND $4) OR (can_maintain AND $5))', [row.id, grant.componentId, canRead, grant.canPublish, grant.canMaintain]);
+        await sql.query('UPDATE component_permissions SET can_read=(can_read AND $3),can_publish=(can_publish AND $4),can_maintain=(can_maintain AND $5) WHERE subject=$1 AND component_id=$2 AND ((can_read AND NOT $3) OR (can_publish AND NOT $4) OR (can_maintain AND NOT $5))', [row.platform_subject, grant.componentId, canRead, grant.canPublish, grant.canMaintain]);
       }
       await sql.query('DELETE FROM component_permissions WHERE subject=$1 AND NOT (component_id = ANY($2::text[]))', [row.platform_subject, ids]);
     }
@@ -156,10 +163,11 @@ export class ManagedAccountsService {
   }
   private async expandGrants(sql: Sql, row: AccountRow, componentGrants?: ManagedAccountComponentGrant[], packageGrants?: string[]): Promise<void> {
     for (const grant of componentGrants ?? []) {
-      await sql.query(`INSERT INTO managed_account_component_grants(account_id,component_id,can_publish,can_maintain) VALUES ($1,$2,$3,$4)
-        ON CONFLICT (account_id,component_id) DO UPDATE SET can_publish=EXCLUDED.can_publish,can_maintain=EXCLUDED.can_maintain`, [row.id, grant.componentId, grant.canPublish, grant.canMaintain]);
-      await sql.query(`INSERT INTO component_permissions(subject,component_id,can_publish,can_maintain) VALUES ($1,$2,$3,$4)
-        ON CONFLICT (subject,component_id) DO UPDATE SET can_publish=EXCLUDED.can_publish,can_maintain=EXCLUDED.can_maintain`, [row.platform_subject, grant.componentId, grant.canPublish, grant.canMaintain]);
+      const canRead = Boolean(grant.canRead);
+      await sql.query(`INSERT INTO managed_account_component_grants(account_id,component_id,can_read,can_publish,can_maintain) VALUES ($1,$2,$3,$4,$5)
+        ON CONFLICT (account_id,component_id) DO UPDATE SET can_read=EXCLUDED.can_read,can_publish=EXCLUDED.can_publish,can_maintain=EXCLUDED.can_maintain`, [row.id, grant.componentId, canRead, grant.canPublish, grant.canMaintain]);
+      await sql.query(`INSERT INTO component_permissions(subject,component_id,can_read,can_publish,can_maintain) VALUES ($1,$2,$3,$4,$5)
+        ON CONFLICT (subject,component_id) DO UPDATE SET can_read=EXCLUDED.can_read,can_publish=EXCLUDED.can_publish,can_maintain=EXCLUDED.can_maintain`, [row.platform_subject, grant.componentId, canRead, grant.canPublish, grant.canMaintain]);
     }
     for (const name of packageGrants ?? []) {
       await sql.query('INSERT INTO managed_account_package_grants(account_id,package_name) VALUES ($1,$2) ON CONFLICT DO NOTHING', [row.id, name]);

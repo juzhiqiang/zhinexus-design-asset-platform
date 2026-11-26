@@ -9,9 +9,9 @@ import { uuid } from '../db/access.js';
 export type CatalogTarget = { releaseId: string } | { variantId: string; version: string };
 
 type Row = { id: string; variant_id: string; component_id: string; framework: 'vue'|'react'; version: string; name: string;
-  metadata: VariantRef; package_metadata: PackageRef; availability: 'Ready'|'DEPRECATED'; job_id: string };
+  metadata: VariantRef; package_metadata: PackageRef; availability: 'Ready'|'DEPRECATED'; deprecated_reason?: string | null; is_public?: boolean; job_id: string };
 const select = `SELECT vr.id,vr.variant_id,v.component_id,v.framework,p.name,p.version,vr.metadata,
-  p.metadata AS package_metadata,vr.availability,p.job_id FROM variant_releases vr
+  p.metadata AS package_metadata,vr.availability,vr.deprecated_reason,c.public AS is_public,p.job_id FROM variant_releases vr
   JOIN variants v ON v.id=vr.variant_id JOIN components c ON c.id=v.component_id
   JOIN package_releases p ON p.id=vr.package_release_id JOIN release_jobs j ON j.id=p.job_id`;
 const ready = "p.state='READY' AND j.state='READY'";
@@ -63,11 +63,28 @@ export class CatalogService {
       FROM screenshots s WHERE s.variant_release_id=$1`, [row.id, row.variant_id])).rows;
     const incompatible = (await this.db.query(`SELECT 1 FROM check_reports WHERE job_id=$1 AND variant_id=$2 AND content->>'baselineResult'='INCOMPATIBLE' LIMIT 1`, [row.job_id, row.variant_id])).rowCount;
     const outbox = (await this.db.query<{ state: ApiMessages['variantReleaseResponse']['indexStatus'] }>('SELECT state FROM release_outbox WHERE job_id=$1', [row.job_id])).rows[0];
+    const baselineHeads = subject !== null
+      ? (await this.db.query<{ exampleId: string; environmentKey: string; revisionId: string; screenshotId: string }>(
+          `SELECT h.example_id AS "exampleId",h.environment_key AS "environmentKey",h.revision_id AS "revisionId",
+                  COALESCE(s.client_ref,b.screenshot_id::text) AS "screenshotId"
+             FROM baseline_heads h
+             JOIN baseline_revisions b ON b.id=h.revision_id
+             LEFT JOIN screenshots s ON s.id=b.screenshot_id
+            WHERE h.variant_id=$1 AND h.revision_id IS NOT NULL
+            ORDER BY h.example_id,h.environment_key`,
+          [row.variant_id],
+        )).rows
+      : undefined;
     await this.find({ releaseId: row.id }, subject);
     return { variantReleaseId: row.id, variant: row.metadata, package: row.package_metadata, availability: row.availability,
       reportSource: screenshots.some(s => s.source === 'manual-upload') ? 'manual-upload' : screenshots.length ? 'local-automatic' : 'none',
       baselineStatus: screenshots.length && screenshots.every(s => s.source === 'local-automatic' && s.accepted) ? 'accepted' : incompatible ? 'incompatible' : 'unconfirmed',
-      indexStatus: outbox?.state ?? 'pending' };
+      indexStatus: outbox?.state ?? 'pending',
+      ...(subject !== null ? {
+        isPublic: Boolean(row.is_public),
+        ...(row.deprecated_reason ? { deprecatedReason: row.deprecated_reason } : {}),
+        baselineHeads: baselineHeads ?? [],
+      } : {}) };
   }
   async artifact(target: CatalogTarget, path: unknown, subject: string | null = null): Promise<{ bytes: Uint8Array; mime: string }> {
     const row = await this.find(target, subject);

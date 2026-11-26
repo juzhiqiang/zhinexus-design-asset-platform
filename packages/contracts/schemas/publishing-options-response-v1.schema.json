@@ -54,6 +54,9 @@
             "minLength": 1,
             "maxLength": 2048,
             "pattern": "\\S"
+          },
+          "isPublic": {
+            "type": "boolean"
           }
         },
         "required": [

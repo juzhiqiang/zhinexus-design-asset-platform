@@ -25,4 +25,12 @@ export class CategoriesController {
   publishingOptions(@Headers('authorization') auth: string | undefined, @Req() request: Request) {
     return this.platform.runCategories(auth, request.requestId, (service, context) => service.publishingOptions(context));
   }
+  @Post('publishing/components/:id/visibility') @HttpCode(200)
+  updateVisibility(@Param('id') id: string, @Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
+    return this.platform.runCategories(auth, request.requestId, (service, context) => service.updateComponentVisibility(id, body, context));
+  }
+  @Get('publishing/components/:id/releases')
+  componentReleases(@Param('id') id: string, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
+    return this.platform.runCategories(auth, request.requestId, (service, context) => service.componentReleaseHistory(id, context));
+  }
 }

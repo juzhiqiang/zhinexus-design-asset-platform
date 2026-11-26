@@ -16,7 +16,17 @@ describe('category snapshots and ordinary component materials', () => {
     expect(contracts.validateComponentCategoryList({ items: [category] }).ok).toBe(true);
     expect(contracts.validateCreateComponentCategory({ id: 'charts', name: '图表' }).ok).toBe(true);
     expect(contracts.validateUpdateComponentCategory({ name: '图表', enabled: false, expectedRevision: '12' }).ok).toBe(true);
-    expect(contracts.validatePublishingOptions({ categories: [category], components: [{ componentId: 'line', category: 'uncategorized' }], packages: ['@company/charts-vue'] }).ok).toBe(true);
+    expect(contracts.validatePublishingOptions({ categories: [category], components: [{ componentId: 'line', category: 'uncategorized', isPublic: false }], packages: ['@company/charts-vue'] }).ok).toBe(true);
+    expect((contracts as Record<string, (v: unknown) => { ok: boolean }>).validateUpdateComponentVisibility?.({ isPublic: true, reason: '评审通过后对画廊公开' })?.ok).toBe(true);
+    expect((contracts as Record<string, (v: unknown) => { ok: boolean }>).validateUpdateComponentVisibility?.({ isPublic: true, reason: '   ' })?.ok).toBe(false);
+    expect((contracts as Record<string, (v: unknown) => { ok: boolean }>).validateUpdateComponentVisibility?.({ isPublic: true, reason: 'ok', subject: 'forged' })?.ok).toBe(false);
+    expect((contracts as Record<string, (v: unknown) => { ok: boolean }>).validateComponentVisibility?.({ componentId: 'line', isPublic: true, category: 'charts' })?.ok).toBe(true);
+    expect((contracts as Record<string, (v: unknown) => { ok: boolean }>).validateComponentReleaseHistory?.({
+      componentId: 'line',
+      category: 'charts',
+      isPublic: false,
+      items: [{ variantReleaseId: '11111111-1111-4111-8111-111111111111', variantId: 'line-vue', framework: 'vue', packageName: '@company/charts-vue', packageVersion: '0.1.0', exportName: 'LineChart', availability: 'DEPRECATED', deprecatedReason: '已被 0.2.0 替代' }],
+    })?.ok).toBe(true);
     for (const name of ['', ' ', ' padded ', 'a'.repeat(129)]) expect(contracts.validateCreateComponentCategory({ id: 'charts', name }).ok).toBe(false);
     for (const expectedRevision of ['-1', '01', 1, '*']) expect(contracts.validateUpdateComponentCategory({ name: '图表', enabled: true, expectedRevision }).ok).toBe(false);
     expect(contracts.validateCreateComponentCategory({ id: 'charts', name: '图表', subject: 'forged', administrator: true }).ok).toBe(false);

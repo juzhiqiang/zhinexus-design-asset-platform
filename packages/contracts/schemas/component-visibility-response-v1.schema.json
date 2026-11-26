@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "component-visibility-response-v1",
+  "type": "object",
+  "properties": {
+    "componentId": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 128,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+    },
+    "category": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "\\S"
+    },
+    "isPublic": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "componentId",
+    "category",
+    "isPublic"
+  ],
+  "additionalProperties": false
+}

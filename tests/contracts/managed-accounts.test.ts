@@ -61,14 +61,35 @@ describe('创建自管账号', () => {
     const result = validateCreateManagedAccount(base);
     expect(result).toEqual({ ok: true, value: { ...base, username: 'lin.wei', roles: ['reader'] } });
   });
-  it('接受精确组件与包授权', () => {
+  it('接受精确组件与包授权（含仅只读 canRead 授权），拒绝全部权限皆为 false 的无效组件授权', () => {
     const result = validateCreateManagedAccount({
       ...base,
       roles: ['reader', 'publisher'],
-      componentGrants: [{ componentId: 'bar-chart', canPublish: true, canMaintain: false }],
+      componentGrants: [
+        { componentId: 'bar-chart', canPublish: true, canMaintain: false },
+        { componentId: 'line-chart', canRead: true, canPublish: false, canMaintain: false },
+      ],
       packageGrants: ['@company/charts-vue'],
     });
     expect(result.ok).toBe(true);
+    expect(
+      validateCreateManagedAccount({
+        ...base,
+        componentGrants: [{ componentId: 'line-chart', canRead: false, canPublish: false, canMaintain: false }],
+      }).ok,
+    ).toBe(false);
+    expect(
+      validateUpdateManagedAccount({
+        expectedRevision: '1',
+        componentGrants: [{ componentId: 'line-chart', canRead: true, canPublish: false, canMaintain: false }],
+      }).ok,
+    ).toBe(true);
+    expect(
+      validateUpdateManagedAccount({
+        expectedRevision: '1',
+        componentGrants: [{ componentId: 'line-chart', canPublish: false, canMaintain: false }],
+      }).ok,
+    ).toBe(false);
   });
   it('拒绝通配与空授权', () => {
     for (const componentGrants of [['*'], [''], ['bar*'], ['**'], ['../bar']] as const) {

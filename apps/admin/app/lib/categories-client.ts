@@ -1,8 +1,11 @@
 import {
-  validateComponentCategory, validateComponentCategoryList, validateCreateComponentCategory,
-  validatePublishingOptions, validateUpdateComponentCategory,
-  type ComponentCategory, type ComponentCategoryListResponse, type CreateComponentCategoryRequest,
-  type PublishingOptionsResponse, type UpdateComponentCategoryRequest, type ValidationResult,
+  validateComponentCategory, validateComponentCategoryList, validateComponentReleaseHistory,
+  validateComponentVisibility, validateCreateComponentCategory, validatePublishingOptions,
+  validateUpdateComponentCategory, validateUpdateComponentVisibility,
+  type ComponentCategory, type ComponentCategoryListResponse, type ComponentReleaseHistoryResponse,
+  type ComponentVisibilityResponse, type CreateComponentCategoryRequest,
+  type PublishingOptionsResponse, type UpdateComponentCategoryRequest,
+  type UpdateComponentVisibilityRequest, type ValidationResult,
 } from '@company/contracts';
 export type CategoryConnection = { apiUrl: string; token?: string; signal?: AbortSignal };
 export class CategoryApiError extends Error {
@@ -49,4 +52,13 @@ export async function updateComponentCategory(connection: CategoryConnection, id
 }
 export async function readPublishingOptions(connection: CategoryConnection): Promise<PublishingOptionsResponse> {
   return validated(validatePublishingOptions(await send(connection, '/v1/publishing/options')), '分类服务返回了无效的发布选项。');
+}
+export async function updateComponentVisibility(connection: CategoryConnection, componentId: string, draft: UpdateComponentVisibilityRequest): Promise<ComponentVisibilityResponse> {
+  const body = validated(validateUpdateComponentVisibility(draft), '请填写有效的可见性调整原因。');
+  const res = validated(validateComponentVisibility(await send(connection, `/v1/publishing/components/${encodeURIComponent(componentId)}/visibility`, body)), '服务返回了无效的组件可见性状态。');
+  if (res.componentId !== componentId) throw new Error('服务返回了不匹配的组件 ID。');
+  return res;
+}
+export async function readComponentReleaseHistory(connection: CategoryConnection, componentId: string): Promise<ComponentReleaseHistoryResponse> {
+  return validated(validateComponentReleaseHistory(await send(connection, `/v1/publishing/components/${encodeURIComponent(componentId)}/releases`)), '服务返回了无效的组件历史版本记录。');
 }

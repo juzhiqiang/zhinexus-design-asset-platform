@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "update-component-visibility-request-v1",
+  "type": "object",
+  "properties": {
+    "isPublic": {
+      "type": "boolean"
+    },
+    "reason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2000,
+      "pattern": "^(?![\\s\\S]*\\u0000)\\S(?:[\\s\\S]*\\S)?$"
+    }
+  },
+  "required": [
+    "isPublic",
+    "reason"
+  ],
+  "additionalProperties": false
+}

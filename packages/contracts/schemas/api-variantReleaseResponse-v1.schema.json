@@ -503,6 +503,53 @@
         "indexed",
         "failed"
       ]
+    },
+    "isPublic": {
+      "type": "boolean"
+    },
+    "deprecatedReason": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 2048,
+      "pattern": "\\S"
+    },
+    "baselineHeads": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "exampleId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "environmentKey": {
+            "type": "string",
+            "pattern": "^[a-f0-9]{64}$"
+          },
+          "revisionId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          },
+          "screenshotId": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 128,
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$"
+          }
+        },
+        "required": [
+          "exampleId",
+          "environmentKey",
+          "revisionId",
+          "screenshotId"
+        ],
+        "additionalProperties": false
+      },
+      "minItems": 0
     }
   },
   "required": [
