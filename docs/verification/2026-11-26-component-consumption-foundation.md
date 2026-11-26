@@ -15,7 +15,9 @@
 - Task 1：新测试先出现 4 项预期失败；补充类型冲突和 Unicode 长度用例另见 2 项 RED，再全部 GREEN。扩大契约回归发现旧匹配 Schema 的字段展开把新可选字段变为必填，已修正为显式可选。
 - Task 1 验证：pnpm --filter @company/contracts typecheck、schemas:generate、CLI build 通过；pnpm exec vitest run tests/contracts tests/unit/component-api.test.ts tests/unit/workbench-project.test.ts 为 24 文件、589/589 通过。
 - Ruling：default 只作为注解；组件按正常 Props 默认值执行，不隐式改写用户示例。Schema 属于有界、无引用的 JSON Schema 子集；生成材料注明结构校验与递归/跨字段运行时规则的区别。
-- Task 2：待执行。
+- Task 2：4 项新单测 RED→GREEN。冻结候选页派生控件缺失经真实浏览器复现并补齐。新浏览器用例覆盖 React/Vue 独立数字颜色、API 单处新增枚举、嵌套值约束、保留有效画布、保存重载且 controls 仍为空。用例修正了等待异步校验的时序后，完整专用 Playwright 12/12 通过（58.7s），已检查截图。
+- Task 2 验证：CLI typecheck 通过；pnpm exec vitest run tests/unit/component-consumption.test.ts tests/unit/workbench-project.test.ts tests/unit/workbench-server.test.ts tests/integration/workbench-templates.test.ts tests/integration/workbench-freeze.test.ts：5 文件、16/16 通过。消费者仍安装同一冻结 tarball，工作台保存未写入派生控件。
+- 浏览器环境：主仓库 .tools/playwright 缺当前 headless-shell；实际使用系统 ms-playwright 中已安装的 Chromium 1254，不下载或降级依赖。
 - Task 3：待执行。
 - Task 4：待执行。
 

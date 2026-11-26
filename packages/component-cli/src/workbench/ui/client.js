@@ -81,16 +81,23 @@ async function select(item){
 }
 function renderEditors(){
  const activeExample=example();const controls=$('controls');controls.replaceChildren();
- const descriptors=[...activeExample.controls];
- for(const prop of displayed().api.props)if(!descriptors.some(c=>c.name===prop.name)&&prop.name!==activeExample.dataProp)descriptors.push({name:prop.name,kind:prop.type==='boolean'?'boolean':prop.type==='number'?'number':prop.type==='string'?'text':'json'});
+ const descriptors=displayed().controls??activeExample.controls,groups=new Map();
  for(const control of descriptors){
-  const row=node('label',undefined,'control-row');row.append(node('span',control.name));let input;
-  if(control.kind==='enum'){input=node('select');for(const option of control.options??[])input.append(new Option(option,option));input.value=activeExample.props[control.name]??'';}
-  else if(control.kind==='json'){input=node('textarea');input.rows=3;input.value=JSON.stringify(activeExample.props[control.name]??null,null,2);}
-  else{input=node('input');input.type=control.kind==='boolean'?'checkbox':control.kind==='number'?'number':control.kind==='color'?'color':'text';if(input.type==='checkbox')input.checked=!!activeExample.props[control.name];else input.value=activeExample.props[control.name]??'';if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;}
-  input.setAttribute('aria-label',control.name);input.disabled=isReadonly();
-  input.addEventListener(control.kind==='json'?'change':'input',async()=>{try{let value=input.type==='checkbox'?input.checked:control.kind==='number'?Number(input.value):control.kind==='json'?JSON.parse(input.value):input.value;if(control.kind==='number'&&(input.value.trim()===''||!Number.isFinite(value)))throw new Error('请输入有效数字');const next=structuredClone(example());next.props[control.name]=value;await apply(next,false);}catch(e){invalid(e);}});
-  row.append(input);controls.append(row);
+  const prop=displayed().api.props.find(p=>p.name===control.name),schema=prop?.schema;
+  const value=Object.hasOwn(activeExample.props,control.name)?activeExample.props[control.name]:schema?.default;
+  const row=node('div',undefined,'control-row'),label=node('label',control.label??control.name);let input;
+  if(control.kind==='enum'){input=node('select');for(const option of control.options??[])input.append(new Option(option,option));input.value=value??'';}
+  else if(control.kind==='json'){input=node('textarea');input.rows=3;input.value=JSON.stringify(value??null,null,2);}
+  else{input=node('input');input.type=control.kind==='boolean'?'checkbox':control.kind==='number'?'number':control.kind==='color'?'color':'text';if(input.type==='checkbox')input.checked=!!value;else input.value=value??'';if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;if(input.type==='number')input.step=schema?.type==='integer'?'1':'any';}
+  input.id='prop-'+descriptors.indexOf(control);input.name=control.name;label.htmlFor=input.id;input.disabled=isReadonly();
+  if(prop?.required)input.required=true;
+  if(input.type==='text'&&schema?.minLength!==undefined)input.minLength=schema.minLength;
+  if(input.type==='text'&&schema?.maxLength!==undefined)input.maxLength=schema.maxLength;
+  input.addEventListener(control.kind==='json'?'change':'input',async()=>{try{let value=input.type==='checkbox'?input.checked:control.kind==='number'?Number(input.value):control.kind==='json'?JSON.parse(input.value):input.value;if(control.kind==='number'&&(input.value.trim()===''||!Number.isFinite(value)))throw new Error('请输入有效数字');const next=structuredClone(example());next.props[control.name]=value;await apply(next,false);input.setAttribute('aria-invalid',String(!!draft()?.invalid));}catch(e){input.setAttribute('aria-invalid','true');invalid(e);}});
+  row.append(label,input);
+  if(control.description){const help=node('small',control.description,'hint control-help');help.id=input.id+'-help';input.setAttribute('aria-describedby',help.id);row.append(help);}
+  let target=controls;if(control.group){if(!groups.has(control.group)){const group=node('fieldset',undefined,'control-group');group.append(node('legend',control.group));groups.set(control.group,group);controls.append(group);}target=groups.get(control.group);}
+  target.append(row);
  }
  $('props-json').value=JSON.stringify(activeExample.props,null,2);$('data').value=JSON.stringify(activeExample.data??null,null,2);
  $('states').replaceChildren(...activeExample.states.map(state=>new Option(state.label,state.id)));$('states').value=selectedState;$('states').disabled=!activeExample.states.length;

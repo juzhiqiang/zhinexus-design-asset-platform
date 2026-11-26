@@ -5,7 +5,14 @@ import { consumerHtml, consumerSource, initialPlayground, reactSource,vueSource,
 import type { ComponentApiV1 } from '../contracts/component-api.js';
 const json=(value:unknown)=>JSON.stringify(value,null,2)+'\n';
 export async function addMissingMaterials(root:string,variant:ProjectVariant,packageName:string,scaffold=false) {
-  const api:ComponentApiV1={schemaVersion:1,componentId:variant.componentId,framework:variant.framework,exportName:variant.exportName,exportPath:variant.exportPath,props:scaffold?[{name:'label',type:'string',required:false},{name:'value',type:'number',required:false},{name:'enabled',type:'boolean',required:false},{name:'color',type:'string',required:false},{name:'data',type:'number[]',required:false}]:[],events:scaffold?[{name:'change',payload:'{ value: number }'}]:[],notes:scaffold?['普通组件；不依赖 ECharts']:['请补充真实 Props、事件及自定义挂载需求。']};
+  const api:ComponentApiV1={schemaVersion:1,componentId:variant.componentId,framework:variant.framework,exportName:variant.exportName,exportPath:variant.exportPath,props:scaffold?[
+    {name:'label',type:'string',required:false,schema:{type:'string',default:'Hello juz',description:'组件标题'}},
+    {name:'value',type:'number',required:false,schema:{type:'number',default:42,description:'主数值'}},
+    {name:'enabled',type:'boolean',required:false,schema:{type:'boolean',default:true}},
+    {name:'color',type:'string',required:false,schema:{type:'string',default:'#A3D2FF',description:'标题和辅助文字颜色'},editor:{kind:'color'}},
+    {name:'valueColor',type:'string',required:false,schema:{type:'string',title:'数字颜色',description:'只影响主数值，不影响标题和辅助文字',default:'#FF6B35'},editor:{kind:'color',group:'数值样式'}},
+    {name:'data',type:'number[]',required:false,schema:{type:'array',items:{type:'number'},default:[]}},
+  ]:[],events:scaffold?[{name:'change',payload:'{ value: number }',schema:{type:'object',properties:{value:{type:'number'}},required:['value'],additionalProperties:false}}]:[],notes:scaffold?['普通组件；不依赖 ECharts。参数 schema/editor 同时供工作台、未来低代码与机器接入使用。']:['请补充真实 Props、事件及自定义挂载需求。']};
   const example=scaffold?initialPlayground():{schemaVersion:1,adapter:'custom',props:{},controls:[],states:[{id:'default',label:'默认',props:{}}]};
   const values:Record<string,string>={ [variant.api]:json(api), [variant.docs]:'# '+variant.exportName+'\n\n'+(scaffold?'可通过工作台调节参数、点击触发 change 事件。':'请补充组件用途、参数及挂载要求。')+'\n' };
   if(variant.playground) values[variant.playground]=json(example);
@@ -42,7 +49,7 @@ export async function createProject(cwd:string,directory:string,framework:string
     const devDependencies:Record<string,string>={vite:v.vite,typescript:current==='react'?v.typescript:v.vueTypescript,...current==='react'?{'@vitejs/plugin-react':v.reactPlugin,'@types/react':'19.3.0','@types/react-dom':'19.3.0',react:v.react,'react-dom':v.react}:{'@vitejs/plugin-vue':v.vuePlugin,'vue-tsc':v.vueTsc,vue:v.vue}};
     const compiler=current==='react'?'tsc':'vue-tsc';
     const files:Record<string,string>={
-      [prefix+'package.json']:json({name,version:'0.0.1',private:false,type:'module',files:['dist'],exports:{'.':{types:'./dist/index.d.ts',import:'./dist/index.js'}},scripts:{build:'vite build && '+compiler+' -p tsconfig.json --emitDeclarationOnly'+(current==='vue'?' && node .juz/declarations.mjs':''),typecheck:compiler+' -p tsconfig.json --noEmit',dev:'vite build --watch'},peerDependencies:current==='react'?{react:v.react,'react-dom':v.react}:{vue:v.vue},devDependencies,...framework==='all'?{}:{packageManager:'pnpm@12.18.0'}}),
+      [prefix+'package.json']:json({name,version:'0.0.1',private:false,type:'module',files:['dist','api','docs'],exports:{'.':{types:'./dist/index.d.ts',import:'./dist/index.js'},'./api/*':'./api/*'},scripts:{build:'vite build && '+compiler+' -p tsconfig.json --emitDeclarationOnly'+(current==='vue'?' && node .juz/declarations.mjs':''),typecheck:compiler+' -p tsconfig.json --noEmit',dev:'vite build --watch'},peerDependencies:current==='react'?{react:v.react,'react-dom':v.react}:{vue:v.vue},devDependencies,...framework==='all'?{}:{packageManager:'pnpm@12.18.0'}}),
       [configFile]:json(config),
       [prefix+'tsconfig.json']:json({compilerOptions:{target:'ES2022',module:'ESNext',moduleResolution:'Bundler',...current==='react'?{jsx:'react-jsx'}:{},strict:true,skipLibCheck:true,declaration:true,rootDir:'src',outDir:'dist',lib:['ES2022','DOM'],types:['vite/client']},include:['src']}),
       [prefix+'vite.config.js']:[
@@ -69,6 +76,6 @@ export async function createProject(cwd:string,directory:string,framework:string
   }
   if(framework==='all')await fs.writeFile(path.join(root,'component.workspace.json'),json({schemaVersion:1,packages:configs}));
   await fs.writeFile(path.join(root,'.gitignore'),'node_modules/\ndist/\n.component-releases/\n.component-state/\n.component-release.json\n');
-  await fs.writeFile(path.join(root,'README.md'),'# '+slug+'\n\n运行 pnpm install，然后 juz dev。本地开发无需登录。\n\n日常编辑 src/Demo.tsx（React）或 src/Demo.vue（Vue）；入口只负责导出。使用普通 Props、回调或 Emits，不需要平台基类。保存源码后工作台热更新。双框架项目在 packages/react 与 packages/vue 分别开发。\n\n在组件包内运行 pnpm typecheck、pnpm build。pnpm dev 为构建导出监听；juz dev 为源码调试工作台。\n\nplayground.json 是调参/数据/状态的唯一示例输入，可在工作台保存。api/ 与 docs/ 描述发布信息，新增公开参数时同步更新。component.config.json 登记入口与预览材料。\n\n.juz/ 是 CLI 生成的消费者桥接及声明工具，通常不需要编辑；应纳入版本管理，但不会进入组件 npm 包。复杂 Provider/插槽需求可登记自定义消费者，CLI 不推断业务初始化。\n\n发布前在工作台登录并分配后台分类，再打包验证和确认上传。\n');
+  await fs.writeFile(path.join(root,'README.md'),'# '+slug+'\n\n运行 pnpm install，然后 juz dev。本地开发无需登录。\n\n日常编辑 src/Demo.tsx（React）或 src/Demo.vue（Vue）；入口只负责导出。使用普通 Props、回调或 Emits，不需要平台基类。保存源码后工作台热更新。双框架项目在 packages/react 与 packages/vue 分别开发。\n\n在组件包内运行 pnpm typecheck、pnpm build。pnpm dev 为构建导出监听；juz dev 为源码调试工作台。\n\napi/demo.json 集中声明参数 schema、说明、默认值注解、编辑提示和事件载荷，供工作台、未来低代码和机器接入复用。新增参数时只需同步组件 Props 与 API；工作台自动派生控件。valueColor 只控制数字颜色，color 控制标题和辅助文字。普通 npm 导入仍直接使用组件，不加载元数据；需要时可显式读取包的 api/demo.json 子路径。\n\nplayground.json 只保存实例值、数据和预设状态，默认 controls 为空；旧显式控件仍可覆盖界面，但不能放宽 API 约束。default 是注解，不自动填入保存值；组件自身仍按常规方式提供默认值。docs/ 记录使用说明，component.config.json 登记入口与预览材料。\n\n.juz/ 是 CLI 生成的消费者桥接及声明工具，通常不需要编辑；应纳入版本管理，但不会进入组件 npm 包。复杂 Provider/插槽需求可登记自定义消费者，CLI 不推断业务初始化。\n\n发布前在工作台登录并分配后台分类，再打包验证和确认上传。\n');
   return {root,next:'cd '+directory+' && pnpm install && juz dev'};
 }

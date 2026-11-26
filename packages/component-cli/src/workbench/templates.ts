@@ -6,11 +6,12 @@ export const reactSource=`export type DemoProps = {
   value?: number;
   enabled?: boolean;
   color?: string;
+  valueColor?: string;
   data?: number[];
   onChange?: (event: { value: number }) => void;
 };
 
-export function Demo({ label = 'Hello juz', value = 42, enabled = true, color = '#A3D2FF', data = [], onChange }: DemoProps) {
+export function Demo({ label = 'Hello juz', value = 42, enabled = true, color = '#A3D2FF', valueColor = '#FF6B35', data = [], onChange }: DemoProps) {
   return (
     <button
       disabled={!enabled}
@@ -18,7 +19,7 @@ export function Demo({ label = 'Hello juz', value = 42, enabled = true, color = 
       style={{ width: '100%', height: '100%', padding: 32, border: 0, borderRadius: 12, background: '#172731', color, font: 'inherit', textAlign: 'left', cursor: 'pointer' }}
     >
       <h1>{label}</h1>
-      <strong style={{ fontSize: 56 }}>{value}</strong>
+      <strong style={{ fontSize: 56, color: valueColor }}>{value}</strong>
       <p>{JSON.stringify(data)}</p>
     </button>
   );
@@ -30,8 +31,9 @@ withDefaults(defineProps<{
   value?: number;
   enabled?: boolean;
   color?: string;
+  valueColor?: string;
   data?: number[];
-}>(), { label: 'Hello juz', value: 42, enabled: true, color: '#A3D2FF', data: () => [] });
+}>(), { label: 'Hello juz', value: 42, enabled: true, color: '#A3D2FF', valueColor: '#FF6B35', data: () => [] });
 
 const emit = defineEmits<{ change: [event: { value: number }] }>();
 </script>
@@ -43,7 +45,7 @@ const emit = defineEmits<{ change: [event: { value: number }] }>();
     @click="emit('change', { value: value + 1 })"
   >
     <h1>{{ label }}</h1>
-    <strong style="font-size: 56px">{{ value }}</strong>
+    <strong :style="{ fontSize: '56px', color: valueColor }">{{ value }}</strong>
     <p>{{ JSON.stringify(data) }}</p>
   </button>
 </template>
@@ -90,7 +92,10 @@ async function normalize(directory) {
 }
 await normalize('dist');
 `;
-export function initialPlayground() { return { schemaVersion:1, adapter:'auto', props:{label:'Hello juz',value:42,enabled:true,color:'#A3D2FF'}, data:[12,24,36], dataProp:'data', controls:[{name:'label',kind:'text'},{name:'value',kind:'number'},{name:'enabled',kind:'boolean'},{name:'color',kind:'color'}], states:[{id:'default',label:'默认',props:{label:'Hello juz',value:42,enabled:true,color:'#A3D2FF'},data:[12,24,36]},{id:'empty',label:'空数据',props:{label:'No data',value:0,enabled:true,color:'#A3D2FF'},data:[]}] }; }
+export function initialPlayground() {
+  const props={label:'Hello juz',value:42,enabled:true,color:'#A3D2FF',valueColor:'#FF6B35'};
+  return {schemaVersion:1,adapter:'auto',props,data:[12,24,36],dataProp:'data',controls:[],states:[{id:'default',label:'默认',props:{...props},data:[12,24,36]},{id:'empty',label:'空数据',props:{...props,label:'No data',value:0},data:[]}]};
+}
 export function consumerSource(packageName:string,variant:ProjectVariant,api:ComponentApiV1):string {
   const moduleName=JSON.stringify(packageName+variant.exportPath.slice(1));
   const imports=variant.framework==='react' ? "import { createElement, Component as ReactComponent } from 'react';\nimport { createRoot } from 'react-dom/client';" : "import { createApp, h, shallowRef, nextTick } from 'vue';";
