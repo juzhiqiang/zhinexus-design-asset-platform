@@ -3,33 +3,52 @@ import { join } from 'node:path';
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { createEmptySevenComponentsDraft } from '../../apps/admin/app/lib/uploads/manifest-form.js';
 
 const REPO_ROOT = join(__dirname, '..', '..');
 const GLOBALS_CSS_PATH = join(REPO_ROOT, 'apps', 'admin', 'app', 'globals.css');
 
-const SESSION = { token: 'header.payload.signature', subject: 'web-developer-alice', roles: ['publisher', 'maintainer'], channel: 'web' as const };
+const SESSION = { token: 'header.payload.signature', subject: 'web-developer-alice', roles: ['reader', 'publisher', 'maintainer'], channel: 'web' as const };
+
+const navState = { pathname: '/assets', search: '' };
 
 vi.mock('next/link', () => ({
   default: ({ href, children, ...rest }: { href: string; children?: unknown }) =>
     createElement('a', { href, ...rest }, children as never),
 }));
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: vi.fn(), push: vi.fn() }),
+  usePathname: () => navState.pathname,
+  useSearchParams: () => new URLSearchParams(navState.search),
+  redirect: vi.fn(),
+}));
+
+const authState = { session: SESSION as typeof SESSION | null };
+
 vi.mock('../../apps/admin/app/lib/auth.js', () => ({
+  SESSION_EXPIRED_EVENT: 'zhinexus:session-expired',
   companyLoginUrl: 'http://127.0.0.1:3000/v1/auth/oidc/start?target=admin',
   platformApiOrigin: 'http://127.0.0.1:3000',
-  getStoredSession: () => SESSION,
-  loadCompanySession: async () => SESSION,
+  getStoredSession: () => authState.session,
+  loadCompanySession: async () => authState.session,
+  getAuthHeaders: () => (authState.session ? { authorization: `Bearer ${authState.session.token}` } : {}),
+  getAuthCredentials: () => 'omit',
   saveSession: () => SESSION,
   clearSession: () => undefined,
+  notifySessionExpired: () => undefined,
+  logoutAndRedirect: () => undefined,
 }));
 
 /**
  * React 19 的 `use(params)` 在 SSR 会挂起；这里直接把已解析的 params 交回组件。
- * 另有一个一次性注入开关：各页面的首屏数据（登录会话 / 接入配置视图）都写在 useEffect 的
- * 异步回调里，SSR 永远只能渲染登录门，因此把这个值注入首个 `useState(null)`，
- * 才能验证「14 个逐实现截图行」「接入设置分区页头」等登录后契约。
+ * `injectQueue` 支持按调用顺序为指定 `useState` 注入首屏数据（如接入配置视图、作业状态或演示草稿）。
  */
-const reactSeam = { inject: null as unknown, params: { jobId: 'job-web-manual-001' } };
+const reactSeam = {
+  injectNull: undefined as unknown,
+  injectPredicate: null as ((init: unknown) => unknown | undefined) | null,
+  params: { jobId: 'job-web-manual-001' },
+};
 
 const ACCESS_VIEW = {
   sections: {
@@ -39,7 +58,6 @@ const ACCESS_VIEW = {
   audit: [] as unknown[],
 };
 
-/** 形状合法的授权请求，与本地身份服务 `CompanyOidc.start` 生成的参数同形。 */
 const LOGIN_QUERY = {
   client_id: 'zhinexus-web',
   redirect_uri: 'https://api.example.com/v1/auth/oidc/callback',
@@ -58,9 +76,15 @@ vi.mock('react', async (importOriginal) => {
       return value === undefined || value === null ? undefined : actual.use(value as never);
     },
     useState: (init: unknown) => {
-      if (reactSeam.inject !== null && init === null) {
-        const injected = reactSeam.inject;
-        reactSeam.inject = null;
+      if (reactSeam.injectPredicate) {
+        const override = reactSeam.injectPredicate(init);
+        if (override !== undefined) {
+          return [override, () => undefined];
+        }
+      }
+      if (reactSeam.injectNull !== undefined && init === null) {
+        const injected = reactSeam.injectNull;
+        reactSeam.injectNull = undefined;
         return [injected, () => undefined];
       }
       return actual.useState(init as never);
@@ -82,7 +106,6 @@ function cssVariables(): Set<string> {
   return names;
 }
 
-/** 收集渲染结果里用到的类名与 var() 引用。 */
 function collectUsage(html: string): { classes: Set<string>; vars: Set<string> } {
   const classes = new Set<string>();
   for (const match of html.matchAll(/class="([^"]*)"/g)) {
@@ -93,14 +116,6 @@ function collectUsage(html: string): { classes: Set<string>; vars: Set<string> }
   return { classes, vars };
 }
 
-/**
- * 渲染一个页面组件。服务端组件（`/login`）是 async 函数，调用后拿到的是元素；
- * 客户端组件必须照旧走 `createElement` + `renderToStaticMarkup`——直接调用会让它的 hook 在
- * React 渲染之外执行，dispatcher 是 null。所以按「是不是 async 函数」分流，而不是先调用再看。
- *
- * 加载器只承诺 `default` 存在：各画板的 props 形状不同（`params`、`searchParams`、无参），
- * 写死成 `() => unknown` 会让带 props 的画板在类型上就不合法。
- */
 async function renderPage(load: () => Promise<{ default: unknown }>, props: Record<string, unknown> = {}): Promise<string> {
   const module = await load();
   const component = module.default as (props: Record<string, unknown>) => unknown;
@@ -108,7 +123,6 @@ async function renderPage(load: () => Promise<{ default: unknown }>, props: Reco
   return renderToStaticMarkup(element as never);
 }
 
-/** 类名 → 定义处；只列当前 globals.css 未覆盖的（组件内联样式类名另有来源时忽略）。 */
 const KNOWN_EXTERNAL_CLASSES = new Set<string>();
 
 describe('控制台各画板可渲染且不引用未定义的样式', () => {
@@ -118,57 +132,124 @@ describe('控制台各画板可渲染且不引用未定义的样式', () => {
   beforeEach(() => {
     defined = cssClassNames();
     declared = cssVariables();
+    authState.session = SESSION;
+    navState.pathname = '/assets';
+    navState.search = '';
+    reactSeam.injectNull = undefined;
+    reactSeam.injectPredicate = null;
   });
 
-  it('上传画板：登录后渲染 14 个逐实现截图行与阻断提示', async () => {
-    reactSeam.inject = SESSION;
-    const html = await renderPage(() => import('../../apps/admin/app/upload/page.js'));
-    expect(html).toContain('资产发布工作区 (Manual Release)');
-    expect(html).toContain('当前登录身份：');
-    expect(html).toContain('逐实现截图关联与必检清单');
-    expect(html).toContain('阻断发布：存在未关联有效截图的组件实现');
-    expect(html).toContain('SCREENSHOT_REQUIRED');
-    expect(html).toContain('id="import-manifest-input"');
-    expect(html).toContain('id="import-files-input"');
-    expect(html).toContain('id="import-screenshots-input"');
-    expect(html).toContain('id="missing-screenshots-alert"');
-    expect(html).toContain('确认并提交发布');
-    expect((html.match(/class="[^"]*variant-shot-card/g) ?? []).length).toBe(14);
-    expect(html).toContain('data-upload-shot="line-vue"');
+  it('全局外壳：未登录时拦截保护页并渲染登录核验态，已登录时提供自助改密入口', async () => {
+    const { ZnShell } = await import('../../apps/admin/app/lib/design/shell.js');
+    authState.session = null;
+    navState.pathname = '/upload';
+    const guestHtml = renderToStaticMarkup(createElement(ZnShell, null, createElement('div', null, 'secret')));
+    expect(guestHtml).toContain('正在核验登录状态');
+    expect(guestHtml).not.toContain('secret');
+
+    authState.session = SESSION;
+    reactSeam.injectPredicate = (init) => {
+      if (typeof init === 'function') {
+        const evaluated = (init as () => unknown)();
+        if (evaluated === 'checking') return 'authenticated';
+      }
+      if (init === '') return SESSION.subject;
+      return undefined;
+    };
+    const authedHtml = renderToStaticMarkup(createElement(ZnShell, null, createElement('div', null, 'workspace')));
+    expect(authedHtml).toContain('workspace');
+    expect(authedHtml).toContain('修改密码');
+    expect(authedHtml).toContain('退出登录');
   });
 
-  it('上传画板：未登录时渲染登录门', async () => {
-    reactSeam.inject = null;
-    const auth = await import('../../apps/admin/app/lib/auth.js');
-    (auth as { getStoredSession: () => unknown }).getStoredSession = () => null;
-    const html = await renderPage(() => import('../../apps/admin/app/upload/page.js'));
-    expect(html).toContain('登录后开放');
-    expect(html).toContain('此处提供组件发布功能');
-    expect(html).toContain('id="token-input"');
-    (auth as { getStoredSession: () => unknown }).getStoredSession = () => SESSION;
+  it('上传画板：默认空工作台与加载 14 个逐实现截图行及阻断提示均正常渲染', async () => {
+    const emptyHtml = await renderPage(() => import('../../apps/admin/app/upload/page.js'));
+    expect(emptyHtml).toContain('资产发布工作区 (Manual Release)');
+    expect(emptyHtml).toContain('当前登录身份：');
+    expect(emptyHtml).toContain('加载 7 组件演示草稿');
+    expect(emptyHtml).toContain('尚未导入冻结发布清单');
+    expect(emptyHtml).toContain('id="import-manifest-input"');
+    expect(emptyHtml).toContain('id="import-files-input"');
+    expect(emptyHtml).toContain('id="import-screenshots-input"');
+    expect(emptyHtml).toContain('确认并提交发布');
+
+    const demo = createEmptySevenComponentsDraft('0.0.6');
+    reactSeam.injectPredicate = (init) => {
+      if (init && typeof init === 'object' && 'channel' in init && (init as { channel?: unknown }).channel === 'web') {
+        return demo.manifest;
+      }
+      if (Array.isArray(init) && init.length === 0) {
+        return demo.manifest.variants.map((v) => v.variantId);
+      }
+      if (init && typeof init === 'object' && 'missingVariantIds' in init) {
+        return {
+          ok: false,
+          missingVariantIds: demo.manifest.variants.map((v) => v.variantId),
+          issues: [{ code: 'SCREENSHOT_REQUIRED', path: '/variants/0/screenshots', message: '缺少展示截图' }],
+        };
+      }
+      return undefined;
+    };
+    const draftHtml = await renderPage(() => import('../../apps/admin/app/upload/page.js'));
+    expect(draftHtml).toContain('阻断发布：存在未关联有效截图的组件实现');
+    expect(draftHtml).toContain('SCREENSHOT_REQUIRED');
+    expect(draftHtml).toContain('id="missing-screenshots-alert"');
+    expect((draftHtml.match(/class="[^"]*variant-shot-card/g) ?? []).length).toBe(14);
+    expect(draftHtml).toContain('data-upload-shot="line-vue"');
   });
 
-  it('发布作业画板：渲染 7 步步骤器与四个可达性检查', async () => {
-    const html = await renderPage(() => import('../../apps/admin/app/jobs/[jobId]/page.js'), {
+  it('发布作业列表与详情画板：对齐 PUBLISHING 状态筛选，仅在 RETRY_WAIT 显示重试，READY 展示基线候选与资产入口', async () => {
+    const listHtml = await renderPage(() => import('../../apps/admin/app/jobs/page.js'));
+    expect(listHtml).toContain('发布作业');
+    expect(listHtml).toContain('PUBLISHING');
+    expect(listHtml).not.toContain('>RUNNING<');
+
+    // RETRY_WAIT：允许重试
+    reactSeam.injectNull = { state: 'RETRY_WAIT', stage: 'ENSURE_PACKAGES', attempt: 2, lastError: { code: 'REGISTRY_UNAVAILABLE' }, missingArtifacts: [] };
+    const retryHtml = await renderPage(() => import('../../apps/admin/app/jobs/[jobId]/page.js'), {
       params: Promise.resolve({ jobId: 'job-web-manual-001' }),
     });
-    expect(html).toContain('发布作业流水线状态跟踪');
-    expect(html).toContain('作业编号：');
-    for (const stage of ['PENDING', 'FINALIZE_OBJECTS', 'ENSURE_PACKAGES', 'REGISTER_ASSETS', 'CHECK_AVAILABILITY', 'READY_TX', 'READY']) {
-      expect(html).toContain(stage);
-    }
-    expect((html.match(/class="[^"]*pipeline-step/g) ?? []).length).toBe(7);
-    expect(html).toContain('冻结对象摘要');
-    expect(html).toContain('Verdaccio 包版本');
-    expect(html).toContain('静态预览入口');
-    expect(html).toContain('PostgreSQL 事务');
+    expect(retryHtml).toContain('发布作业流水线状态跟踪');
+    expect((retryHtml.match(/class="[^"]*pipeline-step/g) ?? []).length).toBe(7);
+    expect(retryHtml).toContain('重试作业');
+
+    // CONFLICT：不可变冲突终态不渲染重试按钮
+    reactSeam.injectNull = { state: 'CONFLICT', stage: 'ENSURE_PACKAGES', attempt: 1, lastError: { code: 'CONFLICT' }, missingArtifacts: [] };
+    const conflictHtml = await renderPage(() => import('../../apps/admin/app/jobs/[jobId]/page.js'), {
+      params: Promise.resolve({ jobId: 'job-web-manual-001' }),
+    });
+    expect(conflictHtml).not.toContain('重试作业');
+
+    // READY：展示基线候选与查看已发布资产链接
+    reactSeam.injectNull = {
+      state: 'READY',
+      stage: 'READY',
+      attempt: 1,
+      missingArtifacts: [],
+      baselineCandidates: [{ screenshotId: 'shot-uuid-1', sourceScreenshotId: 'shot-line-vue', variantId: 'line-vue', exampleId: 'default', environmentKey: 'a'.repeat(64) }],
+    };
+    const readyHtml = await renderPage(() => import('../../apps/admin/app/jobs/[jobId]/page.js'), {
+      params: Promise.resolve({ jobId: 'job-web-manual-001' }),
+    });
+    expect(readyHtml).toContain('查看已发布资产');
+    expect(readyHtml).toContain('line-vue');
   });
 
-  it('接入设置画板：默认分区页头为「接入设置」，标签页与审计区域齐备', async () => {
-    reactSeam.inject = ACCESS_VIEW;
+  it('资产管理与组件分类画板：正常渲染指标与列表骨架', async () => {
+    const assetsHtml = await renderPage(() => import('../../apps/admin/app/assets/page.js'));
+    expect(assetsHtml).toContain('<h1>资产管理</h1>');
+    expect(assetsHtml).toContain('01 / ASSET REGISTRY');
+
+    const categoriesHtml = await renderPage(() => import('../../apps/admin/app/categories/page.js'));
+    expect(categoriesHtml).toContain('<h1>组件分类</h1>');
+    expect(categoriesHtml).toContain('04 / CATEGORY REGISTRY');
+  });
+
+  it('接入与配置画板：默认分区页头为「接入与配置」，标签页与审计区域齐备', async () => {
+    reactSeam.injectNull = ACCESS_VIEW;
     const html = await renderPage(() => import('../../apps/admin/app/access-settings/page.js'));
-    expect(html).toContain('<h1>接入设置</h1>');
-    expect(html).toContain('03 / ACCESS REGISTRY');
+    expect(html).toContain('<h1>接入与配置</h1>');
+    expect(html).toContain('06 / ACCESS REGISTRY');
     expect(html).toContain('公司登录（OIDC）');
     expect(html).toContain('预览入口');
     expect(html).toContain('role="tablist"');
@@ -176,23 +257,21 @@ describe('控制台各画板可渲染且不引用未定义的样式', () => {
     expect(html).toContain('运行检查');
     expect(html).toContain('启用此版本');
     expect(html).toContain('aria-label="变更审计"');
-    // 默认分区是公司登录，check-tls 属于预览入口分区（Playwright 切 tab 后才断言它）
     expect(html).toContain('data-testid="check-discovery"');
   });
 
-  it('用户与权限画板：渲染指标行、成员目录与账号操作', async () => {
-    reactSeam.inject = SESSION;
+  it('成员与权限画板：渲染指标行、成员目录、分页栏与不确定状态锁定提示', async () => {
     const html = await renderPage(() => import('../../apps/admin/app/users/page.js'));
-    expect(html).toContain('用户与权限');
+    expect(html).toContain('成员与权限');
     expect(html).toContain('05 / IDENTITY LEDGER');
     expect(html).toContain('成员账号');
-    expect(html).toContain('待首次改密');
-    expect(html).toContain('创建账号');
-    expect(html).toContain('读取记录');
+    expect(html).toContain('待设置密码');
+    expect(html).toContain('新建成员');
+    expect(html).toContain('操作审计');
+    expect(html).toContain('aria-label="成员列表分页"');
   });
 
   it('匹配画板：渲染权限边界、上下文表单与两个精确匹配面板', async () => {
-    reactSeam.inject = SESSION;
     const html = await renderPage(() => import('../../apps/admin/app/match/page.js'));
     expect(html).toContain('项目上下文匹配');
     expect(html).toContain('06 / PROJECT INTELLIGENCE');
@@ -204,24 +283,36 @@ describe('控制台各画板可渲染且不引用未定义的样式', () => {
     expect(html).toContain('检索候选');
   });
 
-  it('全部画板的类名与 CSS 变量都在 globals.css 中有定义', async () => {
-    const pages: Array<{ load: () => Promise<{ default: unknown }>; props: Record<string, unknown> }> = [
-      { load: () => import('../../apps/admin/app/upload/page.js'), props: {} },
-      { load: () => import('../../apps/admin/app/jobs/[jobId]/page.js'), props: { params: Promise.resolve({ jobId: 'job-web-manual-001' }) } },
-      { load: () => import('../../apps/admin/app/access-settings/page.js'), props: {} },
-      { load: () => import('../../apps/admin/app/users/page.js'), props: {} },
-      { load: () => import('../../apps/admin/app/match/page.js'), props: {} },
-      { load: () => import('../../apps/admin/app/login/page.js'), props: { searchParams: Promise.resolve(LOGIN_QUERY) } },
+  it('全部画板与全局外壳的类名与 CSS 变量都在 globals.css 中有定义', async () => {
+    const pages: Array<{ name: string; load: () => Promise<{ default: unknown }>; props: Record<string, unknown>; injectNull?: unknown }> = [
+      { name: 'assets', load: () => import('../../apps/admin/app/assets/page.js'), props: {} },
+      { name: 'upload', load: () => import('../../apps/admin/app/upload/page.js'), props: {} },
+      { name: 'jobs', load: () => import('../../apps/admin/app/jobs/page.js'), props: {} },
+      { name: 'job-detail', load: () => import('../../apps/admin/app/jobs/[jobId]/page.js'), props: { params: Promise.resolve({ jobId: 'job-web-manual-001' }) } },
+      { name: 'categories', load: () => import('../../apps/admin/app/categories/page.js'), props: {} },
+      { name: 'access-settings', load: () => import('../../apps/admin/app/access-settings/page.js'), props: {}, injectNull: ACCESS_VIEW },
+      { name: 'users', load: () => import('../../apps/admin/app/users/page.js'), props: {} },
+      { name: 'match', load: () => import('../../apps/admin/app/match/page.js'), props: {} },
+      { name: 'login', load: () => import('../../apps/admin/app/login/page.js'), props: { searchParams: Promise.resolve(LOGIN_QUERY) } },
     ];
     const missingClasses = new Set<string>();
     const missingVars = new Set<string>();
-    for (const { load, props } of pages) {
-      reactSeam.inject = load === pages[2]!.load ? ACCESS_VIEW : SESSION;
+    for (const { load, props, injectNull } of pages) {
+      reactSeam.injectNull = injectNull;
       const { classes, vars } = collectUsage(await renderPage(load, props));
       for (const name of classes) if (!defined.has(name) && !KNOWN_EXTERNAL_CLASSES.has(name)) missingClasses.add(name);
       for (const name of vars) if (!declared.has(name)) missingVars.add(name);
     }
+    const { ZnShell } = await import('../../apps/admin/app/lib/design/shell.js');
+    reactSeam.injectPredicate = (init) => {
+      if (typeof init === 'function' && (init as () => unknown)() === 'checking') return 'authenticated';
+      return undefined;
+    };
+    const shellUsage = collectUsage(renderToStaticMarkup(createElement(ZnShell, null, createElement('div', null, 'ok'))));
+    for (const name of shellUsage.classes) if (!defined.has(name) && !KNOWN_EXTERNAL_CLASSES.has(name)) missingClasses.add(name);
+    for (const name of shellUsage.vars) if (!declared.has(name)) missingVars.add(name);
+
     expect([...missingClasses], '渲染出但 globals.css 未定义的类名').toEqual([]);
-    expect([...missingVars], '引用到但 :root 未声明的 CSS 变量').toEqual([]);
+    expect([...missingVars], '引用到但 globals.css 未声明的 CSS 变量').toEqual([]);
   });
 });

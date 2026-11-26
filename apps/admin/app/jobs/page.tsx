@@ -10,7 +10,7 @@ import { ServiceUnavailableState } from '../lib/design/ServiceUnavailableState';
 
 const MOTIF = COMMAND_MOTIFS[1]!;
 
-const STATE_OPTIONS = ['ALL', 'PENDING', 'RUNNING', 'RETRY_WAIT', 'READY', 'REJECTED', 'CONFLICT'] as const;
+const STATE_OPTIONS = ['ALL', 'UPLOADING', 'VALIDATING', 'PENDING', 'PUBLISHING', 'RETRY_WAIT', 'READY', 'REJECTED', 'CONFLICT'] as const;
 
 function badgeClass(state: ReleaseJobSummary['state']): string {
   if (state === 'READY') return 'zn-badge-success';

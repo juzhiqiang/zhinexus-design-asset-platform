@@ -63,9 +63,53 @@ export async function listManagedAccounts(query: { query?: string; enabled?: boo
   if (query.enabled !== undefined) search.set('enabled', String(query.enabled));
   if (query.page) search.set('page', String(query.page));
   if (query.pageSize) search.set('pageSize', String(query.pageSize));
-  const parsed = validateManagedAccountListResponse(await send(search.toString() ? '?' + search.toString() : '', 'GET'));
+  const raw = await send(search.toString() ? '?' + search.toString() : '', 'GET');
+  if (
+    raw &&
+    typeof raw === 'object' &&
+    !Array.isArray(raw) &&
+    'items' in raw &&
+    Array.isArray(raw.items) &&
+    raw.items.length === 0 &&
+    'page' in raw &&
+    typeof raw.page === 'number' &&
+    'pageSize' in raw &&
+    typeof raw.pageSize === 'number' &&
+    'total' in raw &&
+    typeof raw.total === 'number' &&
+    raw.total >= 0
+  ) {
+    return { items: [], page: raw.page, pageSize: raw.pageSize, total: raw.total };
+  }
+  const parsed = validateManagedAccountListResponse(raw);
   if (!parsed.ok) throw new Error('账号服务返回了无效的成员列表。');
   return parsed.value;
+}
+
+export async function changeOwnPassword(input: { username: string; currentPassword: string; newPassword: string }): Promise<void> {
+  const response = await fetch(`${platformApiOrigin}/identity/password`, {
+    method: 'POST',
+    cache: 'no-store',
+    redirect: 'error',
+    referrerPolicy: 'no-referrer',
+    signal: AbortSignal.timeout(15_000),
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      username: input.username.trim(),
+      current_password: input.currentPassword,
+      new_password: input.newPassword,
+    }),
+  });
+  if (!response.ok) {
+    const payload = (await response.json().catch(() => null)) as { details?: Array<{ message?: string }>; code?: string } | null;
+    const detailMsg = payload?.details?.[0]?.message;
+    const message = response.status === 401
+      ? '用户名或当前密码不正确。'
+      : response.status === 503 || payload?.code === 'INFRA_UNAVAILABLE'
+        ? '当前未启用本地账号密码服务，请通过企业身份提供商修改口令。'
+        : detailMsg || '修改密码失败，请确认新密码至少 12 个字符且不与原密码相同。';
+    throw new ManagedAccountApiError(message, response.status);
+  }
 }
 
 export async function readManagedAccount(id: string): Promise<ManagedAccountDetail> {

@@ -243,10 +243,13 @@ export default function ManagedAccountsConsole() {
   const [showPassword, setShowPassword] = useState(false);
   const [confirmDisable, setConfirmDisable] = useState(false);
 
-  // 搜索防抖与筛选
+  // 搜索防抖、状态筛选与服务端分页
   const [queryInput, setQueryInput] = useState('');
   const [debouncedQuery, setDebouncedQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'enabled' | 'disabled'>('all');
+  const [page, setPage] = useState(1);
+  const pageSize = 20;
+  const [totalAccounts, setTotalAccounts] = useState(0);
 
   // 列表 / 操作状态
   const [loading, setLoading] = useState(false);
@@ -264,7 +267,10 @@ export default function ManagedAccountsConsole() {
   const [createError, setCreateError] = useState<string | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(queryInput.trim()), 220);
+    const timer = setTimeout(() => {
+      setDebouncedQuery(queryInput.trim());
+      setPage(1);
+    }, 220);
     return () => clearTimeout(timer);
   }, [queryInput]);
 
@@ -306,8 +312,11 @@ export default function ManagedAccountsConsole() {
       const list = await listManagedAccounts({
         ...(debouncedQuery ? { query: debouncedQuery } : {}),
         ...(statusFilter === 'all' ? {} : { enabled: statusFilter === 'enabled' }),
+        page,
+        pageSize,
       });
       setAccounts(list.items);
+      setTotalAccounts(list.total);
     } catch (failure) {
       setError({
         status: failure instanceof ManagedAccountApiError ? failure.status : undefined,
@@ -316,7 +325,7 @@ export default function ManagedAccountsConsole() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedQuery, statusFilter]);
+  }, [debouncedQuery, statusFilter, page, pageSize]);
 
   useEffect(() => {
     void reload();
@@ -343,19 +352,21 @@ export default function ManagedAccountsConsole() {
     }
   }, [viewTab, loadAudit]);
 
+  const totalPages = Math.max(1, Math.ceil(totalAccounts / pageSize));
+
   const metrics = useMemo(() => {
     const enabled = accounts.filter((item) => item.enabled).length;
     const passwordPending = accounts.filter((item) => item.credentialState === 'unset').length;
     const latest = accounts.reduce<string | null>((best, item) => (!best || item.updatedAt > best ? item.updatedAt : best), null);
     return {
-      total: accounts.length,
+      total: Math.max(totalAccounts, accounts.length),
       enabled,
       enabledRatio: accounts.length ? Math.round((enabled / accounts.length) * 100) : 0,
       passwordPending,
       latestTime: latest ? new Date(latest).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit', hour12: false }) : '—',
       latestDate: latest ? new Date(latest).toLocaleDateString('zh-CN') : '暂无同步',
     };
-  }, [accounts]);
+  }, [accounts, totalAccounts]);
 
   const isDirty = useMemo(() => {
     if (!selectedDetail) return false;
@@ -552,7 +563,10 @@ export default function ManagedAccountsConsole() {
                           type="button"
                           className="zn-tab"
                           aria-selected={statusFilter === val}
-                          onClick={() => setStatusFilter(val)}
+                          onClick={() => {
+                            setStatusFilter(val);
+                            setPage(1);
+                          }}
                         >
                           {label}
                         </button>
@@ -622,6 +636,30 @@ export default function ManagedAccountsConsole() {
                     ) : null}
                   </div>
                 )}
+
+                <nav className="zn-pagination" aria-label="成员列表分页">
+                  <span className="zn-hint">
+                    共 {Math.max(totalAccounts, accounts.length)} 名成员 · 第 {page} / {totalPages} 页
+                  </span>
+                  <div className="zn-row" style={{ gap: 8 }}>
+                    <button
+                      type="button"
+                      className="zn-btn"
+                      disabled={loading || page <= 1}
+                      onClick={() => setPage((p) => Math.max(1, p - 1))}
+                    >
+                      上一页
+                    </button>
+                    <button
+                      type="button"
+                      className="zn-btn"
+                      disabled={loading || page >= totalPages}
+                      onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                    >
+                      下一页
+                    </button>
+                  </div>
+                </nav>
               </section>
 
               {/* 右侧：一体化成员检查器（不再双层嵌套卡片） */}
@@ -769,11 +807,21 @@ export default function ManagedAccountsConsole() {
                           </p>
                         ) : null}
 
+                        {selectedDetail.credentialState === 'uncertain' ? (
+                          <p className="access-error" role="alert">
+                            上次密码重置的远端结果不确定（待运维核实），平台已保持本地拒绝并锁定并发改密。请先核实身份服务状态后再执行受控恢复。
+                          </p>
+                        ) : selectedDetail.syncState === 'failed' ? (
+                          <p className="access-error" role="alert">
+                            身份目录同步未完成（状态：同步失败），本地权限收紧已生效；请核查同名冲突或身份服务连通性。
+                          </p>
+                        ) : null}
+
                         <form
                           className="zn-security-box zn-stack-sm"
                           onSubmit={(e) => {
                             e.preventDefault();
-                            if (password.length < 14) return;
+                            if (password.length < 14 || selectedDetail.credentialState === 'uncertain') return;
                             void runMutation(
                               () => setManagedAccountPassword(selectedDetail.id, selectedDetail.desiredRevision, password),
                               '临时密码已设置，成员下次登录需立即更换。',
@@ -785,7 +833,7 @@ export default function ManagedAccountsConsole() {
                             <button
                               type="button"
                               className="zn-link-btn"
-                              disabled={mutating || selectedDetail.administrator}
+                              disabled={mutating || selectedDetail.administrator || selectedDetail.credentialState === 'uncertain'}
                               onClick={() => {
                                 setPassword(generateStrongPassword());
                                 setShowPassword(true);
@@ -802,7 +850,7 @@ export default function ManagedAccountsConsole() {
                               autoComplete="new-password"
                               placeholder="至少 14 个字符"
                               value={password}
-                              disabled={mutating || selectedDetail.administrator}
+                              disabled={mutating || selectedDetail.administrator || selectedDetail.credentialState === 'uncertain'}
                               onChange={(e) => setPassword(e.target.value)}
                             />
                             <button
@@ -820,7 +868,7 @@ export default function ManagedAccountsConsole() {
                             <button
                               type="submit"
                               className="zn-btn zn-btn-primary"
-                              disabled={mutating || selectedDetail.administrator || password.length < 14}
+                              disabled={mutating || selectedDetail.administrator || selectedDetail.credentialState === 'uncertain' || password.length < 14}
                             >
                               设置临时密码
                             </button>

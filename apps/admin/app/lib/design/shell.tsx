@@ -6,14 +6,15 @@
  * 注意：这里渲染 `<div className="zn-content">` 而不是 `<main>`——各页面自己渲染
  * `<main>`，嵌套会产生多个 main 地标。
  */
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ZnIcon } from './icons';
 import { ADMIN_NAV_ITEMS, ADMIN_TOOL_ITEMS, resolveActiveNavKey, resolveTopbarPage } from './nav';
 import { getStoredSession, loadCompanySession, logoutAndRedirect, platformApiOrigin, SESSION_EXPIRED_EVENT } from '../auth';
+import { changeOwnPassword } from '../managed-accounts-client';
 
-const SEARCH_TARGET = '/match';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const THEME_KEY = 'zhinexus_admin_theme';
 type ThemeMode = 'auto' | 'light' | 'dark';
 
@@ -45,7 +46,15 @@ function QuickSearch() {
       onSubmit={(event) => {
         event.preventDefault();
         const query = value.trim();
-        router.push(query ? `${SEARCH_TARGET}?q=${encodeURIComponent(query)}` : SEARCH_TARGET);
+        if (!query) {
+          router.push('/assets');
+          return;
+        }
+        if (UUID_RE.test(query)) {
+          router.push(`/jobs/${encodeURIComponent(query)}`);
+          return;
+        }
+        router.push(`/assets?q=${encodeURIComponent(query)}`);
       }}
     >
       <ZnIcon name="search" color="currentColor" size={14} className="zn-quick-search-icon" />
@@ -54,7 +63,7 @@ function QuickSearch() {
         className="zn-quick-search-input"
         type="search"
         value={value}
-        placeholder="搜索资产或作业"
+        placeholder="搜索资产 ID 或粘贴作业 UUID"
         aria-label="搜索资产或作业"
         onChange={(event) => setValue(event.target.value)}
       />
@@ -76,6 +85,65 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
     isLoginPage ? 'authenticated' : 'checking',
   );
   const [health, setHealth] = useState<LinkHealth>({ status: 'checking', latencyMs: null });
+  const pwdDialogRef = useRef<HTMLDialogElement | null>(null);
+  const [pwdUsername, setPwdUsername] = useState('');
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [pwdSubmitting, setPwdSubmitting] = useState(false);
+  const [pwdError, setPwdError] = useState<string | null>(null);
+  const [pwdSuccess, setPwdSuccess] = useState<string | null>(null);
+
+  useEffect(() => {
+    const dialog = pwdDialogRef.current;
+    if (!dialog || typeof HTMLDialogElement === 'undefined' || 'closedBy' in HTMLDialogElement.prototype) return;
+    const outside = (e: PointerEvent) => {
+      const r = dialog.getBoundingClientRect();
+      return e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom;
+    };
+    let pressedOutside = false;
+    const onDown = (e: PointerEvent) => { pressedOutside = outside(e); };
+    const onUp = (e: PointerEvent) => { if (pressedOutside && outside(e)) dialog.close(); };
+    dialog.addEventListener('pointerdown', onDown);
+    dialog.addEventListener('pointerup', onUp);
+    return () => {
+      dialog.removeEventListener('pointerdown', onDown);
+      dialog.removeEventListener('pointerup', onUp);
+    };
+  }, [authStatus]);
+
+  const openPasswordDialog = () => {
+    setPwdUsername(subject.startsWith('oidc:') ? '' : subject);
+    setCurrentPassword('');
+    setNewPassword('');
+    setPwdError(null);
+    setPwdSuccess(null);
+    pwdDialogRef.current?.showModal();
+  };
+
+  const handlePasswordChange = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!pwdUsername.trim() || !currentPassword || newPassword.length < 12) {
+      setPwdError('请填写用户名、当前密码，并设置至少 12 个字符的新密码。');
+      return;
+    }
+    setPwdSubmitting(true);
+    setPwdError(null);
+    setPwdSuccess(null);
+    try {
+      await changeOwnPassword({ username: pwdUsername, currentPassword, newPassword });
+      setCurrentPassword('');
+      setNewPassword('');
+      setPwdSuccess('密码已更新，请使用新密码重新登录。');
+      setTimeout(() => {
+        pwdDialogRef.current?.close();
+        logoutAndRedirect(router);
+      }, 900);
+    } catch (err) {
+      setPwdError(err instanceof Error ? err.message : '修改密码失败。');
+    } finally {
+      setPwdSubmitting(false);
+    }
+  };
 
   useEffect(() => {
     const saved = (localStorage.getItem(THEME_KEY) as ThemeMode | null) ?? 'auto';
@@ -272,6 +340,14 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
               {subject ? <span className="zn-topbar-username">{subject}</span> : null}
               <button
                 type="button"
+                className="zn-btn"
+                onClick={openPasswordDialog}
+              >
+                <ZnIcon name="key-round" size={13} color="currentColor" />
+                修改密码
+              </button>
+              <button
+                type="button"
                 className="zn-btn zn-btn-logout"
                 onClick={() => logoutAndRedirect(router)}
               >
@@ -283,6 +359,72 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
         </header>
         <div className="zn-content">{children}</div>
       </div>
+
+      <dialog
+        ref={pwdDialogRef}
+        className="zn-dialog"
+        aria-labelledby="change-password-title"
+        {...({ closedby: 'any' } as Record<string, string>)}
+      >
+        <div className="zn-dialog-head">
+          <div>
+            <h1 id="change-password-title" className="zn-card-title">修改登录密码</h1>
+            <p className="zn-card-subtitle">适用于平台自管身份服务账号，修改成功后需使用新密码重新登录</p>
+          </div>
+          <button type="button" className="zn-icon-btn" aria-label="关闭修改密码对话框" onClick={() => pwdDialogRef.current?.close()}>
+            ×
+          </button>
+        </div>
+        <form className="zn-stack" onSubmit={handlePasswordChange}>
+          {pwdError ? <p className="access-error" role="alert">{pwdError}</p> : null}
+          {pwdSuccess ? <p className="access-message" role="status">{pwdSuccess}</p> : null}
+          <label className="zn-field">
+            <span className="zn-field-label">用户名</span>
+            <input
+              className="zn-input zn-input-mono"
+              value={pwdUsername}
+              autoComplete="username"
+              autoFocus
+              required
+              placeholder="输入登录用户名"
+              onChange={(e) => setPwdUsername(e.target.value)}
+            />
+          </label>
+          <label className="zn-field">
+            <span className="zn-field-label">当前密码</span>
+            <input
+              className="zn-input"
+              type="password"
+              value={currentPassword}
+              autoComplete="current-password"
+              required
+              placeholder="输入当前密码"
+              onChange={(e) => setCurrentPassword(e.target.value)}
+            />
+          </label>
+          <label className="zn-field">
+            <span className="zn-field-label">新密码</span>
+            <input
+              className="zn-input"
+              type="password"
+              value={newPassword}
+              autoComplete="new-password"
+              required
+              minLength={12}
+              placeholder="至少 12 个字符，且不能与当前密码相同"
+              onChange={(e) => setNewPassword(e.target.value)}
+            />
+          </label>
+          <div className="zn-dialog-actions">
+            <button type="button" className="zn-btn" disabled={pwdSubmitting} onClick={() => pwdDialogRef.current?.close()}>
+              取消
+            </button>
+            <button type="submit" className="zn-btn zn-btn-primary" disabled={pwdSubmitting}>
+              {pwdSubmitting ? '正在保存…' : '确认修改密码'}
+            </button>
+          </div>
+        </form>
+      </dialog>
     </div>
   );
 }

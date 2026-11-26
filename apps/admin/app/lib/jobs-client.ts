@@ -1,3 +1,4 @@
+import type { ReleaseState } from '@company/contracts';
 import { getAuthCredentials, getAuthHeaders, getStoredSession, notifySessionExpired, platformApiOrigin } from './auth';
 
 export class JobsApiError extends Error {
@@ -10,7 +11,7 @@ export type ReleaseJobSummary = {
   jobId: string;
   channel: string;
   subject: string;
-  state: 'PENDING' | 'RUNNING' | 'RETRY_WAIT' | 'READY' | 'REJECTED' | 'CONFLICT';
+  state: ReleaseState;
   stage: string;
   attempt: number;
   createdAt: string;

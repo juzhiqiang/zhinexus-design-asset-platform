@@ -206,28 +206,56 @@ export default function JobDetailPage({
         </div>
       </div>
 
-      {/* 成功 / 失败处理 */}
+      {/* 成功 / 可重试 / 终态失败处理 */}
       {job?.state === 'READY' && (
         <div className="access-message" role="status">
           <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>发布作业已成功到达 READY 状态</h3>
           <p style={{ margin: '0 0 16px', fontSize: '13px' }}>
             所有 NPM 包已在注册表上线，只读静态预览已同步就绪，元数据已原子写入。
           </p>
-          <Link href="/upload" className="filter-btn active" style={{ display: 'inline-block' }}>
-            返回发布控制台 →
-          </Link>
+          <div className="zn-row" style={{ gap: 10 }}>
+            <Link href="/assets" className="filter-btn active" style={{ display: 'inline-block' }}>
+              查看已发布资产 →
+            </Link>
+            <Link href="/upload" className="filter-btn" style={{ display: 'inline-block' }}>
+              返回发布控制台 →
+            </Link>
+          </div>
+          {Array.isArray(job?.baselineCandidates) && job.baselineCandidates.length > 0 && (
+            <div style={{ marginTop: 14 }}>
+              <strong style={{ display: 'block', marginBottom: 6, fontSize: 13 }}>
+                自动截图基线候选（{job.baselineCandidates.length} 项，可在「资产管理」确认视觉基线）：
+              </strong>
+              <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12 }}>
+                {job.baselineCandidates.map((cand: { screenshotId: string; variantId: string; exampleId: string; environmentKey: string }) => (
+                  <li key={cand.screenshotId}>
+                    <code>{cand.variantId}</code> · 示例 <code>{cand.exampleId}</code> · 环境 <code>{cand.environmentKey.slice(0, 12)}…</code>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
+
+      {job?.state === 'RETRY_WAIT' && (
+        <div className="access-error" role="alert">
+          <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>发布作业等待重试: RETRY_WAIT</h3>
+          <p style={{ margin: '0 0 16px', fontSize: '13px' }}>
+            {job.lastError ? JSON.stringify(job.lastError) : '外部存储或注册表暂时不可达，可手动触发幂等恢复重试。'}
+          </p>
+          <button type="button" className="filter-btn active" disabled={retrying} onClick={handleRetry}>
+            {retrying ? '重试中...' : '重试作业 (Retry Job)'}
+          </button>
         </div>
       )}
 
       {(job?.state === 'CONFLICT' || job?.state === 'REJECTED') && (
         <div className="access-error" role="alert">
-          <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>发布作业失败: {job.state}</h3>
-          <p style={{ margin: '0 0 16px', fontSize: '13px' }}>
-            {job.lastError ? JSON.stringify(job.lastError) : '作业在执行状态机时被阻断'}
+          <h3 style={{ margin: '0 0 8px', fontSize: '16px' }}>发布作业已终止: {job.state}</h3>
+          <p style={{ margin: '0 0 6px', fontSize: '13px' }}>
+            {job.lastError ? JSON.stringify(job.lastError) : '作业因不可变冲突或契约校验未通过而关闭，不可原地重试，请递增版本号或修正产物后重新发布。'}
           </p>
-          <button type="button" className="filter-btn" disabled={retrying} onClick={handleRetry}>
-            {retrying ? '重试中...' : '重试作业 (Retry Job)'}
-          </button>
         </div>
       )}
 

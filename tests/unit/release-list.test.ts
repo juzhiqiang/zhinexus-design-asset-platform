@@ -12,10 +12,14 @@ function makeContext(subject: string, roles: ('reader' | 'publisher' | 'maintain
 }
 
 describe('ReleaseService.list (GET /v1/releases)', () => {
-  it('rejects invalid state or out-of-range limit', async () => {
+  it('rejects invalid state or out-of-range limit, and accepts all RELEASE_STATES including PUBLISHING', async () => {
     const db = { query: async () => ({ rows: [], rowCount: 0 }) } as unknown as Database;
     const service = new ReleaseService(db, {} as UploadService);
     await expect(service.list({ state: 'INVALID' }, makeContext('alice', ['reader']))).rejects.toMatchObject({ code: 'INVALID_SCHEMA' });
+    await expect(service.list({ state: 'RUNNING' }, makeContext('alice', ['reader']))).rejects.toMatchObject({ code: 'INVALID_SCHEMA' });
+    for (const validState of ['UPLOADING', 'VALIDATING', 'PENDING', 'PUBLISHING', 'RETRY_WAIT', 'READY', 'REJECTED', 'CONFLICT']) {
+      await expect(service.list({ state: validState }, makeContext('alice', ['reader']))).resolves.toEqual({ items: [] });
+    }
     await expect(service.list({ limit: '999' }, makeContext('alice', ['reader']))).rejects.toMatchObject({ code: 'INVALID_SCHEMA' });
     await expect(service.list({ limit: '0' }, makeContext('alice', ['reader']))).rejects.toMatchObject({ code: 'INVALID_SCHEMA' });
   });

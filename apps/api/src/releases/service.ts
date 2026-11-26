@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { manifestDigest, validateApiMessage, type ApiMessages, type CheckReportV1, type ReleaseManifestV1 } from '@company/contracts';
+import { manifestDigest, RELEASE_STATES, validateApiMessage, type ApiMessages, type CheckReportV1, type ReleaseManifestV1 } from '@company/contracts';
 import type { Database } from '../db/database.js';
 import { audit, requireComponents, requirePackages, requireCurrentIdentity, uuid, type RequestContext, type Sql } from '../db/access.js';
 import type { UploadService } from '../uploads/service.js';
@@ -8,7 +8,7 @@ import { PlatformError } from '../errors.js';
 import { registerReleaseCategories } from '../categories/service.js';
 
 type Job = { id: string; subject: string; client_id: string; channel: string; state: ApiMessages['releaseJobResponse']['state']; stage: ApiMessages['releaseJobResponse']['stage']; attempt: number; last_error: ApiMessages['releaseJobResponse']['lastError'] | null; request_digest: string; manifest: ReleaseManifestV1; lease_until: Date | null; missing_artifacts: string[]; created_at?: Date; updated_at?: Date };
-const VALID_JOB_STATES = new Set(['PENDING', 'RUNNING', 'RETRY_WAIT', 'READY', 'REJECTED', 'CONFLICT']);
+const VALID_JOB_STATES = new Set<string>(RELEASE_STATES);
 export type ReleaseJobSummary = {
   jobId: string;
   channel: string;
