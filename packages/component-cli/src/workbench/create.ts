@@ -1,7 +1,7 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { projectPath, validateProjectConfig, type ProjectConfig, type ProjectVariant } from '../project/config.js';
-import { consumerHtml, consumerSource, initialPlayground, templateVersions as v } from './templates.js';
+import { consumerHtml, consumerSource, initialPlayground, reactSource,vueSource,vueDeclarations,templateVersions as v } from './templates.js';
 import type { ComponentApiV1 } from '../contracts/component-api.js';
 const json=(value:unknown)=>JSON.stringify(value,null,2)+'\n';
 export async function addMissingMaterials(root:string,variant:ProjectVariant,packageName:string,scaffold=false) {
@@ -16,7 +16,7 @@ export async function addMissingMaterials(root:string,variant:ProjectVariant,pac
     values[consumer+'/package.json']=json({name:'juz-consumer',version:'0.0.0',private:true,type:'module',dependencies,devDependencies:{vite:v.vite}});
     values[consumer+'/index.html']=consumerHtml;
     values[consumer+'/main.js']=consumerSource(packageName,variant,api);
-    values[consumer+'/playground.json']=json(example);
+    if(!variant.playground)values[consumer+'/playground.json']=json(example);
     values[consumer+'/vite.config.js']="export default { base: './' };\n";
   }
   for(const [relative,content] of Object.entries(values)) {
@@ -36,27 +36,39 @@ export async function createProject(cwd:string,directory:string,framework:string
   for(const current of frameworks) {
     const prefix=framework==='all'?'packages/'+current+'/':'';const packageDir=prefix.slice(0,-1)||'.';
     const name=slug+'-'+current;const source=prefix+'src/index.'+(current==='react'?'tsx':'ts');
-    const variant:ProjectVariant={componentId:slug,framework:current,exportName:'Demo',exportPath:'.',sourceEntry:source,playground:prefix+'playground.json',api:prefix+'api/demo.json',docs:prefix+'docs/demo.md',consumer:{adapter:'vite',templateDir:prefix+'consumer',previewDir:'dist',previewEntry:'index.html'},readiness:{selector:'#app',states:['default','empty'],width:800,height:400,renderer:'canvas',theme:'light'}};
+    const variant:ProjectVariant={componentId:slug,framework:current,exportName:'Demo',exportPath:'.',sourceEntry:source,playground:prefix+'playground.json',api:prefix+'api/demo.json',docs:prefix+'docs/demo.md',consumer:{adapter:'vite',templateDir:prefix+'.juz/consumer',previewDir:'dist',previewEntry:'index.html'},readiness:{selector:'#app',states:['default','empty'],width:800,height:400,renderer:'canvas',theme:'light'}};
     const config:ProjectConfig={schemaVersion:1,packageDir,build:{program:'pnpm',args:['run','build']},dev:{[current]:{program:'pnpm',args:['run','dev']}},variants:[variant]};validateProjectConfig(config);
     const configFile=prefix+'component.config.json';configs.push(configFile);
-    const devDependencies:Record<string,string>={vite:v.vite,typescript:v.typescript,...current==='react'?{'@vitejs/plugin-react':v.reactPlugin,'@types/react':'19.3.0','@types/react-dom':'19.3.0',react:v.react,'react-dom':v.react}:{'@vitejs/plugin-vue':v.vuePlugin,vue:v.vue}};
+    const devDependencies:Record<string,string>={vite:v.vite,typescript:current==='react'?v.typescript:v.vueTypescript,...current==='react'?{'@vitejs/plugin-react':v.reactPlugin,'@types/react':'19.3.0','@types/react-dom':'19.3.0',react:v.react,'react-dom':v.react}:{'@vitejs/plugin-vue':v.vuePlugin,'vue-tsc':v.vueTsc,vue:v.vue}};
+    const compiler=current==='react'?'tsc':'vue-tsc';
     const files:Record<string,string>={
-      [prefix+'package.json']:json({name,version:'0.0.1',private:false,type:'module',files:['dist'],exports:{'.':{types:'./dist/index.d.ts',import:'./dist/index.js'}},scripts:{build:'vite build && tsc -p tsconfig.json --emitDeclarationOnly',typecheck:'tsc -p tsconfig.json --noEmit',dev:'vite build --watch'},peerDependencies:current==='react'?{react:v.react,'react-dom':v.react}:{vue:v.vue},devDependencies,...framework==='all'?{}:{packageManager:'pnpm@12.18.0'}}),
+      [prefix+'package.json']:json({name,version:'0.0.1',private:false,type:'module',files:['dist'],exports:{'.':{types:'./dist/index.d.ts',import:'./dist/index.js'}},scripts:{build:'vite build && '+compiler+' -p tsconfig.json --emitDeclarationOnly'+(current==='vue'?' && node .juz/declarations.mjs':''),typecheck:compiler+' -p tsconfig.json --noEmit',dev:'vite build --watch'},peerDependencies:current==='react'?{react:v.react,'react-dom':v.react}:{vue:v.vue},devDependencies,...framework==='all'?{}:{packageManager:'pnpm@12.18.0'}}),
       [configFile]:json(config),
-      [prefix+'tsconfig.json']:json({compilerOptions:{target:'ES2022',module:'ESNext',moduleResolution:'Bundler',jsx:'react-jsx',strict:true,skipLibCheck:true,declaration:true,rootDir:'src',outDir:'dist',lib:['ES2022','DOM']},include:['src']}),
-      [prefix+'vite.config.js']:"import { defineConfig } from 'vite';\n"+(current==='react'?"import react from '@vitejs/plugin-react';":"import vue from '@vitejs/plugin-vue';")+"\nexport default defineConfig({plugins:["+current+"()],build:{lib:{entry:'src/index."+(current==='react'?'tsx':'ts')+"',formats:['es'],fileName:'index'},rollupOptions:{external:["+(current==='react'?"'react','react-dom','react/jsx-runtime'":"'vue'")+"]}}});\n",
-      [source]:current==='react'?`import { createElement } from 'react';
-export type DemoProps={label?:string;value?:number;enabled?:boolean;color?:string;data?:number[];onChange?:(event:{value:number})=>void};
-export function Demo({label='Hello juz',value=42,enabled=true,color='#A3D2FF',data=[],onChange}:DemoProps){return createElement('button',{disabled:!enabled,onClick:()=>onChange?.({value:value+1}),style:{width:'100%',height:'100%',padding:32,border:0,borderRadius:12,background:'#172731',color,font:'inherit',textAlign:'left',cursor:'pointer'}},createElement('h1',null,label),createElement('strong',{style:{fontSize:56}},String(value)),createElement('p',null,JSON.stringify(data)));}
-`:`import { defineComponent, h, type PropType } from 'vue';
-export const Demo=defineComponent({name:'Demo',props:{label:{type:String,default:'Hello juz'},value:{type:Number,default:42},enabled:{type:Boolean,default:true},color:{type:String,default:'#A3D2FF'},data:{type:Array as PropType<number[]>,default:()=>[]}},emits:['change'],setup(props,{emit}){return()=>h('button',{disabled:!props.enabled,onClick:()=>emit('change',{value:props.value+1}),style:{width:'100%',height:'100%',padding:'32px',border:0,borderRadius:'12px',background:'#172731',color:props.color,font:'inherit',textAlign:'left',cursor:'pointer'}},[h('h1',props.label),h('strong',{style:{fontSize:'56px'}},String(props.value)),h('p',JSON.stringify(props.data))]);}});
-`,
+      [prefix+'tsconfig.json']:json({compilerOptions:{target:'ES2022',module:'ESNext',moduleResolution:'Bundler',...current==='react'?{jsx:'react-jsx'}:{},strict:true,skipLibCheck:true,declaration:true,rootDir:'src',outDir:'dist',lib:['ES2022','DOM'],types:['vite/client']},include:['src']}),
+      [prefix+'vite.config.js']:[
+        "import { defineConfig } from 'vite';",
+        "import "+current+" from '@vitejs/plugin-"+current+"';",
+        '',
+        'export default defineConfig(({ command }) => {',
+        "  if (command === 'build') process.env.NODE_ENV = 'production';",
+        '  return {',
+        '    plugins: ['+current+'()],',
+        '    build: {',
+        "      lib: { entry: 'src/index."+(current==='react'?'tsx':'ts')+"', formats: ['es'], fileName: 'index' },",
+        "      rollupOptions: { external: "+(current==='react'?"id => /^(react|react-dom)(\\/|$)/.test(id)":"['vue']")+" },",
+        '    },',
+        '  };',
+        '});','',
+      ].join('\n'),
+      [source]:current==='react'?"export { Demo, type DemoProps } from './Demo.js';\n":"export { default as Demo } from './Demo.vue';\n",
+      [prefix+'src/Demo.'+(current==='react'?'tsx':'vue')]:current==='react'?reactSource:vueSource,
+      ...current==='vue'?{[prefix+'.juz/declarations.mjs']:vueDeclarations}:{},
     };
     for(const [relative,content] of Object.entries(files)){const file=path.join(root,relative);await fs.mkdir(path.dirname(file),{recursive:true});await fs.writeFile(file,content,{flag:'wx'});}
     await addMissingMaterials(root,variant,name,true);
   }
   if(framework==='all')await fs.writeFile(path.join(root,'component.workspace.json'),json({schemaVersion:1,packages:configs}));
   await fs.writeFile(path.join(root,'.gitignore'),'node_modules/\ndist/\n.component-releases/\n.component-state/\n.component-release.json\n');
-  await fs.writeFile(path.join(root,'README.md'),'# '+slug+'\n\n运行 pnpm install，然后 juz dev。本地开发无需登录。发布前在工作台登录并分配后台分类。\n');
+  await fs.writeFile(path.join(root,'README.md'),'# '+slug+'\n\n运行 pnpm install，然后 juz dev。本地开发无需登录。\n\n日常编辑 src/Demo.tsx（React）或 src/Demo.vue（Vue）；入口只负责导出。使用普通 Props、回调或 Emits，不需要平台基类。保存源码后工作台热更新。双框架项目在 packages/react 与 packages/vue 分别开发。\n\n在组件包内运行 pnpm typecheck、pnpm build。pnpm dev 为构建导出监听；juz dev 为源码调试工作台。\n\nplayground.json 是调参/数据/状态的唯一示例输入，可在工作台保存。api/ 与 docs/ 描述发布信息，新增公开参数时同步更新。component.config.json 登记入口与预览材料。\n\n.juz/ 是 CLI 生成的消费者桥接及声明工具，通常不需要编辑；应纳入版本管理，但不会进入组件 npm 包。复杂 Provider/插槽需求可登记自定义消费者，CLI 不推断业务初始化。\n\n发布前在工作台登录并分配后台分类，再打包验证和确认上传。\n');
   return {root,next:'cd '+directory+' && pnpm install && juz dev'};
 }

@@ -46,6 +46,8 @@ docs                     使用、部署、运维与工程文档
 
 CLI 工作区包保持内部名称，通过 `pnpm --filter @company/component-cli pack:juz` 生成独立的 `juz-cli` npm 分发包，可用 `npm install -g <生成的 tgz>` 本地测试；正常安装自动准备截图所需的 Chromium。实际发布到 registry 后才可使用 `npm install -g juz-cli`；当前后台导入本地 ZIP 需先解压。
 
+新建组件按常规框架方式开发：编辑 `src/Demo.tsx` 或 `src/Demo.vue`，运行 `juz dev` 查看热更新；默认消费者桥接归入 `.juz/`，无需写进业务组件。新增参数时维护 API 与示例，发布时再处理分类和冻结验证。详见[日常开发与目录说明](docs/guides/juz-workbench.md#像普通组件一样开发)。
+
 ## 本地开发（Windows x64）
 
 在仓库根目录直接使用系统安装的 Node `>=24.6.0` 与 pnpm `12.18.0` 执行以下命令：

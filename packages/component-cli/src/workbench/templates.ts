@@ -1,6 +1,68 @@
 import type { ProjectVariant } from '../project/config.js';
 import type { ComponentApiV1 } from '../contracts/component-api.js';
-export const templateVersions = { react:'19.3.1', vue:'3.5.45', vite:'8.3.8', typescript:'7.0.2', reactPlugin:'6.3.0', vuePlugin:'6.0.10' };
+export const templateVersions = { react:'19.3.1', vue:'3.5.45', vite:'8.3.8', typescript:'7.0.2', vueTypescript:'6.0.3', vueTsc:'3.3.14', reactPlugin:'6.3.0', vuePlugin:'6.0.10' };
+export const reactSource=`export type DemoProps = {
+  label?: string;
+  value?: number;
+  enabled?: boolean;
+  color?: string;
+  data?: number[];
+  onChange?: (event: { value: number }) => void;
+};
+
+export function Demo({ label = 'Hello juz', value = 42, enabled = true, color = '#A3D2FF', data = [], onChange }: DemoProps) {
+  return (
+    <button
+      disabled={!enabled}
+      onClick={() => onChange?.({ value: value + 1 })}
+      style={{ width: '100%', height: '100%', padding: 32, border: 0, borderRadius: 12, background: '#172731', color, font: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+    >
+      <h1>{label}</h1>
+      <strong style={{ fontSize: 56 }}>{value}</strong>
+      <p>{JSON.stringify(data)}</p>
+    </button>
+  );
+}
+`;
+export const vueSource=`<script setup lang="ts">
+withDefaults(defineProps<{
+  label?: string;
+  value?: number;
+  enabled?: boolean;
+  color?: string;
+  data?: number[];
+}>(), { label: 'Hello juz', value: 42, enabled: true, color: '#A3D2FF', data: () => [] });
+
+const emit = defineEmits<{ change: [event: { value: number }] }>();
+</script>
+
+<template>
+  <button
+    :disabled="!enabled"
+    :style="{ width: '100%', height: '100%', padding: '32px', border: 0, borderRadius: '12px', background: '#172731', color, font: 'inherit', textAlign: 'left', cursor: 'pointer' }"
+    @click="emit('change', { value: value + 1 })"
+  >
+    <h1>{{ label }}</h1>
+    <strong style="font-size: 56px">{{ value }}</strong>
+    <p>{{ JSON.stringify(data) }}</p>
+  </button>
+</template>
+`;
+// vue-tsc emits .vue.d.ts; explicit .js specifiers also resolve under NodeNext.
+export const vueDeclarations=`import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
+async function normalize(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const file = join(directory, entry.name);
+    if (entry.isDirectory()) await normalize(file);
+    else if (entry.name.endsWith('.d.ts')) {
+      const text = await readFile(file, 'utf8');
+      await writeFile(file, text.replace(/(["'])(\\.{1,2}\\/[^"']+\\.vue)\\1/g, '$1$2.js$1'));
+    }
+  }
+}
+await normalize('dist');
+`;
 export function initialPlayground() { return { schemaVersion:1, adapter:'auto', props:{label:'Hello juz',value:42,enabled:true,color:'#A3D2FF'}, data:[12,24,36], dataProp:'data', controls:[{name:'label',kind:'text'},{name:'value',kind:'number'},{name:'enabled',kind:'boolean'},{name:'color',kind:'color'}], states:[{id:'default',label:'默认',props:{label:'Hello juz',value:42,enabled:true,color:'#A3D2FF'},data:[12,24,36]},{id:'empty',label:'空数据',props:{label:'No data',value:0,enabled:true,color:'#A3D2FF'},data:[]}] }; }
 export function consumerSource(packageName:string,variant:ProjectVariant,api:ComponentApiV1):string {
   const moduleName=JSON.stringify(packageName+variant.exportPath.slice(1));
