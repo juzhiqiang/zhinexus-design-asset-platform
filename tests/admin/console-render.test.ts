@@ -235,11 +235,85 @@ describe('控制台各画板可渲染且不引用未定义的样式', () => {
     expect(readyHtml).toContain('line-vue');
   });
 
-  it('资产管理与组件分类画板：正常渲染指标与列表骨架', async () => {
+  it('资产管理与组件分类画板：支持分类筛选、分页、可见性切换、历史版本切换、基线修订更新、沙箱预览、材料报告与兼容登记', async () => {
     const assetsHtml = await renderPage(() => import('../../apps/admin/app/assets/page.js'));
     expect(assetsHtml).toContain('<h1>资产管理</h1>');
     expect(assetsHtml).toContain('01 / ASSET REGISTRY');
+    expect(assetsHtml).toContain('aria-label="分类筛选"');
+    expect(assetsHtml).toContain('aria-label="资产列表分页"');
 
+    // 注入选中资产详情，验证完整检查器标签页与治理能力
+    const releaseId = '11111111-1111-4111-8111-111111111111';
+    const revisionId = '22222222-2222-4222-8222-222222222222';
+    let nullIdx = 0;
+    reactSeam.injectPredicate = (init) => {
+      if (init === null) {
+        nullIdx += 1;
+        if (nullIdx === 2) return releaseId; // selectedId
+        if (nullIdx === 3) {
+          return {
+            variantReleaseId: releaseId,
+            availability: 'Ready',
+            reportSource: 'local-automatic',
+            baselineStatus: 'accepted',
+            indexStatus: 'indexed',
+            isPublic: false,
+            baselineHeads: [{ exampleId: 'default', environmentKey: 'e'.repeat(64), revisionId, screenshotId: 'shot-1' }],
+            package: {
+              name: '@company/charts-vue',
+              version: '0.1.0',
+              dependencies: {},
+              peerDependencies: { vue: '3.5.45', echarts: '6.1.0' },
+              sourceDigest: 'c'.repeat(64),
+              tarball: { path: 'packages/charts-vue-0.1.0.tgz', sha256: 'a'.repeat(64), bytes: 1024 },
+            },
+            variant: {
+              componentId: 'line',
+              variantId: 'line-vue',
+              framework: 'vue',
+              category: 'charts',
+              packageName: '@company/charts-vue',
+              packageVersion: '0.1.0',
+              exportPath: './line',
+              exportName: 'LineChart',
+              api: { path: 'api/line-vue.json', sha256: 'd'.repeat(64), bytes: 120 },
+              docs: { path: 'docs/line-vue.md', sha256: 'f'.repeat(64), bytes: 240 },
+              examples: [],
+              compatibility: [],
+              screenshots: [
+                {
+                  id: 'shot-1',
+                  variantId: 'line-vue',
+                  framework: 'vue',
+                  packageVersion: '0.1.0',
+                  packageSha256: 'a'.repeat(64),
+                  exampleId: 'default',
+                  state: 'default',
+                  environmentKey: 'e'.repeat(64),
+                  source: 'local-automatic',
+                  image: { path: 'screenshots/line-vue.png', sha256: 'b'.repeat(64), bytes: 512 },
+                },
+              ],
+            },
+          };
+        }
+      }
+      if (init === '') {
+        return 'shot-1';
+      }
+      return undefined;
+    };
+    const detailHtml = await renderPage(() => import('../../apps/admin/app/assets/page.js'));
+    expect(detailHtml).toContain('role="tablist"');
+    expect(detailHtml).toContain('概览与运维');
+    expect(detailHtml).toContain('预览与截图');
+    expect(detailHtml).toContain('文档与契约');
+    expect(detailHtml).toContain('报告与兼容');
+    expect(detailHtml).toContain('更新视觉基线');
+    expect(detailHtml).toContain('组件可见性');
+    expect(detailHtml).toContain('复制摘要');
+
+    reactSeam.injectPredicate = null;
     const categoriesHtml = await renderPage(() => import('../../apps/admin/app/categories/page.js'));
     expect(categoriesHtml).toContain('<h1>组件分类</h1>');
     expect(categoriesHtml).toContain('04 / CATEGORY REGISTRY');
