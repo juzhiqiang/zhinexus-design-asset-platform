@@ -1,5 +1,11 @@
 # 更新日志
 
+## [0.2.2] - 2026-11-26
+
+### 新增
+
+- 内网管理端（`@company/admin 0.0.6`）按 Apple macOS / App Store Connect 设计语言重构全局视觉系统：支持 `color-scheme: light dark` 与系统明暗主题自动适配（纯净浅色 `#F5F5F7` / 深色 `#0B0B0D` 画布与 `#0071E3` / `#0A84FF` 系统蓝强调色）、SF Pro / 苹方光学排版与等宽数字对齐、毛玻璃半透明侧栏/顶栏、精密圆角与细线表格、按钮按下即时微缩触感以及 `prefers-reduced-motion` / `prefers-reduced-transparency` / `prefers-contrast` 无障碍适配，并移除喧宾夺主的赛博装饰元素。
+
 ## [0.2.1] - 2026-11-26
 
 ### 新增
