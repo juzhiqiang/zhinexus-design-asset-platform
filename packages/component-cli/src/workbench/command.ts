@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { spawn } from 'node:child_process';
 import { startWorkbench } from './server.js';
 import type { ProjectCliContext } from '../commands/project.js';
+import { readWorkspace,selectProject } from './workspace.js';
 export async function runWorkbenchCommand(command:string,args:readonly string[],version:string,context:ProjectCliContext){
  try{
   const options:Record<string,string>={};let open=true;
@@ -11,6 +12,12 @@ export async function runWorkbenchCommand(command:string,args:readonly string[],
   if(command==='preview'&&!options['--bundle-dir'])throw new Error('ARGUMENT_REQUIRED: preview --bundle-dir <目录>');
   if(options['--framework']&&!['react','vue'].includes(options['--framework']))throw new Error('ARGUMENT_INVALID: --framework');
   const root=await fs.realpath(options['--project']??context.cwd??process.cwd());
+  if(command!=='preview'){
+   const workspace=await readWorkspace(root,options['--config']);
+   const project=options['--package']?await selectProject(workspace,options['--package']):undefined;
+   if(project)options['--package']=project.pkg.name;
+   if(options['--framework']&&!(project?[project]:workspace.projects).some(p=>p.config.variants.some(v=>v.framework===options['--framework'])))throw new Error('FRAMEWORK_NOT_CONFIGURED: '+options['--framework']);
+  }
   const service=await startWorkbench({root,version,port,configFile:options['--config'],apiOrigin:options['--api-url'],bundleDir:command==='preview'?path.resolve(root,options['--bundle-dir']!):undefined,log:context.onProgress});
   const url=new URL(service.url);if(options['--package'])url.searchParams.set('package',options['--package']);if(options['--framework'])url.searchParams.set('framework',options['--framework']);
   let closing=false;
