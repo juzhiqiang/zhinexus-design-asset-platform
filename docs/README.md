@@ -1,6 +1,6 @@
 # Zhinexus 设计资产平台 — 文档索引
 
-本文件是 `docs/` 的总索引与阅读入口。2026-11-26 第五轮精简后，`docs/` 只保留**现行有效**的 51 篇文档（另有本索引，共 52 篇）：面向操作者的指南、仍然成立的契约与边界、当前功能的用法文档、8 篇验证汇编、AGENTS.md 指定的基线文档，以及索引本身。已完成任务的过程稿（35 篇历史实施计划、6 篇 phase2/3 设计稿、4 篇当日验证记录、T11 合成预演、画廊首页四版迭代记录、二期观测交接）已从工作树移除，全部可经 git 历史恢复。
+本文件是 `docs/` 的总索引与阅读入口。2026-11-26 第五轮精简后，`docs/` 只保留**现行有效**的 53 篇文档（另有本索引，共 54 篇）：面向操作者的指南、仍然成立的契约与边界、当前功能的用法文档、验证汇编、AGENTS.md 指定的基线文档，以及索引本身。已完成任务的过程稿（35 篇历史实施计划、6 篇 phase2/3 设计稿、4 篇当日验证记录、T11 合成预演、画廊首页四版迭代记录、二期观测交接）已从工作树移除，全部可经 git 历史恢复。2026-11-26 晚些时候合入 `fix/juz-component-development`（juz CLI 工作台修复）时又带入 2 篇，已计入下列篇数。
 
 ## 目录结构
 
@@ -14,11 +14,11 @@ docs/
 ├── phases/
 │   ├── phase2/                   二期用法与评估规范（6 篇）
 │   └── phase3/                   三期本地接入用法（4 篇）
-├── plans/                        实施计划（4 篇，其中 3 篇 AGENTS.md 指定为准）
+├── plans/                        实施计划（5 篇，其中 3 篇 AGENTS.md 指定为准）
 ├── design/                       .pen 设计稿说明（2 篇，设计稿本体在同目录）
 ├── acceptance/                   验收材料（2 篇）
 └── verification/
-    ├── *.md                      11 篇：8 篇主题汇编 + 3 篇专题汇编
+    ├── *.md                      12 篇：8 篇主题汇编 + 3 篇专题汇编 + 1 篇当日修复记录
     └── evidence/                 历史日志、JSON 证据与视觉验收截图素材（勿修改）
 ```
 
@@ -41,6 +41,7 @@ docs/
 | 平台上传/发布/预览行为 | `verification/platform-services.md` + `guides/operations.md` |
 | 从真实项目发布组件 | `guides/project-publishing.md` + `verification/project-publishing.md` |
 | juz 本地工作台 | `guides/juz-workbench.md` |
+| juz CLI 缺陷修正与常规组件开发 | `plans/2026-11-26-juz-cli-fixes.md` + `verification/2026-11-26-juz-cli-fixes.md` |
 | 二期匹配与查询接口用法 | `phases/phase2/component-query-api.md` + `verification/phase2-matching.md` |
 | 二期离线评估 | `phases/phase2/evaluation-protocol.md` + `evaluation-runner.md` / `id-evaluation-runner.md` |
 | 三期本地接入（inspect/plan/apply/verify） | `phases/phase3/` 四篇 + `verification/phase3-t15.md`～`phase3-t17.md` |
@@ -82,7 +83,7 @@ docs/
 
 ### 实施计划 `docs/plans/`
 
-`2026-11-11-component-platform-implementation.md`（**总计划 T01–T17，最高频引用，AGENTS.md 指定为准**）、`2026-11-11-three-person-allocation.md`（分工排期，AGENTS.md 指定为准）、`2026-11-11-bootstrap-execution.md`（首次初始化执行范围，AGENTS.md 注明仅供历史追溯）、`2026-11-24-gallery-admin-split.md`（画廊与内网管理端拆分边界，AGENTS.md 指定为准）。
+`2026-11-11-component-platform-implementation.md`（**总计划 T01–T17，最高频引用，AGENTS.md 指定为准**）、`2026-11-11-three-person-allocation.md`（分工排期，AGENTS.md 指定为准）、`2026-11-11-bootstrap-execution.md`（首次初始化执行范围，AGENTS.md 注明仅供历史追溯）、`2026-11-24-gallery-admin-split.md`（画廊与内网管理端拆分边界，AGENTS.md 指定为准）、`2026-11-26-juz-cli-fixes.md`（juz 工作台五项缺陷修正与常规组件开发的范围裁定）。
 
 ### 二期 `docs/phases/phase2/`
 
@@ -115,6 +116,7 @@ docs/
 | `project-publishing.md` | 3 | 真实项目 CLI 发布 + 最终修复补录 + juz 简化发布；真实四服务链 Ready 证据 |
 | `self-managed-accounts.md` | 2 | 后台创建账号核查与本地管理员播种、令牌 `sub`/`id_token` 修复、后台登录页 |
 | `gallery-admin-split.md` | 2 | 画廊/管理端拆分集成验证 + 集成前的只读安全边界审查（P0-1～P2-16） |
+| `2026-11-26-juz-cli-fixes.md` | 当日单篇 | juz CLI 工作台五项缺陷修正与常规组件开发方式的独立验证；2026-11-26 合入 `fix/juz-component-development` 时带入，非汇编故无原文件名小节 |
 
 ### 证据文件 `docs/verification/evidence/`
 
