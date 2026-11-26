@@ -48,16 +48,43 @@ const emit = defineEmits<{ change: [event: { value: number }] }>();
   </button>
 </template>
 `;
-// vue-tsc emits .vue.d.ts; explicit .js specifiers also resolve under NodeNext.
+// Keep ordinary Bundler-style source imports, but ship NodeNext-compatible types.
 export const vueDeclarations=`import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import ts from 'typescript';
+function moduleReferences(source) {
+  const references = [];
+  function visit(node) {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) references.push(node.moduleSpecifier);
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) references.push(node.argument.literal);
+    else if (ts.isExternalModuleReference(node) && node.expression && ts.isStringLiteral(node.expression)) references.push(node.expression);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return references;
+}
 async function normalize(directory) {
   for (const entry of await readdir(directory, { withFileTypes: true })) {
     const file = join(directory, entry.name);
     if (entry.isDirectory()) await normalize(file);
     else if (entry.name.endsWith('.d.ts')) {
       const text = await readFile(file, 'utf8');
-      await writeFile(file, text.replace(/(["'])(\\.{1,2}\\/[^"']+\\.vue)\\1/g, '$1$2.js$1'));
+      const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+      const edits = [];
+      for (const node of moduleReferences(source)) {
+        const specifier = node.text;
+        if (!specifier.startsWith('./') && !specifier.startsWith('../')) continue;
+        const target = resolve(dirname(file), specifier);
+        let replacement;
+        if (existsSync(target + '.d.ts')) replacement = specifier + '.js';
+        else if (existsSync(join(target, 'index.d.ts'))) replacement = specifier + '/index.js';
+        if (replacement) edits.push({ start: node.getStart(source) + 1, end: node.end - 1, replacement });
+      }
+      let output = text;
+      for (const edit of edits.sort((a, b) => b.start - a.start)) output = output.slice(0, edit.start) + edit.replacement + output.slice(edit.end);
+      await writeFile(file, output);
     }
   }
 }

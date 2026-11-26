@@ -15,12 +15,16 @@ it('ordinary Vue SFCs typecheck and publish usable declarations to a clean NodeN
   await createProject(root,'demo','vue');const project=path.join(root,'demo');
   await run(['install','--ignore-scripts','--config.manage-package-manager-versions=false'],project);
   await run(['run','typecheck'],project);await run(['run','build'],project);
-  await fs.writeFile(path.join(project,'src/Demo.vue'),'<script setup lang="ts">\ndefineProps<{label?:string}>();\n</script>\n<template><button>{{ label }}</button></template>\n');
-  await fs.writeFile(path.join(project,'src/index.ts'),"export {default as Demo} from './Demo.vue';\n");
+  await fs.mkdir(path.join(project,'src/types'));await fs.writeFile(path.join(project,'src/types/index.ts'),"export interface DemoProps {label?:string}\n");
+  await fs.writeFile(path.join(project,'src/props.ts'),"export type {DemoProps} from './types';\n");
+  const ordinarySfc='<script setup lang="ts">\nimport type {DemoProps} from "./props";\ndefineProps<DemoProps>();\n</script>\n<template><button>{{ label }}</button></template>\n';
+  await fs.writeFile(path.join(project,'src/Demo.vue'),ordinarySfc);
+  await fs.writeFile(path.join(project,'src/index.ts'),"export {default as Demo} from './Demo.vue';\nexport type {DemoProps} from './props';\nexport type LazyProps=import('./types').DemoProps;\nexport type Literal='./props';\n");
   await run(['run','typecheck'],project);await run(['run','build'],project);
   await fs.writeFile(path.join(project,'src/Demo.vue'),'<script setup lang="ts">\nconst props=defineProps<{label?:string}>();\nconst broken:number=props.label;\n</script>\n<template><button>{{ broken }}</button></template>\n');
   await expect(run(['run','typecheck'],project)).rejects.toMatchObject({code:2,stdout:expect.stringContaining('TS2322')});
-  await fs.writeFile(path.join(project,'src/Demo.vue'),'<script setup lang="ts">\ndefineProps<{label?:string}>();\n</script>\n<template><button>{{ label }}</button></template>\n');
+  await fs.writeFile(path.join(project,'src/Demo.vue'),ordinarySfc);await run(['run','build'],project);
+  expect(await fs.readFile(path.join(project,'dist/index.d.ts'),'utf8')).toContain("'./props'"); // A literal type is not a module specifier.
   const output=path.join(root,'packed');await fs.mkdir(output);await run(['pack','--pack-destination',output],project);
   const tarball=path.join(output,(await fs.readdir(output)).find(f=>f.endsWith('.tgz'))!);
   const consumer=path.join(root,'consumer');await fs.mkdir(consumer);await fs.writeFile(path.join(consumer,'package.json'),JSON.stringify({private:true,type:'module'}));
