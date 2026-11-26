@@ -1,6 +1,10 @@
-import type { Metadata } from 'next';
+import type { Metadata, Viewport } from 'next';
 import { ZnShell } from './lib/design/shell';
 import './globals.css';
+
+export const viewport: Viewport = {
+  colorScheme: 'light dark',
+};
 
 export const metadata: Metadata = {
   title: {

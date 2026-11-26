@@ -180,22 +180,12 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
         <span className="zn-sidebar-rail" />
         <div className="zn-brand">
           <span className="zn-brand-mark">Z</span>
-          <span className="zn-brand-name">ZHINEXUS</span>
+          <span className="zn-brand-name">Zhinexus</span>
         </div>
-        <p className="zn-workspace-label">REGISTRY / 工作台</p>
+        <p className="zn-workspace-label">管理工作台</p>
         <div className="zn-link-pulse" data-health={health.status}>
           <span className="zn-link-status">
-            <span
-              className="zn-live-dot"
-              style={{
-                background:
-                  health.status === 'online'
-                    ? 'var(--zn-success)'
-                    : health.status === 'offline'
-                      ? 'var(--zn-danger)'
-                      : 'var(--zn-warning)',
-              }}
-            />
+            <span className="zn-live-dot" />
             <span className="zn-link-label">
               {health.status === 'online' ? 'API ONLINE' : health.status === 'offline' ? 'API OFFLINE' : 'CHECKING API'}
             </span>
@@ -212,17 +202,17 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
               className="zn-nav-item"
               aria-current={activeKey === item.key ? 'page' : undefined}
             >
-              <ZnIcon name={item.icon} size={17} className="zn-nav-icon" color={activeKey === item.key ? 'var(--zn-accent)' : '#7D8796'} />
+              <ZnIcon name={item.icon} size={16} className="zn-nav-icon" color="currentColor" />
               <span>
                 <span className="zn-nav-order">{item.order}</span>
-                {'  '}
+                {' '}
                 {item.label}
               </span>
             </Link>
           ))}
         </nav>
 
-        <p className="zn-workspace-label" style={{ marginTop: 10 }}>TOOLS / 辅助工具</p>
+        <p className="zn-workspace-label" style={{ marginTop: 12 }}>辅助工具</p>
         <nav className="zn-nav" aria-label="辅助工具" style={{ marginTop: 2 }}>
           {ADMIN_TOOL_ITEMS.map((item) => (
             <Link
@@ -231,7 +221,7 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
               className="zn-nav-item"
               aria-current={activeKey === item.key ? 'page' : undefined}
             >
-              <ZnIcon name={item.icon} size={16} className="zn-nav-icon" color={activeKey === item.key ? 'var(--zn-accent)' : '#7D8796'} />
+              <ZnIcon name={item.icon} size={15} className="zn-nav-icon" color="currentColor" />
               <span>{item.label}</span>
             </Link>
           ))}
