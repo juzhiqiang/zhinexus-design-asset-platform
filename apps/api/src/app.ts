@@ -52,6 +52,7 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
       exposedHeaders: ['X-Request-Id'], credentials: Boolean(platform.access),
     });
     app.useBodyParser('json', { limit: '8mb', strict: true });
+    app.useBodyParser('urlencoded', { limit: '1mb', extended: false });
     app.useGlobalFilters(new ErrorFilter());
     platform.identityWorker?.start();
     return app;
