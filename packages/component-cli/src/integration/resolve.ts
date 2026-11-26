@@ -207,10 +207,7 @@ export async function resolveLocalPlan(
     // 版本形成真实 GET（见 plan.ts matchQuery），这里只如实记录冲突、不伪造 planned。
     addConflict(conflicts, 'MATCH_CONTEXT_MISMATCH', `MatchPlan 未声明 ECharts 版本，目标项目已锁 ${lockedEcharts}；不静默采用本地版本`);
   }
-  if (lockedEcharts === undefined && context.echartsVersion === undefined) {
-    // 本地未锁、MatchPlan 也未给明确候选：不能凭空补“最新版本”。
-    addConflict(conflicts, 'ECHARTS_MISSING', '目标项目未锁 ECharts，且 MatchPlan 未给出明确候选版本，无法确定精确组合');
-  }
+  // 未声明 ECharts 不等于缺依赖；权威 GET 根据组件真实 peer/依赖判定，不能强制普通组件安装图表引擎。
 
   // 目标身份：按首次出现顺序去重；同名不同精确依赖不静默升级已锁宿主。
   const queries: PlannedTarget[] = [];

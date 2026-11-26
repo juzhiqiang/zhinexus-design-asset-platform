@@ -89,7 +89,7 @@ const environment = object({
   os: text, arch: text, browserVersion: text, browserRevision: text, fontDigest: hash, locale: text, timezone: text,
   deviceScaleFactor: { type: 'number', exclusiveMinimum: 0 }, renderer: choice('canvas', 'svg'), width: integer(1, 8192), height: integer(1, 8192),
   theme: text, frameworkVersion: exactVersion, echartsVersion: exactVersion,
-});
+}, ['echartsVersion']);
 export const integrationVerificationSpecSchema: Schema = {
   ...object({ ...integrationVerificationIdentitySchema, commands: array(object({ kind: choice('type', 'build'), script: scriptName, manifestPath: integrationPathSchema,
     manifestSha256: hash, timeoutMs: timeout, outputDirectories: array(integrationPathSchema) })),

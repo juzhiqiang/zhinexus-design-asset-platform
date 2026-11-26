@@ -13,6 +13,7 @@ import { installProjectConsumer } from './consumer.js';
 import { buildProjectConsumer } from './vite-consumer.js';
 import { runLocal } from './process.js';
 import { inputFingerprint } from '../workbench/state.js';
+import { readPlayground, validateExample } from '../workbench/examples.js';
 
 export async function loadProjectBundle(bundleDir: string) {
   const root = await fs.realpath(bundleDir);
@@ -69,6 +70,7 @@ async function staticPreview(root: string) {
 }
 /** Build once, pack once, and only consume the frozen bytes after that point. */
 export async function prepareProject(project: LoadedProject, variants: ProjectVariant[], bundleDir: string, version: string, log: (message: string) => void, timeoutMs: number) {
+  for (const variant of variants) { await readVariantApi(project,variant); if(variant.playground) await validateExample(project,variant,(await readPlayground(project,variant)).value); }
   try { await fs.access(bundleDir); throw new Error('BUNDLE_EXISTS: 请恢复原材料或选择新的 --bundle-dir'); } catch (error) { if (!(error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT')) throw error; }
   await fs.mkdir(bundleDir, { recursive: true });
   log('本地构建组件包'); await runLocal(project.config.build, project.packageDir, log, timeoutMs);

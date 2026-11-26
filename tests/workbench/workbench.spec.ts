@@ -13,6 +13,37 @@ let root:string,service:Awaited<ReturnType<typeof startWorkbench>>;
 test.beforeEach(async()=>{root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-browser-'));await createProject(root,'demo','all');await promisify(execFile)(resolvePnpmExecutable(),['install','--ignore-scripts','--config.manage-package-manager-versions=false'],{cwd:path.join(root,'demo'),windowsHide:true,timeout:120000});service=await startWorkbench({root:path.join(root,'demo'),version:'0.1.0',port:0});});
 test.afterEach(async()=>{await service?.close();if(root)await fs.rm(root,{recursive:true,force:true});});
 
+test('API metadata derives controls for ordinary React and Vue components, validates nested values and saves only examples',async({page})=>{
+ for(const framework of ['react','vue']){
+  const file=path.join(root,'demo/packages',framework,'api/demo.json'),api=JSON.parse(await fs.readFile(file,'utf8'));
+  api.props.push({name:'unit',type:'string',required:false,schema:{type:'string',title:'单位',enum:['元','万元'],default:'元'}});
+  api.props.push({name:'config',type:'MetricConfig',required:false,schema:{type:'object',properties:{digits:{type:'integer',minimum:0,maximum:4}},required:['digits'],additionalProperties:false}});
+  await fs.writeFile(file,JSON.stringify(api));
+ }
+ await page.goto(service.url);const frame=page.frameLocator('iframe');
+ for(const framework of ['React','Vue']){
+  await page.getByRole('button',{name:framework,exact:true}).click();await expect(frame.getByRole('heading',{name:'Hello juz'})).toBeVisible();
+  await expect(page.getByLabel('单位',{exact:true})).toHaveValue('元');
+  await page.getByLabel('单位',{exact:true}).selectOption('万元');
+  await page.getByLabel('数字颜色',{exact:true}).fill('#112233');
+  await expect(frame.locator('#app strong')).toHaveCSS('color','rgb(17, 34, 51)');
+  await expect(frame.getByRole('heading',{name:'Hello juz'})).toHaveCSS('color','rgb(163, 210, 255)');
+  const props=JSON.parse(await page.locator('#props-json').inputValue());
+  if(!await page.locator('#props-json').isVisible())await page.getByText('完整 Props JSON',{exact:true}).click();
+  props.config={digits:2};await page.locator('#props-json').fill(JSON.stringify(props));await page.getByRole('button',{name:'应用参数 JSON',exact:true}).click();
+  await expect(page.getByRole('button',{name:'保存示例',exact:true})).toBeEnabled();
+  await expect(page.getByRole('alert')).toBeHidden();
+  props.config={digits:8};props.value=999;await page.locator('#props-json').fill(JSON.stringify(props));await page.getByRole('button',{name:'应用参数 JSON',exact:true}).click();
+  await expect(page.getByRole('alert')).toContainText('PLAYGROUND_INVALID');await expect(frame.locator('#app strong')).toHaveText('42');
+  props.config={digits:2};props.value=42;await page.locator('#props-json').fill(JSON.stringify(props));await page.getByRole('button',{name:'应用参数 JSON',exact:true}).click();
+  await page.getByRole('button',{name:'保存示例',exact:true}).click();await expect(page.getByRole('status')).toContainText('示例已保存');
+  const saved=JSON.parse(await fs.readFile(path.join(root,'demo/packages',framework.toLowerCase(),'playground.json'),'utf8'));
+  expect(saved.controls).toEqual([]);expect(saved.props).toMatchObject({valueColor:'#112233',unit:'万元',config:{digits:2}});
+ }
+ await page.reload();await expect(page.getByLabel('数字颜色',{exact:true})).toHaveValue('#112233');await expect(frame.locator('#app strong')).toHaveCSS('color','rgb(17, 34, 51)');
+ await page.screenshot({path:'.superpowers/sdd/2026-11-26-component-consumption-foundation/workbench.png',fullPage:true});
+});
+
 test('overlapping validation preserves edits to different controls and ignores stale failures after framework switches',async({page})=>{
  await page.goto(service.url);const frame=page.frameLocator('iframe');await expect(frame.getByRole('heading',{name:'Hello juz'})).toBeVisible();
  const pending:(()=>Promise<void>)[]=[];
@@ -77,7 +108,7 @@ for(const hook of ['config','configResolved','configureServer'])test('project '+
 
 test('supports enum/bounds/boolean controls, real drag resizing and honestly reports a custom consumer without a bridge',async({page})=>{
  const project=path.join(root,'demo'),exampleFile=path.join(project,'packages/react/playground.json');
- const example=JSON.parse(await fs.readFile(exampleFile,'utf8'));example.controls[0]={name:'label',kind:'enum',options:['Hello juz','Selected enum','No data']};example.controls[1].min=0;await fs.writeFile(exampleFile,JSON.stringify(example));
+ const example=JSON.parse(await fs.readFile(exampleFile,'utf8'));example.controls=[{name:'label',kind:'enum',options:['Hello juz','Selected enum','No data']},{name:'value',kind:'number',min:0}];await fs.writeFile(exampleFile,JSON.stringify(example));
  await page.goto(service.url);const frame=page.frameLocator('iframe');await expect(frame.getByRole('heading',{name:'Hello juz'})).toBeVisible();
  await page.getByLabel('label',{exact:true}).selectOption('Selected enum');await expect(frame.getByRole('heading',{name:'Selected enum'})).toBeVisible();
  await page.getByLabel('value',{exact:true}).fill('-1');await expect(page.getByRole('alert')).toContainText('PLAYGROUND_INVALID');await expect(frame.locator('#app strong')).toHaveText('42');
@@ -115,6 +146,7 @@ test('prepares saved examples, shows immutable snapshot, invalidates changed inp
   await page.getByRole('button',{name:'查看冻结预览',exact:true}).click();
   await expect(page.frameLocator('iframe').getByRole('heading',{name:'Frozen snapshot'})).toBeVisible();
   await expect(page.getByLabel('label',{exact:true})).toHaveValue('Frozen snapshot');await expect(page.getByLabel('label',{exact:true})).toBeDisabled();
+  await expect(page.getByLabel('数字颜色',{exact:true})).toHaveValue('#ff6b35');await expect(page.getByLabel('数字颜色',{exact:true})).toBeDisabled();
   await page.getByLabel('示例状态',{exact:true}).selectOption('empty');await expect(page.frameLocator('iframe').getByRole('heading',{name:'No data'})).toBeVisible();
   await page.getByRole('button',{name:'返回开发预览',exact:true}).click();await expect(page.frameLocator('iframe').getByRole('heading',{name:'Unsaved draft'})).toBeVisible();
   await page.getByRole('button',{name:'重置默认值',exact:true}).click();await expect(page.getByRole('button',{name:'上传发布',exact:true})).toBeEnabled();

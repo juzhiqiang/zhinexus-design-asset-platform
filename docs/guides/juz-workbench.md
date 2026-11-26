@@ -1,6 +1,6 @@
 # juz 本地工作台实操指南
 
-适用于 juz-cli 0.1.1。本分支平台根版本 0.2.4。所有组件构建、消费者安装和 Chromium 截图都在开发者电脑运行。
+适用于 juz-cli 0.1.2。本分支平台根版本 0.2.5。所有组件构建、消费者安装和 Chromium 截图都在开发者电脑运行。
 
 ## 安装与第一次启动
 
@@ -8,7 +8,7 @@
 
 ```powershell
 pnpm --filter @company/component-cli pack:juz
-npm install -g .\packages\component-cli\.release\juz-cli-0.1.1.tgz
+npm install -g .\packages\component-cli\.release\juz-cli-0.1.2.tgz
 juz --version
 
 # 从空项目开始
@@ -42,7 +42,7 @@ juz dev
 | `component.config.json` | 接入入口、实现或预览配置变化时 |
 | `.juz/` | CLI 创建的消费者桥接与 Vue 声明整理工具，通常不用手改，需纳入版本管理 |
 
-`.juz/consumer` 不安装依赖、不登记源码 alias，也不另存一份示例数据；开发和冻结验证时由 CLI 在临时目录注入包内已保存的 `playground.json`。组件 npm 包只包含 `dist`。旧项目原有的 `consumer/`、自定义路径及挂载适配器继续生效，不自动迁移。
+`.juz/consumer` 不安装依赖、不登记源码 alias，也不另存一份示例数据；开发和冻结验证时由 CLI 在临时目录注入包内已保存的 `playground.json`。新模板 npm 包包含 dist、api、docs；运行入口不导入元数据。旧项目原有的 `consumer/`、自定义路径及挂载适配器继续生效，不自动迁移。
 
 开发运行 `juz dev`；在对应组件包中运行 `pnpm typecheck`、`pnpm build`。模板的 `pnpm dev` 保留为构建导出监听，供 `juz dev --script` 使用。Vue 使用仓库已验证的 `vue-tsc 3.3.14` + TypeScript `6.0.3` 处理 SFC 与声明；React 使用 TypeScript `7.0.2`。Vue 发布声明会整理已发射的相对本地文件/目录引用，以支持 NodeNext 消费；自定义类型路径别名仍需项目自己的声明打包配置。
 
@@ -113,6 +113,8 @@ juz dev --script --framework react
 
 ## 分类、打包和发布
 
+新模板的参数控件从 API 的 schema/editor 自动生成，playground.controls 默认为空。上文显式 controls 示例为旧配置/手工覆盖方式，不能放宽 API 约束。嵌套对象、数组、枚举、默认值注解、数字颜色以及低代码/机器接入的职责说明见[组件多场景接入指南](component-inputs.md)。
+
 本地未分配分类时仍可开发。冻结前在工作台登录，选择后台启用分类并点击“分配分类”，会同步同逻辑组件的所有框架配置。分类不会授予包或组件权限；管理员仍需配置发布 ACL。也可在终端用稳定分类 ID：
 
 ```powershell
@@ -134,7 +136,7 @@ juz publish --package my-card-react
 
 ## 自定义消费者桥接
 
-复杂组件继续维护自己的消费者。缺少桥接时显示“受限”，可直接交互及刷新，CLI 不猜测业务挂载方式。推荐从新建模板的 `.juz/consumer/main.js` 复制桥接部分，保留 `window.__COMPONENT_EXAMPLE__` 就绪协议；契约类型/Schema 为 `PlaygroundV1`，不改变 ComponentApiV1 或 ReleaseManifestV1。
+复杂组件继续维护自己的消费者。缺少桥接时显示“受限”，可直接交互及刷新，CLI 不猜测业务挂载方式。推荐从新建模板的 `.juz/consumer/main.js` 复制桥接部分，保留 `window.__COMPONENT_EXAMPLE__` 就绪协议；桥接契约为 PlaygroundV1；ComponentApiV1 只新增可选参数描述，ReleaseManifestV1 保持兼容。
 
 父窗口只向当前 iframe 的 WindowProxy 转移一个专用 MessagePort。消费者接收连接时必须检查：`event.source === parent`、`event.origin === document.querySelector('meta[name="juz-parent"]').content`、`event.data.type === 'juz-connect'`、恰好一个端口及本次加载未连接过。不要把不透明源的 `null` 当作身份。
 

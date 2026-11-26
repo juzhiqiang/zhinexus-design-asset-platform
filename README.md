@@ -50,6 +50,8 @@ CLI 工作区包保持内部名称，通过 `pnpm --filter @company/component-cl
 
 ## 本地开发（Windows x64）
 
+参数 schema/editor 已作为共享基础接入工作台、发布 API 和机器匹配：参数声明集中维护，示例只保存值和状态，低代码编辑器后续建设。参见[组件多场景接入指南](docs/guides/component-inputs.md)。
+
 在仓库根目录直接使用系统安装的 Node `>=24.6.0` 与 pnpm `12.18.0` 执行以下命令：
 
 ```powershell

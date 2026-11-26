@@ -1,5 +1,9 @@
 # juz-cli
 
+参数 schema/editor 集中写在 api/demo.json，工作台自动派生控件；新模板 playground.controls 为空，保存只更新实例值和状态。valueColor 单独设置数字颜色，color 设置标题和辅助文字。普通组件保持常规 Props/回调或 Emits，不依赖低代码运行时。新包包含 dist、api、docs，运行入口不导入元数据；可显式读取包名/api/demo.json。
+
+同一 API 描述供常规开发、未来低代码与 AI 按标识接入复用；本轮不包含低代码编辑器。Schema 为有界、无引用的纯 JSON 子集；默认值是注解，不自动注入保存值。普通组件查询不强制 CSS、就绪方法或 ECharts，依赖以真实包材料为准。复杂 Provider/插槽及缺少兼容证据仍返回明确缺口。完整规则见仓库 docs/guides/component-inputs.md。
+
 新建或接入 Vue / React 组件，在统一工作台中预览、调试、保存示例、打包和发布。完整实操、配置与桥接协议见仓库 `docs/guides/juz-workbench.md`。
 
 发布到 npm 后安装：`npm install -g juz-cli`。开发测试可全局安装构建得到的 `juz-cli-<version>.tgz`。

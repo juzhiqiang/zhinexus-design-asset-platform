@@ -517,6 +517,21 @@ describe('T15 P1 接入计划（planIntegration）', () => {
     expect(validateIntegrationPlan(result).ok).toBe(true);
   });
 
+  it('普通组件的权威依赖不需要 ECharts，计划保留元数据且不凭空补依赖（合成 HTTP 材料）',async()=>{
+    const root=vuePnpmProject('ordinary-no-echarts');
+    fs.writeFileSync(path.join(root,'pnpm-lock.yaml'),pnpmV9Lock({'.':{vue:{specifier:'^3.5.0',version:'3.5.45'}}}),'utf8');
+    const manifest=JSON.parse(fs.readFileSync(path.join(root,'package.json'),'utf8'));delete manifest.dependencies.echarts;fs.writeFileSync(path.join(root,'package.json'),manifestJson(manifest),'utf8');
+    const plan=matchPlan({context:{echartsVersion:undefined}});
+    const response=matchedResponse() as import('@company/contracts').ComponentMatchResponseV1;
+    delete response.query.echartsVersion;response.exactDependencies=response.exactDependencies.filter(d=>d.name!=='echarts');
+    response.api!.props[1]!.schema={type:'object',properties:{digits:{type:'integer'}},additionalProperties:false};
+    plan.elements[0]!.props[1]!.schema=structuredClone(response.api!.props[1]!.schema);
+    apiResponses.push({status:200,body:response},{status:200,body:response});
+    const {result,thrown}=await runPlan(root,plan,planOptions());
+    expect(thrown).toBeUndefined();expect(result!.status).toBe('planned');expect(result!.exactDependencies.some(d=>d.name==='echarts')).toBe(false);
+    expect(apiRequests.every(r=>!r.query.has('echartsVersion'))).toBe(true);
+  });
+
   // ─── 冲突：目标路径与工作区状态 ───
 
   it('拟生成的组件文件已存在：OUTPUT_EXISTS 冲突且不覆盖', async () => {

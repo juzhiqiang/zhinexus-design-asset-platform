@@ -16,13 +16,19 @@ it('installs the actual juz tgz outside the repository and runs create/init/dev/
  const root=await fs.mkdtemp(path.join(os.tmpdir(),'juz-independent-workbench-'));let child:ChildProcess|undefined;
  const platform=await fakeWorkbenchPlatform('demo',['demo-react','demo-vue']);
  try{
-  const packed=JSON.parse((await execute(process.execPath,[path.resolve('packages/component-cli/scripts/pack-juz.mjs'),'--out',path.join(root,'artifacts')],{windowsHide:true,timeout:120000})).stdout);
+  const packed=process.env.JUZ_TEST_TARBALL?{tarballPath:await fs.realpath(process.env.JUZ_TEST_TARBALL),sha256:await computeFileSha256(process.env.JUZ_TEST_TARBALL)}:JSON.parse((await execute(process.execPath,[path.resolve('packages/component-cli/scripts/pack-juz.mjs'),'--out',path.join(root,'artifacts')],{windowsHide:true,timeout:120000})).stdout);
   const install=path.join(root,'installed');await fs.mkdir(install);await fs.writeFile(path.join(install,'package.json'),JSON.stringify({name:'cli-acceptance',private:true,version:'1.0.0'}));
   await execute(resolvePnpmExecutable(),['add',packed.tarballPath,'--ignore-scripts','--config.manage-package-manager-versions=false'],{cwd:install,windowsHide:true,timeout:120000});
   const installed=await fs.realpath(path.join(install,'node_modules/juz-cli'));expect(installed.startsWith(install)).toBe(true);
+  const cliVersion=JSON.parse(await fs.readFile(path.join(installed,'package.json'),'utf8')).version;
   const bin=path.join(installed,'dist/bin.js');const env={...process.env,NODE_PATH:'',NODE_OPTIONS:'',PLATFORM_API_URL:'',ZHINEXUS_API_URL:'',ZHINEXUS_API_TOKEN:'',PLATFORM_TOKEN:'',PLATFORM_API_TOKEN:'',ZHINEXUS_TOKEN:'',ZHINEXUS_CREDENTIAL_FILE:path.join(root,'session.local')};
   const cli=(args:string[],cwd=root)=>execute(process.execPath,[bin,...args],{cwd,env,windowsHide:true,timeout:180000,maxBuffer:4*1024*1024});
   await cli(['create','demo','--framework','all']);const project=path.join(root,'demo');
+  for(const framework of ['react','vue']){
+   const api=JSON.parse(await fs.readFile(path.join(project,'packages',framework,'api/demo.json'),'utf8'));
+   expect(api.props.find((p:{name:string})=>p.name==='valueColor')).toMatchObject({schema:{title:'数字颜色'},editor:{kind:'color'}});
+   expect(JSON.parse(await fs.readFile(path.join(project,'packages',framework,'playground.json'),'utf8')).controls).toEqual([]);
+  }
   await execute(resolvePnpmExecutable(),['install','--ignore-scripts','--config.manage-package-manager-versions=false'],{cwd:project,env,windowsHide:true,timeout:120000});
   await cli(['create','incoming','--framework','react']);await fs.unlink(path.join(root,'incoming/component.config.json'));
   await cli(['init','--component','incoming','--export','Demo','--framework','react','--source','src/index.tsx'],path.join(root,'incoming'));
@@ -42,6 +48,8 @@ it('installs the actual juz tgz outside the repository and runs create/init/dev/
    }
    const exampleFile=path.join(project,'packages/react/playground.json');const example=JSON.parse(await fs.readFile(exampleFile,'utf8'));example.props.label='Installed CLI frozen';example.states[0].props=example.props;await fs.writeFile(exampleFile,JSON.stringify(example));
    const output=JSON.parse((await cli(['package','--package','demo-react','--category','general'],project)).stdout);
+   const frozenApi=JSON.parse(await fs.readFile(path.join(output.bundleDir,output.manifest.variants[0].api.path),'utf8'));
+   expect(frozenApi.props.find((p:{name:string})=>p.name==='valueColor').schema.default).toBe('#FF6B35');
    const hashes=await Promise.all(output.manifest.files.map((f:{path:string})=>computeFileSha256(path.join(output.bundleDir,f.path))));
    const preview=await launch(['preview','--bundle-dir',output.bundleDir],root);await page.goto(preview.url);await page.frameLocator('iframe').getByRole('heading',{name:'Installed CLI frozen'}).waitFor();expect(await page.locator('#mode').textContent()).toContain('冻结');expect(await page.locator('#save').isDisabled()).toBe(true);await terminateTree(child!);child=undefined;
    await cli(['login','--api-url',platform.origin,'--token','mock-installed-token']);platform.interrupt();
@@ -49,7 +57,7 @@ it('installs the actual juz tgz outside the repository and runs create/init/dev/
    const session=JSON.parse(await fs.readFile(path.join(output.bundleDir,'.release-session.json'),'utf8'));expect(session.idempotencyKey).toBe('independent-original-key');
    const ready=JSON.parse((await cli(['publish','--package','demo-react','--idempotency-key','ignored-new-key'],project)).stdout);expect(ready.state).toBe('READY');expect(platform.creates()).toBe(1);expect(platform.keys).toEqual(['independent-original-key']);
    expect(await Promise.all(output.manifest.files.map((f:{path:string})=>computeFileSha256(path.join(output.bundleDir,f.path))))).toEqual(hashes);
-   await fs.mkdir(path.resolve('test-results/workbench'),{recursive:true});await fs.writeFile(path.resolve('test-results/workbench/independent-cli.json'),JSON.stringify({evidence:'INDEPENDENT_JUZ_WORKBENCH',mockHttp:true,cliVersion:packed.version,cliTarballSha256:packed.sha256,commands:['create all','init source','dev default Vue','package selected React','preview read-only','login token','publish interrupted','publish resume'],componentTarballSha256:output.manifest.packages[0].tarball.sha256,uploadCreates:platform.creates(),originalKeyRetained:true},null,2));
+   await fs.mkdir(path.resolve('test-results/workbench'),{recursive:true});await fs.writeFile(path.resolve('test-results/workbench/independent-cli.json'),JSON.stringify({evidence:'INDEPENDENT_JUZ_WORKBENCH',mockHttp:true,cliVersion,cliTarballSha256:packed.sha256,commands:['create all','init source','dev default Vue','package selected React','preview read-only','login token','publish interrupted','publish resume'],componentTarballSha256:output.manifest.packages[0].tarball.sha256,uploadCreates:platform.creates(),originalKeyRetained:true},null,2));
   }finally{await browser.close();}
  }finally{if(child)await terminateTree(child);await platform.close();await fs.rm(root,{recursive:true,force:true});}
 },300000);

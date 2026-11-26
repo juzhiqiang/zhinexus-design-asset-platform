@@ -8,6 +8,15 @@ import { validInspectionFixture, validIntegrationPlanFixture } from '../fixtures
 const validate = (input: unknown) => (contracts as unknown as Record<string, (x: unknown) => { ok: boolean }>).validateIntegrationPlan?.(input);
 const inspect = (input: unknown) => (contracts as unknown as Record<string, (x: unknown) => { ok: boolean }>).validateLocalProjectInspection?.(input);
 describe('T15 read-only integration contracts', () => {
+  it('离线参数/事件的结构化元数据必须与权威 API 一致', () => {
+    const p=validIntegrationPlanFixture(),api=p.publicationEvidence[0]!.response.api!,element=p.sourceMatchPlan.elements[0]!;
+    api.props[1]!.schema={type:'object',properties:{digits:{type:'integer'}},additionalProperties:false};
+    element.props[1]!.schema=structuredClone(api.props[1]!.schema);
+    expect(validate(p)).toMatchObject({ok:true});
+    element.props[1]!.schema!.additionalProperties=true;expect(validate(p)).toMatchObject({ok:false});
+    element.props[1]!.schema=structuredClone(api.props[1]!.schema);api.events[0]!.schema={type:'object'};
+    expect(validate(p)).toMatchObject({ok:false});
+  });
   it('loads its ESM module independently without a schema initialization cycle', () => {
     const moduleUrl = new URL('../../packages/contracts/dist/integration-plan.js', import.meta.url).href;
     expect(() => execFileSync(process.execPath, ['--input-type=module', '-e', `await import(${JSON.stringify(moduleUrl)})`], { cwd: fileURLToPath(new URL('../..', import.meta.url)), stdio: 'pipe' })).not.toThrow();

@@ -17,6 +17,7 @@ export function generateReactComponent(model: GeneratedBindingModel): string {
   if (model.bindings.length === 0) {
     throw new BindingError('BINDING_UNSUPPORTED', '权威组件 API 未声明任何可下发的属性或事件');
   }
+  const styleImport = model.styleSpecifier ? "import '" + model.styleSpecifier + "';\n" : '';
   const typeImports = model.typeImports.length > 0 ? `import type { ${model.typeImports.join(', ')} } from '@company/charts-core';\n` : '';
   const reactTypeImports = (model.reactTypeImports ?? []).length > 0
     ? `import type { ${(model.reactTypeImports ?? []).join(', ')} } from 'react';\n`
@@ -46,8 +47,7 @@ export function generateReactComponent(model: GeneratedBindingModel): string {
 
   return `'use client';
 import { ${model.exportName} as ${model.sdkIdentifier} } from '${model.importSpecifier}';
-import '${model.styleSpecifier}';
-${typeImports}${reactTypeImports}${packageTypeImports}
+${styleImport}${typeImports}${reactTypeImports}${packageTypeImports}
 /**
  * ${model.componentName}：Zhinexus design-id 接入组件（由接入计划生成）。
  * 设计声明的数据源、事件处理与布局均以字符串数据下发，绝不被当作代码求值。

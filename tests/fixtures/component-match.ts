@@ -19,7 +19,7 @@ export function componentMatchResponseFixture(framework: 'vue' | 'react' = 'vue'
     exactDependencies: [
       { name: target.packageName, version: target.packageVersion },
       { name: framework, version: query.frameworkVersion },
-      { name: 'echarts', version: query.echartsVersion },
+      ...(query.echartsVersion ? [{ name: 'echarts', version: query.echartsVersion }] : []),
       ...(framework === 'react' ? [{ name: 'react-dom', version: query.reactDomVersion! }] : []),
     ],
     gaps: [{ code: 'COMPATIBILITY_UNVERIFIED', message: 'Synthetic fixture has no accepted compatibility evidence' }],

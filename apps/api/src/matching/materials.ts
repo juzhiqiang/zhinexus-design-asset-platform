@@ -36,8 +36,7 @@ export function resolveRelease(request: MatchContext, id: string, snapshot?: Cur
 }
 
 export type Eligible = NonNullable<ReturnType<typeof resolveRelease>>;
-/** Existing automatic assembly targets promise both capabilities; ordinary npm components may omit them. */
-export type AssemblyApi = ComponentApiV1 & { styleExport: string; readyMethod: string };
+export type AssemblyApi = ComponentApiV1;
 
 /** 读取并校验 api/docs 静态材料；任何不一致都返回 null（调用方据此给 `API_UNSUPPORTED`）。 */
 export async function readApi(id: string, item: Eligible, repository: MaterialRepository): Promise<AssemblyApi | null> {
@@ -52,9 +51,8 @@ export async function readApi(id: string, item: Eligible, repository: MaterialRe
     const checked = validateComponentApi(input);
     if (!checked.ok) return null;
     const api = checked.value;
-    if (api.styleExport === undefined || api.readyMethod === undefined) return null;
     return api.componentId === item.variant.componentId && api.framework === item.variant.framework && api.exportName === item.variant.exportName && api.exportPath === item.variant.exportPath
-      ? { ...api, styleExport: api.styleExport, readyMethod: api.readyMethod } : null;
+      ? api : null;
   } catch (error) {
     if (error instanceof PlatformError && ['NOT_FOUND', 'DIGEST_MISMATCH'].includes(error.code)) return null;
     throw error;

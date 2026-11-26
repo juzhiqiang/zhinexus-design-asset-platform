@@ -5,6 +5,8 @@ import { randomBytes,randomUUID } from 'node:crypto';
 import { z } from 'zod';
 import { readWorkspace,selectProject } from './workspace.js';
 import { readPlayground,savePlayground,checked,validateExample } from './examples.js';
+import { derivePlaygroundControls } from '../contracts/playground.js';
+import type { ComponentApiV1 } from '../contracts/component-api.js';
 import { configRelative,inputFingerprint,readPointer,stateKey } from './state.js';
 import { projectPath,readVariantApi,validateProjectConfig,type LoadedProject,type ProjectVariant } from '../project/config.js';
 import { publishingAccess } from '../project/doctor.js';
@@ -36,13 +38,14 @@ export async function startWorkbench(options:WorkbenchOptions){
  async function catalog(){
   if(frozen){const b=frozen.bundle;const digest=await manifestDigest(b.manifest);return {readOnly:true,packages:b.manifest.packages.map(p=>({id:p.name,name:p.name,version:p.version,prepared:{digest,changed:false}})),variants:b.manifest.variants.map(v=>{
    const preview=v.examples[0]!;const meta=preview.previewFiles.find(f=>f.path.endsWith('/playground.json'));let example;try{example=meta?checked(JSON.parse(Buffer.from(b.filesMap.get(meta.path)!).toString('utf8'))):undefined;}catch{example=undefined;}
-   return {id:v.variantId,packageId:v.packageName,packageName:v.packageName,version:v.packageVersion,componentId:v.componentId,framework:v.framework,category:v.category,mode:'frozen',example,digest:'',api:JSON.parse(Buffer.from(b.filesMap.get(v.api.path)!).toString('utf8')),docs:Buffer.from(b.filesMap.get(v.docs.path)!).toString('utf8'),width:preview.width,height:preview.height};
+   const api=JSON.parse(Buffer.from(b.filesMap.get(v.api.path)!).toString('utf8'));
+   return {id:v.variantId,packageId:v.packageName,packageName:v.packageName,version:v.packageVersion,componentId:v.componentId,framework:v.framework,category:v.category,mode:'frozen',example,controls:derivePlaygroundControls(api,example?.controls??[]).filter(c=>c.name!==example?.dataProp),digest:'',api,docs:Buffer.from(b.filesMap.get(v.docs.path)!).toString('utf8'),width:preview.width,height:preview.height};
   })};}
   const w=await workspace();const packages=[];const variants=[];
   for(const p of w.projects){const pointer=await readPointer(p);let prepared:unknown;
    if(pointer){try{const bundle=await loadProjectBundle(await projectPath(p.root,pointer.bundleDir));prepared={bundleDir:pointer.bundleDir,digest:await manifestDigest(bundle.manifest),changed:pointer.inputDigest?pointer.inputDigest!==await inputFingerprint(p):null,variants:bundle.manifest.variants.map(v=>({componentId:v.componentId,framework:v.framework,category:v.category})),tarballSha256:bundle.manifest.packages[0]?.tarball.sha256};}catch{prepared={changed:true,error:'冻结材料缺失或校验失败'};}}
    packages.push({id:p.pkg.name,name:p.pkg.name,version:p.pkg.version,configDigest:computeBufferSha256(canonicalJson(p.config)),prepared});
-   for(const v of p.config.variants){const example=await readPlayground(p,v);variants.push({id:itemId(p,v),packageId:p.pkg.name,packageName:p.pkg.name,version:p.pkg.version,componentId:v.componentId,framework:v.framework,category:v.category,mode:v.sourceEntry?'source':'built-export',example:example.value,digest:example.digest,api:await readVariantApi(p,v),docs:await fs.readFile(await projectPath(p.root,v.docs),'utf8'),width:v.readiness.width,height:v.readiness.height});}
+   for(const v of p.config.variants){const example=await readPlayground(p,v);const api=await readVariantApi(p,v);variants.push({id:itemId(p,v),packageId:p.pkg.name,packageName:p.pkg.name,version:p.pkg.version,componentId:v.componentId,framework:v.framework,category:v.category,mode:v.sourceEntry?'source':'built-export',example:example.value,controls:derivePlaygroundControls(api,example.value.controls).filter(c=>c.name!==example.value.dataProp),digest:example.digest,api,docs:await fs.readFile(await projectPath(p.root,v.docs),'utf8'),width:v.readiness.width,height:v.readiness.height});}
   }
   return {readOnly:false,packages,variants};
  }
@@ -82,7 +85,9 @@ export async function startWorkbench(options:WorkbenchOptions){
     const parsed=z.strictObject({id:z.string(),variantId:z.string()}).parse(input);const project=await resolvePackage(parsed.id);const pointer=await readPointer(project);if(!pointer)throw new Error('PREPARE_REQUIRED');
     let result:unknown;const next=selection.catch(()=>{}).then(async()=>{await active?.close();active=undefined;await candidatePreview?.close();candidatePreview=await startFrozenPreview(await projectPath(project.root,pointer.bundleDir),origin);
      const bundle=candidatePreview.bundle;if(await manifestDigest(bundle.manifest)!==pointer.manifestDigest)throw new Error('FROZEN_MANIFEST_MISMATCH');const variant=bundle.manifest.variants.find(v=>v.variantId===parsed.variantId);if(!variant)throw new Error('VARIANT_UNKNOWN');const metadata=variant.examples[0]?.previewFiles.find(f=>f.path.endsWith('/playground.json'));
-     result={url:candidatePreview.url(parsed.variantId),mode:'frozen',snapshot:{api:JSON.parse(Buffer.from(bundle.filesMap.get(variant.api.path)!).toString('utf8')),docs:Buffer.from(bundle.filesMap.get(variant.docs.path)!).toString('utf8'),example:metadata?checked(JSON.parse(Buffer.from(bundle.filesMap.get(metadata.path)!).toString('utf8'))):undefined,category:variant.category}};
+     const api=JSON.parse(Buffer.from(bundle.filesMap.get(variant.api.path)!).toString('utf8')) as ComponentApiV1;
+     const example=metadata?checked(JSON.parse(Buffer.from(bundle.filesMap.get(metadata.path)!).toString('utf8'))):undefined;
+     result={url:candidatePreview.url(parsed.variantId),mode:'frozen',snapshot:{api,docs:Buffer.from(bundle.filesMap.get(variant.docs.path)!).toString('utf8'),example,controls:derivePlaygroundControls(api,example?.controls??[]).filter(c=>c.name!==example?.dataProp),category:variant.category}};
     });selection=next;await next;json(200,result);return;
    }
    if(url.pathname==='/api/validate'||url.pathname==='/api/save'){

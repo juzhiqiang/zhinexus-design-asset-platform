@@ -6,7 +6,7 @@ export type Schema = {
   $schema?: string; $id?: string; title?: string; description?: string;
   type?: 'object' | 'array' | 'string' | 'number' | 'integer' | 'boolean' | 'null';
   properties?: Record<string, Schema>; required?: string[];
-  additionalProperties?: boolean | Schema; items?: Schema; minItems?: number;
+  additionalProperties?: boolean | Schema; items?: Schema; minItems?: number; maxItems?: number;
   minLength?: number; maxLength?: number; pattern?: string;
   minimum?: number; maximum?: number; exclusiveMinimum?: number;
   enum?: readonly unknown[]; const?: unknown; format?: 'date-time';
@@ -89,7 +89,8 @@ export function validateSchema<T>(schema: Schema, input: unknown): ValidationRes
     if (s.enum && !s.enum.includes(value)) add(path, 'Value is not in the allowed enum');
     if (Object.hasOwn(s, 'const') && value !== s.const) add(path, 'Value differs from the required constant');
     if (typeof value === 'string') {
-      if (s.minLength !== undefined && value.length < s.minLength || s.maxLength !== undefined && value.length > s.maxLength) add(path, 'String length is outside allowed bounds');
+      const length = [...value].length;
+      if (s.minLength !== undefined && length < s.minLength || s.maxLength !== undefined && length > s.maxLength) add(path, 'String length is outside allowed bounds');
       if (s.pattern && !new RegExp(s.pattern).test(value)) add(path, 'String does not match the required pattern', s.pattern === PATH_PATTERN ? 'INVALID_PATH' : 'INVALID_SCHEMA');
       if (s.format === 'date-time' && !isTimestamp(value)) add(path, 'Expected a real UTC ISO-8601 timestamp');
     }
@@ -98,6 +99,7 @@ export function validateSchema<T>(schema: Schema, input: unknown): ValidationRes
     }
     if (Array.isArray(value)) {
       if (s.minItems !== undefined && value.length < s.minItems) add(path, 'Array has too few entries');
+      if (s.maxItems !== undefined && value.length > s.maxItems) add(path, 'Array has too many entries');
       if (s.items) value.forEach((item, i) => visit(s.items!, item, pointer(path, i)));
     } else if (value !== null && typeof value === 'object') {
       const record = value as Record<string, unknown>;
