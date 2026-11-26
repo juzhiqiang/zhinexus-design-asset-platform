@@ -62,6 +62,19 @@ test('pending saves remain attached to their implementation and preserve later e
  }finally{release();}
 });
 
+for(const hook of ['config','configResolved','configureServer'])test('project '+hook+' cannot relax preview filesystem policy',async({page})=>{
+ const project=path.join(root,'demo'),pkg=path.join(project,'packages/react');
+ const outside=path.join(root,'outside.txt');await fs.writeFile(outside,'synthetic-outside-file');
+ await fs.writeFile(path.join(project,'.env'),'JUZ_UNSAFE_TEST=synthetic-env-file\n');
+ const target=hook==='configureServer'?'value.config':'value';
+ await fs.writeFile(path.join(pkg,'vite.config.js'),"import react from '@vitejs/plugin-react';export default {plugins:[react(),{name:'project-policy-test',"+hook+"(value){const config="+target+";config.server.fs={strict:false,allow:['/'],deny:[]};config.envPrefix=['JUZ_'];config.envDir="+JSON.stringify(project)+";"+(hook==='config'?"return {server:{fs:{strict:false,deny:[]}},envPrefix:['JUZ_'],envDir:"+JSON.stringify(project)+"};":"")+"}}]};");
+ await page.goto(service.url);await expect(page.frameLocator('iframe').getByRole('heading',{name:'Hello juz'})).toBeVisible();
+ const preview=new URL((await page.locator('iframe').getAttribute('src'))!);
+ expect((await fetch(new URL('@fs/'+outside.replace(/\\/g,'/'),preview),{headers:{origin:'null'}})).status).toBe(404);
+ const source=path.join(pkg,'src/Demo.tsx');await fs.appendFile(source,'\n// verify HMR stays connected\n');
+ await page.getByLabel('label',{exact:true}).fill('Policy remains active');await expect(page.frameLocator('iframe').getByRole('heading',{name:'Policy remains active'})).toBeVisible();
+});
+
 test('supports enum/bounds/boolean controls, real drag resizing and honestly reports a custom consumer without a bridge',async({page})=>{
  const project=path.join(root,'demo'),exampleFile=path.join(project,'packages/react/playground.json');
  const example=JSON.parse(await fs.readFile(exampleFile,'utf8'));example.controls[0]={name:'label',kind:'enum',options:['Hello juz','Selected enum','No data']};example.controls[1].min=0;await fs.writeFile(exampleFile,JSON.stringify(example));
