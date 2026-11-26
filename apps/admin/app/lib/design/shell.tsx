@@ -11,7 +11,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { ZnIcon } from './icons';
 import { ADMIN_NAV_ITEMS, ADMIN_TOOL_ITEMS, resolveActiveNavKey, resolveTopbarPage } from './nav';
-import { getStoredSession, loadCompanySession, logoutAndRedirect, platformApiOrigin } from '../auth';
+import { getStoredSession, loadCompanySession, logoutAndRedirect, platformApiOrigin, SESSION_EXPIRED_EVENT } from '../auth';
 
 const SEARCH_TARGET = '/match';
 const THEME_KEY = 'zhinexus_admin_theme';
@@ -125,6 +125,20 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
     return () => {
       cancelled = true;
     };
+  }, [isLoginPage, pathname, router]);
+
+  useEffect(() => {
+    if (isLoginPage) return;
+    const onExpired = () => {
+      setSubject('');
+      setAuthStatus('redirecting');
+      const next = pathname && pathname.startsWith('/') && !pathname.startsWith('//') && pathname !== '/login'
+        ? `?next=${encodeURIComponent(pathname)}`
+        : '';
+      router.replace(`/login${next}`);
+    };
+    window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    return () => window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
   }, [isLoginPage, pathname, router]);
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import { validateAccessSettingsView, validateOidcCandidateTicket, type AccessAction, type AccessSection, type AccessSettingsView } from '@company/contracts';
-import { getAuthCredentials, getAuthHeaders, getStoredSession, platformApiOrigin } from './auth';
+import { getAuthCredentials, getAuthHeaders, getStoredSession, notifySessionExpired, platformApiOrigin } from './auth';
 
 export class AccessSettingsError extends Error {
   constructor(message: string, readonly status: number) {
@@ -20,6 +20,7 @@ export async function accessSettings(section?: AccessSection, action?: AccessAct
     ...(body ? { body: JSON.stringify(body) } : {}),
   });
   if (!response.ok) {
+    if (response.status === 401) notifySessionExpired();
     const message = response.status === 403
       ? '仅平台管理员可以管理接入配置。'
       : response.status === 401

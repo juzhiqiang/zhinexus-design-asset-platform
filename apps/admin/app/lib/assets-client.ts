@@ -1,5 +1,5 @@
 import type { ApiMessages } from '@company/contracts';
-import { getAuthCredentials, getAuthHeaders, getStoredSession, platformApiOrigin } from './auth';
+import { getAuthCredentials, getAuthHeaders, getStoredSession, notifySessionExpired, platformApiOrigin } from './auth';
 
 export class AssetApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -42,6 +42,7 @@ async function requestJson<T>(path: string, init: { method?: 'GET' | 'POST'; bod
     ...(init.body !== undefined ? { body: JSON.stringify(init.body) } : {}),
   });
   if (!response.ok) {
+    if (response.status === 401) notifySessionExpired();
     const message = response.status === 401
       ? '登录已失效，请重新登录。'
       : response.status === 403

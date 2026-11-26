@@ -9,7 +9,7 @@ import {
   type ManagedAccountListResponse,
   type ManagedAccountRole,
 } from '@company/contracts';
-import { getAuthCredentials, getAuthHeaders, getStoredSession, platformApiOrigin } from './auth';
+import { getAuthCredentials, getAuthHeaders, getStoredSession, notifySessionExpired, platformApiOrigin } from './auth';
 
 export class ManagedAccountApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -40,6 +40,7 @@ async function send(path: string, method: 'GET' | 'POST', body?: unknown): Promi
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
   });
   if (!response.ok) {
+    if (response.status === 401) notifySessionExpired();
     const message = response.status === 403
       ? '仅平台管理员可以管理成员账号。'
       : response.status === 401

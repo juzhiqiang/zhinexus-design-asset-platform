@@ -150,4 +150,33 @@ test.describe('后台管理重构核心流程（资产管理 / 发布作业 / �
     await expect(page.locator('main [role="alert"]')).toContainText('本地基础设施未连接');
     await expect(page.locator('main [role="alert"]')).toContainText('pnpm infra:up');
   });
+
+  test('接口返回 401 时，自动清理会话并跳回登录页', async ({ page }) => {
+    await page.route('**/v1/auth/oidc/session', (route) => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
+    await page.route('**/v1/auth/oidc/logout', (route) => route.fulfill({ status: 204 }));
+    await page.route(`${api}/healthz`, (route) => route.fulfill({ status: 200, json: { status: 'ok' } }));
+    await page.route(`${api}/v1/me/components**`, (route) => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
+
+    await page.addInitScript(
+      (token) => localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token, subject: 'admin', roles: ['reader'], channel: 'web' })),
+      devToken,
+    );
+    await page.goto('/assets');
+    await expect(page).toHaveURL(/\/login\?next=%2Fassets$/);
+    expect(await page.evaluate(() => localStorage.getItem('zhinexus_console_auth'))).toBeNull();
+  });
+
+  test('本地 JWT 已过期时，直接清理会话并跳回登录页', async ({ page }) => {
+    await page.route('**/v1/auth/oidc/session', (route) => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
+    await page.route(`${api}/healthz`, (route) => route.fulfill({ status: 200, json: { status: 'ok' } }));
+
+    const expiredToken = `header.${Buffer.from(JSON.stringify({ sub: 'admin', roles: ['reader'], exp: 1000 })).toString('base64url')}.sig`;
+    await page.addInitScript(
+      (token) => localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token, subject: 'admin', roles: ['reader'], channel: 'web' })),
+      expiredToken,
+    );
+    await page.goto('/jobs');
+    await expect(page).toHaveURL(/\/login\?next=%2Fjobs$/);
+    expect(await page.evaluate(() => localStorage.getItem('zhinexus_console_auth'))).toBeNull();
+  });
 });

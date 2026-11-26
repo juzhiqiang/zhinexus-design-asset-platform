@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { ComponentCategory } from '@company/contracts';
-import { getStoredSession, loadCompanySession, platformApiOrigin, type UserSession } from '../lib/auth';
+import { getStoredSession, loadCompanySession, notifySessionExpired, platformApiOrigin, type UserSession } from '../lib/auth';
 import { CategoryApiError, createComponentCategory, listComponentCategories, updateComponentCategory } from '../lib/categories-client';
 import { ZnIcon } from '../lib/design/icons';
 import { COMMAND_MOTIFS, ZnCommandMotif } from '../lib/design/motifs';
@@ -81,7 +81,12 @@ export default function CategoriesConsole() {
       .catch((failure) => {
         if (!current()) return;
         const status = failure instanceof CategoryApiError ? failure.status : undefined;
-        if (status === 401 || status === 403) clearPrivateState();
+        if (status === 401) {
+          clearPrivateState();
+          notifySessionExpired();
+          return;
+        }
+        if (status === 403) clearPrivateState();
         setError({ status, message: failure instanceof Error ? failure.message : '读取分类失败。' });
       })
       .finally(() => {
@@ -116,7 +121,12 @@ export default function CategoriesConsole() {
     } catch (failure) {
       if (generation !== requestGeneration.current) return false;
       const status = failure instanceof CategoryApiError ? failure.status : undefined;
-      if (status === 401 || status === 403) clearPrivateState();
+      if (status === 401) {
+        clearPrivateState();
+        notifySessionExpired();
+        return false;
+      }
+      if (status === 403) clearPrivateState();
       setError({ status, message: failure instanceof Error ? failure.message : '分类操作失败，请刷新后重试。' });
       return false;
     } finally {

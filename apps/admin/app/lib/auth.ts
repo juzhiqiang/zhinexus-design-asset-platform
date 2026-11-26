@@ -71,7 +71,7 @@ export async function loadCompanySession(): Promise<UserSession | null> {
 /**
  * 从 JWT Token 中解析 Payload（仅在客户端用于展示身份信息，安全性由服务端 Bearer 鉴权强制校验）
  */
-export function parseTokenPayload(token: string): { sub: string; roles: string[]; azp?: string; client_id?: string } | null {
+export function parseTokenPayload(token: string): { sub: string; roles: string[]; azp?: string; client_id?: string; exp?: number } | null {
   try {
     const parts = token.split('.');
     if (parts.length !== 3) return null;
@@ -90,6 +90,7 @@ export function parseTokenPayload(token: string): { sub: string; roles: string[]
 }
 
 const STORAGE_KEY = 'zhinexus_console_auth';
+export const SESSION_EXPIRED_EVENT = 'zhinexus:session-expired';
 
 export function getStoredSession(): UserSession | null {
   if (typeof window === 'undefined') return null;
@@ -100,6 +101,13 @@ export function getStoredSession(): UserSession | null {
     if (!raw) return null;
     const session = JSON.parse(raw) as UserSession;
     if (!session.token) return null;
+    if (session.token !== '__session__') {
+      const payload = parseTokenPayload(session.token);
+      if (payload && typeof payload.exp === 'number' && payload.exp * 1000 <= Date.now()) {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
+    }
     return session;
   } catch {
     return null;
@@ -157,6 +165,12 @@ export function clearSession(): void {
       }
     });
   logoutInFlight = logoutPromise;
+}
+
+export function notifySessionExpired(): void {
+  if (typeof window === 'undefined') return;
+  clearSession();
+  window.dispatchEvent(new CustomEvent(SESSION_EXPIRED_EVENT));
 }
 
 export function logoutAndRedirect(router: { replace(href: string): void }): void {

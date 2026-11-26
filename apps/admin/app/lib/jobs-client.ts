@@ -1,4 +1,4 @@
-import { getAuthCredentials, getAuthHeaders, getStoredSession, platformApiOrigin } from './auth';
+import { getAuthCredentials, getAuthHeaders, getStoredSession, notifySessionExpired, platformApiOrigin } from './auth';
 
 export class JobsApiError extends Error {
   constructor(message: string, readonly status: number) {
@@ -36,6 +36,7 @@ export async function listReleaseJobs(params: { state?: string; limit?: number }
     headers: getAuthHeaders(session),
   });
   if (!response.ok) {
+    if (response.status === 401) notifySessionExpired();
     const message = response.status === 401
       ? '登录已失效，请重新登录。'
       : response.status === 403
@@ -60,6 +61,7 @@ export async function retryReleaseJob(jobId: string): Promise<{ jobId: string; s
     headers: getAuthHeaders(session),
   });
   if (!response.ok) {
+    if (response.status === 401) notifySessionExpired();
     const message = response.status === 409
       ? '当前作业不处于可重试状态（或租约尚未过期）。'
       : response.status === 403

@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getAuthCredentials, getAuthHeaders, getStoredSession, loadCompanySession, platformApiOrigin } from '../../lib/auth';
+import { getAuthCredentials, getAuthHeaders, getStoredSession, loadCompanySession, notifySessionExpired, platformApiOrigin } from '../../lib/auth';
 import { fetchReleaseJob } from '../../lib/uploads/manifest-form';
 import { ZnIcon } from '../../lib/design/icons';
 import { COMMAND_MOTIFS, ZnCommandMotif } from '../../lib/design/motifs';
@@ -59,6 +59,10 @@ export default function JobDetailPage({
         }
       } catch (err: any) {
         if (!cancelled) {
+          if (typeof err?.message === 'string' && err.message.includes('(401)')) {
+            notifySessionExpired();
+            return;
+          }
           setError(err.message);
           timer = setTimeout(poll, 1500);
         }
@@ -94,6 +98,10 @@ export default function JobDetailPage({
         headers: getAuthHeaders(session),
       });
       if (!res.ok) {
+        if (res.status === 401) {
+          notifySessionExpired();
+          return;
+        }
         throw new Error(await res.text());
       }
       setJob((prev: any) => ({ ...prev, state: 'PENDING', stage: 'PENDING' }));
