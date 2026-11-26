@@ -6,6 +6,7 @@
 
 | 日期 | 决定或进展 | 权威文档 |
 | --- | --- | --- |
+| 2026-11-26 | 用户授权修复 juz 工作台五项复现缺陷，并将新建模板改为常规 React TSX / Vue SFC；保留独立发布包、自定义消费者及冻结验证边界 | docs/plans/2026-11-26-juz-cli-fixes.md |
 | 2026-11-24 | 用户授权公开画廊与内网管理端拆分：新增私有工作区 `apps/admin`（5177），`gallery`（5173）保留公开页面及按账号权限读取的 `/library`；管理 API（3000）在统一身份来源下按内网入口隔离，预览网关（3001）保持独立；工作区当前边界改为 11 成员 | `docs/plans/2026-11-24-gallery-admin-split.md`、`docs/guides/gallery-admin-deployment.md` |
 | 2026-11-22 | 用户确认增加「接入设置」：数据库独立维护公司 OIDC 与预览入口的活动版本，支持同 IPv4 分 HTTPS 端口与独立域之间切换；公司撤权、独立域 DNS/TLS 与已有三存储环境的实际证据仍是 G2 验收输入 | `docs/plans/2026-11-22-g2-access-acceptance.md`、`docs/guides/access-settings.md` |
 | 2026-11-21 | 用户授权暂无域名时在同一台服务器用同 IPv4 的不同 HTTPS 端口提供预览试用，使用不透明源沙盒、短期授权路径及入口凭证过滤；独立注册域与逐发布 origin 保持为默认配置和正式 DNS/TLS 验收目标 | `docs/guides/preview-ip-port.md` |
