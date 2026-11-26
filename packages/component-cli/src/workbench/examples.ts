@@ -17,10 +17,28 @@ export function checked(input:unknown):PlaygroundV1 {
 export async function validateExample(project:LoadedProject,variant:ProjectVariant,input:unknown) {
   const value=checked(input); const api=await readVariantApi(project,variant);
   for(const values of [value,...value.states]) for(const prop of api.props) {
-    if(prop.required && !Object.hasOwn(values.props,prop.name) && value.dataProp!==prop.name) throw new Error('PLAYGROUND_INVALID: required '+prop.name);
-    if(Object.hasOwn(values.props,prop.name) && ['number','string','boolean'].includes(prop.type) && typeof values.props[prop.name]!==prop.type) throw new Error('PLAYGROUND_INVALID: '+prop.name);
+    // Match the consumer's effective Props: a data binding overrides raw Props.
+    const actual=value.dataProp===prop.name?values.data:values.props[prop.name];
+    if(prop.required && actual===undefined) throw new Error('PLAYGROUND_INVALID: required '+prop.name);
+    if(actual!==undefined && !matchesType(actual,prop.type.trim())) throw new Error('PLAYGROUND_INVALID: '+prop.name);
+  }
+  if(value.dataProp){
+    const binding=value.dataProp;
+    const bind=<T extends {props:Record<string,unknown>;data?:unknown}>(values:T)=>{
+      const props={...values.props};delete props[binding];
+      if(values.data!==undefined)props[binding]=values.data;
+      return {...values,props};
+    };
+    checked({...bind(value),states:value.states.map(bind)});
   }
   return value;
+}
+function matchesType(value:unknown,type:string):boolean {
+  if(['string','boolean','number'].includes(type))return typeof value===type&&(type!=='number'||Number.isFinite(value));
+  const array=/^(.+)\[\]$/.exec(type)??/^Array<(.+)>$/.exec(type);
+  if(array)return Array.isArray(value)&&value.every(item=>matchesType(item,array[1]!.trim()));
+  // Arbitrary TypeScript expressions are documentation, never executable input.
+  return true;
 }
 export async function savePlayground(project:LoadedProject,variant:ProjectVariant,expected:string,input:unknown) {
   if(!variant.playground) throw new Error('PLAYGROUND_NOT_CONFIGURED');

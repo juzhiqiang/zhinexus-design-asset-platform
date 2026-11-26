@@ -75,3 +75,20 @@ it('initializes an existing package offline, registers explicit source and fills
   expect(config.variants[0].sourceEntry).toBe('src/index.ts');
   expect(JSON.parse(await fs.readFile(path.join(cwd,config.variants[0].playground),'utf8')).adapter).toBe('custom');
 });
+
+it('validates effective data bindings, including required props and every saved state', async () => {
+  const cwd=await root();await runCli(['create','demo','--framework','react'],'0.1.0',{cwd});
+  const {readWorkspace}=await import('../../packages/component-cli/src/workbench/workspace.js');
+  const {readPlayground,validateExample,savePlayground}=await import('../../packages/component-cli/src/workbench/examples.js');
+  const project=(await readWorkspace(path.join(cwd,'demo'))).projects[0]!,variant=project.config.variants[0]!;
+  const saved=await readPlayground(project,variant);
+  for(const data of ['not an array',[1,'wrong']])await expect(validateExample(project,variant,{...saved.value,data})).rejects.toThrow('PLAYGROUND_INVALID: data');
+  const bound=structuredClone(saved.value);bound.controls=[];bound.dataProp='value';delete bound.props.value;bound.data=12;bound.states=[];
+  await expect(validateExample(project,variant,bound)).resolves.toMatchObject({data:12});
+  await expect(savePlayground(project,variant,saved.digest,{...bound,data:'not a number'})).rejects.toThrow('PLAYGROUND_INVALID: value');
+  await expect(validateExample(project,variant,{...bound,data:-1,controls:[{name:'value',kind:'number',min:0}]})).rejects.toThrow('PLAYGROUND_INVALID');
+  const apiFile=path.join(project.root,variant.api),api=JSON.parse(await fs.readFile(apiFile,'utf8'));api.props.find((p:{name:string})=>p.name==='value').required=true;await fs.writeFile(apiFile,JSON.stringify(api));
+  delete bound.data;await expect(validateExample(project,variant,bound)).rejects.toThrow('required value');
+  bound.data=12;bound.states=[{id:'bad',label:'bad',props:{},data:'wrong'}];await expect(validateExample(project,variant,bound)).rejects.toThrow('PLAYGROUND_INVALID: value');
+  expect((await readPlayground(project,variant)).digest).toBe(saved.digest);
+});
