@@ -7,13 +7,19 @@
 正常安装会自动下载匹配的 Chromium，已有缓存直接复用。下载失败会给出补装命令；处理网络问题后重试安装即可。`PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` 或 npm `--ignore-scripts` 可跳过，之后需手动补装浏览器才能截图。Linux 系统库仍按 Playwright 提示准备，不自动提权安装。
 
 ```sh
-juz create my-card --framework all
+juz create my-card --framework react
 cd my-card
 pnpm install
 juz dev
 ```
 
+只开发 Vue 时改为 `--framework vue`；确定需要两个独立发布包时再用 `--framework all`，日常源码分别位于 `packages/react/src` 和 `packages/vue/src`。
+
 首次登录配置 API 地址，后续自动复用。自动化可用 `juz login --api-url <origin> --token <token>`；token 保存在用户目录，不进入项目或发布包。
+
+日常像普通组件一样编辑 `src/Demo.tsx` 或 `src/Demo.vue`，使用 Props、回调 / Emits 与框架生命周期。`juz dev` 热更新源码；在对应包中运行 `pnpm typecheck` / `pnpm build`。模板的 `pnpm dev` 是构建导出监听。默认消费者桥接与 Vue 声明整理工具放在 `.juz/`，通常无需编辑，应纳入版本管理；它们不会进入组件 npm 包。`playground.json` 是唯一示例输入，可通过工作台保存。
+
+源码预览复用包内 Vite 的 alias、插件与 CSS 编译设置；项目配置修改后重新选择实现或重启。CLI 保留自己的回环、env 和文件隔离策略。`juz dev --package packages/vue --framework vue` 与包名、配置路径选择等价，选错包或框架在服务启动前报错。Vue SFC 使用固定兼容的 vue-tsc / TypeScript，生成可供 NodeNext 消费的声明。
 
 本地开发无需登录。`juz init` 接入已有包，可用 `--source <项目内入口>` 登记源码；只补充缺失材料，不覆盖已有源码、API、文档和非空消费者。私有业务工程应选择其中可发布的组件子包。分类可以暂不分配，冻结前再在工作台或通过 `--category <后台分类 ID>` 选择。
 

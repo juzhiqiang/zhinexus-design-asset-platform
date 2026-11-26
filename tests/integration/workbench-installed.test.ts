@@ -34,9 +34,12 @@ it('installs the actual juz tgz outside the repository and runs create/init/dev/
   }
   const browser=await chromium.launch({headless:true});
   try{
-   const dev=await launch(['dev','--package','demo-vue','--framework','vue'],project);const page=await browser.newPage();await page.goto(dev.url);
-   await expect.poll(()=>page.locator('#vue').getAttribute('aria-pressed')).toBe('true');await page.frameLocator('iframe').getByRole('heading',{name:'Hello juz'}).waitFor();
-   expect((await page.locator('#mode').textContent())).toContain('源码');await terminateTree(child!);child=undefined;
+   const page=await browser.newPage();
+   for(const selected of ['demo-vue','packages/vue','packages/vue/component.config.json']){
+    const dev=await launch(['dev','--package',selected,'--framework','vue'],project);expect(new URL(dev.url).searchParams.get('package')).toBe('demo-vue');await page.goto(dev.url);
+    await expect.poll(()=>page.locator('#vue').getAttribute('aria-pressed')).toBe('true');await page.frameLocator('iframe').getByRole('heading',{name:'Hello juz'}).waitFor();
+    expect((await page.locator('#mode').textContent())).toContain('源码');await terminateTree(child!);child=undefined;
+   }
    const exampleFile=path.join(project,'packages/react/playground.json');const example=JSON.parse(await fs.readFile(exampleFile,'utf8'));example.props.label='Installed CLI frozen';example.states[0].props=example.props;await fs.writeFile(exampleFile,JSON.stringify(example));
    const output=JSON.parse((await cli(['package','--package','demo-react','--category','general'],project)).stdout);
    const hashes=await Promise.all(output.manifest.files.map((f:{path:string})=>computeFileSha256(path.join(output.bundleDir,f.path))));

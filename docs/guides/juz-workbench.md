@@ -1,6 +1,6 @@
 # juz 本地工作台实操指南
 
-适用于 juz-cli 0.1.0。平台根版本 0.2.0。所有组件构建、消费者安装和 Chromium 截图都在开发者电脑运行。
+适用于 juz-cli 0.1.1。本分支平台根版本 0.2.4。所有组件构建、消费者安装和 Chromium 截图都在开发者电脑运行。
 
 ## 安装与第一次启动
 
@@ -8,21 +8,47 @@
 
 ```powershell
 pnpm --filter @company/component-cli pack:juz
-npm install -g .\packages\component-cli\.release\juz-cli-0.1.0.tgz
+npm install -g .\packages\component-cli\.release\juz-cli-0.1.1.tgz
 juz --version
 
 # 从空项目开始
-juz create my-card --framework all
+juz create my-card --framework react
 cd my-card
 pnpm install
 juz dev
 ```
+
+只开发 Vue 时改为 `--framework vue`；需要两个独立发布包时再用 `--framework all`，避免一开始引入不需要的第二套工程。
 
 需要 Node >=24.6.0、pnpm 12.18.0。仓库本轮验证使用 Node 26.13.0，其他版本的依赖兼容范围以项目实际 engines 为准。CLI 正常安装自动准备匹配的 Playwright Chromium，跳过安装脚本后的补装方法见[发布指南](project-publishing.md#开发测试安装)。
 
 默认浏览器地址为 127.0.0.1:1111。CLI 输出包含本次会话片段的完整 URL；请使用这个 URL。端口占用时明确报错，自行用 `juz dev --port 1112` 选择其他端口。`--no-open` 禁止自动打开浏览器。Ctrl+C 关闭工作台及本次启动的预览、watcher 和构建子进程。
 
 `react` / `vue` 生成一个可发布的最小组件包；`all` 生成私有项目根、React/Vue 两个独立可发布子包及 `component.workspace.json`。模板自带真实组件、类型检查、构建、API、文档、消费者、保存示例及就绪协议，不依赖 ECharts，不要求登录或先选分类。
+
+## 像普通组件一样开发
+
+新模板的业务源码使用常规框架写法：React 为 `src/Demo.tsx`，Vue 为 `src/Demo.vue`（`<script setup lang="ts">`）。入口文件只负责导出。使用普通 Props、Callbacks / Emits、Hook 或 Vue 生命周期即可，不需要继承平台基类，也不在组件内维护消息通道。
+
+单框架包的主要材料如下；双框架项目将这套材料分别放在 `packages/react` 和 `packages/vue`：
+
+| 文件 | 何时编辑 |
+| --- | --- |
+| `src/Demo.tsx` / `src/Demo.vue` | 日常编写组件，保存后工作台热更新 |
+| `src/index.tsx` / `src/index.ts` | 增加或调整包导出 |
+| `playground.json` | 默认 Props、数据、控件和状态；通常在工作台调好后保存 |
+| `api/demo.json`、`docs/demo.md` | 增加公开参数、事件或准备发布说明时 |
+| `vite.config.js`、`tsconfig.json`、`package.json` | 常规编译、类型和依赖配置 |
+| `component.config.json` | 接入入口、实现或预览配置变化时 |
+| `.juz/` | CLI 创建的消费者桥接与 Vue 声明整理工具，通常不用手改，需纳入版本管理 |
+
+`.juz/consumer` 不安装依赖、不登记源码 alias，也不另存一份示例数据；开发和冻结验证时由 CLI 在临时目录注入包内已保存的 `playground.json`。组件 npm 包只包含 `dist`。旧项目原有的 `consumer/`、自定义路径及挂载适配器继续生效，不自动迁移。
+
+开发运行 `juz dev`；在对应组件包中运行 `pnpm typecheck`、`pnpm build`。模板的 `pnpm dev` 保留为构建导出监听，供 `juz dev --script` 使用。Vue 使用仓库已验证的 `vue-tsc 3.3.14` + TypeScript `6.0.3` 处理 SFC 与声明；React 使用 TypeScript `7.0.2`。Vue 发布声明会整理已发射的相对本地文件/目录引用，以支持 NodeNext 消费；自定义类型路径别名仍需项目自己的声明打包配置。
+
+组件使用独立 CSS 时，按普通组件库约定导出 CSS 并在消费者中引入；CLI 不会自动猜测样式入口。默认模板使用内联样式。需要 Provider、插槽或自定义样式入口时可编辑 `.juz/consumer/main.js`，已有自定义消费者继续保留。
+
+项目总材料仍比只绑定单一平台协议的最小模板多：这里还承担独立 npm 包、双框架、声明和冻结消费者验证。额外材料属于调试或发布层；普通组件逻辑仍按 React / Vue 惯例编写。只有组件需要特定 Provider、插槽或业务初始化时，才维护自定义消费者。
 
 ## 接入已有项目
 
@@ -50,13 +76,13 @@ juz dev --script --framework react
 
 配置按真实路径去重。同一组件 ID + 框架不能重复登记；同一逻辑组件可来自不同 npm 包，但分类必须一致。也可以用 `--config <项目内配置路径>` 显式选择单个配置。
 
-`juz dev --package my-card-vue --framework vue` 指定首次打开的包与框架。`juz package` 和 `juz publish` 在多包项目中必须使用 `--package <包名、包目录或配置路径>`，或者在终端交互选择。工作台使用当前实现所属的包。
+`juz dev --package my-card-vue --framework vue` 指定首次打开的包与框架；`--package packages/vue` 或 `--package packages/vue/component.config.json` 使用相同的选择规则。错误的包或不匹配框架会在监听端口前拒绝。`juz package` 和 `juz publish` 在多包项目中必须使用 `--package <包名、包目录或配置路径>`，或者在终端交互选择。工作台使用当前实现所属的包。
 
 ## 调试、保存与三种模式
 
 左侧按分类浏览或搜索，框架按钮只启用真实登记的实现。中间画布可以输入宽高或拖动右下角；宽高改变真实组件容器，缩放和“适应”只改变观看比例。右侧调参数、编辑 JSON 数据、切换状态、查看真实事件、API、文档及发布作业。
 
-- **源码模式**：登记了 `sourceEntry`，使用项目自己的 Vite、框架运行时及对应编译插件，支持实际源码热更新。先安装所选项目的依赖。源码 alias 只存在于本次开发进程中。
+- **源码模式**：登记了 `sourceEntry`，使用项目自己的 Vite、框架运行时及编译插件，读取包目录下的 Vite 配置，复用 resolve/alias、插件、CSS、define、JSON、assetsInclude 及转换设置，支持实际源码热更新。先安装所选项目的依赖。源码 alias 只存在于本次开发进程中；修改 Vite 配置后重新选择实现或重启工作台。CLI 仍强制自己的 root/base、env 关闭、回环网络与文件访问限制，不照搬项目 dev server 的 host、cors、代理或任意目录服务配置。
 - **构建导出模式**：旧配置没有源码入口，读取实际 package exports，启动已配置的框架开发脚本，等待首次导出生成。依赖构建输出变化可能需要刷新或重新选择；界面明确标注该模式。
 - **冻结产物**：只使用已经校验的 Bundle，参数只读，可以查看已冻结状态示例；不构建、不重新安装、不重新打包。旧 Bundle 没有工作台描述时仍可显示原静态预览。
 
@@ -83,7 +109,7 @@ juz dev --script --framework react
 }
 ```
 
-控件支持 `text/number/boolean/enum/color/json`。枚举使用字符串数组 `options`；颜色为六位十六进制；复杂 Props 用 JSON。控件约束及 API 中可直接判定的基础类型在预览和保存时都校验，不执行输入中的代码。状态 ID 必须与 `readiness.states` 所要求的状态匹配。
+控件支持 `text/number/boolean/enum/color/json`。枚举使用字符串数组 `options`；颜色为六位十六进制；复杂 Props 用 JSON。预览和保存都会校验控件约束，以及 API 的 string/number/boolean、简单数组（如 number[]、Array<string>）类型。dataProp 绑定后的实际值及每个保存状态也必须通过，不能用数据覆盖绕过校验。其他复杂 TypeScript 类型只作声明，不执行类型字符串或用户代码。状态 ID 必须与 `readiness.states` 所要求的状态匹配。
 
 ## 分类、打包和发布
 
@@ -108,7 +134,7 @@ juz publish --package my-card-react
 
 ## 自定义消费者桥接
 
-复杂组件继续维护自己的消费者。缺少桥接时显示“受限”，可直接交互及刷新，CLI 不猜测业务挂载方式。推荐从新建模板的 `consumer/main.js` 复制桥接部分，保留 `window.__COMPONENT_EXAMPLE__` 就绪协议；契约类型/Schema 为 `PlaygroundV1`，不改变 ComponentApiV1 或 ReleaseManifestV1。
+复杂组件继续维护自己的消费者。缺少桥接时显示“受限”，可直接交互及刷新，CLI 不猜测业务挂载方式。推荐从新建模板的 `.juz/consumer/main.js` 复制桥接部分，保留 `window.__COMPONENT_EXAMPLE__` 就绪协议；契约类型/Schema 为 `PlaygroundV1`，不改变 ComponentApiV1 或 ReleaseManifestV1。
 
 父窗口只向当前 iframe 的 WindowProxy 转移一个专用 MessagePort。消费者接收连接时必须检查：`event.source === parent`、`event.origin === document.querySelector('meta[name="juz-parent"]').content`、`event.data.type === 'juz-connect'`、恰好一个端口及本次加载未连接过。不要把不透明源的 `null` 当作身份。
 

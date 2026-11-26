@@ -1,6 +1,95 @@
 import type { ProjectVariant } from '../project/config.js';
 import type { ComponentApiV1 } from '../contracts/component-api.js';
-export const templateVersions = { react:'19.3.1', vue:'3.5.45', vite:'8.3.8', typescript:'7.0.2', reactPlugin:'6.3.0', vuePlugin:'6.0.10' };
+export const templateVersions = { react:'19.3.1', vue:'3.5.45', vite:'8.3.8', typescript:'7.0.2', vueTypescript:'6.0.3', vueTsc:'3.3.14', reactPlugin:'6.3.0', vuePlugin:'6.0.10' };
+export const reactSource=`export type DemoProps = {
+  label?: string;
+  value?: number;
+  enabled?: boolean;
+  color?: string;
+  data?: number[];
+  onChange?: (event: { value: number }) => void;
+};
+
+export function Demo({ label = 'Hello juz', value = 42, enabled = true, color = '#A3D2FF', data = [], onChange }: DemoProps) {
+  return (
+    <button
+      disabled={!enabled}
+      onClick={() => onChange?.({ value: value + 1 })}
+      style={{ width: '100%', height: '100%', padding: 32, border: 0, borderRadius: 12, background: '#172731', color, font: 'inherit', textAlign: 'left', cursor: 'pointer' }}
+    >
+      <h1>{label}</h1>
+      <strong style={{ fontSize: 56 }}>{value}</strong>
+      <p>{JSON.stringify(data)}</p>
+    </button>
+  );
+}
+`;
+export const vueSource=`<script setup lang="ts">
+withDefaults(defineProps<{
+  label?: string;
+  value?: number;
+  enabled?: boolean;
+  color?: string;
+  data?: number[];
+}>(), { label: 'Hello juz', value: 42, enabled: true, color: '#A3D2FF', data: () => [] });
+
+const emit = defineEmits<{ change: [event: { value: number }] }>();
+</script>
+
+<template>
+  <button
+    :disabled="!enabled"
+    :style="{ width: '100%', height: '100%', padding: '32px', border: 0, borderRadius: '12px', background: '#172731', color, font: 'inherit', textAlign: 'left', cursor: 'pointer' }"
+    @click="emit('change', { value: value + 1 })"
+  >
+    <h1>{{ label }}</h1>
+    <strong style="font-size: 56px">{{ value }}</strong>
+    <p>{{ JSON.stringify(data) }}</p>
+  </button>
+</template>
+`;
+// Keep ordinary Bundler-style source imports, but ship NodeNext-compatible types.
+export const vueDeclarations=`import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
+import ts from 'typescript';
+function moduleReferences(source) {
+  const references = [];
+  function visit(node) {
+    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) {
+      if (node.moduleSpecifier && ts.isStringLiteral(node.moduleSpecifier)) references.push(node.moduleSpecifier);
+    } else if (ts.isImportTypeNode(node) && ts.isLiteralTypeNode(node.argument) && ts.isStringLiteral(node.argument.literal)) references.push(node.argument.literal);
+    else if (ts.isExternalModuleReference(node) && node.expression && ts.isStringLiteral(node.expression)) references.push(node.expression);
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return references;
+}
+async function normalize(directory) {
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const file = join(directory, entry.name);
+    if (entry.isDirectory()) await normalize(file);
+    else if (entry.name.endsWith('.d.ts')) {
+      const text = await readFile(file, 'utf8');
+      const source = ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true);
+      const edits = [];
+      for (const node of moduleReferences(source)) {
+        const specifier = node.text;
+        if (!specifier.startsWith('./') && !specifier.startsWith('../')) continue;
+        const target = resolve(dirname(file), specifier);
+        let replacement;
+        if (existsSync(target + '.d.ts')) replacement = specifier + '.js';
+        else if (existsSync(join(target, 'index.d.ts'))) replacement = specifier + '/index.js';
+        if (replacement) edits.push({ start: node.getStart(source) + 1, end: node.end - 1, replacement });
+      }
+      let output = text;
+      for (const edit of edits.sort((a, b) => b.start - a.start)) output = output.slice(0, edit.start) + edit.replacement + output.slice(edit.end);
+      await writeFile(file, output);
+    }
+  }
+}
+await normalize('dist');
+`;
 export function initialPlayground() { return { schemaVersion:1, adapter:'auto', props:{label:'Hello juz',value:42,enabled:true,color:'#A3D2FF'}, data:[12,24,36], dataProp:'data', controls:[{name:'label',kind:'text'},{name:'value',kind:'number'},{name:'enabled',kind:'boolean'},{name:'color',kind:'color'}], states:[{id:'default',label:'默认',props:{label:'Hello juz',value:42,enabled:true,color:'#A3D2FF'},data:[12,24,36]},{id:'empty',label:'空数据',props:{label:'No data',value:0,enabled:true,color:'#A3D2FF'},data:[]}] }; }
 export function consumerSource(packageName:string,variant:ProjectVariant,api:ComponentApiV1):string {
   const moduleName=JSON.stringify(packageName+variant.exportPath.slice(1));

@@ -23,7 +23,7 @@ it('publishes newly scaffolded independent React and Vue packages with installed
   const slug='workbench-'+randomUUID();await execute(process.execPath,[bin,'create',slug,'--framework','all'],commandOptions(root));const project=join(root,slug);
   for(const framework of ['react','vue']){
    const dir=join(project,'packages',framework);const file=join(dir,'package.json');const pkg=JSON.parse(await readFile(file,'utf8'));const old=pkg.name;pkg.name='@company/'+old;await writeFile(file,JSON.stringify(pkg));
-   const main=join(dir,'consumer/main.js');await writeFile(main,(await readFile(main,'utf8')).replaceAll(old,pkg.name));
+   const main=join(dir,'.juz/consumer/main.js');await writeFile(main,(await readFile(main,'utf8')).replaceAll(old,pkg.name));
    const configFile=join(dir,'component.config.json');const config=JSON.parse(await readFile(configFile,'utf8'));config.variants[0].category='general';await writeFile(configFile,JSON.stringify(config));
    const exampleFile=join(dir,'playground.json');const example=JSON.parse(await readFile(exampleFile,'utf8'));example.props.label='Real saved '+framework;example.states[0].props=example.props;await writeFile(exampleFile,JSON.stringify(example));
   }

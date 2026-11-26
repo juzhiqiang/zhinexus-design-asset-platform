@@ -1,6 +1,6 @@
 const $=id=>document.getElementById(id);
 const token=location.hash.slice(1);
-const drafts=new Map(),events=new Map();let catalog,current,publishing,frame,port,generation=0,validation=0,selection=0,zoom=1,selectedState='default',frozenView=false,snapshot;
+const drafts=new Map(),events=new Map();let catalog,current,publishing,frame,port,generation=0,selection=0,zoom=1,selectedState='default',frozenView=false,snapshot;
 function node(tag,text,className){const element=document.createElement(tag);if(text!==undefined)element.textContent=text;if(className)element.className=className;return element;}
 function error(message){$('error').textContent=String(message);$('error').hidden=false;$('notice').hidden=true;}
 function clearError(){$('error').hidden=true;}
@@ -12,14 +12,14 @@ async function api(route,value={}){
 }
 const draft=()=>drafts.get(current?.id);
 const displayed=()=>snapshot??current;
-const example=()=>snapshot?.example??draft()?.value??{props:{},controls:[],states:[]};
+const example=()=>snapshot?.example??draft()?.input??draft()?.value??{props:{},controls:[],states:[]};
 const values=()=>({props:draft()?.value.props??{},data:draft()?.value.data});
 const isReadonly=()=>catalog?.readOnly||frozenView;
-function dirty(item=current){const d=drafts.get(item?.id);return !!d&&JSON.stringify(d.value)!==JSON.stringify(d.saved);}
+function dirty(item=current){const d=drafts.get(item?.id);return !!d&&(d.pending||d.invalid||JSON.stringify(d.value)!==JSON.stringify(d.saved));}
 function updateActions(){
  const p=catalog?.packages.find(p=>p.id===current?.packageId),unsaved=catalog?.variants.some(v=>v.packageId===current?.packageId&&dirty(v));
- $('save').disabled=!current||isReadonly()||!dirty()||draft()?.invalid;
- $('prepare').disabled=!current||catalog.readOnly||!!unsaved||draft()?.invalid;
+ $('save').disabled=!current||isReadonly()||!dirty()||draft()?.invalid||draft()?.pending;
+ $('prepare').disabled=!current||catalog.readOnly||!!unsaved||draft()?.invalid||draft()?.pending;
  $('publish').disabled=!p?.prepared?.digest||p.prepared.changed!==false||!!unsaved||!publishing?.authenticated||catalog.readOnly;
  $('frozen').disabled=!p?.prepared?.digest||catalog.readOnly;
  $('candidate').textContent=catalog?.readOnly?'冻结产物 · 只读':unsaved?'有未保存的调试值':p?.prepared?.changed?'材料与当前草稿不同':p?.prepared?.digest?'冻结材料与已保存输入一致':'尚未准备冻结产物';
@@ -68,8 +68,9 @@ async function mount(url,mode){
  $('viewport').insertBefore(next,$('resize'));next.src=url;$('mode').textContent=modeLabel(mode);
 }
 async function select(item){
- if(!item)return;const request=++selection;const id=item.id;current=item;frozenView=false;snapshot=undefined;validation++;clearError();$('notice').hidden=true;
- if(!drafts.has(id)){const example=item.example??{schemaVersion:1,adapter:'custom',props:{},controls:[],states:[]};drafts.set(id,{value:structuredClone(example),saved:structuredClone(example),digest:item.digest,invalid:false});}
+ if(!item)return;const request=++selection;const id=item.id;current=item;frozenView=false;snapshot=undefined;clearError();$('notice').hidden=true;
+ if(!drafts.has(id)){const example=item.example??{schemaVersion:1,adapter:'custom',props:{},controls:[],states:[]};drafts.set(id,{value:structuredClone(example),saved:structuredClone(example),digest:item.digest,invalid:false,revision:0,pending:false});}
+ if(draft().error)error(draft().error);
  selectedState=draft().value.states.some(s=>s.id==='default')?'default':draft().value.states[0]?.id??'';
  $('package').textContent=item.packageName+' @ '+item.version;$('component-title').textContent=item.componentId;
  $('bridge-note').textContent=item.example?.adapter==='auto'?'参数与数据通过专用通道传入当前实现。':'自定义消费者：调试能力取决于其桥接实现，CLI 不猜测业务初始化。';
@@ -88,7 +89,7 @@ function renderEditors(){
   else if(control.kind==='json'){input=node('textarea');input.rows=3;input.value=JSON.stringify(activeExample.props[control.name]??null,null,2);}
   else{input=node('input');input.type=control.kind==='boolean'?'checkbox':control.kind==='number'?'number':control.kind==='color'?'color':'text';if(input.type==='checkbox')input.checked=!!activeExample.props[control.name];else input.value=activeExample.props[control.name]??'';if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;}
   input.setAttribute('aria-label',control.name);input.disabled=isReadonly();
-  input.addEventListener(control.kind==='json'?'change':'input',async()=>{try{let value=input.type==='checkbox'?input.checked:control.kind==='number'?Number(input.value):control.kind==='json'?JSON.parse(input.value):input.value;if(control.kind==='number'&&(input.value.trim()===''||!Number.isFinite(value)))throw new Error('请输入有效数字');const next=structuredClone(draft().value);next.props[control.name]=value;await apply(next,false);}catch(e){draft().invalid=true;updateActions();error(e);}});
+  input.addEventListener(control.kind==='json'?'change':'input',async()=>{try{let value=input.type==='checkbox'?input.checked:control.kind==='number'?Number(input.value):control.kind==='json'?JSON.parse(input.value):input.value;if(control.kind==='number'&&(input.value.trim()===''||!Number.isFinite(value)))throw new Error('请输入有效数字');const next=structuredClone(example());next.props[control.name]=value;await apply(next,false);}catch(e){invalid(e);}});
   row.append(input);controls.append(row);
  }
  $('props-json').value=JSON.stringify(activeExample.props,null,2);$('data').value=JSON.stringify(activeExample.data??null,null,2);
@@ -96,10 +97,16 @@ function renderEditors(){
  for(const id of['props-json','data','apply-props','apply-data','reset'])$(id).disabled=isReadonly();
 }
 async function apply(value,rerender=true){
- const id=current.id,order=++validation;const validated=await api('validate',{id,value,digest:draft().digest});
- if(current.id!==id||order!==validation)return;
- draft().value=validated.value;draft().invalid=false;clearError();sendValues();if(rerender)renderEditors();else $('props-json').value=JSON.stringify(draft().value.props,null,2);updateActions();
+ const id=current.id,d=draft(),order=++d.revision;
+ d.input=structuredClone(value);d.pending=true;d.invalid=false;updateActions();
+ try{
+  const validated=await api('validate',{id,value,digest:d.digest});if(order!==d.revision)return;
+  d.value=validated.value;d.input=undefined;d.pending=false;d.invalid=false;d.error=undefined;
+  if(current.id!==id)return;
+  clearError();sendValues();if(rerender)renderEditors();else $('props-json').value=JSON.stringify(d.value.props,null,2);updateActions();
+ }catch(e){if(order!==d.revision)return;d.pending=false;d.invalid=true;d.error=String(e);if(current.id===id){updateActions();error(e);}}
 }
+function invalid(message){const d=draft();d.revision++;d.pending=false;d.invalid=true;d.error=String(message);updateActions();error(message);}
 function renderCategory(){
  const selected=displayed()?.category??'';$('category').replaceChildren(new Option('未分配分类',''));
  for(const category of publishing?.options?.categories??[])if(category.enabled)$('category').append(new Option(category.name,category.id));
@@ -121,15 +128,15 @@ $('resize').addEventListener('pointerdown',event=>{dragging={x:event.clientX,y:e
 $('resize').addEventListener('pointermove',event=>{if(dragging)setSize(dragging.width+(event.clientX-dragging.x)/zoom,dragging.height+(event.clientY-dragging.y)/zoom);});
 $('resize').addEventListener('pointerup',()=>{dragging=undefined;});$('resize').addEventListener('pointercancel',()=>{dragging=undefined;});
 $('resize').addEventListener('keydown',event=>{const shifts={ArrowLeft:[-10,0],ArrowRight:[10,0],ArrowUp:[0,-10],ArrowDown:[0,10]};if(shifts[event.key]){event.preventDefault();setSize(Number($('width').value)+shifts[event.key][0],Number($('height').value)+shifts[event.key][1]);}});
-$('apply-data').onclick=async()=>{try{const next=structuredClone(draft().value);next.data=JSON.parse($('data').value);await apply(next);}catch(e){draft().invalid=true;updateActions();error('数据 JSON 无效：'+e);}};
-$('apply-props').onclick=async()=>{try{const next=structuredClone(draft().value);next.props=JSON.parse($('props-json').value);await apply(next);}catch(e){draft().invalid=true;updateActions();error('Props JSON 无效：'+e);}};
+$('apply-data').onclick=async()=>{try{const next=structuredClone(example());next.data=JSON.parse($('data').value);await apply(next);}catch(e){invalid('数据 JSON 无效：'+e);}};
+$('apply-props').onclick=async()=>{try{const next=structuredClone(example());next.props=JSON.parse($('props-json').value);await apply(next);}catch(e){invalid('Props JSON 无效：'+e);}};
 $('states').onchange=async()=>{selectedState=$('states').value;const selected=example().states.find(s=>s.id===selectedState);if(!selected)return;if(isReadonly()){port?.postMessage({type:'state',id:selected.id});return;}const next=structuredClone(draft().value);next.props=structuredClone(selected.props);next.data=structuredClone(selected.data);await apply(next).catch(error);};
 $('reset').onclick=()=>apply(structuredClone(draft().saved)).catch(error);
 $('save').onclick=async()=>{try{
  const id=current.id,currentDraft=draft(),original=structuredClone(currentDraft.value),next=structuredClone(original);
  const state=next.states.find(s=>s.id===selectedState);if(state){state.props=structuredClone(next.props);state.data=structuredClone(next.data);}
- const result=await api('save',{id,value:next,digest:currentDraft.digest}),latest=drafts.get(id);
- if(latest){const unchanged=JSON.stringify(latest.value)===JSON.stringify(original)&&!latest.invalid;latest.saved=structuredClone(result.value);latest.digest=result.digest;if(unchanged)latest.value=structuredClone(result.value);if(current?.id===id&&unchanged)renderEditors();}
+ const revision=currentDraft.revision,result=await api('save',{id,value:next,digest:currentDraft.digest}),latest=drafts.get(id);
+ if(latest){const unchanged=latest.revision===revision&&JSON.stringify(latest.value)===JSON.stringify(original)&&!latest.invalid&&!latest.pending;latest.saved=structuredClone(result.value);latest.digest=result.digest;if(unchanged)latest.value=structuredClone(result.value);if(current?.id===id&&unchanged)renderEditors();}
  await refreshCatalog();notice('示例已保存');
 }catch(e){error(e);}};
 $('clear-events').onclick=()=>{events.set(current.id,[]);renderEvents();};
