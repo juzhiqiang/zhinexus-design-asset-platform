@@ -3,6 +3,15 @@ import { join } from 'node:path';
 
 type LocalCredentials = { postgresPassword?: unknown };
 
+export function requirePlatformDatabaseUrlForMigration(
+  environment: Partial<Pick<NodeJS.ProcessEnv, 'NODE_ENV' | 'PLATFORM_DATABASE_URL'>>,
+): string {
+  if (!environment.PLATFORM_DATABASE_URL) {
+    throw new Error('PLATFORM_DATABASE_URL is required before running migrations');
+  }
+  return environment.PLATFORM_DATABASE_URL;
+}
+
 export function resolveLocalPlatformDatabaseUrl(
   root: string,
   environment: Partial<Pick<NodeJS.ProcessEnv, 'NODE_ENV' | 'PLATFORM_DATABASE_URL'>>,

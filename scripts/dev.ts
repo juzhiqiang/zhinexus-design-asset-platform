@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { resolveLocalPlatformDatabaseUrl } from './dev-environment.js';
+import { requirePlatformDatabaseUrlForMigration, resolveLocalPlatformDatabaseUrl } from './dev-environment.js';
 
 function runPnpm(args: string[]): Promise<number> {
   return new Promise((resolve) => {
@@ -35,6 +35,7 @@ if (mode && mode !== 'migrate') {
     }
 
     if (mode === 'migrate') {
+      process.env.PLATFORM_DATABASE_URL = requirePlatformDatabaseUrlForMigration(process.env);
       const buildStatus = await runPnpm(['build:services']);
       if (buildStatus !== 0) process.exitCode = buildStatus;
       else process.exitCode = await runPnpm(['--filter', '@company/platform-api', 'migrate']);

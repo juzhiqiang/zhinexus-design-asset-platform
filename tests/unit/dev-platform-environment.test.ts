@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'nod
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, expect, it } from 'vitest';
-import { resolveLocalPlatformDatabaseUrl } from '../../scripts/dev-environment.js';
+import { requirePlatformDatabaseUrlForMigration, resolveLocalPlatformDatabaseUrl } from '../../scripts/dev-environment.js';
 
 const rootPackage = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')) as { scripts: Record<string, string> };
 const temporaryDirectories: string[] = [];
@@ -26,6 +26,13 @@ it('preserves an explicitly supplied URL and never reads local credentials in pr
   expect(resolveLocalPlatformDatabaseUrl(root, { PLATFORM_DATABASE_URL: 'postgresql://configured' }))
     .toBe('postgresql://configured');
   expect(resolveLocalPlatformDatabaseUrl(root, { NODE_ENV: 'production' })).toBeUndefined();
+});
+
+it('requires a database URL before starting migration in every environment', () => {
+  expect(() => requirePlatformDatabaseUrlForMigration({ NODE_ENV: 'production' }))
+    .toThrow('PLATFORM_DATABASE_URL is required before running migrations');
+  expect(requirePlatformDatabaseUrlForMigration({ PLATFORM_DATABASE_URL: 'postgresql://configured' }))
+    .toBe('postgresql://configured');
 });
 
 it('routes local development and explicit migration through the environment loader', () => {
