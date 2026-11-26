@@ -160,6 +160,7 @@ describe('signing keys and token issuance', () => {
     expect(verified.protectedHeader.alg).toBe('ES256');
     expect(verified.protectedHeader.kid).toBe(kid);
     expect(verified.payload.sub).toBe('managed:lin.wei');
+    expect(verified.payload.azp).toBe('zhinexus-web');
     expect(verified.payload.roles).toEqual(['reader']);
     expect(verified.payload.platform_account_version).toBe('7');
     expect(verified.payload.platform_managed_user_id).toBe('acct-1');

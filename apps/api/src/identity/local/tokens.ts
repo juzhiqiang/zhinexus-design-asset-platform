@@ -69,6 +69,7 @@ export async function issueAccessToken(key: CryptoKey, kid: string, subject: Tok
   if (!Number.isInteger(subject.authTime) || subject.authTime < 0 || subject.authTime > now) throw new Error('Token auth_time must be a past whole second');
   if (!/^\d+$/.test(subject.accountVersion)) throw new Error('Token account version must be a decimal string');
   return new SignJWT({
+    azp: config.clientId,
     roles,
     platform_managed_user_id: subject.managedUserId,
     platform_account_version: subject.accountVersion,
