@@ -118,7 +118,7 @@ export type LocalAdministratorSeed = {
 export async function seedLocalAdministrator(sql: SeedingSql, seed: LocalAdministratorSeed): Promise<void> {
   await sql.query(`INSERT INTO managed_accounts(id,issuer,subject,platform_subject,username,display_name,roles,administrator,enabled,awaiting_activation,credentials_set,sync_state,remote_user_id,desired_revision,access_epoch,version)
     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16)`,
-  [seed.id, seed.issuer, seed.subject, seed.platformSubject, seed.username, seed.displayName, JSON.stringify(seed.roles),
+  [seed.id, seed.issuer, seed.subject, seed.platformSubject, seed.username, seed.displayName, [...seed.roles],
     true, true, false, true, 'synced', seed.id, 1, 0, 1]);
   // Same upsert shape as LocalIdentityStore.putCredential, so a replayed seed cannot duplicate a row.
   await sql.query(`INSERT INTO local_credentials(account_id,password_hash,must_change) VALUES ($1,$2,$3)
