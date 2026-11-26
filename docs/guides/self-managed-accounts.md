@@ -1,6 +1,6 @@
 # 自主管理账号栈与本机试用
 
-本说明配合 [自主管理账号设计](../specs/2026-11-22-self-managed-accounts-design.md) 与 [实施计划](../plans/2026-11-22-self-managed-accounts.md)。它描述平台自行维护身份源时的部署、初始化、试用与恢复步骤，不替代正式部署验收。
+本说明配合 [自主管理账号设计](../specs/2026-11-22-self-managed-accounts-design.md) 与 [实施计划](../verification/self-managed-accounts.md)。它描述平台自行维护身份源时的部署、初始化、试用与恢复步骤，不替代正式部署验收。
 
 ## 1. 与共享 G2 栈的边界
 

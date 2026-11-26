@@ -1,6 +1,6 @@
 # 工程初始化执行范围
 
-> 历史记录：以下为首次初始化执行范围。用户随后明确的 NestJS 后端与 React 前端已按 [技术栈调整计划](docs/plans/2026-11-11-nest-react-bootstrap.md) 执行；此文的 Fastify 选型不再是当前基线。
+> 历史记录：以下为首次初始化执行范围。用户随后明确的 NestJS 后端与 React 前端已按 [技术栈调整计划](../foundation/nest-react-bootstrap.md) 执行；此文的 Fastify 选型不再是当前基线。
 
 > **For agentic workers:** 使用 executing-plans 执行本次初始化；只执行下列范围，不将整个 T01–T17 当作本次授权范围。
 

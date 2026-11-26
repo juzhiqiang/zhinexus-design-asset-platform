@@ -2,7 +2,7 @@
 
 2026-11-24 用户授权公开画廊与内网管理端拆分：新增私有工作区 apps/admin（5177），gallery（5173）保留公开页面及按账号权限读取的 /library；管理 API（3000）在统一身份来源下按内网入口隔离，预览网关（3001）保持独立。工作区当前边界改为 11 成员。本次分工、接口和验收以 [拆分计划](2026-11-24-gallery-admin-split.md) 为准，不追改以下历史验收结论。
 
-2026-11-21 部署调整（T07、T12）。暂无域名时，可按用户授权显式启用同 IPv4 分 HTTPS 端口预览。独立域保持默认，正式 G2 的 DNS/TLS 仍走独立域验收。见 [分端口实施计划](docs/plans/2026-11-21-preview-ip-port.md)。
+2026-11-21 部署调整（T07、T12）。暂无域名时，可按用户授权显式启用同 IPv4 分 HTTPS 端口预览。独立域保持默认，正式 G2 的 DNS/TLS 仍走独立域验收。见 [分端口实施计划](../guides/preview-ip-port.md)。
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -271,13 +271,13 @@ flowchart LR
 
 ### T01：锁定基线、Monorepo/Turbo 工程骨架与公共协议（5–7 人日）
 
-2026-11-12 C 后续：按 [本地三存储与接入检查子计划](docs/plans/2026-11-22-g2-access-acceptance.md) 实施隔离开发设施；OIDC/独立域经用户确认暂无，工具必须如实返回未配置。示例 states 收口为可选发现信息，requiredStates 继续驱动全部必需截图，不改变既有三方法协议。
+2026-11-12 C 后续：按 [本地三存储与接入检查子计划](../verification/gates-infra.md) 实施隔离开发设施；OIDC/独立域经用户确认暂无，工具必须如实返回未配置。示例 states 收口为可选发现信息，requiredStates 继续驱动全部必需截图，不改变既有三方法协议。
 
 本轮结果：隔离三存储已两轮通过真实写读、私有权限、冻结探针包精确安装、HTTP 409、重启持久化和独立恢复；命令位于 infra/scripts，通过根 infra:up、infra:stop、test:infra、infra:check-access 调用，不新增根 scripts 文件或 Turbo 测试缓存。详见 [新增验证记录](docs/verification/gates-infra.md)。未实施业务迁移/发布作业，完整 G2/T01 保持开放。
 
-2026-11-12 工程维护：统一工具链专项入口、归位画廊缓存回归和契约生成脚本，见 [脚本整理子计划](docs/plans/2026-11-12-simplify-project-scripts.md)。仅调整开发验证流程，不改变 T01/G1/G2 验收状态；历史验证命令保持原记录，新入口与实测结果写入独立验证记录。
+2026-11-12 工程维护：统一工具链专项入口、归位画廊缓存回归和契约生成脚本，见 [脚本整理子计划](../verification/gates-infra.md)。仅调整开发验证流程，不改变 T01/G1/G2 验收状态；历史验证命令保持原记录，新入口与实测结果写入独立验证记录。
 
-2026-11-12 G1 执行补充：C 的 V1 校验、JSON Schema、错误码、示例接口、API 消息与 fixtures 见 [子计划](docs/plans/2026-11-12-g1-contracts-platform.md)；候选补充字段与边界见 packages/contracts/README.md。A/B 实际评审目标提前至 **2026-11-13**，回执与 G2 责任/计划日期见 [交接清单](docs/plans/2026-11-22-g2-access-acceptance.md)。人工评审、G2 实测和完整 T01 仍未完成，不因契约测试通过勾选整个任务。
+2026-11-12 G1 执行补充：C 的 V1 校验、JSON Schema、错误码、示例接口、API 消息与 fixtures 见 [子计划](../verification/gates-infra.md)；候选补充字段与边界见 packages/contracts/README.md。A/B 实际评审目标提前至 **2026-11-13**，回执与 G2 责任/计划日期见 [交接清单](../verification/gates-infra.md)。人工评审、G2 实测和完整 T01 仍未完成，不因契约测试通过勾选整个任务。
 
 **Files:** 创建第 1 节根配置，包含 `turbo.json`、`pnpm-workspace.yaml`、根/成员 `package.json` 和 `.gitignore`；`scripts/resolve-versions.ts`、`scripts/verify-workspace.ts`、`scripts/test-infra.ts`；`packages/contracts/src/{release-manifest,examples,reports,index}.ts`；`infra/compose.yaml`、`infra/verdaccio/config.yaml`、`infra/minio/Dockerfile`；`tests/contracts/release-manifest.test.ts`；`docs/versions.lock.json`、`docs/verification/gates-infra.md`。
 
@@ -336,9 +336,9 @@ flowchart LR
 
 ### T05：身份、上传与产物校验（7–9 人日）
 
-2026-11-22 追加公司登录与预览入口的后台配置。T01/T05/T07/T12 共同的运行时契约、接入步骤与验证边界见 [接入设置计划](docs/plans/2026-11-22-g2-access-acceptance.md)。
+2026-11-22 追加公司登录与预览入口的后台配置。T01/T05/T07/T12 共同的运行时契约、接入步骤与验证边界见 [接入设置计划](../verification/gates-infra.md)。
 
-2026-11-12 C 开始实施，见 [T05 执行计划](docs/plans/2026-11-12-t05-platform.md)。multipart 上传响应新增兼容可选计划字段，共享限制由 contracts 导出；错误码以已冻结的 SCREENSHOT_REQUIRED/SOURCE_FORBIDDEN 为准。暂无真实 OIDC，提供失败关闭的 JWT/JWKS 接入实现和真签名测试；外部登录验收保持开放。T06 worker 单独实施，本轮创建作业停留 PENDING。
+2026-11-12 C 开始实施，见 [T05 执行计划](../verification/platform-services.md)。multipart 上传响应新增兼容可选计划字段，共享限制由 contracts 导出；错误码以已冻结的 SCREENSHOT_REQUIRED/SOURCE_FORBIDDEN 为准。暂无真实 OIDC，提供失败关闭的 JWT/JWKS 接入实现和真签名测试；外部登录验收保持开放。T06 worker 单独实施，本轮创建作业停留 PENDING。
 
 本轮本地身份/上传/登记/基线开发及真实 SDK 接入结果见 [T05 HTTP 验证](docs/verification/platform-services.md)。报告/截图引用按 Bundle 作用域建模，服务端生成全局候选 ID，GET 作业新增兼容可选 baselineCandidates 映射。T05 本地实现与外部身份验收分别记账；缺公司 OIDC 时完整 T05 保持开放。
 
@@ -354,7 +354,7 @@ flowchart LR
 
 ### T06：可恢复发布任务与一致性（8–10 人日）
 
-2026-11-12 C 接续实施见 [T06 执行计划](docs/plans/2026-11-12-t06-release-worker.md)。复用 T05 的预登记模型；原建议 002 迁移编号已被包权限占用，新增 004_release_worker.sql。Ready、outbox 与 tag 待办原子写入；tag 独立恢复，索引消费者留在后续任务。当前 SDK 材料和外部身份/预览域不据此标为完成。
+2026-11-12 C 接续实施见 [T06 执行计划](../verification/platform-services.md)。复用 T05 的预登记模型；原建议 002 迁移编号已被包权限占用，新增 004_release_worker.sql。Ready、outbox 与 tag 待办原子写入；tag 独立恢复，索引消费者留在后续任务。当前 SDK 材料和外部身份/预览域不据此标为完成。
 
 **Files:** 创建 `apps/api/src/releases/{worker,state-machine,leases,registry-client,artifact-store,availability}.ts`、`index/outbox.ts`；`apps/api/migrations/002_release_jobs.sql`；`tests/integration/{release-recovery,release-concurrency,dependency-order}.test.ts`。
 
@@ -420,7 +420,7 @@ flowchart LR
 
 ### T11：真实试点、故障演练与可观测性（6–8 人日）
 
-**Files:** 创建 `tests/integration/platform-acceptance.test.ts`、`tests/browser/platform-acceptance.spec.ts`、`apps/api/src/observability/{events,metrics}.ts`、`scripts/rehearse-recovery.ts`、`docs/acceptance/pilot-report.md`。
+**Files:** 创建 `tests/integration/platform-acceptance.test.ts`、`tests/browser/platform-acceptance.spec.ts`、`apps/api/src/observability/{events,metrics}.ts`、`scripts/rehearse-recovery.ts`、`docs/verification/gates-infra.md` 的 T11 合成演练小节（原 `docs/acceptance/pilot-report.md`，2026-11-26 精简时并入）。
 
 **Interfaces:** 消费全部一期流程；`recordUsage(event:{type,variantReleaseId?,projectId?,timestamp})`，projectId 仅在用户授权提供时记录。指标包括阶段耗时、失败原因、重试数、队列积压、产物缺失、页面访问/复制安装命令；不把下载请求直接算作真实采用次数。
 
@@ -444,9 +444,9 @@ flowchart LR
 
 ## 4. 二、三期独立任务
 
-2026-11-16 当前收口决定：用户要求正确的标识规范及一个 GET 查询接口供使用侧匹配，明确本轮无需考虑设计平台格式、真实设计导出或业务标注。已按 [四方 GET 收口计划](docs/plans/2026-11-16-phase2-query-completion.md) 完成 GET 与 Gallery 入口、规范、14 实现及真实服务和浏览器技术验收；最终合并清理状态见 [收口记录](docs/verification/phase2-matching.md)。下面 2026-11-15 的任务和勾选保留原实施背景，其中真实设计材料要求由本次范围决定替代。生产 G2、真实业务试点及三期范围独立。
+2026-11-16 当前收口决定：用户要求正确的标识规范及一个 GET 查询接口供使用侧匹配，明确本轮无需考虑设计平台格式、真实设计导出或业务标注。已按 [四方 GET 收口计划](../verification/phase2-matching.md) 完成 GET 与 Gallery 入口、规范、14 实现及真实服务和浏览器技术验收；最终合并清理状态见 [收口记录](docs/verification/phase2-matching.md)。下面 2026-11-15 的任务和勾选保留原实施背景，其中真实设计材料要求由本次范围决定替代。生产 G2、真实业务试点及三期范围独立。
 
-2026-11-15 用户调整二期范围：当前不接入大模型，设计通过对应 ID 规则匹配组件；具体 ID 命名规则尚未确定。以下 T13/T14 以本次范围调整为准，原架构文档与历史验证记录保持原样。三期另行评估，不据此扩展二期范围。详细决策与后续执行见 [ID 规则匹配计划](docs/plans/2026-11-15-phase2-id-matching.md)。原二期人日估算基于多模态方案，已不适用于当前范围，待规则和设计导出格式确认后重估。
+2026-11-15 用户调整二期范围：当前不接入大模型，设计通过对应 ID 规则匹配组件；具体 ID 命名规则尚未确定。以下 T13/T14 以本次范围调整为准，原架构文档与历史验证记录保持原样。三期另行评估，不据此扩展二期范围。详细决策与后续执行见 [ID 规则匹配计划](../verification/phase2-matching.md)。原二期人日估算基于多模态方案，已不适用于当前范围，待规则和设计导出格式确认后重估。
 
 ### T13：完整档案、兼容过滤与 ID 规则匹配（二期）
 
@@ -484,7 +484,7 @@ flowchart LR
 
 ### T15：本地项目识别与安装计划（三期，8–12 人日）
 
-2026-11-17 T15 技术验收完成，CLI `0.0.13`，见 [最终证据](docs/verification/phase3-t15.md)。首轮实施细化见 [T15 设计](docs/specs/2026-11-16-phase3-t15-design.md) 和 [四方计划](docs/plans/2026-11-16-phase3-t15-kickoff.md)。本轮完整交付只读 inspect/plan，新增 `LocalProjectInspectionV1` 承载本地锁/路径/脚本/快照，保持原 `ProjectContext` 二期结构兼容；`IntegrationPlanV1` 对应下述 IntegrationPlan 概念。C 冻结契约，B/Claude 桌面端承担主要 CLI 开发，A/Antigravity 提供项目与 SDK 预期，D/Claude Code 独立验收，C 完成集成门禁。T16/T17 勾选保持未完成。
+2026-11-17 T15 技术验收完成，CLI `0.0.13`，见 [最终证据](docs/verification/phase3-t15.md)。首轮实施细化见 [T15 设计](../verification/phase3-t15.md) 和 [四方计划](../verification/phase3-t15.md)。本轮完整交付只读 inspect/plan，新增 `LocalProjectInspectionV1` 承载本地锁/路径/脚本/快照，保持原 `ProjectContext` 二期结构兼容；`IntegrationPlanV1` 对应下述 IntegrationPlan 概念。C 冻结契约，B/Claude 桌面端承担主要 CLI 开发，A/Antigravity 提供项目与 SDK 预期，D/Claude Code 独立验收，C 完成集成门禁。T16/T17 勾选保持未完成。
 
 **Files:** 创建 `packages/component-cli/src/integration/{inspect,resolve,plan,workspace}.ts`、`commands/integrate.ts`；`tests/integration/project-plan.test.ts`。
 
@@ -510,13 +510,13 @@ flowchart LR
 
 ### T17：本地验证、有限修复与 MCP 暴露（三期，13–18 人日）
 
-2026-11-20 本轮已按用户授权以临时创建并清理的 Vue/React 工程完成 T17 工具技术验收；三期 T15–T17 工具链已交付。唯一冻结 CLI `0.0.23` 的完整矩阵正向20/20（Vue/React各10/10）、13项强制拒绝均符合各自预期，工程、受控修复宿主和独立CLI/MCP黑盒全部通过，原件评分与归档字节经控制方独立复核。结果和限制见 [当前汇总](docs/verification/phase3-t17.md) 与 [专项计划](docs/plans/2026-11-19-phase3-t17-completion.md)，过程追加于 [集成记录](docs/verification/phase3-t17.md)。原“两个真实业务项目”历史试点、T11/T12、生产OIDC/独立预览域/G2及未追溯的历史过程保持单列开放。
+2026-11-20 本轮已按用户授权以临时创建并清理的 Vue/React 工程完成 T17 工具技术验收；三期 T15–T17 工具链已交付。唯一冻结 CLI `0.0.23` 的完整矩阵正向20/20（Vue/React各10/10）、13项强制拒绝均符合各自预期，工程、受控修复宿主和独立CLI/MCP黑盒全部通过，原件评分与归档字节经控制方独立复核。结果和限制见 [当前汇总](docs/verification/phase3-t17.md) 与 [专项计划](../verification/phase3-t17.md)，过程追加于 [集成记录](docs/verification/phase3-t17.md)。原“两个真实业务项目”历史试点、T11/T12、生产OIDC/独立预览域/G2及未追溯的历史过程保持单列开放。
 
 **Files:** 创建 `packages/component-cli/src/integration/{verify,repair,report}.ts`、`mcp/server.ts`；`tests/integration/integration-repair.test.ts`、`tests/browser/generated-page.spec.ts`。
 
-**Interfaces:** `verifyIntegration(root, plan, {applyResult,spec,authorization,artifactRoot,...adapters})`；`repairIntegration(root, plan, report, {applyResult,spec,authorization,maxAttempts,artifactRoot,...adapters})`，`maxAttempts` 默认 2，实际 V1 返回类型见 [专项计划](docs/plans/2026-11-19-phase3-t17-completion.md)。MCP 在现有 CLI 包暴露 `inspect_project`、`plan_integration`、`apply_integration`、`verify_integration`，共用权限、路径和协议，不另外建设远程执行集群。
+**Interfaces:** `verifyIntegration(root, plan, {applyResult,spec,authorization,artifactRoot,...adapters})`；`repairIntegration(root, plan, report, {applyResult,spec,authorization,maxAttempts,artifactRoot,...adapters})`，`maxAttempts` 默认 2，实际 V1 返回类型见 [专项计划](../verification/phase3-t17.md)。MCP 在现有 CLI 包暴露 `inspect_project`、`plan_integration`、`apply_integration`、`verify_integration`，共用权限、路径和协议，不另外建设远程执行集群。
 
-- [x] 当前反例回归已覆盖：类型通过但点击失败仍为失败；视觉无误但引用不兼容版本仍为失败；最多两轮修复后仍未通过时停止并交付问题；新出现的用户文件变更导致修复停止。当前测试和原件见 [专项计划](docs/plans/2026-11-19-phase3-t17-completion.md)，不追认最初实现的 RED 顺序。
+- [x] 当前反例回归已覆盖：类型通过但点击失败仍为失败；视觉无误但引用不兼容版本仍为失败；最多两轮修复后仍未通过时停止并交付问题；新出现的用户文件变更导致修复停止。当前测试和原件见 [专项计划](../verification/phase3-t17.md)，不追认最初实现的 RED 顺序。
 - [x] 已实现项目原生命令、关键交互、本地页面视觉验收与报告；失败分类成类型/构建/行为/视觉/缺失业务信息。修复只在 IntegrationPlan 允许范围内，不自动执行任意错误文本中的命令；同包工程、宿主和黑盒证据见 [当前汇总](docs/verification/phase3-t17.md)。
 - [x] 当前 MCP 技术交付已使用精确 SDK 版本，以同组契约与真实 stdio 进程验证 CLI/MCP 行为一致；写入仍须目标项目操作授权，不能从截图推导授权。当前官方来源与实测见 [C0 补证](docs/verification/phase3-t17.md) 和 [官方访问更正](docs/verification/phase3-t17.md)。
 - [ ] 历史过程补证：最初实现 RED 的完整顺序、原实施时官方文档读取和原 P0 日志尚未追溯；当前 GREEN 与本日官方后补不倒推该历史过程。
@@ -562,10 +562,10 @@ flowchart LR
 
 2026-11-12 T07 C本地实现补充：已完成公开/私有目录分离、精确releaseId档案与材料/报告读取、一次性5分钟预览授权、独立域静态分发和逐请求撤权/摘要校验。新增兼容端点不替代B的画廊页面；真实OIDC、生产DNS/TLS、目标浏览器Cookie策略和当前SDK八实现闭环尚未验收，T07整体保持未完成。命令与审查证据见 [T07 C验证](docs/verification/platform-services.md)。
 
-2026-11-12 C补充：T07已合并；T11/T12可提前的本地运维准备按 [执行计划](docs/plans/2026-11-12-t11-t12-platform-operations.md) 实施。日志指标、真实故障预演、隔离三存储备份恢复与部署模板是C子交付；完整任务验收状态见 [release-acceptance](docs/guides/release-acceptance.md)，不替代M2/T08/T10及业务试点。
+2026-11-12 C补充：T07已合并；T11/T12可提前的本地运维准备按 [执行计划](../guides/release-acceptance.md) 实施。日志指标、真实故障预演、隔离三存储备份恢复与部署模板是C子交付；完整任务验收状态见 [release-acceptance](docs/guides/release-acceptance.md)，不替代M2/T08/T10及业务试点。
 
-2026-11-13 C补充：按 [本轮执行计划](docs/plans/2026-11-13-c-platform-acceptance.md) 验证当前SDK五组件十实现的真实冻结发布、两类精确Registry消费者及预览资源摘要；补充T08网页后端交接测试和 `rehearse:capacity`。200组件/400实现为隔离DB合成目录规模，100MiB为40+40+20MiB总提交分片恢复；本地量测不替代生产SLA、T08页面、T10或业务试点。新增结果见 [本轮记录](docs/verification/platform-services.md)，保留此前历史状态。
+2026-11-13 C补充：按 [本轮执行计划](../verification/platform-services.md) 验证当前SDK五组件十实现的真实冻结发布、两类精确Registry消费者及预览资源摘要；补充T08网页后端交接测试和 `rehearse:capacity`。200组件/400实现为隔离DB合成目录规模，100MiB为40+40+20MiB总提交分片恢复；本地量测不替代生产SLA、T08页面、T10或业务试点。新增结果见 [本轮记录](docs/verification/platform-services.md)，保留此前历史状态。
 
-2026-11-13 后续C补验：七组件十四实现的Windows冻结发布/真实HTTPS预览/精确Registry消费见 [新增证据](docs/verification/sdk-release.md)。T08浏览器联调暴露API缺少CORS，C按 [修复计划](docs/plans/2026-11-13-c-gallery-cors.md) 仅放行配置的精确画廊Origin与既有请求头；不改变上传/身份协议，B继续真实网页三存储E2E。
+2026-11-13 后续C补验：七组件十四实现的Windows冻结发布/真实HTTPS预览/精确Registry消费见 [新增证据](docs/verification/sdk-release.md)。T08浏览器联调暴露API缺少CORS，C按 [修复计划](../verification/platform-services.md) 仅放行配置的精确画廊Origin与既有请求头；不改变上传/身份协议，B继续真实网页三存储E2E。
 
-2026-11-24 真实项目发布补充：按 [专项计划](2026-11-24-project-publishing.md) 完成稳定分类契约/API、真实项目 CLI、后台分类与发布选择，以及全链路技术验收。CLI 保留旧 SDK/Bundle 命令；项目模式只登记已有组件包，不生成业务组件。共享包必须提交完整 JavaScript 实现子路径，Vue-only/React-only 独立包可分别发布。真实隔离服务已覆盖三类包 Ready、worker/API 恢复和 registry 消费；生产 OIDC/TLS、独立域名、两个真实业务项目和 T11 试点仍保持开放，见 [验证记录](../verification/project-publishing.md#2026-11-24-project-publishingmd)。
+2026-11-24 真实项目发布补充：按 [专项计划](../verification/project-publishing.md) 完成稳定分类契约/API、真实项目 CLI、后台分类与发布选择，以及全链路技术验收。CLI 保留旧 SDK/Bundle 命令；项目模式只登记已有组件包，不生成业务组件。共享包必须提交完整 JavaScript 实现子路径，Vue-only/React-only 独立包可分别发布。真实隔离服务已覆盖三类包 Ready、worker/API 恢复和 registry 消费；生产 OIDC/TLS、独立域名、两个真实业务项目和 T11 试点仍保持开放，见 [验证记录](../verification/project-publishing.md#2026-11-24-project-publishingmd)。
