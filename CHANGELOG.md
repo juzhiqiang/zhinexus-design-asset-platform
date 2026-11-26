@@ -1,5 +1,22 @@
 # 更新日志
 
+## [0.2.8] - 2026-11-27
+
+### 新增
+
+- 管理 API（`@company/platform-api 0.1.7`）与共享契约兼容扩展：
+  - 新增向前迁移 `017_managed_account_read_grants.sql`，支持自管成员账号按组件配置只读授权（`canRead`），保持“先本地收紧撤权、远端确认后再扩展授权”一致性；
+  - 新增内网门控接口 `POST /v1/publishing/components/:id/visibility`（受管理员或持有 `can_maintain` 的维护者保护并写入 `COMPONENT_VISIBILITY_UPDATED` 审计）与 `GET /v1/publishing/components/:id/releases`（按 `catalog_can_read` 返回全部 `Ready` 与 `DEPRECATED` 历史实现版本）；
+  - 受认证详情接口 `/v1/me/variant-releases/:id` 兼容返回 `isPublic`、`deprecatedReason` 与活动 `baselineHeads`（公开匿名详情接口保持原字段不泄漏内部修订）。
+- 内网管理端（`@company/admin 0.0.10`）补齐核心运维闭环：
+  - 「资产管理（`/assets`）」新增分类筛选、列表分页、历史与已废弃版本切换、组件公开/私有可见性受控切换、自动携带 `expectedRevision` 的视觉基线二次更新、完整 Tarball SHA-256 复制、短期授权隔离沙箱在线预览、受保护展示截图查看、组件文档与结构化 `ComponentApiV1` 参数/事件契约查看、`CheckReportV1` 明细及 `a-t10-sdk-probe` ECharts 兼容实测证据导入提交；
+  - 「成员与权限（`/users`）」新增服务端分页、只读组件授权勾选项、已登记组件/包候选提示以及密码重置不确定态（`uncertain`）锁定提示；顶栏新增自管账号自助修改密码对话框，快速搜索支持 UUID 直达作业详情与关键词跳转资产筛选。
+
+### 修复
+
+- 修复发布作业列表与后端状态过滤误用 `RUNNING` 而遗漏 `PUBLISHING` 等真实状态的问题；修复作业详情页在不可变冲突终态（`CONFLICT` / `REJECTED`）误显示重试按钮而在 `RETRY_WAIT` 缺少重试入口的问题，并补齐 `READY` 后的 `baselineCandidates` 展示与资产直达链接。
+- 同步修复后台渲染单测（`tests/admin/console-render.test.ts`）与重构后页面及样式系统的脱节问题，恢复全仓 176 个 Vitest 测试文件全绿。
+
 ## [0.2.7] - 2026-11-26
 
 ### 修复
