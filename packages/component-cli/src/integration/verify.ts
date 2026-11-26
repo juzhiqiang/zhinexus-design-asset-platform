@@ -496,7 +496,7 @@ async function runBrowserVerification(params: {
   let browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
   let onAbort: (() => void) | undefined;
   try {
-    if (!frameworkVersion || !echartsVersion) throw new Error('BROWSER_ENVIRONMENT: verified installed versions are unavailable');
+    if (!frameworkVersion) throw new Error('BROWSER_ENVIRONMENT: verified framework version is unavailable');
     browser = await launchLocalChromium();
     onAbort = () => {
       void browser?.close().catch(() => {});

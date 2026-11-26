@@ -10,7 +10,7 @@ export type ComponentMatchQueryV1 = {
   packageVersion: string;
   packageName?: string;
   frameworkVersion: string;
-  echartsVersion: string;
+  echartsVersion?: string;
   reactDomVersion?: string;
 };
 
@@ -33,7 +33,7 @@ export const componentMatchQuerySchema = {
     componentId: { ...text, maxLength: 128, pattern: '^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$' },
     framework: choice('vue', 'react'), packageVersion: exactVersion, packageName,
     frameworkVersion: exactVersion, echartsVersion: exactVersion, reactDomVersion: exactVersion,
-  }, ['packageName', 'reactDomVersion']),
+  }, ['packageName', 'reactDomVersion', 'echartsVersion']),
   description: 'Structural schema only; runtime validation requires reactDomVersion for React and forbids it for Vue. HTTP adapters reject duplicate decoded query keys.',
 };
 
@@ -95,7 +95,7 @@ export function validateComponentMatchResponse(input: unknown): ValidationResult
       const requiredDependencies = [
         { name: target.packageName, version: target.packageVersion },
         { name: query.framework, version: query.frameworkVersion },
-        { name: 'echarts', version: query.echartsVersion },
+        ...(query.echartsVersion ? [{ name: 'echarts', version: query.echartsVersion }] : []),
         ...(query.framework === 'react' ? [{ name: 'react-dom', version: query.reactDomVersion }] : []),
       ];
       for (const dependency of requiredDependencies) {

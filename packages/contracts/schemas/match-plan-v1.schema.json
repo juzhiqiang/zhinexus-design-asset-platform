@@ -276,8 +276,6 @@
               "evidence",
               "compatibility",
               "examples",
-              "styleExport",
-              "readyMethod",
               "notes"
             ],
             "additionalProperties": false

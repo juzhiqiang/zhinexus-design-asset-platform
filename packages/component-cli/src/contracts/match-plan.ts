@@ -14,7 +14,7 @@ export type MatchGap = {code:typeof MATCH_GAP_CODES[number];message:string};
 export type MatchTarget = {
   variantReleaseId:string;variantId:string;componentId:string;framework:'vue'|'react';packageName:string;packageVersion:string;packageSha256:string;exportName:string;exportPath:string;
   evidence:{kind:'api'|'docs';path:string;sha256:string}[];compatibility:{status:'verified'|'unverified';recordIds:string[]};
-  examples:{id:string;previewEntry:string}[];styleExport:string;readyMethod:string;notes:string[];
+  examples:{id:string;previewEntry:string}[];styleExport?:string;readyMethod?:string;notes:string[];
 };
 export type MatchElement = {instanceId:string;designId:string;status:'mapped'|'gap';target?:MatchTarget;
   props:(ComponentApiV1['props'][number]&{source?:string})[];events:(ComponentApiV1['events'][number]&{handler?:string})[];layout?:string;gaps:MatchGap[]};
@@ -30,7 +30,7 @@ export const matchTargetSchema=object({
   evidence:array(object({kind:choice('api','docs'),path:artifactPath,sha256:hash}),2),
   compatibility:object({status:choice('verified','unverified'),recordIds:array(text)}),examples:array(object({id:text,previewEntry:artifactPath}),1),
   styleExport:styleExportSchema,readyMethod:exportNameSchema,notes:array(text),
-});
+},['styleExport','readyMethod']);
 export const matchPlanSchema=object({schemaVersion:{type:'integer',const:1},source:{type:'string',const:'design-id'},inputDigest:hash,ruleSetId:text,revision:text,context:projectContextSchema,
   elements:array(object({instanceId:text,designId:text,status:choice('mapped','gap'),target:matchTargetSchema,
     props:array(object({...propSchema.properties!,source:text},['source','schema','editor'])),events:array(object({...eventSchema.properties!,handler:text},['handler','schema'])),layout:text,gaps:array(gapSchema)},['target','layout'])),

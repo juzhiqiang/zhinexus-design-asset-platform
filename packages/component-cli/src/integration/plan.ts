@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { canonicalJson } from '../contracts/schema.js';
+import { sameComponentMember } from '../contracts/component-values.js';
 import { validateIntegrationPlan } from '../contracts/integration-plan.js';
 import type {
   IntegrationChange,
@@ -119,7 +120,7 @@ function matchQuery(
     packageName: target.packageName,
     packageVersion: target.packageVersion,
     frameworkVersion: context.frameworkVersion,
-    echartsVersion: context.echartsVersion ?? lockedEcharts ?? '',
+    ...((context.echartsVersion ?? lockedEcharts) ? { echartsVersion: (context.echartsVersion ?? lockedEcharts)! } : {}),
   };
   if (target.framework === 'react') query.reactDomVersion = reactDomVersion ?? '';
   return query;
@@ -215,9 +216,14 @@ export async function planIntegration(
       continue;
     }
     const response = checked.value;
+    if (!context.echartsVersion && !lockedEcharts && response.exactDependencies.some(d => d.name === 'echarts')) {
+      addConflict(conflicts, 'ECHARTS_MISSING', '权威材料要求 ECharts，但宿主和计划未给出精确版本');
+    }
     // 响应 query 必须与请求身份逐字段一致（含 packageName 绑定）。
     const requested = matchQuery(entry.target, context, reactDomVersion, lockedEcharts);
-    const mismatched = Object.entries(requested).filter(([key, value]) => (response.query as unknown as Record<string, unknown>)[key] !== value);
+    const actualQuery = response.query as unknown as Record<string, unknown>;
+    const mismatched = [...new Set([...Object.keys(requested), ...Object.keys(actualQuery)])]
+      .filter(key => actualQuery[key] !== requested[key]).map(key => [key, requested[key]]);
     if (mismatched.length > 0) {
       addConflict(conflicts, 'MATCH_CONTEXT_MISMATCH',
         `权威响应 query 与请求身份不符：${mismatched.map(([key, value]) => `${key} 期望 ${value}`).join('; ')}`);
@@ -252,6 +258,7 @@ export async function planIntegration(
       const actual = api.props.find(prop => prop.name === expected.name);
       if (!actual) { problems.push(`缺少属性 ${expected.name}`); continue; }
       if (actual.type !== expected.type) problems.push(`属性 ${expected.name} 类型 ${actual.type} 与离线声明 ${expected.type} 不符`);
+      if (!sameComponentMember(actual, expected)) problems.push('属性元数据与权威 API 不符');
       if (actual.required !== expected.required) problems.push(`属性 ${expected.name} 的 required 与权威 API 不符`);
     }
     for (const actual of api.props) {
@@ -260,6 +267,7 @@ export async function planIntegration(
     for (const expected of element.events) {
       const actual = api.events.find(event => event.name === expected.name);
       if (!actual) { problems.push(`缺少事件 ${expected.name}`); continue; }
+      if (!sameComponentMember(actual, expected)) problems.push('事件元数据与权威 API 不符');
       if (actual.payload !== expected.payload) problems.push(`事件 ${expected.name} 的 payload ${actual.payload} 与离线声明 ${expected.payload} 不符`);
     }
     for (const actual of api.events) {

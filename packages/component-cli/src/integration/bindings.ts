@@ -12,7 +12,8 @@
  *   React 框架类型（CSSProperties / Ref）来自 'react'，`Ref<...Handle | null>` 的句柄类型
  *   只允许 SDK 真实导出的句柄白名单；未知/不安全类型一律显式阻断，不拼接类型文本。
  */
-import type { ComponentApiV1 } from '../contracts/component-api.js';
+import { validateComponentApi, type ComponentApiV1 } from '../contracts/component-api.js';
+import { componentValueType, sameComponentMember, type ComponentValueSchemaV1 } from '../contracts/component-values.js';
 import type { MatchElement } from '../contracts/match-plan.js';
 
 /** 生成器失败：调用方映射为固定的 BINDING_UNSUPPORTED / API_MISMATCH issue。 */
@@ -90,7 +91,7 @@ export type GeneratedBindingModel = {
   /** 包内子路径导入说明符，如 `@company/charts-vue/line`。 */
   importSpecifier: string;
   /** 样式导入说明符，如 `@company/charts-vue/style.css`。 */
-  styleSpecifier: string;
+  styleSpecifier?: string;
   /** 生成组件的导出名，如 `ZhinexusLineChart`。 */
   componentName: string;
   bindings: ResolvedBinding[];
@@ -166,7 +167,9 @@ function resolvePropType(
   value: string,
   what: string,
   framework: ComponentApiV1['framework'],
+  schema?: ComponentValueSchemaV1,
 ): ResolvedPropType {
+  if (schema) return { text: componentValueType(schema), coreTypes: [], reactTypes: [], packageTypes: [] };
   if (BUILTIN_TYPE_KEYWORDS.has(value)) {
     return { text: value, coreTypes: [], reactTypes: [], packageTypes: [] };
   }
@@ -240,7 +243,7 @@ export type BindingModelInput = {
   /** 权威 target 的包内导出路径，如 `./line`。 */
   exportPath: string;
   /** 权威 target 的样式导出路径，如 `./style.css`。 */
-  styleExport: string;
+  styleExport?: string;
 };
 
 /**
@@ -249,6 +252,7 @@ export type BindingModelInput = {
  */
 export function resolveBindingModel(input: BindingModelInput): GeneratedBindingModel {
   const { element, api } = input;
+  if (!validateComponentApi(api).ok) throw new BindingError('API_MISMATCH', '权威组件 API 定义无效');
   const bindings: ResolvedBinding[] = [];
   const typeImports = new Set<string>();
   const reactTypeImports = new Set<string>();
@@ -262,7 +266,7 @@ export function resolveBindingModel(input: BindingModelInput): GeneratedBindingM
 
   for (const declared of api.props) {
     const bound = element.props.find(prop => prop.name === declared.name);
-    if (!bound || bound.type !== declared.type || bound.required !== declared.required) {
+    if (!bound || !sameComponentMember(bound, declared)) {
       throw new BindingError('API_MISMATCH', '权威组件 API 与计划声明的属性不一致');
     }
     if (bound.source === undefined) {
@@ -277,15 +281,15 @@ export function resolveBindingModel(input: BindingModelInput): GeneratedBindingM
       if (!SAFE_IDENTIFIER.test(declared.name)) {
         throw new BindingError('BINDING_UNSUPPORTED', '透传属性名不是合法 TypeScript 标识符，无法生成可编译的公共 props 绑定，拒绝生成');
       }
-      const resolvedType = resolvePropType(declared.type, `属性 ${declared.name} 的类型`, framework);
-      bindings.push({ kind: 'passthrough', prop: declared.name, type: declared.type, required: false });
+      const resolvedType = resolvePropType(declared.type, `属性 ${declared.name} 的类型`, framework, declared.schema);
+      bindings.push({ kind: 'passthrough', prop: declared.name, type: resolvedType.text, required: false });
       collectTypeImports(resolvedType);
       continue;
     }
     const key = safeKey(bound.source, `属性 ${declared.name} 的数据源键名`);
-    const resolvedType = resolvePropType(declared.type, `属性 ${declared.name} 的类型`, framework);
+    const resolvedType = resolvePropType(declared.type, `属性 ${declared.name} 的类型`, framework, declared.schema);
     bindings.push({
-      kind: 'source', prop: declared.name, type: declared.type, key, required: declared.required,
+      kind: 'source', prop: declared.name, type: resolvedType.text, key, required: declared.required,
       registry: registryNameFor(declared.name),
     });
     collectTypeImports(resolvedType);
@@ -300,14 +304,14 @@ export function resolveBindingModel(input: BindingModelInput): GeneratedBindingM
   const payloads = new Set<string>();
   for (const declared of api.events) {
     const bound = element.events.find(event => event.name === declared.name);
-    if (!bound || bound.payload !== declared.payload) {
+    if (!bound || !sameComponentMember(bound, declared)) {
       throw new BindingError('API_MISMATCH', '权威组件 API 与计划声明的事件不一致');
     }
     const key = safeKey(bound.handler, `事件 ${declared.name} 的处理键名`);
-    const resolvedPayload = resolvePropType(declared.payload, `事件 ${declared.name} 的载荷类型`, framework);
+    const resolvedPayload = resolvePropType(declared.payload, `事件 ${declared.name} 的载荷类型`, framework, declared.schema);
     payloads.add(resolvedPayload.text);
     collectTypeImports(resolvedPayload);
-    bindings.push({ kind: 'event', event: declared.name, payload: declared.payload, key });
+    bindings.push({ kind: 'event', event: declared.name, payload: resolvedPayload.text, key });
   }
   for (const declared of api.events) {
     if (!element.events.some(event => event.name === declared.name)) {
@@ -333,15 +337,15 @@ export function resolveBindingModel(input: BindingModelInput): GeneratedBindingM
   if (!SAFE_IDENTIFIER.test(componentName)) {
     throw new BindingError('API_MISMATCH', '无法从权威导出名派生合法的生成组件名');
   }
-  if (!/^\.\/[a-zA-Z0-9_/-]+$/.test(input.exportPath) || !/^\.\/[a-zA-Z0-9_/-]+\.css$/.test(input.styleExport)) {
+  if (!/^\.(?:\/[a-zA-Z0-9_-]+)*$/.test(input.exportPath) || (input.styleExport !== undefined && !/^\.\/[a-zA-Z0-9_/-]+\.css$/.test(input.styleExport))) {
     throw new BindingError('API_MISMATCH', '权威 target 的导出路径或样式路径不是受支持的包内相对路径');
   }
 
   return {
     exportName,
     sdkIdentifier: `SDK${exportName}`,
-    importSpecifier: `${input.packageName}${input.exportPath.slice(1)}`,
-    styleSpecifier: `${input.packageName}${input.styleExport.slice(1)}`,
+    importSpecifier: input.packageName + (input.exportPath === '.' ? '' : input.exportPath.slice(1)),
+    ...(input.styleExport ? { styleSpecifier: input.packageName + input.styleExport.slice(1) } : {}),
     componentName,
     bindings,
     ...(element.layout !== undefined ? { layout: element.layout } : {}),

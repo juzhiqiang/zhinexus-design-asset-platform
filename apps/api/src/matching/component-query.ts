@@ -55,7 +55,7 @@ function eligibilityContext(query: ComponentMatchQueryV1): ProjectContext {
   return {
     framework: query.framework,
     frameworkVersion: query.frameworkVersion,
-    echartsVersion: query.echartsVersion,
+    ...(query.echartsVersion ? { echartsVersion: query.echartsVersion } : {}),
     packageManager: 'pnpm',
     requirements: [],
   };
@@ -66,7 +66,7 @@ function exactDependenciesOf(query: ComponentMatchQueryV1, pkg: Eligible['pkg'])
   const required: Array<{ name: string; version: string }> = [
     { name: pkg.name, version: pkg.version },
     { name: query.framework, version: query.frameworkVersion },
-    { name: 'echarts', version: query.echartsVersion },
+    ...(query.echartsVersion ? [{ name: 'echarts', version: query.echartsVersion }] : []),
     ...(query.framework === 'react' ? [{ name: 'react-dom', version: query.reactDomVersion! }] : []),
     ...Object.entries(pkg.dependencies).map(([name, version]) => ({ name, version })),
   ];
@@ -163,8 +163,8 @@ export async function queryComponentMatch(query: ComponentMatchQueryV1, store: C
     evidence: (['api', 'docs'] as const).map(kind => ({ kind, path: current.variant[kind].path, sha256: current.variant[kind].sha256 })),
     compatibility: { status: current.candidate.compatibility.status, recordIds: [...current.candidate.compatibility.recordIds] },
     examples: current.variant.examples.map(example => ({ id: example.id, previewEntry: example.previewEntry })),
-    styleExport: api.styleExport,
-    readyMethod: api.readyMethod,
+    ...(api.styleExport ? { styleExport: api.styleExport } : {}),
+    ...(api.readyMethod ? { readyMethod: api.readyMethod } : {}),
     notes: [...api.notes],
   };
   const gaps: MatchGap[] = current.candidate.compatibility.status === 'unverified'

@@ -1,6 +1,7 @@
 import type { ValidationIssue } from './errors.js';
 import type { ValidationResult } from './release-manifest.js';
 import { canonicalJson } from './schema.js';
+import { sameComponentMember } from './component-values.js';
 import { MATCH_GAP_CODES, matchPlanSchema, validateMatchPlan, type MatchPlanV1 } from './match-plan.js';
 import { componentMatchResponseSchema, validateComponentMatchResponse, type ComponentMatchResponseV1 } from './component-match.js';
 import { array, choice, exactVersion, hash, object, text, timestamp, validateSchema, type Schema } from './schema.js';
@@ -179,8 +180,8 @@ export function validateIntegrationPlan(input: unknown): ValidationResult<Integr
     const api = response?.api;
     if (response?.target && canonicalJson(response.target) !== canonicalJson(e.target)) requireConflict('TARGET_CHANGED', e.instanceId);
     if (api && (api.props.length !== e.props.length || api.events.length !== e.events.length ||
-        api.props.some(prop => !e.props.some(p => p.name === prop.name && p.type === prop.type && p.required === prop.required)) ||
-        api.events.some(event => !e.events.some(p => p.name === event.name && p.payload === event.payload)))) requireConflict('API_MISMATCH', e.instanceId);
+        api.props.some(prop => !e.props.some(p => sameComponentMember(p, prop))) ||
+        api.events.some(event => !e.events.some(p => sameComponentMember(p, event))))) requireConflict('API_MISMATCH', e.instanceId);
   }
   for (const r of p.registryEvidence) {
     if (!p.exactDependencies.some(d => d.name === r.name && d.version === r.version)) add('/registryEvidence', 'Registry evidence must describe an exact plan dependency');

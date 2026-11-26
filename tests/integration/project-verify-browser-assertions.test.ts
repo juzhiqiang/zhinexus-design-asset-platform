@@ -17,7 +17,7 @@ import { loadT17CliExports, type T17CliExports } from './t17-support/verify-name
 const hash = (value: string) => createHash('sha256').update(value).digest('hex');
 const digest = (value: unknown) => hash(canonicalJson(value));
 type BrowserSpec = NonNullable<IntegrationVerificationSpecV1['browser']>;
-type HostCase = { body: string; update?: string; delayMs?: number; cancelAfterMs?: number };
+type HostCase = { body: string; update?: string; delayMs?: number; cancelAfterMs?: number; withoutEcharts?: boolean };
 const tempRoots: string[] = [];
 let cli: T17CliExports;
 
@@ -32,7 +32,7 @@ afterEach(() => {
 });
 
 /** Synthetic dependency metadata isolates browser behavior; this is not frozen-package acceptance. */
-function createProject() {
+function createProject(withoutEcharts=false) {
   const evidenceRoot = process.env.T17_ASSERTION_EVIDENCE_ROOT ?? os.tmpdir();
   fs.mkdirSync(evidenceRoot, { recursive: true });
   const tempRoot = fs.mkdtempSync(path.join(evidenceRoot, 'zhinexus-assertions-'));
@@ -42,6 +42,13 @@ function createProject() {
   fs.mkdirSync(root);
   fs.mkdirSync(artifactRoot);
   const plan = structuredClone(validIntegrationPlanFixture()) as unknown as IntegrationPlanV1;
+  if(withoutEcharts){
+    plan.exactDependencies=plan.exactDependencies.filter(d=>d.name!=='echarts');
+    plan.sourceMatchPlan.exactDependencies=plan.sourceMatchPlan.exactDependencies.filter(d=>d.name!=='echarts');
+    delete plan.sourceMatchPlan.context.echartsVersion;
+    plan.localProject.resolvedDependencies=plan.localProject.resolvedDependencies.filter(d=>d.name!=='echarts');
+    for(const evidence of plan.publicationEvidence){delete evidence.response.query.echartsVersion;evidence.response.exactDependencies=evidence.response.exactDependencies.filter(d=>d.name!=='echarts');}
+  }
   const applyResult = structuredClone(applyResultFixture()) as unknown as IntegrationApplyResultV1;
   const manifest = JSON.stringify({ name: 'synthetic-assertion-host', version: '1.0.0' });
   const lock = [
@@ -85,7 +92,7 @@ async function runBrowserCase(
   assertions: BrowserSpec['assertions'],
   timeoutMs = 1_500,
 ) {
-  const project = createProject();
+  const project = createProject(fixture.withoutEcharts);
   const controller = new AbortController();
   let actionAt = 0;
   let abortedAt = 0;
@@ -154,6 +161,11 @@ function expectBrowserPassed(report: IntegrationVerificationReportV1) {
 }
 
 describe('verifyIntegration asynchronous DOM assertion conditions (real Chromium)', () => {
+  it('ordinary components run browser verification without an ECharts dependency',async()=>{
+    const result=await runBrowserCase({body:'<div id="metric">42</div>',withoutEcharts:true},[{kind:'text',selector:'#metric',value:'42'}]);
+    expectBrowserPassed(result.report);
+    expect(result.behavior?.runtimeErrors).toEqual([]);
+  });
   it('waits for delayed exact first textContent while preserving trim and Playwright selectors', async () => {
     const result = await runBrowserCase({
       body: '<div class="status">pending</div><div class="status">unused</div>',

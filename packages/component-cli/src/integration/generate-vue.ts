@@ -56,6 +56,7 @@ export function generateVueComponent(model: GeneratedBindingModel): string {
   if (model.layout !== undefined) {
     assertHtmlBoundarySafe(model.layout, '设计声明的布局描述');
   }
+  const styleImport = model.styleSpecifier ? "import '" + model.styleSpecifier + "';\n" : '';
   const typeImports = model.typeImports.length > 0 ? `import type { ${model.typeImports.join(', ')} } from '@company/charts-core';\n` : '';
   const layoutLine = model.layout !== undefined
     ? `\n/** 设计声明的布局描述。 */\nconst layout = ${jsSingleQuotedLiteral(model.layout)};\n`
@@ -78,8 +79,7 @@ export function generateVueComponent(model: GeneratedBindingModel): string {
 
   return `<script setup lang="ts">
 import { ${model.exportName} as ${model.sdkIdentifier} } from '${model.importSpecifier}';
-import '${model.styleSpecifier}';
-${typeImports}
+${styleImport}${typeImports}
 /**
  * ${model.componentName}：Zhinexus design-id 接入组件（由接入计划生成）。
  * 设计声明的数据源、事件处理与布局均以字符串数据下发，绝不被当作代码求值。

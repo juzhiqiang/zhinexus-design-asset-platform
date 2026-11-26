@@ -58,8 +58,7 @@
         "componentId",
         "framework",
         "packageVersion",
-        "frameworkVersion",
-        "echartsVersion"
+        "frameworkVersion"
       ],
       "additionalProperties": false,
       "description": "Structural schema only; runtime validation requires reactDomVersion for React and forbids it for Vue. HTTP adapters reject duplicate decoded query keys."
@@ -248,8 +247,6 @@
         "evidence",
         "compatibility",
         "examples",
-        "styleExport",
-        "readyMethod",
         "notes"
       ],
       "additionalProperties": false

@@ -27,6 +27,15 @@ export const componentValueSchemaShape: Schema = {
 const dangerous = new Set(['__proto__', 'constructor', 'prototype']);
 const pointer = (base: string, name: string) => base + '/' + name.replaceAll('~', '~0').replaceAll('/', '~1');
 
+/** Compare public definitions, excluding instance bindings such as source/handler. */
+export function sameComponentMember(left: ComponentApiV1['props'][number] | ComponentApiV1['events'][number], right: ComponentApiV1['props'][number] | ComponentApiV1['events'][number]): boolean {
+  const definition = (member: typeof left) => ({ name: member.name,
+    ...('type' in member ? { type: member.type, required: member.required, ...(member.editor ? { editor: member.editor } : {}) } : { payload: member.payload }),
+    ...(member.schema ? { schema: member.schema } : {}),
+  });
+  return canonicalJson(definition(left)) === canonicalJson(definition(right));
+}
+
 export function validateComponentValueSchema(input: unknown): ValidationResult<ComponentValueSchemaV1> {
   const issues: ValidationIssue[] = []; let nodes = 0;
   const add = (path: string, message: string) => { if (issues.length < 100) issues.push({ code: 'INVALID_SCHEMA', path, message }); };

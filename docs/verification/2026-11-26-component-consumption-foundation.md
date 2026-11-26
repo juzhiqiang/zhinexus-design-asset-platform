@@ -18,7 +18,10 @@
 - Task 2：4 项新单测 RED→GREEN。冻结候选页派生控件缺失经真实浏览器复现并补齐。新浏览器用例覆盖 React/Vue 独立数字颜色、API 单处新增枚举、嵌套值约束、保留有效画布、保存重载且 controls 仍为空。用例修正了等待异步校验的时序后，完整专用 Playwright 12/12 通过（58.7s），已检查截图。
 - Task 2 验证：CLI typecheck 通过；pnpm exec vitest run tests/unit/component-consumption.test.ts tests/unit/workbench-project.test.ts tests/unit/workbench-server.test.ts tests/integration/workbench-templates.test.ts tests/integration/workbench-freeze.test.ts：5 文件、16/16 通过。消费者仍安装同一冻结 tarball，工作台保存未写入派生控件。
 - 浏览器环境：主仓库 .tools/playwright 缺当前 headless-shell；实际使用系统 ms-playwright 中已安装的 Chromium 1254，不下载或降级依赖。
-- Task 3：待执行。
+- Task 3：生成器 3 项新用例、精确查询 3 项用例、离线元数据一致性、无 ECharts 接入计划及无 ECharts 浏览器验证均观察到 RED 后转 GREEN。普通组件不虚构 CSS/就绪能力；query 的 ECharts 版本可选，真实依赖仍精确校验。补齐 query 双向字段核对，防止远端偷偷增加宿主版本。
+- Task 3 验证：contracts schemas:generate、CLI build 通过；pnpm exec vitest run tests/contracts tests/unit/component-binding.test.ts tests/integration/component-query.test.ts tests/integration/match-plan.test.ts tests/integration/project-plan.test.ts tests/integration/project-apply.test.ts tests/integration/project-verify-browser-assertions.test.ts tests/acceptance/t16-a/t16-a-api-cases.test.ts：29 文件、782 通过、1 个既有跳过。无 ECharts 环境的真实 Chromium 验证 13/13 通过；不伪造视觉基线 PASS。
+- Task 3 实际消费者：pnpm exec vitest run tests/integration/component-generated-consumer.test.ts 通过。分别构建真实 React/Vue 包、打包并安装到工作区外消费者，从安装后的 API 生成普通接入源码，分别以 tsc / vue-tsc 严格类型检查；不安装 ECharts 或 charts-core，不导入不存在的样式/类型。
+- 能力边界：平台的已接受兼容记录仍以 ECharts 组合建模，本轮不迁移数据库或伪造普通组件兼容记录；非图表组件如实返回 COMPATIBILITY_UNVERIFIED，静态发现/描述/类型生成与可执行接入门槛分开。
 - Task 4：待执行。
 
 ## 明确边界

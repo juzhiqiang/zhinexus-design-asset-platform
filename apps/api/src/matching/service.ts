@@ -40,7 +40,7 @@ function mapped(element: { instanceId: string; designId: string }, item: Eligibl
   const { gaps: _candidateGaps, evidence: _evidence, ...candidate } = item.candidate;
   return { ...element, status: 'mapped', target: { ...candidate, exportPath: api.exportPath,
     evidence: (['api', 'docs'] as const).map(kind => ({ kind, path: item.variant[kind].path, sha256: item.variant[kind].sha256 })),
-    examples: item.variant.examples.map(e => ({ id: e.id, previewEntry: e.previewEntry })), styleExport: api.styleExport, readyMethod: api.readyMethod, notes: [...api.notes] },
+    examples: item.variant.examples.map(e => ({ id: e.id, previewEntry: e.previewEntry })), ...(api.styleExport ? { styleExport: api.styleExport } : {}), ...(api.readyMethod ? { readyMethod: api.readyMethod } : {}), notes: [...api.notes] },
     props, events, ...(binding?.layout === undefined ? {} : { layout: binding.layout }), gaps };
 }
 export async function assembleMatchPlan(input: unknown, repository: MatchRepository): Promise<MatchPlanV1> {

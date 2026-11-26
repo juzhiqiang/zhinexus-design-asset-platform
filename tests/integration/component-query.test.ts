@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { validateComponentMatchResponse, type ComponentMatchQueryV1 } from '@company/contracts';
+import { validateComponentMatchResponse, validateMatchPlan, type ComponentApiV1, type ComponentMatchQueryV1 } from '@company/contracts';
+import { assembleMatchPlan } from '../../apps/api/dist/matching/service.js';
 import { makeFixture, digest } from '../fixtures/releases/g1/factory.js';
 import { componentApiFixture } from '../fixtures/match-plan.js';
 import { PlatformError } from '../../apps/api/dist/errors.js';
@@ -122,7 +123,7 @@ const vueQuery = { componentId: 'line', framework: 'vue' as const, packageVersio
 const reactQuery = { componentId: 'line', framework: 'react' as const, packageVersion: '0.0.10', frameworkVersion: '19.3.1', echartsVersion: '6.1.0', reactDomVersion: '19.3.1' };
 
 describe('GET /v1/matching/components：精确查询与材料校验', () => {
-  it.each(['styleExport', 'readyMethod'] as const)('普通组件缺少 %s 时返回 API_UNSUPPORTED，不构造非法 target', async field => {
+  it.each(['styleExport', 'readyMethod'] as const)('普通组件缺少可选 %s 时仍可查询，不虚构能力', async field => {
     const h = harness(); const api = componentApiFixture(); delete api[field];
     const bytes = new TextEncoder().encode(JSON.stringify(api));
     const snapshot = h.rows[0]!.snapshot; const path = snapshot.variant!.api.path;
@@ -131,8 +132,24 @@ describe('GET /v1/matching/components：精确查询与材料校验', () => {
     const original = h.store.artifact;
     h.store.artifact = (id, requested) => requested === path ? Promise.resolve(bytes) : original(id, requested);
     const result = await queryComponentMatch(vueQuery, h.store, 'alice');
-    expect(result.status).toBe('gap'); expect(result.gaps.map(gap => gap.code)).toEqual(['API_UNSUPPORTED']);
-    expect(result).not.toHaveProperty('target'); expect(result).not.toHaveProperty('api'); expect(result.exactDependencies).toEqual([]);
+    expect(result.status).toBe('matched');expect(result.target).not.toHaveProperty(field);expect(result.api).not.toHaveProperty(field);
+    expect(validateComponentMatchResponse(result).ok).toBe(true);
+  });
+  it('无 ECharts 的普通组件保留结构化参数/事件供标识匹配，仍如实返回未验证兼容性', async () => {
+    const h=harness(),snapshot=h.rows[0]!.snapshot;
+    const api:ComponentApiV1={schemaVersion:1,componentId:'line',framework:'vue',exportName:'LineChart',exportPath:'./line',notes:[],
+      props:[{name:'config',type:'MetricConfig',required:false,schema:{type:'object',properties:{digits:{type:'integer',minimum:0,maximum:4}},required:['digits'],additionalProperties:false},editor:{kind:'json',group:'数值'}}],
+      events:[{name:'change',payload:'MetricChange',schema:{type:'object',properties:{value:{type:'number'}},required:['value'],additionalProperties:false}}]};
+    const bytes=new TextEncoder().encode(JSON.stringify(api)),path=snapshot.variant!.api.path;
+    snapshot.variant!.api={path,sha256:digest(bytes),bytes:bytes.length};snapshot.candidate.evidence[0]!.sha256=digest(bytes);
+    snapshot.peerDependencies={vue:'3.5.45'};snapshot.package!.peerDependencies={vue:'3.5.45'};snapshot.package!.dependencies={};
+    const original=h.store.artifact;h.store.artifact=(id,p)=>p===path?Promise.resolve(bytes):original(id,p);
+    const {echartsVersion:_,...query}=vueQuery;
+    const result=await queryComponentMatch(query,h.store,'alice');expect(result.status).toBe('matched');expect(result.api).toEqual(api);
+    expect(result.exactDependencies.map(d=>d.name)).not.toContain('echarts');expect(result.target?.compatibility.status).toBe('unverified');
+    const plan=await assembleMatchPlan({design:{schemaVersion:1,mapping:{schemaVersion:1,ruleSetId:'library',revision:'1',entries:[{designId:'Metric',framework:'vue',variantReleaseId:h.rows[0]!.id}]},elements:[{instanceId:'card1',designId:'Metric'}]},context:{framework:'vue',frameworkVersion:'3.5.45',packageManager:'pnpm',requirements:[]}},
+      {load:async()=>new Map([[h.rows[0]!.id,snapshot]]),artifact:h.store.artifact});
+    expect(validateMatchPlan(plan).ok).toBe(true);expect(plan.elements[0]?.props).toEqual(api.props);expect(plan.elements[0]?.events).toEqual(api.events);
   });
   it('Vue 精确匹配返回 target/api/精确依赖，并保留 COMPATIBILITY_UNVERIFIED', async () => {
     const h = harness();
