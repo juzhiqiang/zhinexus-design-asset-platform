@@ -60,11 +60,11 @@ export function ComponentPreview({ componentId, componentName, variant, refresh,
           <span className="shield-badge">
             {opaque ? '沙箱安全隔离' : '独立域沙箱安全隔离'} (sandbox {sandbox})
           </span>
-          {grant && <span className="tag tag-ready" style={{ fontSize: '10px' }}>已授权 (Grant Active)</span>}
+          {grant && <span className="tag tag-ready tag-grant">已授权 (Grant Active)</span>}
         </div>
 
         <div className="preview-actions">
-          <span style={{ fontSize: '12px', color: '#64748b', alignSelf: 'center' }}>800 × 400</span>
+          <span className="preview-dims">800 × 400</span>
           <button type="button" className="preview-btn" onClick={refresh} title="重新加载预览沙箱">
             刷新预览
           </button>

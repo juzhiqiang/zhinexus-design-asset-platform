@@ -201,6 +201,7 @@ export default function LibraryReleaseDetailPage({
     return (
       <main>
         <section className="empty-state" role="status" data-testid="library-detail-loading">
+          <p className="empty-state__eyebrow">VERIFYING ACCESS</p>
           <h2>正在校验授权并加载组件详情…</h2>
           <p>内部资产详情仅在客户端校验权限后读取。</p>
         </section>
@@ -212,11 +213,14 @@ export default function LibraryReleaseDetailPage({
     return (
       <main>
         <section className="empty-state" data-testid="library-detail-unauthenticated">
+          <p className="empty-state__eyebrow">OIDC AUTHENTICATION REQUIRED</p>
           <h2>登录后查看已授权组件详情</h2>
           <p>请先使用公司账号登录以访问受保护的组件详情与隔离预览。</p>
-          <a href={companyLoginUrl} className="filter-btn active" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            使用公司账号登录
-          </a>
+          <div className="empty-state-actions">
+            <a href={companyLoginUrl} className="titanium-btn">
+              使用公司账号登录
+            </a>
+          </div>
         </section>
       </main>
     );
@@ -226,9 +230,12 @@ export default function LibraryReleaseDetailPage({
     return (
       <main>
         <section className="empty-state" role="alert" data-testid="library-detail-forbidden">
+          <p className="empty-state__eyebrow">ACCESS DENIED · 403</p>
           <h2>无权访问该组件版本</h2>
           <p>您没有此组件的读取权限，或权限已被撤销。页面数据与预览已清空。</p>
-          <Link href="/library" className="filter-btn">返回我的资产库</Link>
+          <div className="empty-state-actions">
+            <Link href="/library" className="ghost-btn">返回我的资产库</Link>
+          </div>
         </section>
       </main>
     );
@@ -238,9 +245,12 @@ export default function LibraryReleaseDetailPage({
     return (
       <main>
         <section className="empty-state" data-testid="library-detail-not-found">
+          <p className="empty-state__eyebrow">NOT FOUND · 404</p>
           <h2>未找到该组件版本</h2>
           <p>目标发布版本不存在、无权限或已被撤销。页面数据与预览已清空。</p>
-          <Link href="/library" className="filter-btn">返回我的资产库</Link>
+          <div className="empty-state-actions">
+            <Link href="/library" className="ghost-btn">返回我的资产库</Link>
+          </div>
         </section>
       </main>
     );
@@ -250,11 +260,14 @@ export default function LibraryReleaseDetailPage({
     return (
       <main>
         <section className="empty-state" role="alert">
+          <p className="empty-state__eyebrow">LOAD ERROR</p>
           <h2>加载失败</h2>
           <p>{view.message}</p>
-          <button type="button" className="filter-btn" onClick={() => void loadRelease(activeReleaseId)}>
-            重新加载
-          </button>
+          <div className="empty-state-actions">
+            <button type="button" className="ghost-btn" onClick={() => void loadRelease(activeReleaseId)}>
+              重新加载
+            </button>
+          </div>
         </section>
       </main>
     );
@@ -289,15 +302,15 @@ export default function LibraryReleaseDetailPage({
 
   return (
     <main data-testid="library-detail">
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px', marginBottom: '20px' }}>
-        <nav className="breadcrumb" aria-label="Breadcrumb" style={{ marginBottom: 0 }}>
+      <div className="detail-topbar">
+        <nav className="breadcrumb" aria-label="Breadcrumb">
           <Link href="/library">我的资产库</Link>
           <span>/</span>
           <span>{display?.chineseName ?? release.variant.componentId}</span>
         </nav>
 
         {session && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <div className="session-bar">
             <span className="tag" data-testid="library-subject">{session.subject}</span>
             <button type="button" className="filter-btn" onClick={handleLogout}>
               退出登录
@@ -358,7 +371,7 @@ export default function LibraryReleaseDetailPage({
 
         <div className="status-card">
           <span className="label">发布包版本 (Version)</span>
-          <span className="value" style={{ fontFamily: 'monospace' }}>
+          <span className="value value--mono">
             {release.package.name}@{release.package.version}
           </span>
         </div>
@@ -375,11 +388,11 @@ export default function LibraryReleaseDetailPage({
 
       <section className="code-section" aria-label="快速引入代码">
         <div className="code-header">精确版本依赖安装</div>
-        <div className="code-line" style={{ color: '#38bdf8', marginBottom: '12px' }}>
+        <div className="code-line code-line--install">
           $ {variantMeta.installCommand}
         </div>
         <div className="code-header">ESM 模块导入</div>
-        <div className="code-line" style={{ color: '#a7f3d0' }}>
+        <div className="code-line code-line--import">
           {variantMeta.importCode}
         </div>
       </section>
@@ -391,14 +404,14 @@ export default function LibraryReleaseDetailPage({
       />
 
       <section className="spec-table-container" aria-label="检查报告">
-        <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-          <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>检查报告 ({reports.length})</h2>
+        <div className="spec-table-header">
+          <h2>检查报告 ({reports.length})</h2>
         </div>
-        <div style={{ padding: '16px', fontSize: '13px', color: '#475569' }}>
+        <div className="reports-body">
           {reports.length === 0 ? (
-            <p style={{ margin: 0 }}>当前版本暂无关联检查报告。</p>
+            <p>当前版本暂无关联检查报告。</p>
           ) : (
-            <ul style={{ margin: 0, paddingLeft: '18px' }}>
+            <ul className="reports-list">
               {reports.map((report) => (
                 <li key={report.id}>
                   报告 {report.id} · 示例 {report.exampleId} · 基线结果 {report.baselineResult} · 生成时间：{report.createdAt}
@@ -411,10 +424,10 @@ export default function LibraryReleaseDetailPage({
 
       {docsText && (
         <section className="spec-table-container" aria-label="组件文档产物">
-          <div style={{ padding: '16px', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
-            <h2 style={{ margin: 0, fontSize: '16px', color: '#0f172a' }}>组件文档 ({release.variant.docs.path})</h2>
+          <div className="spec-table-header">
+            <h2>组件文档 ({release.variant.docs.path})</h2>
           </div>
-          <pre style={{ margin: 0, padding: '16px', fontSize: '13px', whiteSpace: 'pre-wrap', overflowX: 'auto' }}>
+          <pre className="docs-pre">
             {docsText}
           </pre>
         </section>

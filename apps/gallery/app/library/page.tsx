@@ -117,17 +117,17 @@ export default function MyLibraryPage() {
 
   return (
     <main>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '16px', marginBottom: '24px' }}>
-        <div>
-          <p className="eyebrow">内部授权资产</p>
+      <header className="page-head-row">
+        <div className="page-head-copy">
+          <p className="eyebrow">内部授权资产 · PRIVATE LIBRARY</p>
           <h1>我的资产库</h1>
-          <p className="lead" style={{ marginBottom: 0 }}>
+          <p className="lead">
             仅展示当前登录身份获准读取的组件资产；未登录、退出或权限撤销后立即清空页面数据。
           </p>
         </div>
 
         {session && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div className="session-bar">
             <span className="tag" data-testid="library-subject">{session.subject}</span>
             <button type="button" className="filter-btn" onClick={() => void refreshLibrary()}>
               刷新权限与目录
@@ -137,10 +137,11 @@ export default function MyLibraryPage() {
             </button>
           </div>
         )}
-      </div>
+      </header>
 
       {view.kind === 'loading' && (
         <section className="empty-state" role="status">
+          <p className="empty-state__eyebrow">VERIFYING SESSION</p>
           <h2>正在校验登录状态与资产权限…</h2>
           <p>请稍候，私人资产目录仅在客户端即时读取。</p>
         </section>
@@ -148,16 +149,20 @@ export default function MyLibraryPage() {
 
       {view.kind === 'unauthenticated' && (
         <section className="empty-state" data-testid="library-unauthenticated">
+          <p className="empty-state__eyebrow">OIDC AUTHENTICATION REQUIRED</p>
           <h2>登录后查看已授权资产</h2>
           <p>内部组件资产受身份与逐组件权限保护，请先使用公司账号登录。</p>
-          <a href={companyLoginUrl} className="filter-btn active" style={{ display: 'inline-block', textDecoration: 'none' }}>
-            使用公司账号登录
-          </a>
+          <div className="empty-state-actions">
+            <a href={companyLoginUrl} className="titanium-btn">
+              使用公司账号登录
+            </a>
+          </div>
         </section>
       )}
 
       {view.kind === 'forbidden' && (
         <section className="empty-state" role="alert" data-testid="library-forbidden">
+          <p className="empty-state__eyebrow">ACCESS DENIED · 403</p>
           <h2>暂无访问权限</h2>
           <p>当前账号未被授予内部组件目录读取权限，或权限已被撤销。</p>
         </section>
@@ -165,6 +170,7 @@ export default function MyLibraryPage() {
 
       {view.kind === 'error' && (
         <section className="empty-state" role="alert">
+          <p className="empty-state__eyebrow">FETCH ERROR</p>
           <h2>目录读取失败</h2>
           <p>{view.message}</p>
         </section>
@@ -177,6 +183,8 @@ export default function MyLibraryPage() {
               <div className="framework-filters" role="tablist" aria-label="按框架筛选">
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={selectedFramework === 'all'}
                   className={`filter-btn ${selectedFramework === 'all' ? 'active' : ''}`}
                   onClick={() => setSelectedFramework('all')}
                 >
@@ -184,6 +192,8 @@ export default function MyLibraryPage() {
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={selectedFramework === 'vue'}
                   className={`filter-btn ${selectedFramework === 'vue' ? 'active' : ''}`}
                   onClick={() => setSelectedFramework('vue')}
                 >
@@ -191,6 +201,8 @@ export default function MyLibraryPage() {
                 </button>
                 <button
                   type="button"
+                  role="tab"
+                  aria-selected={selectedFramework === 'react'}
                   className={`filter-btn ${selectedFramework === 'react' ? 'active' : ''}`}
                   onClick={() => setSelectedFramework('react')}
                 >
@@ -256,6 +268,7 @@ export default function MyLibraryPage() {
             </div>
           ) : (
             <section className="empty-state" data-testid="library-empty">
+              <p className="empty-state__eyebrow">NO MATCHING ASSETS</p>
               <h2>暂无已授权的内部组件资产</h2>
               <p>当前账号已登录，但尚未分配可读取的内部组件资产，或筛选条件无匹配结果。</p>
             </section>

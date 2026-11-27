@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { SiteFooter } from '../_site/SiteFooter';
 import { SiteHeader } from '../_site/SiteHeader';
 
 export const metadata: Metadata = {
@@ -12,9 +13,10 @@ export const metadata: Metadata = {
 
 export default function LibraryLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <>
+    <div className="gallery-shell gallery-shell--private">
       <SiteHeader />
       {children}
-    </>
+      <SiteFooter />
+    </div>
   );
 }
