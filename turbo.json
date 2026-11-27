@@ -35,7 +35,12 @@
       "cache": false
     },
     "@company/platform-api#dev": {
-      "passThroughEnv": ["PLATFORM_*"]
+      "dependsOn": [
+        "^build"
+      ],
+      "passThroughEnv": ["PLATFORM_*"],
+      "cache": false,
+      "persistent": true
     },
     "typecheck": {
       "dependsOn": [

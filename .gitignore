@@ -1,6 +1,7 @@
 node_modules/
 .tools/
 .turbo/
+.next/
 dist/
 coverage/
 playwright-report/
