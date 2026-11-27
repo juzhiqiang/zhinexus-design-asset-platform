@@ -149,6 +149,42 @@ async function fetchPublicVariantRelease(
   }
 }
 
+function matchesRelease(
+  detail: ApiMessages['variantReleaseResponse'],
+  summary: ApiMessages['componentsResponse']['items'][number]['variants'][number],
+  componentId: string,
+): boolean {
+  return detail.variantReleaseId === summary.variantReleaseId
+    && detail.variant.componentId === componentId
+    && detail.variant.variantId === summary.variantId
+    && detail.variant.framework === summary.framework
+    && detail.variant.packageName === summary.packageName
+    && detail.variant.packageVersion === summary.packageVersion
+    && detail.package.name === summary.packageName
+    && detail.package.version === summary.packageVersion;
+}
+
+function releaseThumbnail(
+  detail: ApiMessages['variantReleaseResponse'],
+  options: CatalogRequestOptions,
+): ComponentVariantMeta['thumbnail'] {
+  const { variant } = detail;
+  const screenshots = variant.screenshots.filter((shot) =>
+    shot.variantId === variant.variantId && shot.framework === variant.framework
+    && shot.packageVersion === variant.packageVersion && shot.packageSha256 === detail.package.tarball.sha256
+    && variant.examples.some((example) => example.id === shot.exampleId && example.requiredStates.includes(shot.state)),
+  );
+  const shot = screenshots.find((entry) => entry.state === 'default') ?? screenshots[0];
+  if (!shot) return undefined;
+  const example = variant.examples.find((entry) => entry.id === shot.exampleId)!;
+  const apiUrl = (options.apiUrl ?? DEFAULT_API_ORIGIN).replace(/[/]$/, '');
+  return {
+    url: `${apiUrl}/v1/variant-releases/${encodeURIComponent(detail.variantReleaseId)}/artifacts?path=${encodeURIComponent(shot.image.path)}`,
+    width: example.width,
+    height: example.height,
+  };
+}
+
 /**
  * 获取公开组件目录：完全由真实公开 API 决定资产与版本；空结果或 API 故障返回空数组，不造假数据。
  */
@@ -160,13 +196,14 @@ export async function getCatalogComponents(
     return [];
   }
 
-  const items: ComponentCatalogItem[] = [];
-  for (const item of apiData.items) {
-    if (item.variants.length === 0) continue;
+  return Promise.all(apiData.items.filter((item) => item.variants.length > 0).map(async (item) => {
     const display = getDisplayEnhancement(item.componentId);
-    const variants: ComponentVariantMeta[] = item.variants.map((summary) => {
+    const variants: ComponentVariantMeta[] = await Promise.all(item.variants.map(async (summary) => {
       const exportName = display?.name ?? defaultExportName(item.componentId);
       const exportPath = `./${item.componentId}`;
+      const detail = await fetchPublicVariantRelease(summary.variantReleaseId, options);
+      const thumbnail = detail && matchesRelease(detail, summary, item.componentId)
+        ? releaseThumbnail(detail, options) : undefined;
       return {
         variantReleaseId: summary.variantReleaseId,
         variantId: summary.variantId,
@@ -174,6 +211,7 @@ export async function getCatalogComponents(
         frameworkName: summary.framework === 'react' ? 'React 19' : 'Vue 3',
         packageName: summary.packageName,
         packageVersion: summary.packageVersion,
+        ...(thumbnail ? { thumbnail } : {}),
         exportName,
         exportPath,
         importCode: `import { ${exportName} } from '${summary.packageName}/${item.componentId}';`,
@@ -181,9 +219,9 @@ export async function getCatalogComponents(
         props: display?.props ?? [],
         events: display?.events[summary.framework] ?? [],
       };
-    });
+    }));
 
-    items.push({
+    return {
       id: item.componentId,
       name: display?.name ?? defaultExportName(item.componentId),
       chineseName: display?.chineseName ?? item.componentId,
@@ -191,10 +229,8 @@ export async function getCatalogComponents(
       description: display?.description ?? `公开组件资产 ${item.componentId}。`,
       defaultVariant: variants[0]!,
       variants,
-    });
-  }
-
-  return items;
+    };
+  }));
 }
 
 /**
@@ -225,16 +261,7 @@ export async function getComponentDetail(
     const summary = item.variants[i]!;
     const detail = details[i];
     if (!detail) continue;
-    if (
-      detail.variantReleaseId !== summary.variantReleaseId ||
-      detail.variant.componentId !== item.componentId ||
-      detail.variant.variantId !== summary.variantId ||
-      detail.variant.framework !== summary.framework ||
-      detail.variant.packageName !== summary.packageName ||
-      detail.variant.packageVersion !== summary.packageVersion ||
-      detail.package.name !== summary.packageName ||
-      detail.package.version !== summary.packageVersion
-    ) {
+    if (!matchesRelease(detail, summary, item.componentId)) {
       continue;
     }
 

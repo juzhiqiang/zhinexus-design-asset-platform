@@ -22,6 +22,7 @@ export type ComponentVariantMeta = {
   frameworkVersion?: string;
   packageName: string;
   packageVersion: string;
+  thumbnail?: { url: string; width: number; height: number };
   exportName: string;
   exportPath: string;
   importCode: string;

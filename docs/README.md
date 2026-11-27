@@ -1,6 +1,6 @@
 # Zhinexus 设计资产平台 — 文档索引
 
-本文件是 `docs/` 的总索引与阅读入口。2026-11-26 第五轮精简后，`docs/` 只保留**现行有效**的 68 篇文档（另有本索引，共 69 篇）：面向操作者的指南、仍然成立的契约与边界、当前功能的用法文档、验证汇编、AGENTS.md 指定的基线文档，以及索引本身。已完成任务的过程稿（35 篇历史实施计划、6 篇 phase2/3 设计稿、4 篇当日验证记录、T11 合成预演、画廊首页四版迭代记录、二期观测交接）已从工作树移除，全部可经 git 历史恢复。2026-11-26 晚些时候合入 `fix/juz-component-development`（juz CLI 工作台修复）时又带入 2 篇，已计入下列篇数。
+本文件是 `docs/` 的总索引与阅读入口。2026-11-26 第五轮精简后及后续修复收口，`docs/` 当前保留**现行有效**的 69 篇文档（另有本索引，共 70 篇）：面向操作者的指南、仍然成立的契约与边界、当前功能的用法文档、验证汇编、AGENTS.md 指定的基线文档，以及索引本身。已完成任务的过程稿（35 篇历史实施计划、6 篇 phase2/3 设计稿、4 篇当日验证记录、T11 合成预演、画廊首页四版迭代记录、二期观测交接）已从工作树移除，全部可经 git 历史恢复。2026-11-26 晚些时候合入 `fix/juz-component-development`（juz CLI 工作台修复）时又带入 2 篇，已计入下列篇数。
 
 ## 目录结构
 
@@ -18,7 +18,7 @@ docs/
 ├── design/                       .pen 设计稿说明（2 篇，设计稿本体在同目录）
 ├── acceptance/                   验收材料（2 篇）
 └── verification/
-    ├── *.md                      20 篇：8 篇主题汇编 + 3 篇专题汇编 + 当日修复记录
+    ├── *.md                      21 篇：8 篇主题汇编 + 3 篇专题汇编 + 当日修复记录
     └── evidence/                 历史日志、JSON 证据与视觉验收截图素材（勿修改）
 ```
 
@@ -39,6 +39,7 @@ docs/
 | 画廊公开/私有渲染边界 | `specs/2026-11-11-gallery-next-public-private-rendering.md` |
 | SDK 兼容性策略与 ECharts 升级 | `guides/echarts-upgrade.md` + `verification/sdk-release.md` |
 | 平台上传/发布/预览行为 | `verification/platform-services.md` + `guides/operations.md` |
+| 已发布组件的目录截图与本地预览排查 | `verification/2026-11-27-gallery-published-preview.md` |
 | 从真实项目发布组件 | `guides/project-publishing.md` + `verification/project-publishing.md` |
 | juz 本地工作台 | `guides/juz-workbench.md` |
 | juz CLI 缺陷修正与常规组件开发 | `plans/2026-11-26-juz-cli-fixes.md` + `verification/2026-11-26-juz-cli-fixes.md` |

@@ -569,3 +569,5 @@ flowchart LR
 2026-11-13 后续C补验：七组件十四实现的Windows冻结发布/真实HTTPS预览/精确Registry消费见 [新增证据](docs/verification/sdk-release.md)。T08浏览器联调暴露API缺少CORS，C按 [修复计划](../verification/platform-services.md) 仅放行配置的精确画廊Origin与既有请求头；不改变上传/身份协议，B继续真实网页三存储E2E。
 
 2026-11-24 真实项目发布补充：按 [专项计划](../verification/project-publishing.md) 完成稳定分类契约/API、真实项目 CLI、后台分类与发布选择，以及全链路技术验收。CLI 保留旧 SDK/Bundle 命令；项目模式只登记已有组件包，不生成业务组件。共享包必须提交完整 JavaScript 实现子路径，Vue-only/React-only 独立包可分别发布。真实隔离服务已覆盖三类包 Ready、worker/API 恢复和 registry 消费；生产 OIDC/TLS、独立域名、两个真实业务项目和 T11 试点仍保持开放，见 [验证记录](../verification/project-publishing.md#2026-11-24-project-publishingmd)。
+
+2026-11-27 T07 画廊补充：公开目录卡片复用真实发布详情与既有公开产物接口读取截图，校验精确发布版本、框架及包摘要，不新增公共契约或对象存储公开访问。现有本地网关需与 API 使用相同存储环境；截图和交互预览以已发布的 `juz-local-test-react@0.0.1` 原产物实测，不重新打包或发布。范围、验证和未覆盖边界见 [独立修复记录](../verification/2026-11-27-gallery-published-preview.md)。

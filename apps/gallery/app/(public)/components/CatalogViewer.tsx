@@ -74,15 +74,31 @@ export function CatalogViewer({
 
       {filteredItems.length > 0 ? (
         <div className="components-grid">
-          {filteredItems.map((item) => (
+          {filteredItems.map((item) => {
+            const variant = selectedFramework === 'all'
+              ? item.variants.find((entry) => entry.thumbnail) ?? item.defaultVariant
+              : item.variants.find((entry) => entry.framework === selectedFramework)!;
+            return (
             <article key={item.id} className="component-card">
+              {variant.thumbnail && (
+                <img
+                  className="card-thumbnail"
+                  src={variant.thumbnail.url}
+                  alt={`${item.chineseName}（${variant.frameworkName}）预览图`}
+                  width={variant.thumbnail.width}
+                  height={variant.thumbnail.height}
+                  loading="lazy"
+                  decoding="async"
+                  referrerPolicy="no-referrer"
+                />
+              )}
               <div className="card-header">
                 <div>
                   <h2 className="card-title">{item.chineseName}</h2>
                   <div className="card-subtitle">{item.name} ({item.id})</div>
                 </div>
-                {item.defaultVariant?.availability && (
-                  <span className="tag tag-ready">{item.defaultVariant.availability}</span>
+                {variant.availability && (
+                  <span className="tag tag-ready">{variant.availability}</span>
                 )}
               </div>
 
@@ -99,13 +115,14 @@ export function CatalogViewer({
               </div>
 
               <div className="card-footer">
-                <span className="card-version">v{item.defaultVariant.packageVersion}</span>
+                <span className="card-version">v{variant.packageVersion}</span>
                 <Link href={`/components/${item.id}`} className="card-link">
                   查看详情与隔离预览 →
                 </Link>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <section className="empty-state" aria-live="polite">
