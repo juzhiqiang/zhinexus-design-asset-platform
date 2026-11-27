@@ -110,6 +110,7 @@ export function ComponentDetailViewer({
         componentName={component.name}
         variant={activeVariant}
         refresh={() => setPreviewRevision((revision) => revision + 1)}
+        access="public"
       />
 
       <section className="code-section" aria-label="快速引入代码">

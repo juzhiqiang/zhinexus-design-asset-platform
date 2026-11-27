@@ -111,4 +111,24 @@ describe('T07 durable preview grants and static gateway', () => {
     expect(denied).toMatchObject({ target_id: id, data: {} });
     expect(JSON.stringify(denied)).not.toContain(session.cookie.split('=')[1]);
   });
+  it('allows anonymous short-lived grants for public Ready components and revokes them when made private', async () => {
+    await h.db.query("UPDATE components SET public=true WHERE id='line'");
+    try {
+      const response = await h.request('/v1/preview-grants', { variantReleaseId: id });
+      expect(response.status).toBe(201);
+      expect(response.headers.get('cache-control')).toBe('no-store');
+      const grant = await response.json() as { bootstrapUrl: string; expiresAt: string };
+      const url = new URL(grant.bootstrapUrl);
+      const redeemed = await resource(url.pathname + url.search);
+      expect(redeemed.status).toBe(303);
+      const cookie = redeemed.headers['set-cookie']![0]!.split(';')[0]!;
+      expect((await resource(redeemed.headers.location!, cookie)).status).toBe(200);
+      // Toggling component back to private immediately cuts off the active anonymous preview session.
+      await h.db.query("UPDATE components SET public=false WHERE id='line'");
+      expect((await resource(redeemed.headers.location!, cookie)).status).toBe(404);
+      expect((await h.request('/v1/preview-grants', { variantReleaseId: id })).status).toBe(401);
+    } finally {
+      await h.db.query("UPDATE components SET public=false WHERE id='line'");
+    }
+  });
 });

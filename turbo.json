@@ -42,6 +42,14 @@
       "cache": false,
       "persistent": true
     },
+    "@company/preview-gateway#dev": {
+      "dependsOn": [
+        "^build"
+      ],
+      "passThroughEnv": ["PLATFORM_*"],
+      "cache": false,
+      "persistent": true
+    },
     "typecheck": {
       "dependsOn": [
         "^build"

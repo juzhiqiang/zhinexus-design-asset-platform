@@ -1,14 +1,15 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { ipPreviewMode, requestComponentPreview, requestPreviewGrant, type PreviewGrant } from '../../../lib/preview-client';
+import { ipPreviewMode, requestComponentPreview, requestPreviewGrant, type PreviewAccessMode, type PreviewGrant } from '../../../lib/preview-client';
 import type { ComponentVariantMeta } from '../../../lib/types';
 
-export function ComponentPreview({ componentId, componentName, variant, refresh }: {
+export function ComponentPreview({ componentId, componentName, variant, refresh, access = 'public' }: {
   componentId: string;
   componentName: string;
   variant: ComponentVariantMeta;
   refresh: () => void;
+  access?: PreviewAccessMode;
 }) {
   const { framework, variantId, variantReleaseId, frameworkName } = variant;
   const [grant, setGrant] = useState<PreviewGrant | null | undefined>(undefined);
@@ -19,13 +20,13 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
     request.current = controller;
     setGrant(undefined);
     const promise = variantReleaseId
-      ? requestPreviewGrant(variantReleaseId, controller.signal)
-      : requestComponentPreview(componentId, variantId, framework, controller.signal);
+      ? requestPreviewGrant(variantReleaseId, controller.signal, { access })
+      : requestComponentPreview(componentId, variantId, framework, controller.signal, { access });
     promise.then((result) => {
       if (!controller.signal.aborted) setGrant(result);
     });
     return () => controller.abort();
-  }, [componentId, variantId, variantReleaseId, framework]);
+  }, [componentId, variantId, variantReleaseId, framework, access]);
 
   const opaque = grant ? grant.isolation === 'ip-port' : ipPreviewMode;
   const sandbox = opaque ? 'allow-scripts' : 'allow-scripts allow-same-origin';
@@ -38,7 +39,7 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
     const popup = window.open('about:blank', '_blank');
     if (!popup) return;
     popup.opener = null;
-    const windowGrant = await requestPreviewGrant(grant.variantReleaseId, signal);
+    const windowGrant = await requestPreviewGrant(grant.variantReleaseId, signal, { access });
     if (popup.closed) return;
     if (signal.aborted || windowGrant?.isolation !== 'domain' || new URL(windowGrant.url).origin !== new URL(grant.url).origin) {
       popup.close();
@@ -86,7 +87,13 @@ export function ComponentPreview({ componentId, componentName, variant, refresh 
             title={`${componentName} (${frameworkName}) 交互预览`}
           />
         ) : (
-          <p role="status">{grant === undefined ? '正在获取预览授权…' : '暂时无法打开预览，请登录后刷新重试。'}</p>
+          <p role="status">
+            {grant === undefined
+              ? '正在获取预览授权…'
+              : access === 'public'
+                ? '暂时无法加载预览，请刷新重试。'
+                : '暂时无法打开预览，请登录后刷新重试。'}
+          </p>
         )}
       </div>
     </section>

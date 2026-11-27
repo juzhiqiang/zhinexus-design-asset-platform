@@ -1,16 +1,22 @@
 import { validateApiMessage, type Framework } from '@company/contracts';
-import { getStoredSession,loadCompanySession } from './auth';
+import { getStoredSession, loadCompanySession } from './auth';
+import {
+  ipPreviewMode,
+  requestPublicPreviewGrant,
+  validateGalleryPreviewGrant,
+  type PreviewAccessMode,
+  type PreviewGrant,
+} from './preview-validation';
+
+export { ipPreviewMode, validateGalleryPreviewGrant, type PreviewAccessMode, type PreviewGrant };
 
 const API_ORIGIN = (process.env.NEXT_PUBLIC_PLATFORM_API_URL || 'http://127.0.0.1:3000').replace(/\/$/, '');
-export const ipPreviewMode = process.env.NEXT_PUBLIC_PLATFORM_PREVIEW_MODE === 'ip-port';
 
-export type PreviewGrant = { url: string; variantReleaseId: string; isolation: 'ip-port' | 'domain' };
-
-async function previewApi(path: string, input: RequestInit, signal: AbortSignal): Promise<unknown> {
+async function previewApi(path: string, input: RequestInit, signal: AbortSignal, anonymous: boolean): Promise<unknown> {
   const response = await fetch(`${API_ORIGIN}${path}`, {
     ...input,
     cache: 'no-store',
-    credentials: getStoredSession()?.token==='__session__' ? 'include' : 'omit',
+    credentials: !anonymous && getStoredSession()?.token === '__session__' ? 'include' : 'omit',
     redirect: 'error',
     referrerPolicy: 'no-referrer',
     signal: AbortSignal.any([signal, AbortSignal.timeout(2000)]),
@@ -24,46 +30,43 @@ export async function requestComponentPreview(
   variantId: string,
   framework: Framework,
   signal: AbortSignal,
+  options: { access?: PreviewAccessMode } = {},
 ): Promise<PreviewGrant | null> {
-  if (!await loadCompanySession()) return null;
+  const access = options.access ?? 'authenticated';
+  if (access === 'authenticated' && !await loadCompanySession()) return null;
   try {
     const query = new URLSearchParams({ framework, query: componentId, pageSize: '100' });
     const catalog = validateApiMessage('componentsResponse', await previewApi(`/v1/components?${query}`, {
       headers: { accept: 'application/json' },
-    }, signal));
+    }, signal, access === 'public'));
     if (!catalog.ok || catalog.value.page !== 1 || catalog.value.total !== catalog.value.items.length) return null;
     const variants = catalog.value.items.filter(item => item.componentId === componentId)
       .flatMap(item => item.variants.filter(variant => variant.framework === framework && variant.variantId === variantId));
     if (variants.length !== 1 || signal.aborted) return null;
-    return requestPreviewGrant(variants[0]!.variantReleaseId, signal);
+    return requestPreviewGrant(variants[0]!.variantReleaseId, signal, { access });
   } catch {
     return null;
   }
 }
 
-export async function requestPreviewGrant(variantReleaseId: string, signal: AbortSignal): Promise<PreviewGrant | null> {
+export async function requestPreviewGrant(
+  variantReleaseId: string,
+  signal: AbortSignal,
+  options: { access?: PreviewAccessMode } = {},
+): Promise<PreviewGrant | null> {
+  const access = options.access ?? 'authenticated';
+  if (access === 'public') {
+    return requestPublicPreviewGrant(variantReleaseId, signal, API_ORIGIN);
+  }
   const session = getStoredSession() ?? await loadCompanySession();
   if (!session) return null;
   try {
-    const grant = validateApiMessage('previewGrantResponse', await previewApi('/v1/preview-grants', {
+    const raw = await previewApi('/v1/preview-grants', {
       method: 'POST',
       headers: { 'content-type': 'application/json', authorization: `Bearer ${session.token}` },
       body: JSON.stringify({ variantReleaseId }),
-    }, signal));
-    if (!grant.ok || Date.parse(grant.value.expiresAt) <= Date.now()) return null;
-    const url = new URL(grant.value.bootstrapUrl);
-    const gallery = window.location;
-    if (url.protocol !== 'https:' || url.username || url.password || url.hash || url.pathname !== '/bootstrap' ||
-      !/^\?grant=[A-Za-z0-9_-]{43}$/.test(url.search) || url.origin === gallery.origin) return null;
-
-    const numericHost = /^\d{1,3}(?:\.\d{1,3}){3}$/.test(url.hostname) || url.hostname.startsWith('[');
-    if (grant.value.mode === 'domain' && numericHost || grant.value.mode === 'ip-port' && !numericHost) return null;
-    if (numericHost) {
-      if (url.hostname !== gallery.hostname || !url.port || url.port === gallery.port || url.origin === new URL(API_ORIGIN).origin) return null;
-      return { url: url.href, variantReleaseId, isolation: 'ip-port' };
-    }
-    if ((!grant.value.mode && ipPreviewMode) || url.hostname === gallery.hostname || url.origin===new URL(API_ORIGIN).origin || !url.hostname.startsWith(`r-${variantReleaseId}.`)) return null;
-    return { url: url.href, variantReleaseId, isolation: 'domain' };
+    }, signal, false);
+    return validateGalleryPreviewGrant(raw, variantReleaseId, window.location, API_ORIGIN);
   } catch {
     return null;
   }

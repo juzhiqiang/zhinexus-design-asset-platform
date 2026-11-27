@@ -370,6 +370,7 @@ export default function LibraryReleaseDetailPage({
         componentName={release.variant.exportName}
         variant={variantMeta}
         refresh={() => setPreviewRevision((rev) => rev + 1)}
+        access="authenticated"
       />
 
       <section className="code-section" aria-label="快速引入代码">

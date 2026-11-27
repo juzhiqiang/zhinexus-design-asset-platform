@@ -74,8 +74,16 @@ export function validateAdminPreviewBootstrapUrl(
   } catch {
     return null;
   }
+  const localLoopbackHttp =
+    adminLocation.origin.startsWith('http://')
+    && (adminLocation.hostname === '127.0.0.1' || adminLocation.hostname === 'localhost')
+    && url.protocol === 'http:'
+    && url.hostname === '127.0.0.1'
+    && Boolean(url.port)
+    && url.port !== adminLocation.port
+    && checked.value.mode === 'ip-port';
   if (
-    url.protocol !== 'https:' ||
+    (url.protocol !== 'https:' && !localLoopbackHttp) ||
     url.username ||
     url.password ||
     url.hash ||

@@ -2,15 +2,16 @@ import { createHash, randomBytes } from 'node:crypto';
 import { Pool,type PoolClient } from 'pg';
 import type { VariantRef } from '@company/contracts';
 import { previewOriginFor, validatePreviewConfig, type PreviewConfig } from '@company/contracts/preview';
-import type { GatewayOptions } from './config.js';
+import { isLoopbackDevPreview, type GatewayOptions } from './config.js';
 import { PreviewStorage } from './storage.js';
 import { PreviewDenied, resourcePath, resourceMime } from './path-policy.js';
 
 const hash = (token: string) => createHash('sha256').update(token).digest('hex');
-type Access = { variant_release_id: string; subject: string; origin: string; expires_at: Date; metadata: VariantRef; job_id: string; preview_generation:string;oidc_generation:string;account_version:string|null };
+type Access = { variant_release_id: string; subject: string | null; origin: string; expires_at: Date; metadata: VariantRef; job_id: string; preview_generation:string;oidc_generation:string;account_version:string|null };
 /** A grant issued for a self-managed account stays valid only while that account version does. */
-async function accountCurrent(sql:Pool | PoolClient, subject:string, version:string|null):Promise<boolean> {
+async function accountCurrent(sql:Pool | PoolClient, subject:string | null, version:string|null):Promise<boolean> {
   if (version === null) return true;
+  if (subject === null) return false;
   const row=(await sql.query<{version:string;enabled:boolean}>('SELECT version,enabled FROM managed_accounts WHERE platform_subject=$1',[subject])).rows[0];
   return !!row && row.enabled && row.version === version;
 }
@@ -20,7 +21,10 @@ export class PreviewRuntime {
   private readonly storage?: PreviewStorage;
   readonly deploymentId?:string;
   constructor(options: GatewayOptions) {
-    if (options.preview) this.config = validatePreviewConfig(options.preview);
+    if (options.preview) {
+      const loopbackDev = process.env.NODE_ENV !== 'production' && process.env.PLATFORM_BIND_HOST !== '0.0.0.0' && isLoopbackDevPreview(options.preview);
+      this.config = loopbackDev ? { ...options.preview } : validatePreviewConfig(options.preview);
+    }
     this.deploymentId=options.deploymentId;
     if (options.storage) this.storage = new PreviewStorage(options.storage);
     if (options.databaseUrl) {
@@ -52,8 +56,11 @@ export class PreviewRuntime {
       const grant = (await sql.query<Access>(`SELECT g.*,vr.metadata FROM preview_grants g JOIN variant_releases vr ON vr.id=g.variant_release_id
         WHERE token_hash=$1 AND redeemed_at IS NULL AND revoked_at IS NULL AND expires_at>clock_timestamp()
           AND preview_can_read(g.variant_release_id,g.subject)
-          AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role)) FOR UPDATE OF g`, [hash(token)])).rows[0];
-      if (!grant || grant.origin !== this.origin(grant.variant_release_id, host,current.config) || grant.preview_generation!==current.previewGeneration || grant.oidc_generation!==current.oidcGeneration) throw new PreviewDenied();
+          AND (
+            (g.subject IS NULL AND cardinality(g.read_roles)=0)
+            OR (g.subject IS NOT NULL AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role)))
+          ) FOR UPDATE OF g`, [hash(token)])).rows[0];
+      if (!grant || grant.origin !== this.origin(grant.variant_release_id, host,current.config) || grant.preview_generation!==current.previewGeneration || (grant.subject!==null && grant.oidc_generation!==current.oidcGeneration)) throw new PreviewDenied();
       if (!await accountCurrent(sql,grant.subject,grant.account_version)) throw new PreviewDenied();
       const entry = grant.metadata.examples[0]?.previewEntry;
       if (!entry || resourcePath(`/${entry}`) !== entry) throw new PreviewDenied();
@@ -72,9 +79,12 @@ export class PreviewRuntime {
       JOIN package_releases p ON p.id=vr.package_release_id
       WHERE s.token_hash=$1 AND g.redeemed_at IS NOT NULL AND g.revoked_at IS NULL AND g.expires_at>clock_timestamp()
         AND preview_can_read(g.variant_release_id,g.subject)
-        AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role))`, [hash(token)])).rows[0];
+        AND (
+          (g.subject IS NULL AND cardinality(g.read_roles)=0)
+          OR (g.subject IS NOT NULL AND EXISTS(SELECT 1 FROM unnest(g.read_roles) AS granted(read_role) WHERE NOT EXISTS(SELECT 1 FROM subject_role_restrictions r WHERE r.subject=g.subject AND r.role=granted.read_role)))
+        )`, [hash(token)])).rows[0];
     const current=await this.currentConfig();
-    if (!access || access.origin !== this.origin(access.variant_release_id, host,current.config) || access.preview_generation!==current.previewGeneration || access.oidc_generation!==current.oidcGeneration) throw new PreviewDenied();
+    if (!access || access.origin !== this.origin(access.variant_release_id, host,current.config) || access.preview_generation!==current.previewGeneration || (access.subject!==null && access.oidc_generation!==current.oidcGeneration)) throw new PreviewDenied();
     if (!await accountCurrent(this.pool!,access.subject,access.account_version)) throw new PreviewDenied();
     return access;
   }
@@ -88,7 +98,7 @@ export class PreviewRuntime {
     const bytes = await this.storage.read(stored.object_key, ref);
     await this.access(token, host);
     const current=await this.currentConfig();
-    if(current.previewGeneration!==access.preview_generation || current.oidcGeneration!==access.oidc_generation)throw new PreviewDenied();
+    if(current.previewGeneration!==access.preview_generation || (access.subject!==null && current.oidcGeneration!==access.oidc_generation))throw new PreviewDenied();
     return { bytes, mime,config:current.config };
   }
   async onApplicationShutdown(): Promise<void> { this.storage?.close(); await this.pool?.end(); }

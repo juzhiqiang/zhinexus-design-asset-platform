@@ -22,7 +22,7 @@ import { LocalIdentityService, type LocalIdentityOptions } from './identity/loca
 import { LocalIdentityStore } from './identity/local/store.js';
 import { LocalSigningKeys } from './identity/local/keys.js';
 import { LocalIdentityAdapter } from './identity/local/adapter.js';
-import { developmentOptions, bootstrapDevelopment, type DevAdminConfig } from './identity/local/dev-admin.js';
+import { developmentOptions, bootstrapDevelopment, isLoopbackDevPreview, type DevAdminConfig } from './identity/local/dev-admin.js';
 import { CategoryService } from './categories/service.js';
 
 export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter;localIdentity?: LocalIdentityOptions;devAdmin?: DevAdminConfig };
@@ -139,7 +139,7 @@ export class Platform {
     this.events = options.events ?? new PlatformEvents();
     if (options.metricsToken && !/^[A-Za-z0-9_-]{32,256}$/.test(options.metricsToken)) throw new PlatformError('INVALID_SCHEMA');
     this.metricsToken = options.metricsToken;
-    if (options.preview) this.preview = validatePreviewConfig(options.preview);
+    if (options.preview) this.preview = this.development && isLoopbackDevPreview(options.preview) ? { ...options.preview } : validatePreviewConfig(options.preview);
     this.adminOrigin = validateWebOrigin(options.adminOrigin ?? 'http://127.0.0.1:5177');
     const galleryOrigin = options.galleryOrigin ?? this.preview?.platformOrigin;
     if (galleryOrigin !== undefined) {
@@ -211,6 +211,19 @@ export class Platform {
     } catch (error) {
       const code = error instanceof Error && 'code' in error ? error.code : undefined;
       if (code === 'UNAUTHENTICATED' || code === 'FORBIDDEN') await this.db?.query('SELECT 1').then(()=>audit(this.db!,principal?.subject,'AUTH_DENIED','access-settings',{code},requestId)).catch(()=>{});
+      throw error;
+    }
+  }
+  async runPublicPreview<T>(requestId: string, operation: (db: Database) => Promise<T>): Promise<T> {
+    try {
+      if (!this.db) throw new PlatformError('INFRA_UNAVAILABLE');
+      return await operation(this.db);
+    } catch (error) {
+      const code = error instanceof PlatformError && error.authorizationDenied ? 'FORBIDDEN'
+        : error instanceof Error && 'code' in error ? error.code : undefined;
+      if (code === 'UNAUTHENTICATED' || code === 'FORBIDDEN') {
+        await this.db?.query('SELECT 1').then(() => audit(this.db!, undefined, 'AUTH_DENIED', 'read', { code }, requestId)).catch(() => {});
+      }
       throw error;
     }
   }

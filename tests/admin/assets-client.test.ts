@@ -52,6 +52,25 @@ describe('admin assets-client 预览隔离校验与兼容证据解析', () => {
         apiOrigin,
       ),
     ).toBeNull();
+
+    // 本地回环 HTTP 开发环境允许同机不同端口的 ip-port 预览，但 HTTPS 环境仍严格拒绝
+    expect(
+      validateAdminPreviewBootstrapUrl(
+        { bootstrapUrl: `http://127.0.0.1:3001/bootstrap?grant=${grantToken}`, expiresAt: future, mode: 'ip-port' },
+        { origin: 'http://127.0.0.1:5177', hostname: '127.0.0.1', port: '5177' },
+        'http://127.0.0.1:3000',
+      ),
+    ).toEqual({
+      url: `http://127.0.0.1:3001/bootstrap?grant=${grantToken}`,
+      isolation: 'ip-port',
+    });
+    expect(
+      validateAdminPreviewBootstrapUrl(
+        { bootstrapUrl: `http://127.0.0.1:3001/bootstrap?grant=${grantToken}`, expiresAt: future, mode: 'ip-port' },
+        { origin: 'https://127.0.0.1:5177', hostname: '127.0.0.1', port: '5177' },
+        'https://127.0.0.1:3000',
+      ),
+    ).toBeNull();
   });
 
   it('parseProbeEvidenceInput 校验 T10 兼容实测证据并提取默认 candidate 三元组', () => {

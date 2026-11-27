@@ -14,6 +14,9 @@ export class PlatformController {
   constructor(@Inject(Platform) private readonly platform: Platform) {}
   @Post('preview-grants')
   previewGrant(@Body() body: unknown, @Headers('authorization') auth: string | undefined, @Req() request: Request) {
+    if (!auth) {
+      return this.platform.runPublicPreview(request.requestId!, db => new PreviewService(db, this.platform.preview, this.platform.accounts).createPublic(body, request.requestId!));
+    }
     return this.platform.run(auth, 'read', request.requestId!, (context, _uploads, db) => new PreviewService(db, this.platform.preview, this.platform.accounts).create(body, context));
   }
   @Post('baselines')

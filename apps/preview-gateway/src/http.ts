@@ -1,10 +1,19 @@
 import { type IncomingMessage, type ServerResponse } from 'node:http';
 import { randomUUID } from 'node:crypto';
+import type { PreviewConfig } from '@company/contracts/preview';
 import { PreviewRuntime } from './auth.js';
+import { isLoopbackDevPreview } from './config.js';
 import { PreviewDenied, previewSessionPrefix, resourcePath, sessionResource, sessionToken } from './path-policy.js';
 
 function previewCsp(platform: string, source: string, sandbox: string): string {
   return `default-src 'none'; script-src ${source} 'unsafe-inline'; style-src ${source} 'unsafe-inline'; img-src ${source} data:; font-src ${source}; connect-src 'none'; frame-src 'none'; worker-src 'none'; object-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors ${platform}; sandbox ${sandbox}`;
+}
+function frameAncestorsFor(config?: PreviewConfig): string {
+  if (!config) return "'none'";
+  if (isLoopbackDevPreview(config)) {
+    return 'http://127.0.0.1:5173 http://localhost:5173 http://127.0.0.1:5177 http://localhost:5177';
+  }
+  return config.platformOrigin;
 }
 
 export function previewHandler(runtime: PreviewRuntime) {
@@ -27,13 +36,13 @@ export function previewHandler(runtime: PreviewRuntime) {
     response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=(), usb=()');
     let config = runtime.config;
     let ipPort = config?.mode === 'ip-port';
-    let platform = config?.platformOrigin ?? "'none'";
+    let platform = frameAncestorsFor(config);
     response.setHeader('Content-Security-Policy', ipPort
       ? `default-src 'none'; frame-ancestors ${platform}; sandbox allow-scripts`
       : previewCsp(platform, "'self'", 'allow-scripts allow-same-origin'));
     try {
       if (!config) throw new PreviewDenied();
-      config=(await runtime.currentConfig()).config;ipPort=config.mode==='ip-port';platform=config.platformOrigin;
+      config=(await runtime.currentConfig()).config;ipPort=config.mode==='ip-port';platform=frameAncestorsFor(config);
       if (request.method !== 'GET' && request.method !== 'HEAD') { response.statusCode = 405; response.setHeader('Allow', 'GET, HEAD'); response.end(); return; }
       const raw = request.url ?? '';
       const session = ipPort && raw.startsWith(previewSessionPrefix) ? sessionResource(raw) : undefined;
@@ -56,7 +65,7 @@ export function previewHandler(runtime: PreviewRuntime) {
       }
       if (ipPort && !session) throw new PreviewDenied();
       const result = await runtime.resource(path, session?.token ?? sessionToken(request.headers.cookie), request.headers.host);
-      config=result.config;platform=config.platformOrigin;
+      config=result.config;platform=frameAncestorsFor(config);
       response.setHeader('Content-Security-Policy',previewCsp(platform,"'self'",config.mode==='ip-port' ? 'allow-scripts' : 'allow-scripts allow-same-origin'));
       if (session) {
         response.setHeader('Content-Security-Policy', previewCsp(platform, config.previewOrigin + session.prefix, 'allow-scripts'));

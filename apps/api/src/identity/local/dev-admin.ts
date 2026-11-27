@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import type { PreviewConfig } from '@company/contracts/preview';
 import type { PlatformOptions } from '../../platform.js';
 import type { Database } from '../../db/database.js';
 import { PlatformError } from '../../errors.js';
@@ -9,6 +10,18 @@ export type DevAdminConfig = { username: string; password: string };
 const apiOrigin = 'http://127.0.0.1:3000';
 const issuer = apiOrigin + '/identity';
 const subject = 'dev-admin';
+export const LOOPBACK_DEV_PREVIEW: PreviewConfig = {
+  mode: 'ip-port',
+  platformOrigin: 'http://127.0.0.1:5173',
+  apiOrigin,
+  previewOrigin: 'http://127.0.0.1:3001',
+};
+export function isLoopbackDevPreview(config: PreviewConfig): boolean {
+  return config.mode === 'ip-port'
+    && config.platformOrigin === LOOPBACK_DEV_PREVIEW.platformOrigin
+    && config.apiOrigin === LOOPBACK_DEV_PREVIEW.apiOrigin
+    && config.previewOrigin === LOOPBACK_DEV_PREVIEW.previewOrigin;
+}
 
 /** Only internally generated loopback settings receive the development HTTP exception. */
 export function developmentOptions(options: PlatformOptions): PlatformOptions {
@@ -18,6 +31,7 @@ export function developmentOptions(options: PlatformOptions): PlatformOptions {
     || (options.galleryOrigin && options.galleryOrigin !== 'http://127.0.0.1:5173')) throw new PlatformError('INVALID_SCHEMA');
   const initialOidc = { issuer, audience: 'zhinexus-admin', webClientId: 'zhinexus-web', cliClientId: 'zhinexus-cli', webRedirectUri: apiOrigin + '/v1/auth/oidc/callback', cliRedirectUri: 'http://127.0.0.1:54321/callback', roleClaim: 'roles', roleMapping: { reader: 'reader', publisher: 'publisher', maintainer: 'maintainer' } };
   return { ...options, galleryOrigin: 'http://127.0.0.1:5173', adminOrigin: 'http://127.0.0.1:5177',
+    preview: options.preview ?? LOOPBACK_DEV_PREVIEW,
     access: { apiOrigin, administrators: [{ issuer, subject }], outbound: [], initialOidc },
     managedAccounts: { issuer, realm: 'local' },
     localIdentity: { issuer, audience: initialOidc.audience, webClientId: initialOidc.webClientId, cliClientId: initialOidc.cliClientId, webRedirectUris: [initialOidc.webRedirectUri], cliRedirectUris: [initialOidc.cliRedirectUri] },
