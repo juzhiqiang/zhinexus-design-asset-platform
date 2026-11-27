@@ -48,3 +48,19 @@ pnpm exec vitest run --config tests/platform/vitest.config.ts tests/platform/cli
 测试使用当前用户已安装的 Playwright 缓存，分别设置 `PLAYWRIGHT_BROWSERS_PATH` 与 `T17_MATRIX_PLAYWRIGHT_BROWSERS_PATH`，不以缺失浏览器的运行替代验收。原始构建、类型检查和测试日志位于本机忽略目录 `test-results/2026-11-27-token-renewal-*.log`，不提交账号、令牌或完整日志。
 
 原始架构文件 SHA-256 保持 `E59BB77EDE1497D349FCC5EAE49BF892E1C92572F4777535FF13B89E1A371723`。
+
+## 版本、安装与本机验证
+
+功能修复提交：`53c616de`。版本独立收口为根 `0.2.12`、管理 API `0.1.10`、CLI `0.1.5`，同步 CHANGELOG；未改动依赖或手工编辑锁文件。完整构建、类型检查和测试针对功能实现执行；升版仅改元数据和说明，之后再次运行 `pnpm verify:workspace`，11 成员及服务依赖图通过。
+
+`pnpm --filter @company/component-cli pack:juz` 重新构建 CLI、内联契约、生成并复核 73 个 probe 文件，生成唯一分发包 `packages/component-cli/.release/juz-cli-0.1.5.tgz`（587762 bytes）。SHA-256：
+
+```text
+2936c1d960e00cebba82a26d2a6a3db6f33d198d0d8ef4d571efe01d5e5544c1
+```
+
+以系统 Node v24.6.0 / npm 11.5.1 执行 `npm install -g <同一份本地 tgz> --no-audit --no-fund --foreground-scripts` 成功，postinstall 完成 Chromium 下载/缓存准备；安装前后复核 tarball SHA-256 一致，未重打包。实际 `juz --version` 返回 `0.1.5`。
+
+再用本地 HTTP 夹具启动全局安装包的真实命令行入口执行 `status`：初始 JWT 剩余 120 秒，先 POST 续签，再用新 JWT GET 发布状态，共两次请求、退出 0。该检查运行在系统 Node v24.6.0，使用全新临时凭据路径，明确 Token 不创建登录文件，不读取或更改用户真实凭据；HTTP 夹具用于安装后传输行为检查，不充当真实服务端签名验收。真实签名与撤权由前述 8 项平台用例验证。
+
+本地开发 API 已运行新路由；旧令牌不会原地延长，建议更新后重新 `juz login` 一次再继续 `juz publish`，复用现有冻结材料。本轮没有合并、push、打标签或发布 npm 包。
