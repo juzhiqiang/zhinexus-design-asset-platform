@@ -46,7 +46,7 @@ export class LocalIdentityController {
       response.redirect(303, url.href);
     } catch (error) {
       if (!(error instanceof PlatformError) || !isBrowserForm(accept)) throw error;
-      response.redirect(303, loginFailureUrl(this.platform.adminOrigin, body, loginFailureReason(error)));
+      response.redirect(303, loginFailureUrl(this.platform.adminOrigin, body, loginFailureReason(error), this.platform.development));
     }
   }
   /** Direct username/password sign-in without an OIDC redirect roundtrip. */
@@ -56,9 +56,6 @@ export class LocalIdentityController {
       return this.platform.localIdentity.passwordLogin({
         username: body['username'], password: body['password'], newPassword: body['new_password'],
       });
-    }
-    if (this.platform.devAdmin) {
-      return this.platform.devAdmin.login(body['username'], body['password']);
     }
     throw new PlatformError('INFRA_UNAVAILABLE');
   }

@@ -18,7 +18,10 @@ function authorizationRequest(params: URLSearchParams): AuthorizationRequest | n
   if (!CLIENT_ID.test(clientId) || !STATE.test(state) || !TOKEN.test(codeChallenge) || (nonce && !TOKEN.test(nonce))) return null;
   let redirect: URL;
   try { redirect = new URL(redirectUri); } catch { return null; }
-  if (redirect.protocol !== 'https:' || redirect.username || redirect.password || redirect.search || redirect.hash || redirect.pathname === '/' || redirect.href !== redirectUri) return null;
+  const api = new URL(platformApiOrigin);
+  const localCallback = process.env.NODE_ENV !== 'production' && api.protocol === 'http:' && api.hostname === '127.0.0.1'
+    && redirect.origin === api.origin && redirectUri === api.origin + '/v1/auth/oidc/callback';
+  if ((redirect.protocol !== 'https:' && !localCallback) || redirect.username || redirect.password || redirect.search || redirect.hash || redirect.pathname === '/' || redirect.href !== redirectUri) return null;
   return { clientId, redirectUri, state, codeChallenge, nonce };
 }
 

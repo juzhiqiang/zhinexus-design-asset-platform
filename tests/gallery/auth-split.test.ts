@@ -47,6 +47,18 @@ describe('independent gallery and admin auth helpers', () => {
   });
 
   for (const [label, auth] of [['gallery', galleryAuth], ['admin', adminAuth]] as const) {
+    it(`${label}: concurrent callers receive the same verified company session`, async () => {
+      (globalThis as { window?: unknown }).window = {};
+      (globalThis as { localStorage?: unknown }).localStorage = createMemoryStorage();
+      let resolveSession!: (response: Response) => void;
+      const pending = new Promise<Response>(resolve => { resolveSession = resolve; });
+      globalThis.fetch = vi.fn(() => pending) as typeof fetch;
+      const first = auth.loadCompanySession();
+      const second = auth.loadCompanySession();
+      resolveSession(new Response(JSON.stringify({ authenticated: true, subject: 'company-user', roles: ['reader'] })));
+      expect(await first).toMatchObject({ subject: 'company-user', token: '__session__' });
+      expect(await second).toMatchObject({ subject: 'company-user', token: '__session__' });
+    });
     it(`${label}: late loadCompanySession 200 after clearSession must not restore alice`, async () => {
       const storage = createMemoryStorage();
       (globalThis as { window?: unknown }).window = {};

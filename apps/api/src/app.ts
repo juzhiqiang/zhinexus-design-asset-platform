@@ -25,7 +25,7 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
   @Module({ imports: [AppModule], controllers: [PlatformController, CatalogController, CompatibilityController, MetricsController, SearchController, MatchingController, ComponentQueryController, AccessSettingsController, CompanyAuthController, ManagedAccountsController, CategoriesController, LocalIdentityController], providers: [{ provide: Platform, useValue: platform }] })
   class ConfiguredModule {}
   try {
-    await platform.requireAccessConfiguration();
+    await platform.initialize();
     const app = await NestFactory.create<NestExpressApplication>(ConfiguredModule, { logger: false, abortOnError: false, bodyParser: false });
     app.use((request: { requestId?: string }, response: ServerResponse, next: () => void) => {
       request.requestId = randomUUID(); response.setHeader('X-Request-Id', request.requestId);
@@ -36,13 +36,14 @@ export async function buildServer(options: PlatformOptions = environmentOptions(
       response.setHeader('X-Content-Type-Options', 'nosniff'); next();
     });
     app.use(async (request:{headers:Record<string,string | undefined>;method:string;requestId:string},response:ServerResponse,next:() => void) => {
-      const values = (request.headers.cookie ?? '').split(';').map(v=>v.trim()).filter(v=>v.startsWith('__Host-platform='));
-      if (values.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(values[0]!.slice(16))) {
+      const prefix = platform.sessionCookieName + '=';
+      const values = (request.headers.cookie ?? '').split(';').map(v=>v.trim()).filter(v=>v.startsWith(prefix));
+      if (values.length === 1 && /^[A-Za-z0-9_-]{43}$/.test(values[0]!.slice(prefix.length))) {
         if (!['GET','HEAD','OPTIONS'].includes(request.method) && !platform.allowsWebOrigin(request.headers.origin)) {
           if(platform.db)await audit(platform.db,undefined,'AUTH_DENIED','oidc-csrf',{code:'FORBIDDEN'},request.requestId).catch(()=>{});
           response.statusCode=403;response.end();return;
         }
-        if (!request.headers.authorization || request.headers.authorization === 'Bearer __session__') request.headers.authorization = 'Session '+values[0]!.slice(16);
+        if (!request.headers.authorization || request.headers.authorization === 'Bearer __session__') request.headers.authorization = 'Session '+values[0]!.slice(prefix.length);
       }
       next();
     });

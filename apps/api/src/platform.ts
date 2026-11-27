@@ -22,7 +22,7 @@ import { LocalIdentityService, type LocalIdentityOptions } from './identity/loca
 import { LocalIdentityStore } from './identity/local/store.js';
 import { LocalSigningKeys } from './identity/local/keys.js';
 import { LocalIdentityAdapter } from './identity/local/adapter.js';
-import { DevAdminAuth, type DevAdminConfig } from './identity/local/dev-admin.js';
+import { developmentOptions, bootstrapDevelopment, type DevAdminConfig } from './identity/local/dev-admin.js';
 import { CategoryService } from './categories/service.js';
 
 export type PlatformOptions = { databaseUrl?: string; storage?: StorageConfig; oidc?: OidcConfig; keyResolver?: JWTVerifyGetKey; preview?: PreviewConfig; galleryOrigin?: string; adminOrigin?: string; events?: PlatformEvents; metricsToken?: string; retention?: RetentionPolicy; access?: AccessOptions;accessLookup?:(hostname:string)=>Promise<{address:string;family:number}[]>;managedAccounts?: ManagedAccountsOptions;identity?: KeycloakOptions;identityAdapter?: IdentityAdapter;localIdentity?: LocalIdentityOptions;devAdmin?: DevAdminConfig };
@@ -123,11 +123,15 @@ export class Platform {
   readonly identityWorker?: IdentityWorker;
   /** Present when the platform issues its own tokens instead of delegating to Keycloak. */
   readonly localIdentity?: LocalIdentityService;
-  /** Local development default administrator login; never active alongside real OIDC/access config. */
-  readonly devAdmin?: DevAdminAuth;
+  /** Guarded loopback development runtime using the persistent local identity service. */
+  readonly development: boolean;
+  private readonly developmentAdmin?: DevAdminConfig;
   constructor(options: PlatformOptions) {
-    if (options.access) validateAccessOptions(options.access);
-    if (options.localIdentity) {
+    this.development = Boolean(options.devAdmin);
+    this.developmentAdmin = options.devAdmin;
+    if (this.development) options = developmentOptions(options);
+    if (options.access && !this.development) validateAccessOptions(options.access);
+    if (options.localIdentity && !this.development) {
       if (!options.localIdentity.webRedirectUris.length || !options.localIdentity.cliRedirectUris.length) throw new PlatformError('INVALID_SCHEMA');
       options.localIdentity.webRedirectUris.forEach(uri => validateLocalRedirectUri(uri, 'web'));
       options.localIdentity.cliRedirectUris.forEach(uri => validateLocalRedirectUri(uri, 'cli'));
@@ -142,13 +146,14 @@ export class Platform {
       this.galleryOrigin = validateWebOrigin(galleryOrigin);
       if (this.preview && this.galleryOrigin !== this.preview.platformOrigin) throw new PlatformError('INVALID_SCHEMA');
     }
-    const bootstrapResolver:JWTVerifyGetKey | undefined=options.access && options.oidc && !options.keyResolver ? async (header,token)=>{
+    const localResolver:JWTVerifyGetKey | undefined = this.development ? async (header, token) => createLocalJWKSet(await this.localIdentity!.jwks() as JSONWebKeySet)(header, token) : undefined;
+    const bootstrapResolver:JWTVerifyGetKey | undefined=!this.development && options.access && options.oidc && !options.keyResolver ? async (header,token)=>{
       const network=new RestrictedHttps(options.access!.outbound,options.access!.ca,options.accessLookup);
       const value=await network.json(options.oidc!.jwksUri);
       if (!value || typeof value!=='object' || !('keys' in value) || !Array.isArray(value.keys) || !value.keys.length || value.keys.length>32 || value.keys.some(key=>!key || typeof key!=='object' || 'd' in key || 'k' in key)) throw new AuthFailure('UNAUTHENTICATED');
       return createLocalJWKSet(value as JSONWebKeySet)(header,token);
     } : undefined;
-    this.verifier = new OidcVerifier(options.oidc, options.keyResolver ?? bootstrapResolver);
+    this.verifier = new OidcVerifier(options.oidc, localResolver ?? options.keyResolver ?? bootstrapResolver, this.development);
     if (options.databaseUrl) this.db = new Database(options.databaseUrl);
     if (options.storage) this.store = new ArtifactStore(options.storage);
     if (this.db && this.store) this.uploads = new UploadService(this.db, this.store, options.retention);
@@ -166,13 +171,18 @@ export class Platform {
             options.identityAdapter ?? new KeycloakIdentityAdapter(network, options.identity!));
         }
       }
-      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts,this.localIdentity ? {authorizationEndpoint:this.localIdentity.authorizationEndpoint,loginUrl:this.adminOrigin+'/login'} : undefined);
+      this.companyOidc = new CompanyOidc(this.db,this.access,this.verifier,options.accessLookup,this.accounts,this.localIdentity ? {authorizationEndpoint:this.localIdentity.authorizationEndpoint,loginUrl:this.adminOrigin+'/login'} : undefined,this.development ? this.localIdentity : undefined);
       if (this.accounts) this.identityWorker = new IdentityWorker(this.accounts);
     }
-    if (options.devAdmin && !options.oidc && !options.access && !options.localIdentity && !options.identity) {
-      this.devAdmin = new DevAdminAuth(options.devAdmin);
-    }
   }
+  async initialize(): Promise<void> {
+    if (this.developmentAdmin) {
+      await bootstrapDevelopment(this.db!, this.developmentAdmin);
+      await new LocalSigningKeys(this.db!).active();
+    }
+    await this.requireAccessConfiguration();
+  }
+  get sessionCookieName(): string { return this.development ? 'zhinexus-dev-platform' : '__Host-platform'; }
   allowsWebOrigin(origin: string | undefined): boolean {
     return origin !== undefined && (origin === this.galleryOrigin || origin === this.adminOrigin);
   }
@@ -184,7 +194,6 @@ export class Platform {
   async authenticate(authorization:string | undefined) {
     if (this.companyOidc) return this.companyOidc.authenticate(authorization);
     await this.requireAccessConfiguration();
-    if (this.devAdmin) return this.devAdmin.verify(authorization);
     const principal=await this.verifier.verify(authorization);
     await this.requireAccessConfiguration();
     return principal;

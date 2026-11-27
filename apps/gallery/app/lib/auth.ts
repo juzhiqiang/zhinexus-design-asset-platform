@@ -13,7 +13,19 @@ let authGeneration = 0;
 let logoutInFlight: Promise<void> | null = null;
 let activeSessionAbort: AbortController | null = null;
 
-export async function loadCompanySession(): Promise<UserSession | null> {
+let sessionRequest: { generation: number; promise: Promise<UserSession | null> } | null = null;
+
+/** Share a check across the shell and page so they cannot cancel each other's login. */
+export function loadCompanySession(): Promise<UserSession | null> {
+  if (logoutInFlight) return Promise.resolve(null);
+  if (sessionRequest?.generation === authGeneration) return sessionRequest.promise;
+  const promise = readCompanySession();
+  sessionRequest = { generation: authGeneration, promise };
+  void promise.finally(() => { if (sessionRequest?.promise === promise) sessionRequest = null; });
+  return promise;
+}
+
+async function readCompanySession(): Promise<UserSession | null> {
   if (logoutInFlight) {
     return null;
   }

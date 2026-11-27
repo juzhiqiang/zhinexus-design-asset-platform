@@ -50,7 +50,7 @@ async function send(path: string, method: 'GET' | 'POST', body?: unknown): Promi
           : response.status === 400
             ? '填写内容不符合账号规则，请检查用户名、显示名、角色与授权。'
             : response.status === 503
-              ? '成员账号服务未连接到数据库，暂时不可用。'
+              ? '成员账号服务暂时不可用，请检查 API 的身份服务配置与数据库连接。'
               : '账号服务暂时不可用，请稍后重试。';
     throw new ManagedAccountApiError(message, response.status);
   }

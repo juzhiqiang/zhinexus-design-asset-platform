@@ -3,7 +3,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import type { ProjectContext, SearchCandidatesResponse, ValidationResult } from '@company/contracts';
-import { getStoredSession, loadCompanySession, type UserSession } from '../lib/auth';
+import { getStoredSession, loadCompanySession, notifySessionExpired, type UserSession } from '../lib/auth';
 import { buildProjectContext } from '../lib/project-context-form';
 import { searchCandidates } from '../lib/search-client';
 import { CandidateResults } from './CandidateResults';
@@ -140,6 +140,7 @@ export default function ProjectContextMatchPage() {
     cancelInFlight();
     resetFormState();
     setSession(null);
+    notifySessionExpired();
     router.replace('/login?next=%2Fmatch');
   };
 

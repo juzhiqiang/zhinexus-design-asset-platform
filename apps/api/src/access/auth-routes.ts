@@ -32,9 +32,9 @@ export class CompanyAuthController {
   async callback(@Query() query:Record<string,string>,@Headers('cookie') cookies:string | undefined,@Req() request:{requestId:string},@Res() response:Response) {
     const result = await this.checked('oidc-callback',request.requestId,async()=>{
       if (Object.keys(query).some(key => !['code','state','iss','session_state'].includes(key)) || Object.values(query).some(value => typeof value !== 'string') || !query.code || !query.state) throw new PlatformError('UNAUTHENTICATED');
-      return this.runtime().callback(query.state,query.code,cookie(cookies,'__Host-oidc'),query.iss);
+      return this.runtime().callback(query.state,query.code,cookie(cookies,this.runtime().attemptCookieName),query.iss);
     });
-    response.setHeader('Set-Cookie',result.cookie ?? '__Host-oidc=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=Lax');
+    response.setHeader('Set-Cookie',result.cookie ?? this.runtime().cookie('attempt','',0));
     response.setHeader('Referrer-Policy','no-referrer');response.redirect(303,result.location);
   }
   @Post('candidate-start') @HttpCode(200)
@@ -49,8 +49,7 @@ export class CompanyAuthController {
   @Get('session')
   async session(@Headers('authorization') auth:string | undefined,@Req() request:{requestId:string}) {
     const principal = await this.checked('oidc-session',request.requestId,()=>this.platform.authenticate(auth));
-    const administrator = this.platform.devAdmin?.subject === principal.subject
-      || (this.platform.access?.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject) ?? false);
+    const administrator = this.platform.access?.options.administrators.some(a => a.issuer === principal.issuer && a.subject === principal.identitySubject) ?? false;
     return {authenticated:true,administrator,subject:principal.subject,roles:principal.roles};
   }
   @Get('cli')
@@ -64,8 +63,8 @@ export class CompanyAuthController {
   }
   @Post('logout') @HttpCode(200)
   async logout(@Headers('cookie') cookies:string | undefined,@Res() response:Response) {
-    const token = cookie(cookies,'__Host-platform');
+    const token = cookie(cookies,this.platform.sessionCookieName);
     if (token && this.platform.db) await this.platform.db.query('DELETE FROM oidc_sessions WHERE token_hash=$1',[(await import('./oidc.js')).digest(token)]);
-    response.setHeader('Set-Cookie','__Host-platform=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=None');response.json({authenticated:false});
+    response.setHeader('Set-Cookie',this.platform.companyOidc?.cookie('session','',0) ?? '__Host-platform=; Path=/; Max-Age=0; Secure; HttpOnly; SameSite=None');response.json({authenticated:false});
   }
 }

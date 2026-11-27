@@ -2449,7 +2449,22 @@ dialog.zn-dialog::backdrop {
 
 @media (max-width: 640px) {
   .zn-topbar {
-    padding: 0 14px;
+    height: auto;
+    min-height: 56px;
+    padding: 10px 14px;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+
+  .zn-topbar-actions {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .zn-topbar-user {
+    min-width: 0;
+    flex: 1;
+    flex-wrap: wrap;
   }
 
   .zn-quick-search {

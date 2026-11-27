@@ -128,6 +128,16 @@ export class LocalIdentityService {
       if (replacement === value.password) throw new PlatformError('INVALID_SCHEMA', [detail('newPassword', '新密码不能与当前密码相同')]);
       await this.store.putCredential(candidate.accountId, await hashPassword(replacement), false);
     }
+    // Revocation uses whole seconds. A fresh password must not produce a token at the old
+    // authentication floor; wait at most one second, then recheck the account before issuance.
+    const wait = (candidate.authTimeFloor + 1) * 1000 - Date.now();
+    if (wait > 0) {
+      if (wait > 1000) throw new PlatformError('UNAUTHENTICATED');
+      await new Promise(resolve => setTimeout(resolve, wait));
+      const current = await this.store.loginCandidate(this.options.issuer, username);
+      if (!current?.enabled || current.version !== candidate.version || Math.floor(Date.now() / 1000) <= current.authTimeFloor) throw new PlatformError('UNAUTHENTICATED');
+      return current;
+    }
     return candidate;
   }
 

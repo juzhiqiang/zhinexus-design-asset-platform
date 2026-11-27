@@ -30,11 +30,14 @@ export class OidcVerifier {
   private readonly cliClients = new Set<string>();
 
   /** The optional key resolver is a programmatic seam, never a runtime bypass setting. */
-  constructor(config?: OidcConfig, keyResolver?: JWTVerifyGetKey) {
+  constructor(config?: OidcConfig, keyResolver?: JWTVerifyGetKey, localDevelopment = false) {
     if (config === undefined) return;
     try {
-      validateHttpsUrl(config.issuer);
-      const jwksUrl = validateHttpsUrl(config.jwksUri);
+      const local = localDevelopment && process.env.NODE_ENV !== 'production' && keyResolver !== undefined
+        && config.issuer === 'http://127.0.0.1:3000/identity' && config.jwksUri === config.issuer + '/jwks';
+      if (localDevelopment && !local) throw new AuthFailure('UNAUTHENTICATED');
+      if (!local) validateHttpsUrl(config.issuer);
+      const jwksUrl = local ? new URL(config.jwksUri) : validateHttpsUrl(config.jwksUri);
       if (!isIdentifier(config.audience)) throw new AuthFailure('UNAUTHENTICATED');
       for (const [clients, destination] of [[config.webClientIds, this.webClients], [config.cliClientIds, this.cliClients]] as const) {
         if (!Array.isArray(clients) || clients.length === 0 || !clients.every(isIdentifier)) {

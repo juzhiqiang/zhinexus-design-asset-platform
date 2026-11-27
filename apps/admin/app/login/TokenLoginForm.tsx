@@ -64,7 +64,7 @@ export function TokenLoginForm({ nextPath }: { nextPath?: string }) {
       } | null;
       if (!response.ok) {
         if (response.status === 503 || payload?.code === 'INFRA_UNAVAILABLE') {
-          setPasswordError('本地账号密码服务未启用，请改用下方 OIDC PKCE 登录，或在 API 侧开启 PLATFORM_IDENTITY_MODE=local。');
+          setPasswordError('账号服务暂时不可用，请检查 API 启动日志及身份服务配置。本地开发请完成基础设施启动和数据库迁移后重启 pnpm dev。');
           return;
         }
         const firstLoginIssue = payload?.details?.find((item) => item.path === 'newPassword');

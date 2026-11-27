@@ -172,9 +172,9 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
     if (stored) {
       setSubject(stored.subject);
       setAuthStatus('authenticated');
-      return;
+    } else {
+      setAuthStatus('checking');
     }
-    setAuthStatus('checking');
     let cancelled = false;
     void loadCompanySession().then((session) => {
       if (cancelled) return;
@@ -186,7 +186,7 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
       setSubject('');
       setAuthStatus('redirecting');
       const next = pathname && pathname.startsWith('/') && !pathname.startsWith('//') && pathname !== '/login'
-        ? `?next=${encodeURIComponent(pathname)}`
+        ? `?next=${encodeURIComponent(pathname === '/' ? '/assets' : pathname)}`
         : '';
       router.replace(`/login${next}`);
     });
@@ -201,7 +201,7 @@ export function ZnShell({ children }: Readonly<{ children: React.ReactNode }>) {
       setSubject('');
       setAuthStatus('redirecting');
       const next = pathname && pathname.startsWith('/') && !pathname.startsWith('//') && pathname !== '/login'
-        ? `?next=${encodeURIComponent(pathname)}`
+        ? `?next=${encodeURIComponent(pathname === '/' ? '/assets' : pathname)}`
         : '';
       router.replace(`/login${next}`);
     };

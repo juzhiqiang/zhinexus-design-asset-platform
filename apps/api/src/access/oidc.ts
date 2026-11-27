@@ -18,11 +18,15 @@ export class CompanyOidc {
    * authorization endpoint the local identity service publishes with the admin page that renders
    * the credential form. `start` compares the endpoint it is about to send a browser to against
    * the first half, so a deployment whose web login points at a company issuer is untouched.
+   * The form is used for both gallery and admin; web_target fixes the destination after login.
    */
-  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>, private readonly accounts?:import('../accounts/service.js').ManagedAccountsService, private readonly adminLogin?:{authorizationEndpoint:string;loginUrl:string}) {
+  constructor(private readonly db:Database, private readonly settings:AccessSettingsService, private readonly fallback:OidcVerifier, resolveAddress?:(hostname:string)=>Promise<{address:string;family:number}[]>, private readonly accounts?:import('../accounts/service.js').ManagedAccountsService, private readonly adminLogin?:{authorizationEndpoint:string;loginUrl:string}, private readonly developmentIdentity?:import('../identity/local/service.js').LocalIdentityService) {
     this.network = new RestrictedHttps(settings.options.outbound,settings.options.ca,resolveAddress);
   }
   async metadata(config:OidcAccessConfig): Promise<{ metadata:Discovery; keys:ReturnType<typeof createLocalJWKSet> }> {
+    if (this.developmentIdentity && this.developmentIdentity.discovery().issuer === config.issuer) {
+      return { metadata: this.developmentIdentity.discovery() as Discovery, keys: createLocalJWKSet(await this.developmentIdentity.jwks() as JSONWebKeySet) };
+    }
     const raw = await this.network.json(config.issuer.replace(/\/$/,'')+'/.well-known/openid-configuration');
     if (!record(raw) || raw.issuer !== config.issuer || !Array.isArray(raw.response_types_supported) || !raw.response_types_supported.includes('code') || !Array.isArray(raw.code_challenge_methods_supported) || !raw.code_challenge_methods_supported.includes('S256')) throw new AuthFailure('UNAUTHENTICATED');
     for (const key of ['authorization_endpoint','token_endpoint','jwks_uri']) {
@@ -44,7 +48,12 @@ export class CompanyOidc {
   }
   async verifier(config:OidcAccessConfig): Promise<OidcVerifier> {
     const { metadata,keys } = await this.metadata(config);
-    return new OidcVerifier({ issuer:config.issuer,audience:config.audience,jwksUri:metadata.jwks_uri,webClientIds:[config.webClientId],cliClientIds:[config.cliClientId],roleClaim:config.roleClaim,roleMapping:config.roleMapping },keys);
+    return new OidcVerifier({ issuer:config.issuer,audience:config.audience,jwksUri:metadata.jwks_uri,webClientIds:[config.webClientId],cliClientIds:[config.cliClientId],roleClaim:config.roleClaim,roleMapping:config.roleMapping },keys, Boolean(this.developmentIdentity && this.developmentIdentity.discovery().issuer === config.issuer));
+  }
+  get attemptCookieName(): string { return this.developmentIdentity ? 'zhinexus-dev-oidc' : '__Host-oidc'; }
+  cookie(name: 'attempt' | 'session', value: string, maxAge: number): string {
+    const cookieName = name === 'attempt' ? this.attemptCookieName : this.developmentIdentity ? 'zhinexus-dev-platform' : '__Host-platform';
+    return `${cookieName}=${value}; Path=/; Max-Age=${maxAge}; ${this.developmentIdentity ? '' : 'Secure; '}HttpOnly; SameSite=${name === 'session' && !this.developmentIdentity ? 'None' : 'Lax'}`;
   }
   async restricted(principal:Principal): Promise<Principal> {
     if ((await this.db.query('SELECT 1 FROM disabled_subjects WHERE subject=$1',[principal.subject])).rowCount) throw new AuthFailure('FORBIDDEN');
@@ -129,10 +138,10 @@ export class CompanyOidc {
     // instead: the local identity service answers a plain GET of its authorization endpoint with a
     // JSON descriptor, which no browser can act on. The page posts the credentials straight back to
     // that endpoint, so the redirect target only changes for the human, never for the protocol.
-    const adminLogin = webTarget === 'admin' ? this.adminLogin : undefined;
+    const adminLogin = this.adminLogin;
     const url = new URL(adminLogin && metadata.authorization_endpoint === adminLogin.authorizationEndpoint ? adminLogin.loginUrl : metadata.authorization_endpoint);
     url.search = new URLSearchParams({ response_type:'code',client_id:config.webClientId,redirect_uri:config.webRedirectUri,scope:['openid',...(config.scopes ?? [])].join(' '),state,nonce,code_challenge:createHash('sha256').update(verifier).digest('base64url'),code_challenge_method:'S256' }).toString();
-    return { location:url.href,cookie:`__Host-oidc=${browser}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=Lax` };
+    return { location:url.href,cookie:this.cookie('attempt',browser,300) };
   }
   async callback(state:string,code:string,browser:string,responseIssuer?:string): Promise<{ location:string; cookie?:string }> {
     if (!/^[A-Za-z0-9_-]{43}$/.test(state) || !/^[A-Za-z0-9_-]{43}$/.test(browser) || !code || code.length > 4096 || /[\u0000-\u001f\u007f]/u.test(code)) throw new AuthFailure('UNAUTHENTICATED');
@@ -146,7 +155,9 @@ export class CompanyOidc {
       const secret = config.secretRef ? this.secret(config.secretRef) : undefined;
       if (config.secretRef && !secret) throw new AuthFailure('UNAUTHENTICATED');
       const form = new URLSearchParams({ grant_type:'authorization_code',code,client_id:config.webClientId,redirect_uri:config.webRedirectUri,code_verifier:attempt.verifier,...(secret ? {client_secret:secret} : {}) });
-      const tokens = await this.network.json(metadata.token_endpoint,form);
+      const tokens = this.developmentIdentity && this.developmentIdentity.discovery().token_endpoint === metadata.token_endpoint
+        ? await this.developmentIdentity.token({ code, codeVerifier:attempt.verifier, clientId:config.webClientId, redirectUri:config.webRedirectUri })
+        : await this.network.json(metadata.token_endpoint,form);
       if (!record(tokens) || typeof tokens.id_token !== 'string' || typeof tokens.access_token !== 'string' || tokens.token_type !== 'Bearer') throw new AuthFailure('UNAUTHENTICATED');
       const { payload } = await jwtVerify(tokens.id_token,keys,{ issuer:config.issuer,audience:config.webClientId,algorithms:['RS256','ES256'],requiredClaims:['exp','iat','sub','nonce'] });
       if (payload.nonce !== attempt.nonce || (payload.azp !== undefined && payload.azp !== config.webClientId) || (Array.isArray(payload.aud) && payload.aud.length > 1 && payload.azp !== config.webClientId) || typeof payload.iat !== 'number' || payload.iat > Math.floor(Date.now()/1000)) throw new AuthFailure('UNAUTHENTICATED');
@@ -171,7 +182,7 @@ export class CompanyOidc {
         await sql.query('INSERT INTO oidc_sessions(token_hash,generation,issuer,identity_subject,principal,expires_at,account_version,auth_time) VALUES ($1,$2,$3,$4,$5,to_timestamp($6),$7,$8)',[digest(token),active.generation,principal.issuer,principal.identitySubject,JSON.stringify(bound),Math.min(accessPayload.exp!,payload.exp!),managed ? Number(managed.version) : null,managed ? authTime : null]);
       });
       const location = attempt.web_target === 'admin' ? this.settings.adminOrigin+'/upload' : this.settings.galleryOrigin+'/library';
-      return { location,cookie:`__Host-platform=${token}; Path=/; Max-Age=300; Secure; HttpOnly; SameSite=None` };
+      return { location,cookie:this.cookie('session',token,300) };
     } catch { throw new AuthFailure('UNAUTHENTICATED'); }
   }
   async candidateCli(input:unknown): Promise<{ passed:true }> {

@@ -40,11 +40,12 @@ export function isBrowserForm(accept: string | undefined): boolean {
   return typeof accept === 'string' && accept.includes('text/html');
 }
 
-const redirectUri = (value: unknown): string => {
+const redirectUri = (value: unknown, development: boolean): string => {
   if (typeof value !== 'string') return '';
   let url: URL;
   try { url = new URL(value); } catch { return ''; }
-  return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash && url.pathname !== '/' && url.href === value ? value : '';
+  const local = development && process.env.NODE_ENV !== 'production' && value === 'http://127.0.0.1:3000/v1/auth/oidc/callback';
+  return (url.protocol === 'https:' || local) && !url.username && !url.password && !url.search && !url.hash && url.pathname !== '/' && url.href === value ? value : '';
 };
 
 /**
@@ -56,14 +57,14 @@ const redirectUri = (value: unknown): string => {
  * The username is echoed because a mistyped password is the common failure and retyping the
  * username buys nothing. It is normalised exactly as the service normalises it before lookup.
  */
-export function loginFailureUrl(adminOrigin: string, submission: Record<string, unknown>, reason: LoginFailureReason): string {
+export function loginFailureUrl(adminOrigin: string, submission: Record<string, unknown>, reason: LoginFailureReason, development = false): string {
   const field = (key: string, pattern: RegExp): string => {
     const value = submission[key];
     return typeof value === 'string' && pattern.test(value) ? value : '';
   };
   const params = new URLSearchParams();
   const clientId = field('client_id', CLIENT_ID);
-  const redirect = redirectUri(submission['redirect_uri']);
+  const redirect = redirectUri(submission['redirect_uri'], development);
   const state = field('state', STATE);
   const challenge = field('code_challenge', TOKEN);
   const nonce = field('nonce', TOKEN);

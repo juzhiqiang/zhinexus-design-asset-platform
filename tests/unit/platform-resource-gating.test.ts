@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest';
 import { Platform } from '../../apps/api/dist/platform.js';
+import { createLocalJWKSet, exportJWK, generateKeyPair, SignJWT } from 'jose';
 
-function platformWithDatabase() {
+async function platformWithDatabase() {
   const statements: string[] = [];
   const database = {
     query: async (sql: string) => {
@@ -11,14 +12,16 @@ function platformWithDatabase() {
     },
     close: async () => {},
   };
-  const platform = new Platform({ devAdmin: { username: 'catalog-test', password: 'test-password' } });
+  const keys = await generateKeyPair('ES256');
+  const issuer = 'https://catalog.test';
+  const platform = new Platform({ oidc: { issuer, audience: 'api', jwksUri: issuer + '/jwks', webClientIds: ['web'], cliClientIds: ['cli'] }, keyResolver: createLocalJWKSet({ keys: [{ ...await exportJWK(keys.publicKey), alg: 'ES256' }] }) });
+  const token = await new SignJWT({ roles: ['reader', 'publisher'], azp: 'web' }).setProtectedHeader({ alg: 'ES256' }).setIssuer(issuer).setAudience('api').setSubject('catalog-test').setIssuedAt().setExpirationTime('5m').sign(keys.privateKey);
   Object.defineProperty(platform, 'db', { value: database });
-  return { platform, database, statements };
+  return { platform, database, statements, token };
 }
 
 it('allows authenticated catalog reads with PostgreSQL even when upload storage is not configured', async () => {
-  const { platform, database, statements } = platformWithDatabase();
-  const { access_token: token } = await platform.devAdmin!.login('catalog-test', 'test-password');
+  const { platform, database, statements, token } = await platformWithDatabase();
 
   try {
     const result = await platform.run(`Bearer ${token}`, 'read', 'catalog-request', async (_context, _uploads, db) => {
@@ -34,8 +37,7 @@ it('allows authenticated catalog reads with PostgreSQL even when upload storage 
 });
 
 it('keeps upload actions unavailable when their storage service is not configured', async () => {
-  const { platform } = platformWithDatabase();
-  const { access_token: token } = await platform.devAdmin!.login('catalog-test', 'test-password');
+  const { platform, token } = await platformWithDatabase();
 
   try {
     await expect(platform.run(`Bearer ${token}`, 'upload', 'upload-request', async () => 'unreachable'))

@@ -56,6 +56,12 @@ const REJECTED_FIELDS: ReadonlyArray<{ field: string; value: string }> = [
 ];
 
 describe('登录页渲染授权表单', () => {
+  it('接受配置匹配的精确本地回调，拒绝其他回环端口与路径', async () => {
+    expect(await render({ ...request, redirect_uri: API_ORIGIN + '/v1/auth/oidc/callback' })).toContain('method="post"');
+    for (const redirect_uri of ['http://127.0.0.1:3001/v1/auth/oidc/callback', API_ORIGIN + '/other', 'http://127.0.0.1.attacker.test:3000/v1/auth/oidc/callback']) {
+      expect(await render({ ...request, redirect_uri })).toContain('登录入口无效或已过期');
+    }
+  });
   it('以原生表单把凭据直接 POST 到身份服务授权端点', async () => {
     const html = await render(request);
     expect(html).toContain('method="post"');

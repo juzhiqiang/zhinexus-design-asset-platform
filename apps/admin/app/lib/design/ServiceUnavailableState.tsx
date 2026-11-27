@@ -12,7 +12,7 @@ export type ServiceUnavailableProps = {
 export function ServiceUnavailableState({ status, title, message, onRetry }: ServiceUnavailableProps) {
   const isInfra = status === 503 || /基础设施|未连接|暂时不可用|INFRA_UNAVAILABLE/i.test(message);
   const isForbidden = status === 403;
-  const heading = title ?? (isForbidden ? '当前账号无访问权限' : isInfra ? '本地基础设施未连接' : '服务暂时不可用');
+  const heading = title ?? (isForbidden ? '当前账号无访问权限' : '服务暂时不可用');
 
   return (
     <section className="access-panel zn-state-card" role="alert">
@@ -27,7 +27,7 @@ export function ServiceUnavailableState({ status, title, message, onRetry }: Ser
           <p className="access-hint">{message}</p>
           {isInfra ? (
             <p className="zn-hint">
-              若处于本地开发模式，请先运行 <code>pnpm infra:up</code> 启动 PostgreSQL / MinIO / Verdaccio 并配置 <code>PLATFORM_DATABASE_URL</code> 后重试。
+              请检查 API 启动日志及对应服务配置。本地开发可运行 <code>pnpm infra:up</code>、<code>pnpm dev:infra-migrate</code> 后重新启动 <code>pnpm dev</code>。
             </p>
           ) : null}
           {onRetry ? (

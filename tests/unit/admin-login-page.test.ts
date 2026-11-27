@@ -186,9 +186,9 @@ describe('网页登录把浏览器送到后台登录页', () => {
     expect(result.cookie.startsWith('__Host-oidc=')).toBe(true);
   });
 
-  it('画廊登录不受影响，仍直接去授权端点', async () => {
+  it('本地画廊登录同样经过账号表单，避免停留在 JSON 授权描述页', async () => {
     const result = await oidc(discovery(`${ISSUER}/authorize`), local).start(undefined, undefined, 'gallery');
-    expect(result.location.startsWith(`${ISSUER}/authorize?`)).toBe(true);
+    expect(new URL(result.location).origin + new URL(result.location).pathname).toBe(`${ADMIN_ORIGIN}/login`);
   });
 
   it('公司 issuer 的部署与没有本地身份的部署保持原样', async () => {
