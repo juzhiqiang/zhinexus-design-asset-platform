@@ -25,7 +25,7 @@ it.each(['react', 'vue'])('%s 模板通过公开参数描述独立数字颜色�
   expect(example.value.props.valueColor).toBe('#FF6B35');
   const pkg=JSON.parse(await fs.readFile(path.join(p.packageDir,'package.json'),'utf8'));
   expect(pkg.files).toEqual(expect.arrayContaining(['dist', 'api', 'docs']));
-  expect(pkg.exports['./api/*']).toBe('./api/*');
+  expect(pkg.exports['./api/demo.json']).toBe('./api/demo.json');
 });
 
 it('API 的结构化参数约束校验实际绑定数据和每个状态，旧控件不能放宽约束', async () => {

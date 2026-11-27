@@ -250,7 +250,7 @@ test.describe('T08: 真实三存储浏览器端到端发布流水线', () => {
     // 2. 访问网页控制台（不带 URL query token，通过 localStorage 注入）
     await loginToUploadConsole(page, mainEnv!.token, mainEnv!.apiOrigin);
 
-    await expect(page.locator('h1')).toContainText('资产发布工作区 (Manual Release)');
+    await expect(page.getByRole('heading', { name: '资产发布工作区 (Manual Release)' })).toBeVisible();
     await expect(page.locator('body')).toContainText('当前登录身份：alice');
     await expect(page.locator('#active-api-url')).toContainText(mainEnv!.apiOrigin);
 

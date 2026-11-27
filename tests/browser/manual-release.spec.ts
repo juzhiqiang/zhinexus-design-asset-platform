@@ -1,4 +1,3 @@
-import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -6,17 +5,32 @@ import { join } from 'node:path';
 import { expect, test, type Page } from '@playwright/test';
 import { manifestDigest } from '@company/contracts';
 import { sanitizeWebManifest } from '../../apps/admin/app/lib/uploads/manifest-form.js';
+import { createValidBundle, pngBytes } from '../fixtures/t05-artifacts.js';
 
-const CURRENT_SDK_DIR = 'D:/project/zhinexus-design-asset-platform/.tools/operations/current-sdk/69443f97-8b73-4ecb-91aa-d8835a0b58dc';
+let CURRENT_SDK_DIR: string;
+let screenshotCount: number;
+test.beforeAll(async () => {
+  CURRENT_SDK_DIR = await mkdtemp(join(tmpdir(), 'zh-manual-browser-'));
+  const fixture = await createValidBundle('web');
+  screenshotCount = fixture.manifest.variants.length;
+  for (const [path, bytes] of fixture.files) {
+    const target = join(CURRENT_SDK_DIR, path);
+    await mkdir(join(target, '..'), { recursive: true });
+    await writeFile(target, bytes);
+  }
+  await writeFile(join(CURRENT_SDK_DIR, 'manifest.json'), JSON.stringify(fixture.manifest));
+});
+test.afterAll(async () => { if (CURRENT_SDK_DIR) await rm(CURRENT_SDK_DIR, { recursive: true, force: true }); });
+test.beforeEach(async ({ page }) => {
+  await page.route('**/v1/auth/oidc/session', route => route.fulfill({ status: 401, json: { code: 'UNAUTHENTICATED' } }));
+});
 
 const MOCK_AUTH_TOKEN =
   'eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJ3ZWItZGV2ZWxvcGVyLWFsaWNlIiwicm9sZXMiOlsicHVibGlzaGVyIiwibWFpbnRhaW5lciJdLCJhenAiOiJ3ZWIiLCJleHAiOjE5OTk5OTk5OTl9.test_sig';
 
 async function devLogin(page: Page) {
   const summary = page.locator('details.zn-token-login summary');
-  if (await summary.isVisible()) {
-    await summary.click();
-  }
+  await summary.click();
   await page.locator('#token-input').fill(MOCK_AUTH_TOKEN);
   await page.getByRole('button', { name: '凭证登录' }).click();
 }
@@ -32,7 +46,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await expect(page.locator('aside.zn-sidebar')).toHaveCount(0);
     await expect(page.locator('h1')).toContainText('管理员登录');
     await expect(page.locator('h2')).toContainText('登录后开放');
-    await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
+    await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute('content', /noindex/);
     await expect(page.getByRole('link', { name: '账号登录' })).toBeVisible();
   });
 
@@ -43,7 +57,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await devLogin(page);
 
     // 确认进入工作区（默认为空态，可一键加载 7 组件演示草稿）
-    await expect(page.locator('h1')).toContainText('资产发布工作区 (Manual Release)');
+    await expect(page.getByRole('heading', { name: '资产发布工作区 (Manual Release)' })).toBeVisible();
     await expect(page.locator('body')).toContainText('当前登录身份：web-developer-alice');
     await expect(page.locator('body')).toContainText('逐实现截图关联与必检清单');
 
@@ -75,7 +89,7 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await barReactInput.setInputFiles({
       name: 'bar-react-default.png',
       mimeType: 'image/png',
-      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01, 0x02, 0x03]),
+      buffer: pngBytes(),
     });
 
     // 变体状态更新为已关联，缺图数减少为 13 项，但仍未全部就绪，提交按钮仍然被禁用
@@ -133,9 +147,11 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
   });
 
   test('独立作业状态机页面支持 7 阶段步骤器展示与状态轮询', async ({ page }) => {
+    await page.addInitScript(token => localStorage.setItem('zhinexus_console_auth', JSON.stringify({ token, subject: 'web-developer-alice', roles: ['publisher'], channel: 'web' })), MOCK_AUTH_TOKEN);
+    await page.route('**/v1/releases/job-web-manual-001', route => route.fulfill({ json: { jobId: 'job-web-manual-001', state: 'READY', stage: 'READY' } }));
     await page.goto('http://127.0.0.1:5177/jobs/job-web-manual-001');
 
-    await expect(page.locator('h1')).toContainText('发布作业流水线状态跟踪');
+    await expect(page.getByRole('heading', { name: '发布作业流水线状态跟踪' })).toBeVisible();
     await expect(page.locator('body')).toContainText('作业编号：job-web-manual-001');
 
     // 验证包含 7 阶段 steps
@@ -203,12 +219,12 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await fileInput.setInputFiles({
       name: 'custom-line-shot.png',
       mimeType: 'image/png',
-      buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x01]),
+      buffer: pngBytes(),
     });
 
-    // 验证更新为 10 字节
+    // 校验实际 PNG 的字节数及 manual-upload 来源
     const firstRow = page.locator('tr.variant-shot-card').first();
-    await expect(firstRow).toContainText('10 字节');
+    await expect(firstRow).toContainText(`${pngBytes().byteLength} 字节`);
     await expect(firstRow).toContainText('已关联 (manual-upload)');
   });
 
@@ -222,11 +238,11 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
 
     // 2. 真实目录导入全部预构建产物
     await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
-    await expect(page.locator('#upload-status-message')).toContainText('成功导入');
+    await expect(page.locator('#upload-status-message')).toContainText(/成功导入 \d+ 个本地预构建产物文件并完成路径映射/);
 
-    // 3. 真实目录导入 14 张有效展示截图
+    // 3. 从本测试拥有的目录导入全部有效展示截图
     await page.locator('#import-screenshots-input').setInputFiles(join(CURRENT_SDK_DIR, 'screenshots'));
-    await expect(page.locator('#upload-status-message')).toContainText('成功批量关联 14 张有效展示截图');
+    await expect(page.locator('#upload-status-message')).toContainText(`成功批量关联 ${screenshotCount} 张有效展示截图`);
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
     await expect(submitBtn).toBeEnabled();
@@ -258,10 +274,10 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
 
     await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
-    await expect(page.locator('#upload-status-message')).toContainText('成功导入');
+    await expect(page.locator('#upload-status-message')).toContainText(/成功导入 \d+ 个本地预构建产物文件并完成路径映射/);
 
     await page.locator('#import-screenshots-input').setInputFiles(join(CURRENT_SDK_DIR, 'screenshots'));
-    await expect(page.locator('#upload-status-message')).toContainText('成功批量关联 14 张有效展示截图');
+    await expect(page.locator('#upload-status-message')).toContainText(`成功批量关联 ${screenshotCount} 张有效展示截图`);
 
     const submitBtn = page.getByRole('button', { name: '确认并提交发布' });
     await expect(submitBtn).toBeEnabled();
@@ -281,5 +297,113 @@ test.describe('T08: 网页手动发布与逐实现截图必检', () => {
     // 3. 断言错误信息展示且提交按钮从 busy 状态恢复为可点击
     await expect(page.locator('#upload-status-message')).toContainText('Simulated WebCrypto busy/reject');
     await expect(submitBtn).toBeEnabled();
+  });
+
+  test('产物导入与截图读取重叠时保留全部文件及最新截图摘要', async ({ page }) => {
+    await page.goto('http://127.0.0.1:5177/upload');
+    await devLogin(page);
+    await page.locator('#import-manifest-input').setInputFiles(join(CURRENT_SDK_DIR, 'manifest.json'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
+
+    // 暂停截图读取，让另一项产物导入先完成，确定性覆盖异步操作交错。
+    await page.evaluate(() => {
+      const original = File.prototype.arrayBuffer;
+      const state = window as typeof window & { releaseScreenshot?: () => void; screenshotReadStarted?: boolean };
+      File.prototype.arrayBuffer = async function () {
+        if (this.name === 'replacement.png') {
+          state.screenshotReadStarted = true;
+          await new Promise<void>(resolve => { state.releaseScreenshot = resolve; });
+        }
+        return original.call(this);
+      };
+    });
+    await page.locator('input[data-upload-shot="line-vue"]').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: pngBytes(3, 3) });
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { screenshotReadStarted?: boolean }).screenshotReadStarted)).toBe(true);
+    await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
+    await expect(page.locator('#upload-status-message')).toContainText(/成功导入 \d+ 个本地预构建产物文件并完成路径映射/);
+    await page.evaluate(() => (window as typeof window & { releaseScreenshot?: () => void }).releaseScreenshot?.());
+    await expect(page.locator('#upload-status-message')).toContainText('已为实现 line-vue 上传有效展示截图');
+    await expect(page.getByRole('button', { name: '确认并提交发布' })).toBeEnabled();
+    await expect(page.locator('main')).not.toContainText('FILE_MISSING');
+    await expect(page.locator('main')).not.toContainText('DIGEST_MISMATCH');
+  });
+
+  test('较早开始的目录读取不能覆盖后来替换的截图', async ({ page }, testInfo) => {
+    const fixture = await createValidBundle('web');
+    const image = fixture.files.get('screenshots/line-vue.png')!;
+    fixture.files.delete('screenshots/line-vue.png');
+    fixture.files.set('screenshots/line-vue-default.png', image);
+    fixture.manifest = JSON.parse(JSON.stringify(fixture.manifest).replaceAll('screenshots/line-vue.png', 'screenshots/line-vue-default.png'));
+    const directory = testInfo.outputPath('bundle');
+    for (const [path, bytes] of fixture.files) {
+      await mkdir(join(directory, path, '..'), { recursive: true });
+      await writeFile(join(directory, path), bytes);
+    }
+    await writeFile(join(directory, 'manifest.json'), JSON.stringify(fixture.manifest));
+    await page.goto('/upload');
+    await devLogin(page);
+    await page.locator('#import-manifest-input').setInputFiles(join(directory, 'manifest.json'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
+    await page.evaluate(() => {
+      const original = File.prototype.arrayBuffer;
+      const state = window as typeof window & { releaseImport?: () => void; importStarted?: boolean };
+      File.prototype.arrayBuffer = async function () {
+        if (this.name.endsWith('.tgz') && !state.importStarted) {
+          state.importStarted = true;
+          await new Promise<void>(resolve => { state.releaseImport = resolve; });
+        }
+        return original.call(this);
+      };
+    });
+    await page.locator('#import-files-input').setInputFiles(directory);
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { importStarted?: boolean }).importStarted)).toBe(true);
+    await page.locator('input[data-upload-shot="line-vue"]').setInputFiles({ name: 'replacement.png', mimeType: 'image/png', buffer: pngBytes(3, 3) });
+    await expect(page.locator('#upload-status-message')).toContainText('已为实现 line-vue 上传有效展示截图');
+    await page.evaluate(() => (window as typeof window & { releaseImport?: () => void }).releaseImport?.());
+    await expect(page.locator('#upload-status-message')).toContainText(/成功导入 \d+ 个本地预构建产物文件并完成路径映射/);
+    await expect(page.getByRole('button', { name: '确认并提交发布' })).toBeEnabled();
+  });
+
+  for (const mode of ['single', 'batch'] as const) test(mode + '：删除截图使此前尚未完成的读取失效', async ({ page }, testInfo) => {
+    await page.goto('/upload');
+    await devLogin(page);
+    await page.locator('#import-manifest-input').setInputFiles(join(CURRENT_SDK_DIR, 'manifest.json'));
+    await expect(page.locator('#upload-status-message')).toContainText('成功导入外部 Manifest 清单');
+    await page.locator('#import-files-input').setInputFiles(CURRENT_SDK_DIR);
+    await expect(page.locator('#upload-status-message')).toContainText(/成功导入 \d+ 个本地预构建产物文件并完成路径映射/);
+    await expect(page.getByRole('button', { name: '确认并提交发布' })).toBeEnabled();
+    await page.evaluate(() => {
+      const original = File.prototype.arrayBuffer;
+      const state = window as typeof window & { releaseScreenshot?: () => void; screenshotReadStarted?: boolean };
+      File.prototype.arrayBuffer = async function () {
+        if (this.name === 'line-vue-replacement.png') {
+          state.screenshotReadStarted = true;
+          await new Promise<void>(resolve => { state.releaseScreenshot = resolve; });
+        }
+        return original.call(this);
+      };
+    });
+    if (mode === 'single') {
+      await page.locator('input[data-upload-shot="line-vue"]').setInputFiles({ name: 'line-vue-replacement.png', mimeType: 'image/png', buffer: pngBytes(3, 3) });
+    } else {
+      const directory = testInfo.outputPath('replacement');
+      await mkdir(directory, { recursive: true });
+      await writeFile(join(directory, 'line-vue-replacement.png'), pngBytes(3, 3));
+      await page.locator('#import-screenshots-input').setInputFiles(directory);
+    }
+    await expect.poll(() => page.evaluate(() => (window as typeof window & { screenshotReadStarted?: boolean }).screenshotReadStarted)).toBe(true);
+    await page.locator('button[data-remove-shot="line-vue"]').click();
+    // 记录读取放行后每一次 DOM 变化，防止短暂缺图掩盖随后恢复的错误截图。
+    await page.evaluate(() => {
+      const state = window as typeof window & { releaseScreenshot?: () => void; screenshotRestored?: boolean };
+      new MutationObserver(() => {
+        if (document.querySelector('tr.variant-shot-card:has(input[data-upload-shot="line-vue"])')?.textContent?.includes('已关联')) state.screenshotRestored = true;
+      }).observe(document.querySelector('main')!, { childList: true, subtree: true, characterData: true });
+      state.releaseScreenshot?.();
+    });
+    await page.waitForTimeout(200);
+    expect(await page.evaluate(() => (window as typeof window & { screenshotRestored?: boolean }).screenshotRestored)).not.toBe(true);
+    await expect(page.locator('tr.variant-shot-card').filter({ has: page.locator('input[data-upload-shot="line-vue"]') })).toContainText('缺少有效展示截图');
+    await expect(page.getByRole('button', { name: '确认并提交发布' })).toBeDisabled();
   });
 });

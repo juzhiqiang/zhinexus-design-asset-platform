@@ -49,6 +49,15 @@ export default function WebUploadConsole() {
   // 默认空工作台：引导导入真实冻结产物清单与 tarball，演示草稿可手动一键加载
   const [manifest, setManifest] = useState<ReleaseManifestV1>(EMPTY_WEB_MANIFEST);
   const [filesMap, setFilesMap] = useState<Map<string, Uint8Array>>(() => new Map());
+  const draftGeneration = useRef(0);
+  const fileReads = useRef(new Map<string, object>());
+  // 每条路径以最后一次用户操作为准；旧读取不能覆盖替换或撤销删除。
+  const beginFileRead = (paths: string[]) => {
+    const operation = {};
+    const generation = draftGeneration.current;
+    for (const path of paths) fileReads.current.set(path, operation);
+    return (path: string) => generation === draftGeneration.current && fileReads.current.get(path) === operation;
+  };
   const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([]);
   const [publishingOptions, setPublishingOptions] = useState<PublishingOptionsResponse | null>(null);
   const [optionsError, setOptionsError] = useState('');
@@ -250,6 +259,8 @@ export default function WebUploadConsole() {
 
   // 加载 7 组件 14 实现演示草稿（用于演练与回归验证）
   const handleLoadDemoDraft = () => {
+    draftGeneration.current++;
+    fileReads.current.clear();
     const demo = createEmptySevenComponentsDraft('0.0.6');
     setManifest(demo.manifest);
     setFilesMap(demo.filesMap);
@@ -261,51 +272,48 @@ export default function WebUploadConsole() {
   const handleFileChange = async (variantId: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const shotPath = `screenshots/${variantId}-default.png`;
+    const currentRead = beginFileRead([shotPath]);
 
     const arrayBuffer = await file.arrayBuffer();
     const bytes = new Uint8Array(arrayBuffer);
     const fileSha = await computeBrowserSha256(bytes);
-    const shotPath = `screenshots/${variantId}-default.png`;
+    if (!currentRead(shotPath)) return;
 
-    const nextMap = new Map(filesMap);
-    nextMap.set(shotPath, bytes);
-
-    const updatedVariants = manifest.variants.map((v) => {
-      if (v.variantId === variantId) {
-        const pkgTarball = manifest.packages.find((p) => p.name === v.packageName)?.tarball;
-        return {
-          ...v,
-          screenshots: [
-            createManualScreenshotRef({
-              id: `shot-${variantId}-default`,
-              variantId: v.variantId,
-              framework: v.framework,
-              packageVersion: v.packageVersion,
-              packageSha256: pkgTarball?.sha256 || '00',
-              exampleId: `example-${variantId}-default`,
-              imagePath: shotPath,
-              imageSha256: fileSha,
-              imageBytes: bytes.byteLength,
-              width: 800,
-              height: 400,
-            }),
-          ],
-        };
-      }
-      return v;
-    });
-
-    const updatedFiles = [
-      ...manifest.files.filter((f) => f.path !== shotPath),
-      { path: shotPath, sha256: fileSha, bytes: bytes.byteLength },
-    ];
-
-    setFilesMap(nextMap);
-    setManifest({
-      ...manifest,
-      variants: updatedVariants,
-      files: updatedFiles,
-    });
+    setFilesMap(current => new Map([...current, [shotPath, bytes]]));
+    setManifest(current => ({
+      ...current,
+      variants: current.variants.map((v) => {
+        if (v.variantId === variantId) {
+          const pkgTarball = current.packages.find((p) => p.name === v.packageName)?.tarball;
+          const example = v.examples[0]!;
+          return {
+            ...v,
+            screenshots: [
+              createManualScreenshotRef({
+                id: `shot-${variantId}-default`,
+                variantId: v.variantId,
+                framework: v.framework,
+                packageVersion: v.packageVersion,
+                packageSha256: pkgTarball?.sha256 || '00',
+                exampleId: example.id,
+                state: example.requiredStates[0],
+                imagePath: shotPath,
+                imageSha256: fileSha,
+                imageBytes: bytes.byteLength,
+                width: example.width,
+                height: example.height,
+              }),
+            ],
+          };
+        }
+        return v;
+      }),
+      files: [
+        ...current.files.filter((f) => f.path !== shotPath),
+        { path: shotPath, sha256: fileSha, bytes: bytes.byteLength },
+      ],
+    }));
     setStatusMessage(`已为实现 ${variantId} 上传有效展示截图 (${bytes.byteLength} 字节)`);
   };
 
@@ -313,63 +321,68 @@ export default function WebUploadConsole() {
   const handleBatchScreenshots = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    const nextMap = new Map(filesMap);
-    const updatedVariants = [...manifest.variants];
-    const newFilesMap = new Map(manifest.files.map((f) => [f.path, f]));
-    let matchedCount = 0;
+    const matches = Array.from(files, file => {
+      const cleanName = file.name.replace(/\.(png|jpe?g)$/i, '').replace(/-default$/, '');
+      return { file, variant: manifest.variants.find(v => cleanName === v.variantId || file.name.includes(v.variantId)) };
+    }).filter((entry): entry is { file: File; variant: VariantRef } => Boolean(entry.variant));
+    const currentRead = beginFileRead(matches.map(({ variant }) => `screenshots/${variant.variantId}-default.png`));
+    const nextMap = new Map<string, Uint8Array>();
+    const screenshots = new Map<string, VariantRef['screenshots']>();
+    const newFilesMap = new Map<string, ReleaseManifestV1['files'][number]>();
 
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]!;
+
+    for (const { file, variant: v } of matches) {
       const arrayBuffer = await file.arrayBuffer();
       const bytes = new Uint8Array(arrayBuffer);
       const fileSha = await computeBrowserSha256(bytes);
-      const relativePath = ((file as any).webkitRelativePath || file.name).replace(/\\/g, '/');
-      const fileName = relativePath.split('/').pop() || file.name;
+      const pkgTarball = manifest.packages.find((p) => p.name === v.packageName)?.tarball;
+      const example = v.examples[0]!;
+      const shotPath = `screenshots/${v.variantId}-default.png`;
+      nextMap.set(shotPath, bytes);
 
-      for (let j = 0; j < updatedVariants.length; j++) {
-        const v = updatedVariants[j]!;
-        const cleanName = fileName.replace(/\.(png|jpe?g)$/i, '').replace(/-default$/, '');
-        if (cleanName === v.variantId || fileName.includes(v.variantId)) {
-          const pkgTarball = manifest.packages.find((p) => p.name === v.packageName)?.tarball;
-          const shotPath = `screenshots/${v.variantId}-default.png`;
-          nextMap.set(shotPath, bytes);
+      const shotRef = createManualScreenshotRef({
+        id: `shot-${v.variantId}-default`,
+        variantId: v.variantId,
+        framework: v.framework,
+        packageVersion: v.packageVersion,
+        packageSha256: pkgTarball?.sha256 || '00',
+        exampleId: example.id,
+        state: example.requiredStates[0],
+        imagePath: shotPath,
+        imageSha256: fileSha,
+        imageBytes: bytes.byteLength,
+        width: example.width,
+        height: example.height,
+      });
 
-          const shotRef = createManualScreenshotRef({
-            id: `shot-${v.variantId}-default`,
-            variantId: v.variantId,
-            framework: v.framework,
-            packageVersion: v.packageVersion,
-            packageSha256: pkgTarball?.sha256 || '00',
-            exampleId: `example-${v.variantId}-default`,
-            imagePath: shotPath,
-            imageSha256: fileSha,
-            imageBytes: bytes.byteLength,
-            width: 800,
-            height: 400,
-          });
-
-          updatedVariants[j] = { ...v, screenshots: [shotRef] };
-          newFilesMap.set(shotPath, { path: shotPath, sha256: fileSha, bytes: bytes.byteLength });
-          matchedCount++;
-          break;
-        }
-      }
+      screenshots.set(v.variantId, [shotRef]);
+      newFilesMap.set(shotPath, { path: shotPath, sha256: fileSha, bytes: bytes.byteLength });
     }
 
-    setFilesMap(nextMap);
-    setManifest({
-      ...manifest,
-      variants: updatedVariants,
-      files: [...newFilesMap.values()],
-    });
+    for (const path of nextMap.keys()) {
+      if (!currentRead(path)) { nextMap.delete(path); newFilesMap.delete(path); }
+    }
+    for (const [id, shots] of screenshots) if (!currentRead(shots[0]!.image.path)) screenshots.delete(id);
+    const matchedCount = screenshots.size;
+    if (!matchedCount) return;
+    setFilesMap(current => new Map([...current, ...nextMap]));
+    setManifest(current => ({
+      ...current,
+      variants: current.variants.map(v => screenshots.has(v.variantId) ? { ...v, screenshots: screenshots.get(v.variantId)! } : v),
+      files: [...new Map([...current.files.map(f => [f.path, f] as const), ...newFilesMap]).values()],
+    }));
     setStatusMessage(`成功批量关联 ${matchedCount} 张有效展示截图并计算摘要`);
   };
 
   // 删除某变体的截图（真实用户操作）
   const handleRemoveScreenshot = (variantId: string) => {
     const shotPath = `screenshots/${variantId}-default.png`;
-    const nextMap = new Map(filesMap);
-    nextMap.delete(shotPath);
+    beginFileRead([shotPath]);
+    setFilesMap(current => {
+      const next = new Map(current);
+      next.delete(shotPath);
+      return next;
+    });
 
     const updatedVariants = manifest.variants.map((v) => {
       if (v.variantId === variantId) {
@@ -379,7 +392,6 @@ export default function WebUploadConsole() {
     });
 
     const updatedFiles = manifest.files.filter((f) => f.path !== shotPath);
-    setFilesMap(nextMap);
     setManifest({
       ...manifest,
       variants: updatedVariants,
@@ -396,6 +408,8 @@ export default function WebUploadConsole() {
       const text = await file.text();
       const res = parseAndValidateImportedManifest(text);
       if (res.ok && res.manifest) {
+        draftGeneration.current++;
+        fileReads.current.clear();
         setManifest(res.manifest);
         setSelectedVariantIds(res.manifest.variants.map(variant => variant.variantId));
         setStatusMessage(`成功导入外部 Manifest 清单 (${res.manifest.variants.length} 实现，${res.manifest.files.length} 文件)`);
@@ -412,38 +426,32 @@ export default function WebUploadConsole() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
     let importedCount = 0;
-    const nextMap = new Map(filesMap);
-
-    // 1. 将选择的文件保存到映射（支持相对路径与直接文件名，自动关联到 manifest.files）
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]!;
-      const arrayBuffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(arrayBuffer);
-      const relativePath = (file as any).webkitRelativePath || file.name;
-      const normalizedPath = relativePath.replace(/\\/g, '/');
-
-      // 提取去除顶层文件夹名的相对路径（例如 69443f97-.../preview/line-vue/index.html -> preview/line-vue/index.html）
+    const nextMap = new Map<string, Uint8Array>();
+    const imports = Array.from(files, file => {
+      const normalizedPath = ((file as any).webkitRelativePath || file.name).replace(/\\/g, '/') as string;
       const slashIndex = normalizedPath.indexOf('/');
       const cleanPath = slashIndex !== -1 ? normalizedPath.slice(slashIndex + 1) : normalizedPath;
+      const aliases = manifest.files.filter(mf => mf.path === normalizedPath || mf.path === cleanPath
+        || normalizedPath.endsWith('/' + mf.path) || (file.name.endsWith('.tgz') && mf.path.endsWith('/' + file.name))).map(mf => mf.path);
+      return { file, normalizedPath, aliases };
+    });
+    const currentRead = beginFileRead(imports.flatMap(({ normalizedPath, aliases }) => [normalizedPath, ...aliases]));
+
+    // 1. 将选择的文件保存到映射（支持相对路径与直接文件名，自动关联到 manifest.files）
+    for (const { file, normalizedPath, aliases } of imports) {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
 
       await attachLocalFile(nextMap, normalizedPath, bytes);
 
       // 路径匹配规则并关联到 manifest.files，但严禁改写 manifest 中期望的 bytes 与 sha256！
-      for (let j = 0; j < manifest.files.length; j++) {
-        const mf = manifest.files[j]!;
-        if (
-          mf.path === normalizedPath ||
-          mf.path === cleanPath ||
-          normalizedPath.endsWith('/' + mf.path) ||
-          (file.name.endsWith('.tgz') && mf.path.endsWith('/' + file.name))
-        ) {
-          nextMap.set(mf.path, bytes);
-        }
-      }
+      for (const path of aliases) nextMap.set(path, bytes);
       importedCount++;
     }
 
-    setFilesMap(nextMap);
+    for (const path of nextMap.keys()) if (!currentRead(path)) nextMap.delete(path);
+    if (!nextMap.size) return;
+    setFilesMap(current => new Map([...current, ...nextMap]));
     // 核心安全约束：保持 manifest 原始期望值不变，由 validateUploadFiles 对真实字节进行尺寸与 SHA-256 核验与阻断
     setStatusMessage(`成功导入 ${importedCount} 个本地预构建产物文件并完成路径映射`);
   };
