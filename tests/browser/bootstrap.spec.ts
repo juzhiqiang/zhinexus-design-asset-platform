@@ -2,8 +2,8 @@ import { expect, test } from '@playwright/test';
 
 test('gallery exposes the public discovery entry', async ({ page }) => {
   await page.goto('http://127.0.0.1:5173');
-  await expect(page.getByRole('heading', { name: 'Zhinexus 组件资产平台' })).toBeVisible();
-  await expect(page.getByRole('link', { name: '组件目录' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '将灵感， 编译成未来。' })).toBeVisible();
+  await expect(page.getByRole('region', { name: '将灵感， 编译成未来。' }).getByRole('link', { name: '探索组件画廊' })).toBeVisible();
 });
 for (const [framework, port] of [['vue', 5174], ['react', 5175]] as const) {
   test(`${framework} built example loads framework and core through package exports`, async ({ page }) => {

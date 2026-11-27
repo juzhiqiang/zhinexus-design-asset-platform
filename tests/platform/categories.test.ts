@@ -94,7 +94,7 @@ describe('persistent category and publishing HTTP', () => {
       await h.db.query("DELETE FROM component_permissions WHERE subject='alice' AND component_id<>'line'");
       await h.db.query("DELETE FROM package_permissions WHERE subject='alice' AND package_name<>'@company/charts-vue'");
       const token = await h.token();
-      expect(await (await h.request('/v1/publishing/options', undefined, token, 'GET')).json()).toEqual({ categories: [{ id: 'charts', name: '图表', enabled: true, revision: '0' }], components: [{ componentId: 'line', category: 'retired' }], packages: ['@company/charts-vue'] });
+      expect(await (await h.request('/v1/publishing/options', undefined, token, 'GET')).json()).toEqual({ categories: [{ id: 'charts', name: '图表', enabled: true, revision: '0' }], components: [{ componentId: 'line', category: 'retired', isPublic: false }], packages: ['@company/charts-vue'] });
       expect(await (await h.request('/v1/publishing/options', undefined, await h.token('unassigned'), 'GET')).json()).toEqual({ categories: [{ id: 'charts', name: '图表', enabled: true, revision: '0' }], components: [], packages: [] });
       await h.db.query("INSERT INTO disabled_subjects(subject) VALUES ('alice')");
       expect((await h.request('/v1/publishing/options', undefined, token, 'GET')).status).toBe(403);

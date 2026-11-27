@@ -48,10 +48,11 @@ test('public component detail paths return 404 until real public catalog API pub
   }
 });
 
-test('admin root redirects to /upload and marks all pages noindex', async ({ page }) => {
+test('admin root redirects through assets to login and marks all pages noindex', async ({ page }) => {
+  await page.route('**/v1/auth/oidc/session', route => route.fulfill({ status:401, json: { code:'UNAUTHENTICATED' } }));
   const response = await page.goto(`${adminOrigin}/`);
   expect(response).not.toBeNull();
-  expect(page.url()).toContain('/upload');
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', /noindex/);
-  await expect(page.locator('header')).toContainText('内网管理端');
+  await expect(page).toHaveURL(/\/login\?next=%2Fassets$/);
+  await expect(page.locator('meta[name="robots"]').first()).toHaveAttribute('content', /noindex/);
+  await expect(page.getByRole('heading', {name:'管理员登录'})).toBeVisible();
 });

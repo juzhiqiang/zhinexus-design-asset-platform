@@ -4,7 +4,7 @@ export default defineConfig({
   testDir: './browser',
   fullyParallel: true,
   workers: 2,
-  use: { browserName: 'chromium', headless: true },
+  use: { browserName: 'chromium', headless: true, baseURL: 'http://127.0.0.1:5177' },
   webServer: [
     { command: 'pnpm --filter @company/gallery preview', url: 'http://127.0.0.1:5173', reuseExistingServer: false },
     { command: 'pnpm --filter @company/admin preview', url: 'http://127.0.0.1:5177', reuseExistingServer: false },

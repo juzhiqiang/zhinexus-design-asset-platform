@@ -19,8 +19,8 @@ test('administrator edits, saves and validates a preview draft with visible vers
     await route.fulfill({json:view});
   });
   await page.goto('http://127.0.0.1:5177/access-settings');
-  await expect(page.getByRole('heading',{name:'接入设置',exact:true})).toBeVisible();
-  await page.getByRole('tab',{name:'预览入口'}).click();
+  await expect(page.getByRole('heading',{name:'接入与配置',exact:true})).toBeVisible();
+  await page.getByRole('tab',{name:/预览入口/}).click();
   await page.getByLabel('隔离方式').selectOption('ip-port');
   await page.getByLabel('预览地址').fill('https://127.0.0.1:8443');
   await page.getByRole('button',{name:'保存草稿'}).click();
@@ -31,8 +31,8 @@ test('administrator edits, saves and validates a preview draft with visible vers
   await expect(page.getByRole('button',{name:'启用此版本'})).toBeEnabled();
   await page.getByLabel('预览地址').fill('https://127.0.0.1:8445');
   await expect(page.getByRole('button',{name:'启用此版本'})).toBeDisabled();
-  await page.getByRole('tab',{name:'公司登录'}).click();
-  await page.getByRole('tab',{name:'预览入口'}).click();
+  await page.getByRole('tab',{name:/公司登录/}).click();
+  await page.getByRole('tab',{name:/预览入口/}).click();
   await expect(page.getByRole('button',{name:'启用此版本'})).toBeDisabled();
   await expect(page.getByRole('region',{name:'变更审计'})).toContainText('operator');
   await page.evaluate(()=>window.scrollTo(0,0));
@@ -81,7 +81,8 @@ test('a company Cookie session takes precedence over a stale saved token for con
     return route.fulfill({json:{authenticated:true,administrator:true,subject:'company-user',roles:['publisher']}});
   });
   await page.goto('http://127.0.0.1:5177/upload');
-  await expect(page.getByText('company-user',{exact:true})).toBeVisible();
+  await expect(page.getByRole('banner').getByText('company-user',{exact:true})).toBeVisible();
+  await expect(page.getByRole('main').getByText('company-user',{exact:true})).toBeVisible();
   await expect(page.getByText('old-user',{exact:true})).toHaveCount(0);
 });
 
@@ -89,7 +90,7 @@ test('manual job retries carry the explicit token without unrelated platform coo
   await page.addInitScript(()=>localStorage.setItem('zhinexus_console_auth',JSON.stringify({token:'manual-job-token',subject:'operator',roles:['publisher'],channel:'web'})));
   await context.addCookies([{name:'platform-canary',value:'private-cookie',url:'http://127.0.0.1:3000'}]);
   await page.route('**/v1/auth/oidc/session',route=>route.fulfill({status:401,json:{code:'UNAUTHENTICATED'}}));
-  const job={state:'REJECTED',stage:'ENSURE_PACKAGES',attempt:2,lastError:{code:'INFRA_UNAVAILABLE',message:'Synthetic unavailable',details:[],requestId:'synthetic'},missingArtifacts:[],pollAfterMs:1000};
+  const job={state:'RETRY_WAIT',stage:'ENSURE_PACKAGES',attempt:2,lastError:{code:'INFRA_UNAVAILABLE',message:'Synthetic unavailable',details:[],requestId:'synthetic'},missingArtifacts:[],pollAfterMs:1000};
   await page.route('**/v1/releases/job-cookie-test',route=>route.fulfill({json:job}));
   await page.route('**/v1/releases/job-cookie-test/retry',route=>route.fulfill({json:{jobId:'job-cookie-test',state:'PENDING'}}));
   await page.goto('http://127.0.0.1:5177/jobs/job-cookie-test');

@@ -57,6 +57,7 @@ test.describe('二期 /match 项目上下文本地表单', () => {
     const response = await page.goto(MATCH_URL);
     expect(response?.status()).toBe(200);
     await expect(page.getByRole('heading', { name: /登录后开放/ })).toBeVisible();
+    await page.locator('details.zn-token-login summary').click();
     await expect(page.locator('#token-input')).toBeVisible();
     await expect(page.locator('#framework-select')).toHaveCount(0);
   });
@@ -146,8 +147,11 @@ test.describe('二期 /match 项目上下文本地表单', () => {
     await page.getByRole('button', { name: '添加需求' }).click();
     await page.getByRole('button', { name: '退出登录' }).click();
     const token = await page.evaluate(() => `test.${btoa(JSON.stringify({ sub: 'another-user' }))}.test`);
+    await page.locator('details.zn-token-login summary').click();
     await page.locator('#token-input').fill(token);
     await page.getByRole('button', { name: '凭证登录' }).click();
+    await page.getByRole('navigation', { name: '辅助工具' }).getByRole('link', { name: '项目上下文匹配' }).click();
+    await expect(page.getByRole('main').getByText('another-user', { exact: true })).toBeVisible();
     await expect(page.locator('#requirements-list .requirement-row')).toHaveCount(0);
     await expect(page.locator('#requirement-input')).toHaveValue('');
   });
@@ -185,7 +189,7 @@ test.describe('二期 /match 项目上下文本地表单', () => {
     for (const width of [1280, 360]) {
       await page.setViewportSize({ width, height: 900 });
       await page.goto(MATCH_URL);
-      await expect(page.getByRole('navigation', { name: '控制台导航' }).getByRole('link', { name: '项目上下文匹配' })).toBeVisible();
+      await expect(page.getByRole('navigation', { name: '辅助工具' }).getByRole('link', { name: '项目上下文匹配' })).toBeVisible();
       await expect(page.locator('#framework-select')).toHaveValue('');
       await expect(page.locator('#framework-version-input')).toHaveValue('');
       await page.locator('#context-submit').click();

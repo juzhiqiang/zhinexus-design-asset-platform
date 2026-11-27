@@ -239,7 +239,7 @@ test.describe('后台管理重构核心流程（资产管理 / 发布作业 / �
     );
 
     await page.goto('/assets');
-    await expect(page.locator('main [role="alert"]')).toContainText('本地基础设施未连接');
+    await expect(page.locator('main [role="alert"]')).toContainText('服务暂时不可用');
     await expect(page.locator('main [role="alert"]')).toContainText('pnpm infra:up');
   });
 

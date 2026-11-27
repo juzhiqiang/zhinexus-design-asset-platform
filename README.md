@@ -13,6 +13,8 @@ Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资�
 - **组件查询与装配**：按组件 ID、框架和精确包版本查询，通过显式设计 ID 映射生成装配方案；文本检索用于人工发现候选。
 - **本地项目接入**：支持工程识别、接入计划、受控应用与恢复、本地验证、有限修复和 stdio MCP。
 
+网页发布可分别导入冻结产物与截图，交错读取时保留已导入文件。截图按清单中的真实示例和框架实现关联，逐实现缺图或文件摘要不一致仍会阻断提交。
+
 ## 技术架构
 
 | 模块 | 技术 |
@@ -57,6 +59,8 @@ CLI 工作区包保持内部名称，通过 `pnpm --filter @company/component-cl
 ```powershell
 pnpm install --frozen-lockfile
 pnpm verify:workspace
+pnpm infra:up
+pnpm dev:infra-migrate
 
 $env:NEXT_PUBLIC_SITE_URL = 'http://127.0.0.1:5173'
 $env:NEXT_PUBLIC_PLATFORM_API_URL = 'http://127.0.0.1:3000'
@@ -77,6 +81,8 @@ pnpm dev
 | CLI 帮助 | `pnpm component --help` |
 
 根 `dev` 通过 `turbo run dev --concurrency=12 --cache=local:rw` 编排 11 个工作区包，先执行上游构建；开发任务不缓存。同一工作区只保留一组开发服务，重新启动前在原终端按 `Ctrl+C` 并等待退出。
+
+未显式配置 OIDC/身份服务时，API 在非生产、绑定 `127.0.0.1` 的本地模式下使用真实 PostgreSQL 账号、成员权限和接入配置服务。首次启动创建 `admin` / `ZhinexusAdmin!2026`（可在首次启动前用 `PLATFORM_DEV_ADMIN_USERNAME` / `PLATFORM_DEV_ADMIN_PASSWORD` 指定），之后密码和账号状态保留，不随重启重置。`PLATFORM_DEV_ADMIN=false` 关闭默认入口；生产及 `0.0.0.0` 绑定拒绝启用该模式。数据库凭证缺失时启动失败，迁移仍需显式运行。HTTP 开发会话使用独立 cookie；部署时仍需 HTTPS/OIDC 配置。
 
 若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
 

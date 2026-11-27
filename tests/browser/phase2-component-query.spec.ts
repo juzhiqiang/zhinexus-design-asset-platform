@@ -272,6 +272,7 @@ test.describe('二期组件精确查询表单', () => {
 
     await page.locator('button', { hasText: '退出登录' }).first().click();
     release(matchedBody());
+    await page.locator('details.zn-token-login summary').click();
     await expect(page.locator('#token-input')).toBeVisible();
     await expect(page.locator('#component-query')).toHaveCount(0);
   });

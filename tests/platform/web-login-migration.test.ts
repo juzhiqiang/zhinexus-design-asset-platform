@@ -21,8 +21,9 @@ it('applies an unrecorded earlier migration even when a later version has alread
   const db = new Database(isolated.url);
   try {
     await db.query('CREATE TABLE registry_migrations(version integer PRIMARY KEY, sha256 text NOT NULL)');
-    // Web targets are independent of account storage; leave the dependent 12/13 chain unapplied.
-    for (const file of registryMigrationFiles.filter(file => !file.startsWith('012_') && !file.startsWith('013_'))) {
+    // Web targets are independent of account storage. Apply through 14 with 12/13 missing;
+    // later account migrations must wait until migrateRegistry fills that dependency gap.
+    for (const file of registryMigrationFiles.filter(file => Number(file.slice(0, 3)) <= 14 && !file.startsWith('012_') && !file.startsWith('013_'))) {
       const sql = await readFile(new URL(`../../apps/api/migrations/${file}`, import.meta.url), 'utf8');
       if (file.startsWith('014_')) {
         await db.query("INSERT INTO oidc_attempts(state_hash,browser_hash,generation,candidate,verifier,nonce,expires_at) VALUES ('old-gallery','browser',0,false,'verifier','nonce',now()),('old-candidate','browser',0,true,'verifier','nonce',now())");

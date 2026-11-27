@@ -156,7 +156,7 @@ test.describe('built admin controls with mocked API responses (not persistence e
     await page.getByLabel('用户名').fill('admin');
     await page.getByLabel('密码', { exact: true }).fill('temp-pass-1234');
     await page.getByRole('button', { name: '密码登录', exact: true }).click();
-    await expect(page.locator('main [role="alert"]')).toContainText('本地账号密码服务未启用');
+    await expect(page.locator('main [role="alert"]')).toContainText('账号服务暂时不可用');
 
     await page.getByRole('button', { name: '密码登录', exact: true }).click();
     await expect(page.getByLabel('新密码')).toBeVisible();
