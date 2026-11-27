@@ -68,3 +68,7 @@ pnpm exec vitest run tests/acceptance/t17-matrix/browser.test.ts tests/acceptanc
 ## 未覆盖边界
 
 本轮实测使用 web/manual 诊断材料，未代替用户执行其真实 CLI 组件发布、浏览器验收或干净消费者安装；用户应从原组件项目重试 `juz publish`，复用其冻结材料。没有重新打包用户 tarball，没有改写其截图、报告、摘要或发布状态。生产 OIDC、目标预览域和完整浏览器套件不在本轮验收范围；没有执行 push、tag、合并或对外包发布。
+
+## 提交与版本
+
+修复提交 `9a542863`。仅根开发启动工具有行为变化，平台根按兼容修复递增至 `0.2.11`，独立同步 CHANGELOG；CLI 仍为 `0.1.4`、API 仍为 `0.1.9`，没有重新打包或安装 CLI。完成后再次执行工作区检查、根 TypeScript、定向 20 项测试与差异检查；本机存储凭证、Compose 和启动辅助均保持 Git 忽略。
