@@ -82,21 +82,50 @@ async function select(item){
 function renderEditors(){
  const activeExample=example();const controls=$('controls');controls.replaceChildren();
  const descriptors=displayed().controls??activeExample.controls,groups=new Map();
+ let ungroupedCard;
+ if(!descriptors.length){
+  const emptyCard=node('div',undefined,'controls-card');
+  emptyCard.append(node('p','当前组件暂无可调参数','controls-empty'));
+  controls.append(emptyCard);
+ }
  for(const control of descriptors){
   const prop=displayed().api.props.find(p=>p.name===control.name),schema=prop?.schema;
   const value=Object.hasOwn(activeExample.props,control.name)?activeExample.props[control.name]:schema?.default;
-  const row=node('div',undefined,'control-row'),label=node('label',control.label??control.name);let input;
-  if(control.kind==='enum'){input=node('select');for(const option of control.options??[])input.append(new Option(option,option));input.value=value??'';}
-  else if(control.kind==='json'){input=node('textarea');input.rows=3;input.value=JSON.stringify(value??null,null,2);}
-  else{input=node('input');input.type=control.kind==='boolean'?'checkbox':control.kind==='number'?'number':control.kind==='color'?'color':'text';if(input.type==='checkbox')input.checked=!!value;else input.value=value??'';if(control.min!==undefined)input.min=control.min;if(control.max!==undefined)input.max=control.max;if(input.type==='number')input.step=schema?.type==='integer'?'1':'any';}
+  const row=node('div',undefined,'control-row'),label=node('label',control.label??control.name);let input,fieldNode;
+  if(control.kind==='enum'){input=node('select');for(const option of control.options??[])input.append(new Option(option,option));input.value=value??'';fieldNode=input;}
+  else if(control.kind==='json'){row.classList.add('control-row-stacked');input=node('textarea');input.rows=3;input.spellcheck=false;input.value=JSON.stringify(value??null,null,2);fieldNode=input;}
+  else{
+   input=node('input');
+   input.type=control.kind==='boolean'?'checkbox':control.kind==='number'?'number':control.kind==='color'?'color':'text';
+   if(input.type==='checkbox'){input.checked=!!value;input.className='toggle-switch';row.classList.add('control-row-boolean');fieldNode=input;}
+   else if(input.type==='color'){
+    input.value=value??'#000000';
+    const wrap=node('div',undefined,'color-control'),hex=node('span',input.value,'color-hex');
+    input.addEventListener('input',()=>{hex.textContent=input.value;});
+    wrap.append(input,hex);fieldNode=wrap;
+   }else{
+    input.value=value??'';
+    if(control.min!==undefined)input.min=control.min;
+    if(control.max!==undefined)input.max=control.max;
+    if(input.type==='number')input.step=schema?.type==='integer'?'1':'any';
+    fieldNode=input;
+   }
+  }
   input.id='prop-'+descriptors.indexOf(control);input.name=control.name;label.htmlFor=input.id;input.disabled=isReadonly();
-  if(prop?.required)input.required=true;
+  if(prop?.required){input.required=true;label.dataset.required='true';}
   if(input.type==='text'&&schema?.minLength!==undefined)input.minLength=schema.minLength;
   if(input.type==='text'&&schema?.maxLength!==undefined)input.maxLength=schema.maxLength;
   input.addEventListener(control.kind==='json'?'change':'input',async()=>{try{let value=input.type==='checkbox'?input.checked:control.kind==='number'?Number(input.value):control.kind==='json'?JSON.parse(input.value):input.value;if(control.kind==='number'&&(input.value.trim()===''||!Number.isFinite(value)))throw new Error('请输入有效数字');const next=structuredClone(example());next.props[control.name]=value;await apply(next,false);input.setAttribute('aria-invalid',String(!!draft()?.invalid));}catch(e){input.setAttribute('aria-invalid','true');invalid(e);}});
-  row.append(label,input);
+  row.append(label,fieldNode);
   if(control.description){const help=node('small',control.description,'hint control-help');help.id=input.id+'-help';input.setAttribute('aria-describedby',help.id);row.append(help);}
-  let target=controls;if(control.group){if(!groups.has(control.group)){const group=node('fieldset',undefined,'control-group');group.append(node('legend',control.group));groups.set(control.group,group);controls.append(group);}target=groups.get(control.group);}
+  let target;
+  if(control.group){
+   if(!groups.has(control.group)){const group=node('fieldset',undefined,'control-group');group.append(node('legend',control.group));groups.set(control.group,group);controls.append(group);}
+   target=groups.get(control.group);
+  }else{
+   if(!ungroupedCard){ungroupedCard=node('div',undefined,'controls-card');controls.append(ungroupedCard);}
+   target=ungroupedCard;
+  }
   target.append(row);
  }
  $('props-json').value=JSON.stringify(activeExample.props,null,2);$('data').value=JSON.stringify(activeExample.data??null,null,2);
@@ -129,7 +158,8 @@ $('search').addEventListener('input',renderDirectory);
 for(const name of['width','height'])$(name).addEventListener('input',()=>setSize(Number($('width').value),Number($('height').value)));
 $('zoom').addEventListener('change',()=>setZoom(Number($('zoom').value)));
 $('fit').onclick=()=>{setZoom(Math.min(1,Math.max(.1,Math.min(($('stage').clientWidth-64)/Number($('width').value),($('stage').clientHeight-64)/Number($('height').value)))));};
-$('background').onchange=()=>{$('stage').className='stage '+$('background').value;};
+$('background').onchange=()=>{$('stage').className=$('background').value?'stage '+$('background').value:'stage';};
+$('confirm').addEventListener('click',event=>{if(event.target!==$('confirm'))return;const r=$('confirm').getBoundingClientRect();if(event.clientX<r.left||event.clientX>r.right||event.clientY<r.top||event.clientY>r.bottom)$('confirm').close();});
 let dragging;
 $('resize').addEventListener('pointerdown',event=>{dragging={x:event.clientX,y:event.clientY,width:Number($('width').value),height:Number($('height').value)};$('resize').setPointerCapture(event.pointerId);event.preventDefault();});
 $('resize').addEventListener('pointermove',event=>{if(dragging)setSize(dragging.width+(event.clientX-dragging.x)/zoom,dragging.height+(event.clientY-dragging.y)/zoom);});

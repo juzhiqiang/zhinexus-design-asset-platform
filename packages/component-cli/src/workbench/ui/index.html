@@ -1,20 +1,226 @@
 <!doctype html>
-<html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="dark"><title>juz 本地组件工作台</title><link rel="stylesheet" href="/style.css"><script type="module" src="/client.js"></script></head>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>juz 本地组件工作台</title>
+  <link rel="stylesheet" href="/style.css">
+  <script type="module" src="/client.js"></script>
+</head>
 <body>
-<header class="topbar"><div class="brand"><span class="wordmark">juz<span>.</span></span><div><h1>本地组件工作台</h1><p>ZHINEXUS / LOCAL WORKBENCH</p></div></div><div class="top-actions"><span class="local-badge">本地运行</span><button id="save" class="primary" disabled>保存示例</button><button id="prepare" disabled>打包验证</button><button id="publish" disabled>上传发布</button></div></header>
-<div id="notice" role="status" class="notice" hidden></div><div id="error" role="alert" class="error-banner" hidden></div>
-<main class="layout">
-<aside class="directory" aria-label="组件目录"><div class="section-title"><h2>组件目录</h2><span id="count" class="counter">0</span></div><label class="search-label"><span class="sr-only">搜索组件</span><input id="search" type="search" placeholder="搜索组件或包名" autocomplete="off"></label><nav id="components" aria-label="按分类浏览"></nav><div class="directory-foot"><span class="status-dot"></span>回环服务 · 127.0.0.1<p>源码调试与冻结验证分别运行</p></div></aside>
-<section class="workspace" aria-label="组件画布"><div class="component-head"><div><p id="package" class="eyebrow">选择组件开始调试</p><h2 id="component-title">预览画布</h2></div><div class="frameworks" aria-label="框架切换"><button id="react" disabled>React</button><button id="vue" disabled>Vue</button></div></div>
-<div class="canvas-toolbar"><span id="mode" data-testid="mode" class="mode">等待选择</span><div class="canvas-tools"><label>宽度<input id="width" type="number" min="160" max="4096" value="800"></label><span class="times">×</span><label>高度<input id="height" type="number" min="120" max="4096" value="400"></label><label class="sr-only" for="zoom">缩放比例</label><select id="zoom"><option value="0.5">50%</option><option value="0.75">75%</option><option value="1" selected>100%</option><option value="1.25">125%</option><option value="1.5">150%</option></select><button id="fit" title="仅调整观看比例">适应</button><label class="sr-only" for="background">画布背景</label><select id="background"><option value="dark">深色</option><option value="light">浅色</option><option value="grid">网格</option></select></div></div>
-<div id="stage" class="stage"><div id="scaled"><div id="viewport" class="viewport"><div id="empty" class="empty"><strong>组件即将呈现</strong><span>真实框架运行时 · 独立沙箱预览</span></div><button id="resize" aria-label="拖动调整画布" title="拖动或使用方向键调整真实容器尺寸" class="resize-handle">◢</button></div></div></div>
-<footer class="canvas-footer"><span id="preview-status" data-testid="preview-status">等待挂载</span><span id="size-readout" class="mono">800 × 400 px</span><span id="candidate">尚未准备冻结产物</span></footer></section>
-<aside class="inspector" aria-label="调试面板">
-<section class="inspector-section"><div class="section-title"><h2>参数</h2><button id="reset" class="text-button" disabled>重置默认值</button></div><p id="bridge-note" class="hint"></p><div id="controls" class="controls"></div><details><summary>完整 Props JSON</summary><label class="sr-only" for="props-json">Props JSON</label><textarea id="props-json" rows="7" spellcheck="false"></textarea><button id="apply-props">应用参数 JSON</button></details></section>
-<section class="inspector-section"><div class="section-title"><h2>数据与状态</h2></div><label class="field">示例状态<select id="states" aria-label="示例状态"></select></label><label class="field" for="data">数据 JSON</label><textarea id="data" rows="5" spellcheck="false"></textarea><button id="apply-data">应用数据</button><p class="hint">调试值只在本地保留；点击「保存示例」才写入项目。</p></section>
-<section class="inspector-section"><div class="section-title"><h2>事件</h2><button id="clear-events" class="text-button">清空</button></div><ol id="event-log" data-testid="event-log" class="events"><li class="hint">等待组件实际触发声明事件</li></ol><p id="checks" class="hint"></p></section>
-<section class="inspector-section"><details><summary>API 与组件文档</summary><h3>API 定义</h3><pre id="api"></pre><h3>组件文档</h3><pre id="docs" class="docs"></pre></details></section>
-<section class="inspector-section publishing"><h2>分类与发布</h2><p id="account" class="hint">本地开发无需登录</p><label class="field">目标 API<input id="api-origin" type="url" placeholder="http://127.0.0.1:3000" autocomplete="url"></label><div class="button-row"><button id="login">登录平台</button><button id="refresh-account">刷新状态</button></div><label class="field">组件分类<select id="category"><option value="">未分配</option></select></label><button id="save-category">分配分类</button><p class="hint">分类应用于同一逻辑组件的所有框架。调整后须重新打包。</p><details open><summary>冻结材料与作业</summary><pre id="artifact">尚未准备</pre><pre id="progress" aria-live="polite">暂无运行作业</pre><button id="frozen" disabled>查看冻结预览</button><button id="return-dev" hidden>返回开发预览</button></details></section>
-</aside></main>
-<dialog id="confirm"><form method="dialog"><h2>确认上传发布</h2><p>本次提交使用已验证的冻结材料。请核对目标、实现与摘要。</p><pre id="confirmation"></pre><div class="button-row"><button value="cancel">取消</button><button id="confirm-publish" type="button" class="primary">确认上传发布</button></div></form></dialog>
-</body></html>
+  <header class="topbar">
+    <div class="brand">
+      <span class="wordmark" aria-hidden="true">juz<span>.</span></span>
+      <div class="brand-meta">
+        <h1>本地组件工作台</h1>
+        <p>ZHINEXUS · LOCAL WORKBENCH</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="local-badge">本地运行</span>
+      <button id="save" type="button" class="primary" disabled>保存示例</button>
+      <button id="prepare" type="button" disabled>打包验证</button>
+      <button id="publish" type="button" disabled>上传发布</button>
+    </div>
+  </header>
+
+  <div id="notice" role="status" class="notice" hidden></div>
+  <div id="error" role="alert" class="error-banner" hidden></div>
+
+  <main class="layout">
+    <aside class="directory" aria-label="组件目录">
+      <div class="section-title">
+        <h2>组件目录</h2>
+        <span id="count" class="counter">0</span>
+      </div>
+      <search class="search-wrap">
+        <label class="search-label">
+          <span class="sr-only">搜索组件</span>
+          <input id="search" type="search" placeholder="搜索组件或包名" autocomplete="off" autocapitalize="none" spellcheck="false">
+        </label>
+      </search>
+      <nav id="components" aria-label="按分类浏览"></nav>
+      <div class="directory-foot">
+        <div class="foot-line"><span class="status-dot"></span>回环服务 · 127.0.0.1</div>
+        <p>源码调试与冻结验证分别运行</p>
+      </div>
+    </aside>
+
+    <section class="workspace" aria-label="组件画布">
+      <div class="component-head">
+        <div class="component-identity">
+          <p id="package" class="eyebrow">选择组件开始调试</p>
+          <h2 id="component-title">预览画布</h2>
+        </div>
+        <div class="frameworks" role="group" aria-label="框架切换">
+          <button id="react" type="button" disabled>React</button>
+          <button id="vue" type="button" disabled>Vue</button>
+        </div>
+      </div>
+
+      <div class="canvas-toolbar">
+        <span id="mode" data-testid="mode" class="mode">等待选择</span>
+        <div class="canvas-tools">
+          <div class="size-group">
+            <label>宽度<input id="width" type="number" min="160" max="4096" value="800"></label>
+            <span class="times" aria-hidden="true">×</span>
+            <label>高度<input id="height" type="number" min="120" max="4096" value="400"></label>
+          </div>
+          <div class="tool-divider" aria-hidden="true"></div>
+          <label class="sr-only" for="zoom">缩放比例</label>
+          <select id="zoom">
+            <option value="0.5">50%</option>
+            <option value="0.75">75%</option>
+            <option value="1" selected>100%</option>
+            <option value="1.25">125%</option>
+            <option value="1.5">150%</option>
+          </select>
+          <button id="fit" type="button" title="仅调整观看比例">适应</button>
+          <label class="sr-only" for="background">画布背景</label>
+          <select id="background">
+            <option value="" selected>跟随主题</option>
+            <option value="dark">深色</option>
+            <option value="light">浅色</option>
+            <option value="grid">网格</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="stage" class="stage">
+        <div id="scaled">
+          <div id="viewport" class="viewport">
+            <div id="empty" class="empty">
+              <strong>组件即将呈现</strong>
+              <span>真实框架运行时 · 独立沙箱预览</span>
+            </div>
+            <button id="resize" type="button" aria-label="拖动调整画布" title="拖动或使用方向键调整真实容器尺寸" class="resize-handle">◢</button>
+          </div>
+        </div>
+      </div>
+
+      <footer class="canvas-footer">
+        <span id="preview-status" data-testid="preview-status">等待挂载</span>
+        <span id="size-readout" class="mono">800 × 400 px</span>
+        <span id="candidate">尚未准备冻结产物</span>
+      </footer>
+    </section>
+
+    <aside class="inspector" aria-label="调试面板">
+      <section class="inspector-section">
+        <div class="section-title">
+          <h2>参数</h2>
+          <button id="reset" type="button" class="text-button" disabled>重置默认值</button>
+        </div>
+        <p id="bridge-note" class="hint bridge-note"></p>
+        <div id="controls" class="controls"></div>
+        <details class="inspector-disclosure">
+          <summary>完整 Props JSON</summary>
+          <div class="disclosure-body">
+            <label class="sr-only" for="props-json">Props JSON</label>
+            <textarea id="props-json" rows="7" spellcheck="false"></textarea>
+            <div class="action-bar">
+              <button id="apply-props" type="button" class="secondary-action">应用参数 JSON</button>
+            </div>
+          </div>
+        </details>
+      </section>
+
+      <section class="inspector-section">
+        <div class="section-title">
+          <h2>数据与状态</h2>
+        </div>
+        <div class="settings-card">
+          <div class="setting-row">
+            <label for="states">示例状态</label>
+            <select id="states" aria-label="示例状态"></select>
+          </div>
+          <div class="setting-row setting-row-stacked">
+            <label for="data">数据 JSON</label>
+            <textarea id="data" rows="5" spellcheck="false"></textarea>
+            <div class="action-bar">
+              <button id="apply-data" type="button" class="secondary-action">应用数据</button>
+            </div>
+          </div>
+        </div>
+        <p class="hint">调试值只在本地保留；点击「保存示例」才写入项目。</p>
+      </section>
+
+      <section class="inspector-section">
+        <div class="section-title">
+          <h2>事件</h2>
+          <button id="clear-events" type="button" class="text-button">清空</button>
+        </div>
+        <ol id="event-log" data-testid="event-log" class="events">
+          <li class="hint">等待组件实际触发声明事件</li>
+        </ol>
+        <p id="checks" class="hint"></p>
+      </section>
+
+      <section class="inspector-section">
+        <details class="inspector-disclosure">
+          <summary>API 与组件文档</summary>
+          <div class="disclosure-body">
+            <h3>API 定义</h3>
+            <pre id="api"></pre>
+            <h3>组件文档</h3>
+            <pre id="docs" class="docs"></pre>
+          </div>
+        </details>
+      </section>
+
+      <section class="inspector-section publishing">
+        <div class="section-title">
+          <h2>分类与发布</h2>
+        </div>
+        <p id="account" class="account-pill">本地开发无需登录</p>
+        <div class="settings-card">
+          <div class="setting-row">
+            <label for="api-origin">目标 API</label>
+            <input id="api-origin" type="url" placeholder="http://127.0.0.1:3000" autocomplete="url" autocapitalize="none" spellcheck="false">
+          </div>
+          <div class="setting-row setting-row-actions">
+            <div class="button-row">
+              <button id="login" type="button">登录平台</button>
+              <button id="refresh-account" type="button">刷新状态</button>
+            </div>
+          </div>
+          <div class="setting-row">
+            <label for="category">组件分类</label>
+            <select id="category">
+              <option value="">未分配</option>
+            </select>
+          </div>
+          <div class="setting-row setting-row-actions">
+            <button id="save-category" type="button" class="secondary-action full-width">分配分类</button>
+          </div>
+        </div>
+        <p class="hint">分类应用于同一逻辑组件的所有框架。调整后须重新打包。</p>
+        <details class="inspector-disclosure" open>
+          <summary>冻结材料与作业</summary>
+          <div class="disclosure-body">
+            <pre id="artifact">尚未准备</pre>
+            <pre id="progress" aria-live="polite">暂无运行作业</pre>
+            <div class="button-row">
+              <button id="frozen" type="button" disabled>查看冻结预览</button>
+              <button id="return-dev" type="button" hidden>返回开发预览</button>
+            </div>
+          </div>
+        </details>
+      </section>
+    </aside>
+  </main>
+
+  <dialog id="confirm" closedby="any">
+    <form method="dialog">
+      <h2>确认上传发布</h2>
+      <p>本次提交使用已验证的冻结材料。请核对目标、实现与摘要。</p>
+      <pre id="confirmation"></pre>
+      <div class="button-row dialog-actions">
+        <button value="cancel">取消</button>
+        <button id="confirm-publish" type="button" class="primary">确认上传发布</button>
+      </div>
+    </form>
+  </dialog>
+</body>
+</html>
