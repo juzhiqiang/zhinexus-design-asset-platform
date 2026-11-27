@@ -1,5 +1,6 @@
 import { spawn } from 'node:child_process';
 import { requirePlatformDatabaseUrlForMigration, resolveLocalPlatformDatabaseUrl } from './dev-environment.js';
+import { ensureLocalArtifactBucket, resolveLocalPlatformStorageEnvironment, resolveLocalRegistryToken } from './dev-storage.js';
 
 function runPnpm(args: string[]): Promise<number> {
   return new Promise((resolve) => {
@@ -22,8 +23,8 @@ function runPnpm(args: string[]): Promise<number> {
 }
 
 const mode = process.argv[2];
-if (mode && mode !== 'migrate') {
-  console.error('Expected no argument or migrate');
+if (mode && !['migrate', 'worker'].includes(mode)) {
+  console.error('Expected no argument, migrate or worker');
   process.exitCode = 2;
 } else {
   try {
@@ -40,7 +41,25 @@ if (mode && mode !== 'migrate') {
       if (buildStatus !== 0) process.exitCode = buildStatus;
       else process.exitCode = await runPnpm(['--filter', '@company/platform-api', 'migrate']);
     } else {
-      process.exitCode = await runPnpm(['exec', 'turbo', 'run', 'dev', '--concurrency=12', '--cache=local:rw']);
+      const localStorage = resolveLocalPlatformStorageEnvironment(process.cwd(), process.env);
+      if (localStorage) {
+        await ensureLocalArtifactBucket(localStorage);
+        Object.assign(process.env, localStorage);
+        console.log('Local private artifact storage ready.');
+      } else if (!process.env.PLATFORM_S3_ENDPOINT) {
+        console.warn('PLATFORM_S3_ENDPOINT is unset and local MinIO credentials are unavailable; uploads are disabled. Restore local credentials or explicitly configure storage.');
+      }
+      if (mode === 'worker') {
+        const token = await resolveLocalRegistryToken(process.cwd(), process.env);
+        const registryOrigin = process.env.PLATFORM_REGISTRY_ORIGIN || (process.env.NODE_ENV !== 'production' ? 'http://127.0.0.1:14873' : undefined);
+        if (!token || !registryOrigin || !process.env.PLATFORM_DATABASE_URL || !process.env.PLATFORM_S3_ENDPOINT) throw new Error('Worker configuration is incomplete; configure the database, private storage and registry publishing identity');
+        process.env.PLATFORM_REGISTRY_TOKEN = token;
+        process.env.PLATFORM_REGISTRY_ORIGIN = registryOrigin;
+        process.exitCode = await runPnpm(['--filter', '@company/platform-api', 'worker']);
+      } else {
+        console.log('Run pnpm dev:worker in a separate terminal to process releases.');
+        process.exitCode = await runPnpm(['exec', 'turbo', 'run', 'dev', '--concurrency=12', '--cache=local:rw']);
+      }
     }
   } catch (error) {
     console.error(error instanceof Error ? error.message : 'Could not load local platform configuration');

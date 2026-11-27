@@ -88,7 +88,9 @@ pnpm dev
 
 若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
 
-API 的业务接口需要配置 OIDC、存储和访问权限；完整联调还需启动独立发布 worker。配置与启动方式见 [API 接入说明](apps/api/README.md)、[预览网关说明](apps/preview-gateway/README.md) 和 [本地基础设施](infra/README.md)。
+本地三存储已启动且 `.tools/g2-local/credentials.json` 凭证齐全时，`pnpm dev` 会为 API 配置 PostgreSQL、MinIO 并初始化私有产物桶。发布联调还需另开终端在仓库根运行 `pnpm dev:worker`，该进程独立取得本地 Verdaccio 发布凭证并处理作业。缺少存储凭证时仍可开发其他功能，但启动会提示上传不可用；须恢复原凭证或显式配置存储。修改启动配置后须重启开发服务；`healthz` 只表示进程存活。
+
+生产与显式部署仍需配置 OIDC、存储和访问权限。配置与启动方式见 [API 接入说明](apps/api/README.md)、[预览网关说明](apps/preview-gateway/README.md) 和 [本地基础设施](infra/README.md)。
 
 正式构建画廊时，`NEXT_PUBLIC_SITE_URL` 应设置为站点公开 origin，用于 sitemap 与 metadata；`NEXT_PUBLIC_PLATFORM_API_URL` 应指向管理 API，API 需允许画廊的精确 Origin。仅使用 IPv4 时，可以为画廊、API 和预览配置不同 HTTPS 端口，见 [IP 分端口部署](docs/guides/preview-ip-port.md)。
 

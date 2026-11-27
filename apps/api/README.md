@@ -30,7 +30,7 @@ OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时�
 
 自托管身份下，`GET /v1/auth/oidc/cli` 兼容提供 `passwordLoginEndpoint` 和后台表单 `browserAuthorizationEndpoint`。`POST /identity/login` 接收 `username`、`password`、可选 `new_password` 与 `client_id`；缺省客户端保持 web，精确匹配已注册 CLI client 才签发 CLI 身份，其他值拒绝。密码验证、首次换密、停用及角色/权限检查保持生效。CLI 可选择密码、浏览器 PKCE 或已有 Token，HTTP/HTTPS 均可，HTTP 提示推荐 HTTPS；部署策略和 TLS 证书验证保持。
 
-1. 本地三存储可用根 `pnpm infra:up` 启动。开发环境从根目录运行 `pnpm dev` 会在未显式设置连接串时读取 `.tools/g2-local/credentials.json` 并配置 PostgreSQL；新数据库须先执行 `pnpm dev:infra-migrate`。迁移不会随 API 启动自动执行。API 不把 bucket 改为公开。
+1. 本地三存储可用根 `pnpm infra:up` 启动。开发环境从根目录运行 `pnpm dev` 会在未显式设置连接串时读取 `.tools/g2-local/credentials.json` 并配置 PostgreSQL；没有显式 S3 变量且 MinIO 凭证齐全时，同时配置本地 MinIO 并初始化私有桶 `zhinexus-local-artifacts`。缺少存储凭证时启动会提示上传不可用；仅有数据库密码不能启用上传。生产环境不读取这些本地存储凭证，显式 S3 配置不会混入本地密钥。新数据库须先执行 `pnpm dev:infra-migrate`。迁移不会随 API 启动自动执行，桶不设为公开。
 2. 生产环境构建服务并显式迁移：
 
 ```powershell
@@ -41,7 +41,9 @@ pnpm --filter @company/platform-api start
 
 3. 管理员按已验证 OIDC subject 预建 components、component_permissions 和 package_permissions。组件 grant 的 can_publish/can_maintain 分别控制发布/维护，npm 包发布另需 package_permissions；没有默认通配授权。维护者角色不会自动拥有所有组件。授权变更通过受控运维执行。
 
-4. 在独立进程启动 worker（可运行多个实例，全部共享同一数据库、私有 bucket 和 Verdaccio）：
+4. 本地开发在仓库根另开终端运行 `pnpm dev:worker`。它复用本地数据库和私有桶，仅向固定本地 Verdaccio 地址认证取得发布 token；该 token 不写文件，也不注入前端开发任务。首次运行前须已有 `pnpm build:services` 编译产物。
+
+显式部署配置后，在独立进程启动 worker（可运行多个实例，全部共享同一数据库、私有 bucket 和 Verdaccio）：
 
 ```powershell
 pnpm --filter @company/platform-api worker

@@ -37,9 +37,11 @@ pnpm infra:stop
 | Verdaccio | `http://127.0.0.1:14873` | 7.1.0；`g2publisher` 写入，`g2reader` 只读 |
 | MinIO | `http://127.0.0.1:19000` | RELEASE.2025-10-15T17-29-55Z；S3 API，关闭控制台 |
 
-启动仓库开发服务时运行根目录 `pnpm dev`。它会在未显式设置 `PLATFORM_DATABASE_URL` 时，从 `.tools/g2-local/credentials.json` 为本地 API 注入 PostgreSQL 连接配置；显式环境变量优先。新数据库需要迁移时，先执行 `pnpm dev:infra-migrate`，再启动开发服务。迁移仍是显式操作，不会随 `infra:up` 或 API 启动自动执行。
+启动仓库开发服务时运行根目录 `pnpm dev`。它会在未显式设置 `PLATFORM_DATABASE_URL` 时，从 `.tools/g2-local/credentials.json` 为本地 API 注入 PostgreSQL 连接配置；没有显式 S3 变量且 `minioUser` / `minioPassword` 齐全时，同时接入本地 MinIO 并初始化私有桶 `zhinexus-local-artifacts`。仅有数据库凭证时仍可启动其他开发任务，但会警告上传不可用；部分 MinIO 凭证则直接报错。显式环境变量优先，部分 S3 配置也不会与本地密钥混用；生产环境不自动读取本地存储凭证。新数据库需要迁移时，先执行 `pnpm dev:infra-migrate`，再启动开发服务。迁移仍是显式操作，不会随 `infra:up` 或 API 启动自动执行。
 
-若现有 Compose 数据卷仍在但 `.tools/g2-local` 凭证缺失，请从受保护备份恢复凭证。`infra:up` 会为避免覆盖已有数据而拒绝生成新凭证；不要删除或重建数据卷来绕过该检查。
+发布联调另开终端运行 `pnpm dev:worker`，复用同一数据库、桶和本地注册表；本地自动登录还需原 `publisherPassword`，也可显式提供注册表地址和 token。发布 token 仅在独立 worker 的进程环境中使用，不打印、不保存，也不传给前端。worker 需要已有的服务编译产物。API 健康接口正常不代表存储已接入或 worker 已启动；修改启动配置后需要重启原开发进程。
+
+若现有 Compose 数据卷仍在但 `.tools/g2-local` 凭证缺失或不完整，请从受保护备份恢复原凭证。`infra:up` 会为避免覆盖已有数据而拒绝生成新凭证；不要给旧服务生成替代密码，也不要删除或重建数据卷来绕过该检查。无法恢复时，另建不同端口与数据卷的隔离测试设施，并显式配置对应的 S3 与注册表变量。
 
 所有端口仅绑定回环地址；Compose 项目固定为 `zhinexus-g2`，三个命名卷独立于其他项目。命令只启动、重启或停止本项目，不删除卷。PostgreSQL/MinIO 管理凭证仅供本地设施探针，后续 API 业务账号和最小权限需在 T05 中单独实现。
 
