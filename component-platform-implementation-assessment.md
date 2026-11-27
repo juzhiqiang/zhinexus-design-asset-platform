@@ -21,13 +21,13 @@
 依据：`component-platform-architecture.md`，规划版本 2026-11-10  
 状态：保留实施前评估基准；2026-11-11 已交付工程初始化子集，完整 T01 与生产能力尚未完成。当前按用户补充的 3 名开发排期，见 [三人分工计划](docs/plans/2026-11-11-three-person-allocation.md) 与 [初始化验证](docs/verification/gates-infra.md)。
 
-2026-11-12 执行更新：C 主责 G1 校验、错误码和 fixtures，A/B 示例、截图/报告评审目标为 **2026-11-13**。实现与命令见 [G1 子计划](docs/plans/2026-11-12-g1-contracts-platform.md) 和 [新增验证记录](docs/verification/gates-infra.md)；API 补充字段作为候选记录在 packages/contracts/README.md，未实施业务端点。G2 五项由 C 接入总责，外部实名与日期待确认，见 [接入清单](docs/plans/2026-11-22-g2-access-acceptance.md)。G1 人工回执、G2 实测未具备，完整 T01 保持开放，不改原架构及历史验证。
+2026-11-12 执行更新：C 主责 G1 校验、错误码和 fixtures，A/B 示例、截图/报告评审目标为 **2026-11-13**。实现与命令见 `docs/plans/2026-11-12-g1-contracts-platform.md` 和 [新增验证记录](docs/verification/gates-infra.md)；API 补充字段作为候选记录在 packages/contracts/README.md，未实施业务端点。G2 五项由 C 接入总责，外部实名与日期待确认，见 `docs/plans/2026-11-22-g2-access-acceptance.md`。G1 人工回执、G2 实测未具备，完整 T01 保持开放，不改原架构及历史验证。
 
 ## 1. 评估结论
 
-2026-11-12 T05 开工：用户授权新分支开发身份、上传/字节校验、持久化发布登记、基线与审计并合并本地 main。实施补充见 [T05 计划](docs/plans/2026-11-12-t05-platform.md)：兼容 multipart 响应、共享上传限制、冻结副本避免 signed URL 后写篡改；无 OIDC 配置时业务失败关闭。代码交付与真实公司 OIDC/完整 G2/T05 外部验收分别记录。
+2026-11-12 T05 开工：用户授权新分支开发身份、上传/字节校验、持久化发布登记、基线与审计并合并本地 main。实施补充见 `docs/plans/2026-11-12-t05-platform.md`：兼容 multipart 响应、共享上传限制、冻结副本避免 signed URL 后写篡改；无 OIDC 配置时业务失败关闭。代码交付与真实公司 OIDC/完整 G2/T05 外部验收分别记录。
 
-2026-11-12 C 后续范围：用户确认暂无 OIDC 与独立预览域，先实施隔离本地三存储与接入检查工具，见 [G2 本地子计划](docs/plans/2026-11-22-g2-access-acceptance.md)。示例协议保留 ready/runState/getChecks，并允许可选只读 states；manifest requiredStates 仍是截图执行清单。缺外部资源不视为 G2/T01 完成。
+2026-11-12 C 后续范围：用户确认暂无 OIDC 与独立预览域，先实施隔离本地三存储与接入检查工具，见 `docs/plans/2026-11-22-g2-access-acceptance.md`。示例协议保留 ready/runState/getChecks，并允许可选只读 states；manifest requiredStates 仍是截图执行清单。缺外部资源不视为 G2/T01 完成。
 
 本轮本地三存储两次真实探针和停止/重启已通过，接入检查在缺 OIDC/域名时退出 2；详见 [新验证记录](docs/verification/gates-infra.md)。设施客户端为根 devDependencies，不引入服务端组件执行或改变 10 个成员边界。业务迁移、OIDC 登录/授权、预览隔离及跨存储发布一致性仍按 T05/T06/T07 实施。
 
@@ -162,11 +162,11 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 ## 8. 二、三期与“全三期年底完成”的可行性
 
-2026-11-18 T16 P0 恢复补充：四组恢复路径完整覆盖候选，unresolvedPaths 单独承载 I/O 失败；首写失败保留真实备份并允许空提交证据。Schema、CLI 内联副本和设计同步，产品按 [安装隔离 brief](docs/plans/2026-11-18-t16-briefs-compilation.md#2026-11-18-t16-b-install-isolation-briefmd) 先 RED；所有包管理器进程在目标工程外暂存运行，冻结安装启动前持久化日志并更新备份摘要。验证见 [补充记录](docs/verification/phase3-t16.md)。该交付仅为 P0，P1–P4、真实 npm/pnpm 安装矩阵及业务项目验收仍未完成。
+2026-11-18 T16 P0 恢复补充：四组恢复路径完整覆盖候选，unresolvedPaths 单独承载 I/O 失败；首写失败保留真实备份并允许空提交证据。Schema、CLI 内联副本和设计同步，产品按 `docs/plans/2026-11-18-t16-briefs-compilation.md#2026-11-18-t16-b-install-isolation-briefmd` 先 RED；所有包管理器进程在目标工程外暂存运行，冻结安装启动前持久化日志并更新备份摘要。验证见 [补充记录](docs/verification/phase3-t16.md)。该交付仅为 P0，P1–P4、真实 npm/pnpm 安装矩阵及业务项目验收仍未完成。
 
 2026-11-17 T15 已完成技术验收：CLI `0.0.13` 交付只读项目/锁识别、发布身份与摘要复查及 `IntegrationPlanV1`；四个实际客户端完成各自职责，最终冻结 CLI 仓外真实服务 25/25、根测试 1494/1494 + T10 168/168、平台 41/41、浏览器 18/18。详见 [T15 收口记录](docs/verification/phase3-t15.md)。T16/T17 及真实业务项目仍待实施；以下原估算保留量级参考，不以本轮 synthetic 技术验收推断三期整体完成。
 
-2026-11-16 三期规划沿用 T15–T17，先完成 T15 的项目/锁文件识别、发布身份/摘要复验和只读 IntegrationPlan，再推进安装/代码生成与验证/MCP。用户允许 Antigravity、Claude 桌面端、Claude Code、Codex 独立分支开发并在完成后合并删除；主要开发优先 Claude 桌面端。设计选择、文件所有权和开工/验收门槛见 [T15 设计](docs/specs/2026-11-16-phase3-t15-design.md)、[四方计划](docs/plans/2026-11-16-phase3-t15-kickoff.md)。原 35–50 开发人日及 10–15 独立测试人日仅供量级参考，四客户端不直接折算为确定日历工期。真实项目接入及生产条件独立验收。
+2026-11-16 三期规划沿用 T15–T17，先完成 T15 的项目/锁文件识别、发布身份/摘要复验和只读 IntegrationPlan，再推进安装/代码生成与验证/MCP。用户允许 Antigravity、Claude 桌面端、Claude Code、Codex 独立分支开发并在完成后合并删除；主要开发优先 Claude 桌面端。设计选择、文件所有权和开工/验收门槛见 `docs/specs/2026-11-16-phase3-t15-design.md`、`docs/plans/2026-11-16-phase3-t15-kickoff.md`。原 35–50 开发人日及 10–15 独立测试人日仅供量级参考，四客户端不直接折算为确定日历工期。真实项目接入及生产条件独立验收。
 
 | 阶段 | 任务 | 开发估算 | 独立测试 | 前置条件 |
 | --- | --- | ---: | ---: | --- |
@@ -174,12 +174,12 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 | 三期 | T15 项目约束与安装计划，T16 代码接入，T17 验证/有限修复/MCP | 35–50 人日 | 10–15 人日 | 可验证装配方案、两个真实项目、受控本地写入与回滚协议 |
 | **全三期** | **T01–T17** | **待二期范围调整后重估（原 135–187 人日）** | **待重估（原 30–45 人日）** | **另需运维约 6–10 人日；二期无模型运行费用** |
 
-2026-11-15 用户确认：当前二期不接大模型，设计通过对应 ID 规则匹配，具体规则尚未确定。先采用显式映射配置的实现方向，不预设业务 ID 命名规范；未知、冲突、权限或版本不满足时返回缺口。移除二期的多模态/向量检索、视觉推断、模型超时和模型质量门槛；保留已实现的文本发现、档案、兼容过滤、发布证据和装配方案目标。下述人员/工期推算基于原范围，仅供历史比较，不能作为本次调整后的承诺。正式规则与真实导出样本的对接仍须验收，详见 [调整计划](docs/plans/2026-11-15-phase2-id-matching.md)。
+2026-11-15 用户确认：当前二期不接大模型，设计通过对应 ID 规则匹配，具体规则尚未确定。先采用显式映射配置的实现方向，不预设业务 ID 命名规范；未知、冲突、权限或版本不满足时返回缺口。移除二期的多模态/向量检索、视觉推断、模型超时和模型质量门槛；保留已实现的文本发现、档案、兼容过滤、发布证据和装配方案目标。下述人员/工期推算基于原范围，仅供历史比较，不能作为本次调整后的承诺。正式规则与真实导出样本的对接仍须验收，详见 `docs/plans/2026-11-15-phase2-id-matching.md`。
 
 
 2026-11-16 工程进展：已完成 ID/装配/ComponentApiV1 契约、精确发布解析与最终资格复读、真实 API 材料生成、画廊输入与方案界面及合成评估；真实隔离服务与画廊联调已通过，规定合成案例精确映射 5/5、硬违规 0，并完成 200/1000 发布记录规模量测。完整 T14 业务验收仍开放，见 [集成验证](docs/verification/phase2-matching.md)。
 
-2026-11-16 后续用户决策：无需等待设计平台导出或真实业务标注，先完成正确标识规范和使用侧 GET 查询接口。当前二期完成条件以 [GET 收口设计](docs/specs/2026-11-16-phase2-query-completion-design.md) 和 [四方执行计划](docs/plans/2026-11-16-phase2-query-completion.md) 为准：规范/契约一致、精确查询与资格复读、14 个真实 SDK 实现、独立 HTTP 与浏览器验证、版本及分支收口。GET 与 Gallery 入口现已实现，14 实现及真实页面 15/15、真实服务综合 45/45、浏览器 70/70、根 Vitest 1249/1249 和 T10 168/168 通过，全图强制构建 20/20。Claude 桌面端主责主要开发，Antigravity 做 SDK 对照，Claude Code 生成独立验收候选，Codex 负责契约、宿主修正验证及集成；详见 [最终记录](docs/verification/phase2-matching.md)。上述历史真实样本门槛不再阻塞本轮二期协议交付；旧 real 评分、G2 生产接入和 T11 真实试点不因此改变。
+2026-11-16 后续用户决策：无需等待设计平台导出或真实业务标注，先完成正确标识规范和使用侧 GET 查询接口。当前二期完成条件以 `docs/specs/2026-11-16-phase2-query-completion-design.md` 和 `docs/plans/2026-11-16-phase2-query-completion.md` 为准：规范/契约一致、精确查询与资格复读、14 个真实 SDK 实现、独立 HTTP 与浏览器验证、版本及分支收口。GET 与 Gallery 入口现已实现，14 实现及真实页面 15/15、真实服务综合 45/45、浏览器 70/70、根 Vitest 1249/1249 和 T10 168/168 通过，全图强制构建 20/20。Claude 桌面端主责主要开发，Antigravity 做 SDK 对照，Claude Code 生成独立验收候选，Codex 负责契约、宿主修正验证及集成；详见 [最终记录](docs/verification/phase2-matching.md)。上述历史真实样本门槛不再阻塞本轮二期协议交付；旧 real 评分、G2 生产接入和 T11 真实试点不因此改变。
 
 若二期、三期各投入约 3 名开发等效资源，分别预留约 3–4 周和 4–5 周的窗口，并在一期成熟后以实际样本重估。这是相对工期，不把 2027 年日期当作用户接受的延期。
 
@@ -212,7 +212,7 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 2026-11-24 CLI 发布审查补充：为证明预览实际消费冻结包中的所选实现，本轮发布消费者采用 CLI 控制的 Vite 适配器，检查真实解析图及导出执行；组件自身 build/dev 仍可使用开发者本地命令。其他消费者编译器需后续适配，不将可 import 或自填框架身份当作截图来源证明。原包文件与冻结摘要保持不变，详见真实项目发布设计。
 
-2026-11-24 真实项目 CLI 发布范围补充：用户确认优先接入开发者已有组件包，后台维护稳定分类，发布时选择实际 Vue/React 框架与启用分类。保留旧 SDK/Bundle 流程、管理员预登记 ACL、本地产物冻结与逐实现截图。普通组件允许省略 ECharts 环境版本与独立样式/ready 方法元数据，提供时仍严格验证，不伪造图表兼容记录。采用子代理实施与逐任务审查，详见 [设计](docs/specs/2026-11-24-project-cli-publishing.md) 和 [计划](docs/plans/2026-11-24-project-publishing.md)。本轮不新增业务组件；Zip、完整历史下载与低代码接入独立后续交付。
+2026-11-24 真实项目 CLI 发布范围补充：用户确认优先接入开发者已有组件包，后台维护稳定分类，发布时选择实际 Vue/React 框架与启用分类。保留旧 SDK/Bundle 流程、管理员预登记 ACL、本地产物冻结与逐实现截图。普通组件允许省略 ECharts 环境版本与独立样式/ready 方法元数据，提供时仍严格验证，不伪造图表兼容记录。采用子代理实施与逐任务审查，详见 `docs/specs/2026-11-24-project-cli-publishing.md` 和 `docs/plans/2026-11-24-project-publishing.md`。本轮不新增业务组件；Zip、完整历史下载与低代码接入独立后续交付。
 
 2026-11-12 T07 C 执行细化：目录分为 public-only 与 `/v1/me/` 两组，防止身份数据进入公开缓存；保持既有详情 DTO，新增兼容的 `variantReportsResponse` 与详情 `/reports` 子资源，按同一 job/variant 读取完整检查记录，不将其他版本报告拼接到当前实现。预览域配置校验作为环境无关共享契约提供；具体数据库、存储和授权实现仍留在两项 Nest 服务内。
 
@@ -224,11 +224,11 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 2026-11-12：C的T11/T12本地运维准备见 docs/plans/2026-11-12-t11-t12-platform-operations.md；独立恢复不等于生产RPO/RTO和上线完成，完整验收见 docs/guides/release-acceptance.md。原架构文档保持不变。
 
-2026-11-13 T08 联调修复范围：API 复用 `PLATFORM_GALLERY_ORIGIN` 作为精确 CORS 来源，允许网页 Bearer、JSON 与 Idempotency-Key 预检，保持现有身份/上传/幂等协议。缺配置不放行跨域；HTTPS 部署及显式本机 HTTP 开发例外分别验证。实施见 [C跨域修复计划](docs/plans/2026-11-13-c-gallery-cors.md)，不扩大预览域权限或生产验收结论。
+2026-11-13 T08 联调修复范围：API 复用 `PLATFORM_GALLERY_ORIGIN` 作为精确 CORS 来源，允许网页 Bearer、JSON 与 Idempotency-Key 预检，保持现有身份/上传/幂等协议。缺配置不放行跨域；HTTPS 部署及显式本机 HTTP 开发例外分别验证。实施见 `docs/plans/2026-11-13-c-gallery-cors.md`，不扩大预览域权限或生产验收结论。
 
 ## 11. 自主管理账号与权限后台的范围决定
 
-2026-11-22 用户确认按 [自主管理账号设计](docs/specs/2026-11-22-self-managed-accounts-design.md) 全量实施，执行计划见 [实施计划](docs/plans/2026-11-22-self-managed-accounts.md)，分支 `feat/self-managed-accounts-impl`。
+2026-11-22 用户确认按 [自主管理账号设计](docs/specs/2026-11-22-self-managed-accounts-design.md) 全量实施，执行计划见 `docs/plans/2026-11-22-self-managed-accounts.md`，分支 `feat/self-managed-accounts-impl`。
 
 与原「公司 OIDC」要求的差异只有一点：**身份源由平台自行维护**。用户没有现成公司统一登录、部署服务器或域名，账号与访问权限改由资产平台后台管理。认证协议不变，仍沿用 OIDC、Web Cookie 会话与 CLI PKCE，平台不自行保存密码、不新增直接交换密码的协议；登录凭据交由自托管身份服务保管。
 
@@ -254,12 +254,14 @@ Turbo 负责仓库内开发任务；线上发布作业仍由 PostgreSQL 持久�
 
 ## 13. 真实项目组件发布补充（2026-11-24）
 
-已按 [专项设计](docs/specs/2026-11-24-project-cli-publishing.md) 和 [实施计划](docs/plans/2026-11-24-project-publishing.md) 完成真实项目 CLI、分类管理与后台发布选择的技术收口。开发者登记已有公开组件子包，CLI 在本地构建一次并冻结一次，随后在工作区外安装同一 tarball、运行受控 Vite 消费者、逐实现截图并提交。服务端仍不构建或执行上传代码。
+已按 `docs/specs/2026-11-24-project-cli-publishing.md` 和 `docs/plans/2026-11-24-project-publishing.md` 完成真实项目 CLI、分类管理与后台发布选择的技术收口。开发者登记已有公开组件子包，CLI 在本地构建一次并冻结一次，随后在工作区外安装同一 tarball、运行受控 Vite 消费者、逐实现截图并提交。服务端仍不构建或执行上传代码。
 
 分类使用稳定 ID、修订 CAS 和历史快照；当前启用状态只约束新作业，已成功幂等作业保留原快照。组件和 npm 包发布权限仍需管理员预登记，选择分类不会扩大访问权。同一冻结包包含多个 JavaScript 实现子路径时必须提交完整实现；单框架独立发布应使用实际独立包，不能裁切共享包或在截图后重新打包。
 
 本机隔离服务已验证共享双框架包、Vue-only 包和 React-only 包通过 Nest HTTP、PostgreSQL、MinIO、Verdaccio 到达 Ready，并验证 worker/API 跨进程恢复、原上传会话与幂等键复用、registry 干净消费者安装及摘要一致。该结果是本地技术验收，不替代生产 OIDC/TLS、独立域名、两个真实业务项目或 T11 业务试点；完整证据和未覆盖项见 [验证记录](docs/verification/project-publishing.md#2026-11-24-project-publishingmd)。
 
+
+> 说明：下文各「追加记录」中提及的实施计划、设计与当日验证稿，多数已在 2026-11-26 文档精简轮（只保留现行有效文档）中从工作树移除，相应链接已改为其原始路径（反引号引用，可经 git 历史恢复）；这些记录的结论以上方现行文档与 `rules/` 为准。
 
 ## 2026-11-26 用户确认：juz 本地统一工作台
 

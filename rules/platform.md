@@ -14,7 +14,8 @@
   - 仓库要求 **pnpm `12.18.0`**（`packageManager`）、**Node.js `>=24.6.0`**（`package.json#engines`，隔离验收基线为 `.node-version` 中的 `26.13.0`）与 **Turbo `2.11.10`**。
   - 日常开发直接使用系统全局 `pnpm <args>` 执行工作区命令。
 - **TypeScript 双编译器策略**：
-  - 根工作区、`apps/gallery`、`apps/admin`、`packages/charts-*`、`packages/component-cli`、`packages/contracts` 与 `examples/react` 使用 **TypeScript `7.0.2`**。
+  - 根工作区、`apps/gallery`、`apps/admin`、`packages/charts-core`、`packages/charts-react`、`packages/component-cli`、`packages/contracts` 与 `examples/react` 使用 **TypeScript `7.0.2`**；未在自身 `package.json` 钉版本的成员沿用根工作区版本。
+  - `packages/charts-vue` 显式固定 **TypeScript `6.0.3`**（SFC 与 NodeNext 声明兼容例外，兼容例外记录于 `docs/verification/evidence/vue-typescript-exception.json`，由 `pnpm verify:docs` 校验该声明与 `package.json` 一致）。
   - `apps/api` 与 `apps/preview-gateway` 显式固定 **Nest CLI `12.0.12` + TypeScript `6.0.3`**，启用 `experimentalDecorators` 与 `emitDecoratorMetadata`，确保编译产物具备完整依赖注入元数据。
   - `examples/vue` 的 SFC 类型检查隔离使用 **`vue-tsc 3.3.14` + TypeScript `6.0.3`**（兼容例外记录于 `docs/verification/evidence/vue-typescript-exception.json`）。
 - **pnpm 工作区配置**：

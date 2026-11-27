@@ -1,6 +1,6 @@
 # 本地三存储与接入检查（C / T01 / G2）
 
-当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划见 [G1/G2 清单](../docs/plans/2026-11-22-g2-access-acceptance.md)，早期设施证据见 [本地设施验证](../docs/verification/gates-infra.md)。
+当前没有公司 OIDC 和生产独立预览域。三存储、业务迁移及发布状态机已有本地验证，完整 G2 与生产验收仍开放。历史接入计划与早期设施证据见 [本地设施验证](../docs/verification/gates-infra.md)。
 
 2026-11-22 新增 [G2 五项逐项实测记录](../docs/verification/gates-infra.md)：隔离本机三存储三轮完成真实写读、权限、精确安装、进程重启与恢复，OIDC/目标预览仍未配置。共享凭证缺失时可通过 `exec vitest run --config tests/platform/vitest.config.ts tests/platform/g2-storage-acceptance.test.ts` 创建自有隔离环境验收，须先执行 `build:services`，不会改动共享 Compose 数据。每轮脱敏报告位于 `.tools/operations/g2-acceptance/<runId>/report.json`，同目录 `.npmrc` 含消费凭证，不得整体分享。
 

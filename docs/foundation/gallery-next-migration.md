@@ -50,7 +50,7 @@ $env:NEXT_PUBLIC_SITE_URL = 'https://gallery.test'
 
 首次统一验证发现浏览器断言写死测试域名：未设置 origin 的构建按设计输出空 sitemap，断言却要求 `gallery.test`。现已按构建和测试共享的 `NEXT_PUBLIC_SITE_URL` 检查实际 URL；未设置时断言没有 `<loc>`。`verify.ps1` 只在缺少 origin 时临时使用测试域名，并在 finally 恢复调用者值。
 
-另以真实 build/start/HTTP 复现 A→B→A 域名切换：第三次恢复 Turbo 输出缓存时，生成的 app sitemap 是 A，但 `dist/server/route-cache` 残留 B，HTTP 返回 B。仅将 origin 纳入 task/global env 无法修复。永久回归脚本 `scripts/verify-gallery-cache.mjs` 先观察到此失败，再以 gallery 专用 `cache: false` 修复后验证 A、B、A 和未设置 origin 四轮通过。其他包仍使用缓存；代价是 gallery 每次重建，待干净恢复机制经验证后再恢复缓存。
+另以真实 build/start/HTTP 复现 A→B→A 域名切换：第三次恢复 Turbo 输出缓存时，生成的 app sitemap 是 A，但 `dist/server/route-cache` 残留 B，HTTP 返回 B。仅将 origin 纳入 task/global env 无法修复。永久回归脚本 `tests/integration/gallery-cache.mjs` 先观察到此失败，再以 gallery 专用 `cache: false` 修复后验证 A、B、A 和未设置 origin 四轮通过。其他包仍使用缓存；代价是 gallery 每次重建，待干净恢复机制经验证后再恢复缓存。
 
 最终验证针对 `HEAD 856379c` 加本次迁移文件的独立副本执行，排除了同期另一任务的 chart-core/Vue harness 改动：
 
@@ -62,7 +62,7 @@ if ($env:NEXT_PUBLIC_SITE_URL -ne 'https://gallery.custom.test') { throw 'Site U
 
 结果：退出码 0；frozen install、10 成员依赖边界、全量 build 10/10、typecheck 14/14、Vitest 5/5、浏览器 6/6、服务构建通过，自定义 origin 保留。全量 build 为 0 缓存命中。React 示例的约 504 KB chunk 警告和 Playwright 颜色环境提示不影响退出码。
 
-清除测试进程的 origin 后，在同一独立副本执行 `.\scripts\pnpm.ps1 exec node scripts/verify-gallery-cache.mjs` 与 `.\scripts\pnpm.ps1 test:browser`：A→B→A→unset 的 HTTP sitemap 校验全部通过，浏览器 6/6 通过，验证未配置域名的普通构建路径。
+清除测试进程的 origin 后，在同一独立副本执行 `.\scripts\pnpm.ps1 exec node tests/integration/gallery-cache.mjs` 与 `.\scripts\pnpm.ps1 test:browser`：A→B→A→unset 的 HTTP sitemap 校验全部通过，浏览器 6/6 通过，验证未配置域名的普通构建路径。
 
 共享工作区最新统一验证曾因另一任务在 `examples/vue/package.json` 新增 `@company/charts-core` 而锁文件未同步，在 frozen install 阶段失败；其新增 `removes_series_without_ghosts`、`does_not_initialize_zero_size` 也曾因当时产物未含 harness 而超时。没有修改或提交这些任务文件，不能据独立副本结果声称共享工作区的其他在途任务已通过。
 
