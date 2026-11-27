@@ -88,6 +88,16 @@ const REASON_CASES: ReadonlyArray<{ error: PlatformError; reason: string }> = [
   { error: new PlatformError('INFRA_UNAVAILABLE'), reason: 'unavailable' },
 ];
 
+it('advertises separate self-managed CLI password and browser form endpoints', async () => {
+  const metadata = await oidc(discovery(ISSUER + '/authorize'), { authorizationEndpoint: ISSUER + '/authorize', loginUrl: ADMIN_ORIGIN + '/login' }).cliMetadata();
+  expect(metadata).toMatchObject({ passwordLoginEndpoint: ISSUER + '/login', browserAuthorizationEndpoint: ADMIN_ORIGIN + '/login', tokenEndpoint: ISSUER + '/token' });
+});
+
+it('retains a CLI loopback callback when a browser password submission fails', () => {
+  const value = loginFailureUrl(ADMIN_ORIGIN, { ...submission, nonce: '', client_id: 'zhinexus-cli', redirect_uri: 'http://127.0.0.1:18923/callback' }, 'credentials');
+  expect(new URL(value).searchParams.get('redirect_uri')).toBe('http://127.0.0.1:18923/callback');
+});
+
 /** Fields the login page may echo, and a value the identity service would reject for each. */
 const REJECTED_FIELDS: ReadonlyArray<{ field: string; value: string }> = [
   { field: 'client_id', value: 'not a client id' },

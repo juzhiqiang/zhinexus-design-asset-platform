@@ -205,6 +205,8 @@ export class CompanyOidc {
     const config = (candidate ? (await this.db.query('SELECT config FROM access_revisions WHERE id=$1 AND section=$2',[candidate,'oidc'])).rows[0]?.config : active.revision?.config ?? this.settings.options.initialOidc) as OidcAccessConfig | undefined;
     if (!config) throw new PlatformError('INFRA_UNAVAILABLE');
     const { metadata } = await this.metadata(config);
-    return { issuer:config.issuer,audience:config.audience,clientId:config.cliClientId,redirectUri:config.cliRedirectUri,authorizationEndpoint:metadata.authorization_endpoint,tokenEndpoint:metadata.token_endpoint,scopes:config.scopes ?? [],generation:active.generation };
+    const localLogin = this.adminLogin?.authorizationEndpoint === metadata.authorization_endpoint ? this.adminLogin : undefined;
+    return { issuer:config.issuer,audience:config.audience,clientId:config.cliClientId,redirectUri:config.cliRedirectUri,authorizationEndpoint:metadata.authorization_endpoint,tokenEndpoint:metadata.token_endpoint,scopes:config.scopes ?? [],generation:active.generation,
+      ...(localLogin ? { passwordLoginEndpoint: new URL('login', metadata.authorization_endpoint).href, browserAuthorizationEndpoint: localLogin.loginUrl } : {}) };
   }
 }

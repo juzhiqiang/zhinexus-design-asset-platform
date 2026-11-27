@@ -67,6 +67,7 @@ const USAGE = `用法:
 apply/rollback/verify/repair 的写入、安装、脚本、浏览器与恢复范围由产品边界决定：授权只来自本次显式调用，
 plan.commands 只是展示数据，verify/repair 仅按显式 spec 与授权执行。
 凭据从环境变量 ZHINEXUS_API_TOKEN / ZHINEXUS_REGISTRY_TOKEN 读取，不进入任何输出。
+API 与 registry 支持 HTTP/HTTPS，建议使用 HTTPS。
 退出码: 0 无已知阻塞或操作/验证/修复成功；2 含 conflicts 的结构化结果或 failed/blocked/stopped/recovery-required；1 参数/JSON/读取/网络错误。`;
 
 /** 只认显式给出的标志；重复或缺失都按参数错误处理（exit 1）。 */

@@ -3,6 +3,11 @@ import { homedir } from 'node:os';
 import { join } from 'node:path';
 
 type LoginCredential={apiOrigin:string;accessToken:string};
+export function platformApiOrigin(value: string): string {
+  const origin = new URL(value);
+  if (origin.origin !== value || origin.username || origin.password || !['http:', 'https:'].includes(origin.protocol)) throw new Error('API_ORIGIN_INVALID');
+  return origin.origin;
+}
 export function credentialPath(explicit?:string):string {
   return explicit || process.env.ZHINEXUS_CREDENTIAL_FILE || join(homedir(),'.zhinexus','session.local');
 }
@@ -16,8 +21,7 @@ async function readLogin(file?:string):Promise<LoginCredential | undefined> {
     const stat=await handle.stat();if (!stat.isFile() || stat.size>16384) return;
     const value:unknown=JSON.parse(await handle.readFile('utf8'));
     if (!value || typeof value!=='object' || Object.keys(value).sort().join(',')!=='accessToken,apiOrigin' || !('apiOrigin' in value) || typeof value.apiOrigin!=='string' || !('accessToken' in value) || typeof value.accessToken!=='string' || !validPlatformToken(value.accessToken)) return;
-    const origin=new URL(value.apiOrigin);
-    if (origin.origin!==value.apiOrigin || origin.username || origin.password || (origin.protocol!=='https:' && !(origin.protocol==='http:' && ['127.0.0.1','localhost'].includes(origin.hostname)))) return;
+    platformApiOrigin(value.apiOrigin);
     return{apiOrigin:value.apiOrigin,accessToken:value.accessToken};
   } catch {return;} finally {await handle?.close();}
 }

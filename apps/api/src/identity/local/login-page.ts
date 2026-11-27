@@ -40,12 +40,13 @@ export function isBrowserForm(accept: string | undefined): boolean {
   return typeof accept === 'string' && accept.includes('text/html');
 }
 
-const redirectUri = (value: unknown, development: boolean): string => {
+const redirectUri = (value: unknown, development: boolean, cli: boolean): string => {
   if (typeof value !== 'string') return '';
   let url: URL;
   try { url = new URL(value); } catch { return ''; }
   const local = development && process.env.NODE_ENV !== 'production' && value === 'http://127.0.0.1:3000/v1/auth/oidc/callback';
-  return (url.protocol === 'https:' || local) && !url.username && !url.password && !url.search && !url.hash && url.pathname !== '/' && url.href === value ? value : '';
+  const loopback = cli && url.protocol === 'http:' && url.hostname === '127.0.0.1' && Number(url.port) >= 1024;
+  return (url.protocol === 'https:' || local || loopback) && !url.username && !url.password && !url.search && !url.hash && url.pathname !== '/' && url.href === value ? value : '';
 };
 
 /**
@@ -64,7 +65,7 @@ export function loginFailureUrl(adminOrigin: string, submission: Record<string, 
   };
   const params = new URLSearchParams();
   const clientId = field('client_id', CLIENT_ID);
-  const redirect = redirectUri(submission['redirect_uri'], development);
+  const redirect = redirectUri(submission['redirect_uri'], development, !submission['nonce']);
   const state = field('state', STATE);
   const challenge = field('code_challenge', TOKEN);
   const nonce = field('nonce', TOKEN);

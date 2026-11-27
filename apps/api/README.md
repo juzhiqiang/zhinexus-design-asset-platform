@@ -28,6 +28,8 @@ OIDC 接收 RS256/ES256 access token；验证 issuer、audience、签名、时�
 
 ## 初始化和运行
 
+自托管身份下，`GET /v1/auth/oidc/cli` 兼容提供 `passwordLoginEndpoint` 和后台表单 `browserAuthorizationEndpoint`。`POST /identity/login` 接收 `username`、`password`、可选 `new_password` 与 `client_id`；缺省客户端保持 web，精确匹配已注册 CLI client 才签发 CLI 身份，其他值拒绝。密码验证、首次换密、停用及角色/权限检查保持生效。CLI 可选择密码、浏览器 PKCE 或已有 Token，HTTP/HTTPS 均可，HTTP 提示推荐 HTTPS；部署策略和 TLS 证书验证保持。
+
 1. 本地三存储可用根 `pnpm infra:up` 启动。开发环境从根目录运行 `pnpm dev` 会在未显式设置连接串时读取 `.tools/g2-local/credentials.json` 并配置 PostgreSQL；新数据库须先执行 `pnpm dev:infra-migrate`。迁移不会随 API 启动自动执行。API 不把 bucket 改为公开。
 2. 生产环境构建服务并显式迁移：
 

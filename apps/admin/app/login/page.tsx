@@ -21,7 +21,9 @@ function authorizationRequest(params: URLSearchParams): AuthorizationRequest | n
   const api = new URL(platformApiOrigin);
   const localCallback = process.env.NODE_ENV !== 'production' && api.protocol === 'http:' && api.hostname === '127.0.0.1'
     && redirect.origin === api.origin && redirectUri === api.origin + '/v1/auth/oidc/callback';
-  if ((redirect.protocol !== 'https:' && !localCallback) || redirect.username || redirect.password || redirect.search || redirect.hash || redirect.pathname === '/' || redirect.href !== redirectUri) return null;
+  // CLI requests use PKCE without a web nonce; the identity service checks its exact registered redirect.
+  const cliCallback = !nonce && redirect.protocol === 'http:' && redirect.hostname === '127.0.0.1' && Number(redirect.port) >= 1024;
+  if ((redirect.protocol !== 'https:' && !localCallback && !cliCallback) || redirect.username || redirect.password || redirect.search || redirect.hash || redirect.pathname === '/' || redirect.href !== redirectUri) return null;
   return { clientId, redirectUri, state, codeChallenge, nonce };
 }
 

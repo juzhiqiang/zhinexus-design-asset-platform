@@ -54,7 +54,7 @@ export class LocalIdentityController {
   login(@Body() body: Record<string, unknown>) {
     if (this.platform.localIdentity) {
       return this.platform.localIdentity.passwordLogin({
-        username: body['username'], password: body['password'], newPassword: body['new_password'],
+        username: body['username'], password: body['password'], newPassword: body['new_password'], clientId: body['client_id'],
       });
     }
     throw new PlatformError('INFRA_UNAVAILABLE');

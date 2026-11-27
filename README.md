@@ -15,6 +15,8 @@ Zhinexus 用于集中管理、预览、发布和复用企业图表与组件资�
 
 网页发布可分别导入冻结产物与截图，交错读取时保留已导入文件。截图按清单中的真实示例和框架实现关联，逐实现缺图或文件摘要不一致仍会阻断提交。
 
+CLI 登录运行 `juz login --api-url http://127.0.0.1:3000`，在终端选择账号密码、浏览器授权或 Token；也可用 `--method password --username <账号>`、`--method browser` 或 `--token <token>` 直接选择。密码隐藏输入，首次登录按提示换密，仅保存验证后的 Token 和 API 地址。HTTP/HTTPS 均可，HTTP 会提示建议使用 HTTPS。
+
 ## 技术架构
 
 | 模块 | 技术 |

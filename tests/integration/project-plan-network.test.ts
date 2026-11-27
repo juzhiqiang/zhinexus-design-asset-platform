@@ -6,7 +6,7 @@
  * .superpowers/t15/c-plan-next-stage-2026-11-17.md、.superpowers/t15/c-plan-red-fixture-precheck-2026-11-17.md。
  *
  * 覆盖：GET 请求身份不符、包摘要损坏、registry dist.integrity 与实收 bytes 不符、
- * 下载超限/超时/跨 origin 重定向、URL 内嵌凭证与非 loopback HTTP、令牌不进入输出、
+ * 下载超限/超时/跨 origin 重定向、URL 内嵌凭证与非 HTTP(S) 协议、令牌不进入输出、
  * 网络请求等待期间项目被并发编辑、tarball 响应暂停期间远端撤权后必须复读并拒绝 planned，
  * 以及 dangling 逃逸链接、matched 兼容未验证响应的远端值脱敏、权威依赖与本地锁版本冲突。
  * 本地 HTTP stub 仅作协议测试，标为 synthetic；真实服务联调由 C 负责。
@@ -553,13 +553,13 @@ describe('T15 P1 接入计划远端边界（loopback 协议测试）', () => {
     expect(registryRequests.length).toBe(0);
   });
 
-  it('非 loopback 的 HTTP 地址：执行错误且不发出任何请求', async () => {
+  it('非 HTTP(S) 的地址：执行错误且不发出任何请求', async () => {
     const root = vuePnpmProject('plain-http');
     const plan = matchPlan(TARBALL_SHA256);
 
-    const { result, thrown } = await runPlan(root, plan, planOptions({ apiUrl: 'http://example.invalid' }));
+    const { result, thrown } = await runPlan(root, plan, planOptions({ apiUrl: 'ftp://example.invalid' }));
 
-    expect(result, '非 loopback HTTP 是执行错误，不应返回计划').toBeUndefined();
+    expect(result, '非 HTTP(S) 协议是执行错误，不应返回计划').toBeUndefined();
     expectPlanError(thrown, 'INVALID_ENDPOINT');
     expect(apiRequests.length).toBe(0);
     expect(registryRequests.length).toBe(0);

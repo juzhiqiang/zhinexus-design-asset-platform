@@ -40,6 +40,7 @@ export type AccessSettingsView = {
 };
 export type OidcCliMetadata = {
   issuer: string; audience: string; clientId: string; redirectUri: string; authorizationEndpoint: string; tokenEndpoint: string; scopes: string[]; generation:string;
+  passwordLoginEndpoint?: string; browserAuthorizationEndpoint?: string;
 };
 export type AccessMutation = {
   expectedGeneration: string; expectedRevision?: string | null; config?: OidcAccessConfig | PreviewAccessConfig; revision?: string;
@@ -110,10 +111,11 @@ function parseEndpoint(value: string): URL | undefined {
   } catch { /* Reject ambiguous or malformed endpoints. */ }
 }
 export function validateOidcCliMetadata(input:unknown): ValidationResult<OidcCliMetadata> {
-  const parsed = validateSchema<OidcCliMetadata>(object({issuer:identifier,audience:identifier,clientId:identifier,redirectUri:identifier,authorizationEndpoint:identifier,tokenEndpoint:identifier,scopes:{type:'array',items:identifier},generation:{...identifier,pattern:'^(0|[1-9][0-9]{0,17})$'}}),input);
+  const parsed = validateSchema<OidcCliMetadata>(object({issuer:identifier,audience:identifier,clientId:identifier,redirectUri:identifier,authorizationEndpoint:identifier,tokenEndpoint:identifier,passwordLoginEndpoint:identifier,browserAuthorizationEndpoint:identifier,scopes:{type:'array',items:identifier},generation:{...identifier,pattern:'^(0|[1-9][0-9]{0,17})$'}},['passwordLoginEndpoint','browserAuthorizationEndpoint']),input);
   if (!parsed.ok) return parsed;
   const value = parsed.value, cli = parseEndpoint(value.redirectUri);
-  if (!cli || cli.protocol !== 'http:' || cli.hostname !== '127.0.0.1' || Number(cli.port)<1024 || cli.pathname === '/' || ![value.issuer,value.authorizationEndpoint,value.tokenEndpoint].every(endpoint => parseEndpoint(endpoint)?.protocol === 'https:')) {
+  const endpoints = [value.issuer,value.authorizationEndpoint,value.tokenEndpoint,value.passwordLoginEndpoint,value.browserAuthorizationEndpoint].filter((endpoint): endpoint is string => endpoint !== undefined);
+  if (!cli || cli.protocol !== 'http:' || cli.hostname !== '127.0.0.1' || Number(cli.port)<1024 || cli.pathname === '/' || !endpoints.every(endpoint => ['http:','https:'].includes(parseEndpoint(endpoint)?.protocol ?? ''))) {
     return {ok:false,issues:[{code:'INVALID_SCHEMA',path:'',message:'Invalid company CLI endpoints'}]};
   }
   return parsed;

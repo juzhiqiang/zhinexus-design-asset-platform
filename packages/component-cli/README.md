@@ -19,7 +19,17 @@ juz dev
 
 只开发 Vue 时改为 `--framework vue`；确定需要两个独立发布包时再用 `--framework all`，日常源码分别位于 `packages/react/src` 和 `packages/vue/src`。
 
-首次登录配置 API 地址，后续自动复用。自动化可用 `juz login --api-url <origin> --token <token>`；token 保存在用户目录，不进入项目或发布包。
+首次运行 `juz login --api-url <origin>`，选择账号密码、浏览器授权或 Token，后续自动复用服务器地址。HTTP/HTTPS 均可，HTTP 只提示建议使用 HTTPS。三种方式任选一种：
+
+```sh
+juz login --method password --username <账号> --api-url http://127.0.0.1:3000
+juz login --method browser --api-url http://127.0.0.1:3000
+juz login --api-url http://127.0.0.1:3000 --token <token>
+```
+
+账号密码登录需要平台提供自托管密码入口。密码和 `--method token` 手动输入的 Token 均隐藏输入；首次登录按提示设置新密码。密码不接受命令行参数且不保存，只将验证后的 Token 和精确 API origin 保存在用户目录，不进入项目或发布包。自动化可用 `--token`；不要将真实 Token 写入脚本或日志。HTTPS 仍校验证书，私有 CA 可用 `--ca-file`。
+
+`integrate plan/apply` 的 API 与 registry 地址同样支持 HTTP/HTTPS，建议使用 HTTPS；仍拒绝重定向并分离两类凭证。
 
 日常像普通组件一样编辑 `src/Demo.tsx` 或 `src/Demo.vue`，使用 Props、回调 / Emits 与框架生命周期。`juz dev` 热更新源码；在对应包中运行 `pnpm typecheck` / `pnpm build`。模板的 `pnpm dev` 是构建导出监听。默认消费者桥接与 Vue 声明整理工具放在 `.juz/`，通常无需编辑，应纳入版本管理；它们不会进入组件 npm 包。`playground.json` 是唯一示例输入，可通过工作台保存。
 

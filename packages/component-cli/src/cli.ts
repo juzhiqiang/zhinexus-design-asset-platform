@@ -17,7 +17,7 @@ export async function runCli(
 
   juz create <目录> --framework react|vue|all  创建离线可运行模板
   juz init      接入已有组件包；本地分类可以暂未分配
-  juz login     登录平台并记住 API 地址（首次可加 --api-url <origin>）
+  juz login     选择账号密码、浏览器授权或 Token 登录（首次可加 --api-url <origin>）
   juz dev       启动本地工作台（127.0.0.1:1111）；旧开发脚本用 --script
   juz preview --bundle-dir <目录>  只读预览冻结材料
   juz package   本地构建、验证冻结产物，生成本地 ZIP（后台需解压导入）
@@ -26,7 +26,10 @@ export async function runCli(
 在已有组件项目目录运行；子包可通过 juz init --package <相对路径> 选择。
 本地开发无需登录。冻结前通过 --category <平台分类 ID> 或工作台分配分类；发布时检查身份和权限。
 工作台支持 --port <端口>、--no-open、--package <包名>；多包打包和发布必须选择 --package。
+账号密码：juz login --method password --username <账号>（隐藏输入密码）
+浏览器授权：juz login --method browser
 令牌登录：juz login --api-url <origin> --token <token>
+平台地址支持 HTTP/HTTPS，建议使用 HTTPS。
 更多参数与兼容命令：juz --help-all
 版本：juz --version
 `,
@@ -39,7 +42,8 @@ export async function runCli(
       stdout: `juz CLI v${version} — 完整命令（兼容 component）
 
 用法:
-  component login [--api-url <origin>] [--token <token>] [--credential-file <path>] [--ca-file <path>] [--candidate <revision>]
+  juz login [--api-url <origin>] [--method password|browser|token] [--username <账号> | --token <token>] [--credential-file <path>] [--ca-file <path>]
+  component login --method browser --candidate <revision> [--api-url <origin>]
   component check [--framework vue|react|all] [--staging-dir <dir>]
   component init --package <relative-dir> --component <id> --export <name> --framework vue|react|all --category <id> [--project <root>]
   juz create <目录> --framework react|vue|all
@@ -67,7 +71,7 @@ export async function runCli(
   component --help
 
 可用命令:
-  login            公司 OIDC S256 回环登录，保存当前 API 的用户私有凭证
+  login            账号密码、浏览器 OIDC S256 回环授权或 Token 三选一
   check            本地构建、冻结、干净消费者验证、截图与报告生成闭环
   prepare-release  整理并生成合法的 ReleaseManifestV1 与完整冻结发布材料 Bundle
   baseline         管理与确认本地自动验证产生的视觉回归基线
@@ -77,6 +81,9 @@ export async function runCli(
   doctor           发布前检查身份/ACL/分类
   release/status   上传冻结材料与原会话恢复；项目恢复自动复用每包 .component-state 指针
 
+交互运行 login 可选择登录方式；--username 直接选择账号密码，密码与手动输入的 Token 隐藏输入。
+首次登录按提示更换临时密码；只保存通过 API 验证的 Token 和地址，不保存密码。
+API 地址支持 HTTP/HTTPS，HTTP 仅提示建议使用 HTTPS；HTTPS 仍校验证书，私有 CA 用 --ca-file。
 发布、状态与基线命令按 --token、环境凭证、已保存登录的顺序选择认证。
 保存的凭证只用于完全匹配的 API origin，过期后需重新登录；自定义登录文件可通过
 ZHINEXUS_CREDENTIAL_FILE 指定。候选登录使用 ZHINEXUS_API_TOKEN 管理员凭证，只记录验证结果。
@@ -115,17 +122,32 @@ plan.commands 只是展示数据，不执行项目 build/typecheck）；stdout �
     return result;
   }
   if (command === 'login') {
+    const warnings: string[] = [];
     try {
       const options:Record<string,string> = {};
       for (let i=0;i<rest.length;i+=2) {
         const key=rest[i]!,value=rest[i+1];
-        if (!['--api-url','--credential-file','--ca-file','--candidate','--token','--timeout'].includes(key) || !value || value.startsWith('--') || options[key] !== undefined) throw new Error();
+        if (!['--api-url','--credential-file','--ca-file','--candidate','--token','--timeout','--method','--username'].includes(key) || !value || value.startsWith('--') || options[key] !== undefined) throw new Error();
         options[key]=value;
       }
-      const { companyLogin } = await import('./commands/login.js');
-      const result = await companyLogin({ apiOrigin:options['--api-url'], token:options['--token'], credentialFile:options['--credential-file'],caFile:options['--ca-file'],candidate:options['--candidate'],administratorToken:process.env.ZHINEXUS_API_TOKEN, timeoutMs:options['--timeout'] === undefined ? undefined : Number(options['--timeout']) });
-      return {exitCode:0,stdout:JSON.stringify(result)+'\n',stderr:''};
-    } catch { return {exitCode:1,stdout:'',stderr:'公司登录失败：请检查接入地址、客户端、回调端口与授权。\n'}; }
+      const { companyLogin, LoginError } = await import('./commands/login.js');
+      const method = options['--method'] ?? (options['--token'] !== undefined ? 'token' : options['--username'] !== undefined ? 'password' : options['--candidate'] ? 'browser' : context.select ? await context.select('选择登录方式', [{value:'password',label:'账号密码'}, {value:'browser',label:'浏览器授权'}, {value:'token',label:'Token'}]) : 'browser');
+      if (!['password','browser','token'].includes(method) || (options['--token'] !== undefined && method !== 'token') || (options['--username'] !== undefined && method !== 'password') || (options['--candidate'] && method !== 'browser')) throw new LoginError('LOGIN_METHOD_CONFLICT');
+      const secret = async (label: string) => { if (!context.promptSecret) throw new LoginError('INTERACTIVE_REQUIRED'); return context.promptSecret(label); };
+      const username = method === 'password' ? options['--username'] ?? (context.prompt ? await context.prompt('username') : undefined) : undefined;
+      if (method === 'password' && !username?.trim()) throw new LoginError('USERNAME_REQUIRED');
+      const password = method === 'password' ? await secret('password') : undefined;
+      const token = method === 'token' ? options['--token'] ?? await secret('token') : undefined;
+      const result = await companyLogin({ apiOrigin:options['--api-url'], method:method as 'password'|'browser'|'token', username, password, token, credentialFile:options['--credential-file'],caFile:options['--ca-file'],candidate:options['--candidate'],administratorToken:process.env.ZHINEXUS_API_TOKEN, timeoutMs:options['--timeout'] === undefined ? undefined : Number(options['--timeout']),
+        onWarning: message => { if (context.onProgress) context.onProgress(message); else warnings.push(message); },
+        requestNewPassword: async () => { const next = await secret('newPassword'); if (!next || next !== await secret('confirmPassword')) throw new LoginError('PASSWORD_CONFIRMATION_MISMATCH'); return next; },
+      });
+      return {exitCode:0,stdout:JSON.stringify(result)+'\n',stderr:warnings.map(message => message+'\n').join('')};
+    } catch(error) {
+      const code = error instanceof Error && 'code' in error ? String(error.code) : '';
+      const messages: Record<string,string> = { LOGIN_METHOD_CONFLICT:'请选择一种登录方式，不能混用账号密码、浏览器与 Token 参数。', INTERACTIVE_REQUIRED:'请在交互终端输入密码或 Token；自动化可使用 --token。', USERNAME_REQUIRED:'请输入账号，或通过 --username 指定账号。', PASSWORD_CHANGE_REQUIRED:'首次登录需设置新密码。', PASSWORD_CONFIRMATION_MISMATCH:'两次新密码不一致。', UNAUTHENTICATED:'账号密码或令牌无效，请检查后重试。', FORBIDDEN:'账号已停用或没有访问权限。', INFRA_UNAVAILABLE:'账号服务不可用，请检查 API 身份服务和数据库配置。', PASSWORD_LOGIN_UNAVAILABLE:'当前平台未提供账号密码登录，请选择浏览器授权或 Token。', PASSWORD_ENDPOINT_INVALID:'账号密码端点必须与所选 API 同源。', API_ORIGIN_INVALID:'API 地址须为完整的 HTTP 或 HTTPS origin。' };
+      return {exitCode:1,stdout:'',stderr:warnings.map(message => message+'\n').join('')+'公司登录失败：'+(messages[code] ?? '请检查参数、接入地址、客户端、回调端口与授权。')+'\n'};
+    }
   }
 
   if (command === 'prepare-release' || (command === 'release' && rest.includes('--prepare-only'))) {

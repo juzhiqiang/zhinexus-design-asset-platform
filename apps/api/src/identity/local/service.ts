@@ -158,15 +158,17 @@ export class LocalIdentityService {
     return { code, state: request.state, redirectUri: request.redirectUri };
   }
 
-  /** Direct username/password sign-in for the admin login page, issuing a standard ES256 access token. */
-  async passwordLogin(value: { username: unknown; password: unknown; newPassword?: unknown }): Promise<{ access_token: string; token_type: 'Bearer'; expires_in: number; scope: string }> {
+  /** Direct username/password sign-in for the registered web or CLI client. */
+  async passwordLogin(value: { username: unknown; password: unknown; newPassword?: unknown; clientId?: unknown }): Promise<{ access_token: string; token_type: 'Bearer'; expires_in: number; scope: string }> {
+    const requestedClient = value.clientId === undefined ? this.options.webClientId : value.clientId;
+    if (requestedClient !== this.options.webClientId && requestedClient !== this.options.cliClientId) throw new PlatformError('INVALID_SCHEMA');
     const candidate = await this.verifyCredentials(value);
     const { kid, key } = await this.keys.active();
     const now = Math.floor(Date.now() / 1000);
     const accessToken = await issueAccessToken(key, kid, {
       subject: candidate.subject, managedUserId: candidate.managedUserId, roles: candidate.roles as ManagedAccountRole[],
       accountVersion: candidate.version, authTime: now,
-    }, { issuer: this.options.issuer, audience: this.options.audience, clientId: this.options.webClientId }, now);
+    }, { issuer: this.options.issuer, audience: this.options.audience, clientId: requestedClient }, now);
     return { access_token: accessToken, token_type: 'Bearer', expires_in: ACCESS_TOKEN_SECONDS, scope: 'openid' };
   }
 

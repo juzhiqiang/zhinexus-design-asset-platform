@@ -2,7 +2,7 @@
  * T15 P1 plan 阶段远端只读读取。
  *
  * 安全边界（全部对 API 与 registry 一致生效）：
- * - 地址不得含内嵌凭证（userinfo）；仅 HTTPS，或显式本地 loopback HTTP（测试用）；
+ * - 地址不得含内嵌凭证（userinfo）；支持 HTTP/HTTPS，建议使用 HTTPS；
  * - 不自动跟随任何重定向（`redirect: 'manual'` + 3xx/opaqueredirect 一律拒绝），因此重定向目的地零请求；
  * - 流式读取并强制 50 MiB 限额，超限即中止，不在目标项目写任何下载缓存；
  * - 请求超时上限由调用方给出；两类令牌分别注入各自请求头，互不转发，也绝不进入返回值；
@@ -68,14 +68,8 @@ const DEFAULT_TIMEOUT_MS = 30_000;
 /** 权威组件匹配查询路径（二期既有端点）。 */
 const COMPONENT_MATCH_PATH = '/v1/matching/components';
 
-function isLoopbackHost(hostname: string): boolean {
-  const host = hostname.toLowerCase().replace(/^\[|\]$/g, '');
-  if (host === 'localhost' || host === '::1') return true;
-  return /^127(?:\.\d{1,3}){3}$/.test(host);
-}
-
 /**
- * 校验远端地址：必须可解析、无内嵌凭证，且为 HTTPS 或显式 loopback HTTP。
+ * 校验远端地址：必须可解析、无内嵌凭证，且为 HTTP/HTTPS。
  * 返回规范化后的 URL（去掉末尾斜杠），失败时给出稳定的 INVALID_ENDPOINT。
  */
 function validateEndpoint(raw: string, label: string): { ok: true; origin: string } | RegistryReadFailure {
@@ -88,8 +82,8 @@ function validateEndpoint(raw: string, label: string): { ok: true; origin: strin
   if (parsed.username || parsed.password) {
     return { ok: false, code: 'INVALID_ENDPOINT', message: `${label} 不得包含内嵌凭证` };
   }
-  if (parsed.protocol !== 'https:' && !(parsed.protocol === 'http:' && isLoopbackHost(parsed.hostname))) {
-    return { ok: false, code: 'INVALID_ENDPOINT', message: `${label} 仅支持 HTTPS，或显式本地 loopback HTTP` };
+  if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') {
+    return { ok: false, code: 'INVALID_ENDPOINT', message: `${label} 仅支持 HTTP/HTTPS` };
   }
   return { ok: true, origin: parsed.origin };
 }

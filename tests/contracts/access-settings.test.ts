@@ -52,7 +52,10 @@ describe('access settings contracts', () => {
     if (!validate) return;
     const value = {issuer:identity.issuer,audience:identity.audience,clientId:'cli',redirectUri:identity.cliRedirectUri,authorizationEndpoint:identity.issuer+'/authorize',tokenEndpoint:identity.issuer+'/token',scopes:[],generation:'0'};
     expect(validate(value).ok).toBe(true);
-    expect(validate({...value,tokenEndpoint:'http://id.example.com/token'}).ok).toBe(false);
+    expect(validate({...value,tokenEndpoint:'http://id.example.com/token'}).ok).toBe(true);
+    expect(validate({...value,passwordLoginEndpoint:'http://id.example.com/login',browserAuthorizationEndpoint:'http://admin.example.com/login'}).ok).toBe(true);
+    expect(validate({...value,tokenEndpoint:'file:///secret'}).ok).toBe(false);
+    expect(validate({...value,passwordLoginEndpoint:'https://user:secret@id.example.com/login'}).ok).toBe(false);
     expect(validate({...value,redirectUri:'http://127.0.0.1:43129/'}).ok).toBe(false);
   });
   it('validates settings responses before exposing them to the administrator',()=>{

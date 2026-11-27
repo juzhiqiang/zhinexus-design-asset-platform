@@ -2,14 +2,13 @@ import {operationTimeout} from './lifecycle.js';
 import * as fs from 'node:fs/promises';
 import { z } from 'zod';
 import { validatePublishingOptions } from '../contracts/categories.js';
-import { resolvePlatformApiUrl, resolvePlatformToken } from '../local/credentials.js';
+import { platformApiOrigin, resolvePlatformApiUrl, resolvePlatformToken } from '../local/credentials.js';
 import { projectPath, readVariantApi, type LoadedProject, type ProjectVariant } from './config.js';
 import { consumerTemplate } from './consumer.js';
 
 export async function publishingAccess(apiInput?: string, tokenInput?: string) {
   const apiUrl = (await resolvePlatformApiUrl(apiInput) ?? 'http://127.0.0.1:3000').replace(/\/+$/, '');
-  const url = new URL(apiUrl);
-  if (url.origin !== apiUrl || url.username || url.password || (url.protocol !== 'https:' && !(url.protocol === 'http:' && ['127.0.0.1', 'localhost'].includes(url.hostname)))) throw new Error('API_ORIGIN_INVALID');
+  platformApiOrigin(apiUrl);
   const token = await resolvePlatformToken(apiUrl, tokenInput);
   if (!token) throw new Error('UNAUTHENTICATED: 请先 component login 或提供 --token');
   const get = async (endpoint: string): Promise<unknown> => {

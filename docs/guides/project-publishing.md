@@ -8,7 +8,7 @@
 
 ```powershell
 pnpm --filter @company/component-cli pack:juz
-npm install -g .\packages\component-cli\.release\juz-cli-0.1.0.tgz
+npm install -g .\packages\component-cli\.release\juz-cli-<version>.tgz
 juz --version
 ```
 
@@ -33,7 +33,17 @@ juz dev
 juz login --api-url http://127.0.0.1:3000
 ```
 
-首次登录记住服务器地址，后续 `juz login`、`juz publish` 自动复用。login 打开平台登录页，也可用 `juz login --api-url <平台地址> --token <token>`。不从 token 猜测服务器；平台 API 地址由首次登录显式选择。`--api-url`、环境 `PLATFORM_API_URL` / `ZHINEXUS_API_URL` 优先于保存的地址，凭据只用于完全匹配的 origin。
+首次登录记住服务器地址，后续 `juz login`、`juz publish` 自动复用。终端提供账号密码、浏览器授权、Token 三种选择，也可直接指定一种：
+
+```powershell
+juz login --method password --username admin --api-url http://127.0.0.1:3000
+juz login --method browser --api-url http://127.0.0.1:3000
+juz login --api-url http://127.0.0.1:3000 --token <token>
+```
+
+账号密码登录需要自托管身份服务；密码隐藏输入，首次登录按提示设置并确认新密码，不保存密码。`--method token` 可隐藏输入 Token；`--token` 适用于已有凭证或自动化。HTTP/HTTPS 都支持，HTTP 仅提示建议使用 HTTPS，不额外阻断。HTTPS 仍校验证书，私有 CA 用 `--ca-file <文件>`。
+
+不从 Token 猜测服务器；平台 API 地址由首次登录显式选择。`--api-url`、环境 `PLATFORM_API_URL` / `ZHINEXUS_API_URL` 优先于保存的地址，凭据只用于完全匹配的 origin。更新 CLI 后需同步构建并重启 API，才能使用新增的密码入口元数据和 CLI 客户端签发；外部公司身份源仍可选择浏览器授权或已有 Token。
 
 `juz init` 引导填写已有组件包目录（默认当前目录）、组件 ID、导出名称和 Vue/React 框架，补充缺失材料并创建 `component.config.json`。本地草稿可以不分配分类，冻结前再登录工作台选择管理员维护的启用分类，或使用 `--category <id>`。`--source <项目内入口>` 显式登记源码，CLI 不猜测业务初始化逻辑。
 

@@ -22,6 +22,8 @@
 
 ## 身份鉴权、凭证与日志
 
+- 2026-11-27 用户授权：CLI 平台接入允许 HTTP 与 HTTPS，HTTP 只提示推荐 HTTPS，不强制确认或阻断；此范围仅限 CLI 客户端接入，不降低浏览器、生产身份源或预览部署的既有策略。三种登录方式（账号密码、浏览器 PKCE、Token）共用服务端身份与 ACL；账号密码需取得真实 CLI client 的令牌，密码不回显、不持久化，不能借用 web client 冒充自动验证来源。
+
 - CLI（OIDC PKCE / 本地回环回调）与网页端共用同一 OIDC 身份体系（操作者 `subject` 一律从服务端鉴权上下文提取，不信任请求体字段），按角色与组件负责人校验上传、发布、基线更新和版本废弃权限。
 - Verdaccio 严格分离平台发布服务专用的写入账号与开发者/业务项目的只读消费凭证；客户端不直接持有 PostgreSQL、MinIO 或 Verdaccio 的写凭证。
 - 数据库密码、MinIO 密钥、Verdaccio Token、OIDC Client Secret、Cookie 等敏感值只能通过环境变量或密钥管理注入，严禁写入代码、配置文件、`docs/verification/` 日志、检查报告或 Git 提交。

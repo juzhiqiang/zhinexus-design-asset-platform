@@ -56,6 +56,11 @@ const REJECTED_FIELDS: ReadonlyArray<{ field: string; value: string }> = [
 ];
 
 describe('登录页渲染授权表单', () => {
+  it('接受 CLI 的精确 IPv4 回环回调并继续使用账号密码表单', async () => {
+    const query = { ...request, client_id: 'zhinexus-cli', redirect_uri: 'http://127.0.0.1:54321/callback', nonce: '' };
+    expect(await render(query)).toContain('name="redirect_uri" value="http://127.0.0.1:54321/callback"');
+    for (const redirect_uri of ['http://127.0.0.1:80/callback', 'http://127.0.0.1.attacker.test:54321/callback', 'http://192.0.2.10:54321/callback']) expect(await render({ ...query, redirect_uri })).toContain('登录入口无效或已过期');
+  });
   it('接受配置匹配的精确本地回调，拒绝其他回环端口与路径', async () => {
     expect(await render({ ...request, redirect_uri: API_ORIGIN + '/v1/auth/oidc/callback' })).toContain('method="post"');
     for (const redirect_uri of ['http://127.0.0.1:3001/v1/auth/oidc/callback', API_ORIGIN + '/other', 'http://127.0.0.1.attacker.test:3000/v1/auth/oidc/callback']) {

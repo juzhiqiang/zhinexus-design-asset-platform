@@ -1,6 +1,6 @@
 # juz 本地工作台实操指南
 
-适用于 juz-cli 0.1.2。本分支平台根版本 0.2.5。所有组件构建、消费者安装和 Chromium 截图都在开发者电脑运行。
+所有组件构建、消费者安装和 Chromium 截图都在开发者电脑运行。当前 CLI 版本以 `juz --version` 为准。
 
 ## 安装与第一次启动
 
@@ -8,7 +8,7 @@
 
 ```powershell
 pnpm --filter @company/component-cli pack:juz
-npm install -g .\packages\component-cli\.release\juz-cli-0.1.2.tgz
+npm install -g .\packages\component-cli\.release\juz-cli-<version>.tgz
 juz --version
 
 # 从空项目开始

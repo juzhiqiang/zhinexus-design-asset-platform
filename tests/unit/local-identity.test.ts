@@ -337,6 +337,21 @@ describe('standalone password change', () => {
 });
 
 describe('direct password login', () => {
+  it('issues CLI tokens only for the configured CLI client and leaves web login unchanged', async () => {
+    const { db, accounts, credentials } = fakeDatabase();
+    const service = new LocalIdentityService(new LocalIdentityStore(db), new LocalSigningKeys(db), options);
+    accounts.set('acct-1', { id: 'acct-1', subject: 'remote-lin', platform_subject: 'managed:lin.wei', username: 'lin.wei', roles: ['publisher'], enabled: true, version: '2', auth_time_floor: 0 });
+    credentials.set('acct-1', { passwordHash: await hashPassword('current-pass-123'), mustChange: false });
+    const input = { username: 'lin.wei', password: 'current-pass-123' };
+    const cli = await service.passwordLogin({ ...input, clientId: options.cliClientId });
+    const keys = createLocalJWKSet(await service.jwks() as never);
+    expect((await jwtVerify(cli.access_token, keys)).payload.azp).toBe(options.cliClientId);
+    const web = await service.passwordLogin(input);
+    expect((await jwtVerify(web.access_token, keys)).payload.azp).toBe(options.webClientId);
+    for (const clientId of ['unregistered', '', null, {}]) {
+      expect(codeOf(await capture(() => service.passwordLogin({ ...input, clientId })))).toBe('INVALID_SCHEMA');
+    }
+  });
   it('issues a verifiable ES256 access token and enforces first-login password replacement', async () => {
     const { db, accounts, credentials } = fakeDatabase();
     const store = new LocalIdentityStore(db);

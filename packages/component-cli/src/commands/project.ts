@@ -13,7 +13,7 @@ import { computeBufferSha256 } from '../local/digest.js';
 import { createBundleZip } from '../project/archive.js';
 import { excludeRootReleaseArtifacts } from '../project/package-ignore.js';
 
-export type ProjectCliContext = { cwd?: string; onProgress?: (message: string) => void; prompt?: (label: string, defaultValue?: string) => Promise<string>; select?: (label: string, choices: { value: string; label: string }[]) => Promise<string> };
+export type ProjectCliContext = { cwd?: string; onProgress?: (message: string) => void; prompt?: (label: string, defaultValue?: string) => Promise<string>; promptSecret?: (label: string) => Promise<string>; select?: (label: string, choices: { value: string; label: string }[]) => Promise<string> };
 
 async function packageManager(root: string, packageDir: string): Promise<'npm' | 'pnpm'> {
   let directory = await projectPath(root, packageDir);

@@ -4,6 +4,8 @@
 
 ## 入口与信任边界
 
+CLI 登录元数据 `OidcCliMetadata` 允许 HTTP/HTTPS，HTTPS 为客户端建议。兼容可选字段 `passwordLoginEndpoint` 与 `browserAuthorizationEndpoint` 由自托管身份服务提供；密码入口必须由 CLI 额外校验与所选 API 精确同源。浏览器授权继续使用 S256 PKCE，`redirectUri` 只允许无凭据、查询或片段的 `http://127.0.0.1:<非特权端口>/<回调路径>`。此兼容调整不放宽平台生产身份源和预览部署策略。
+
 ```ts
 import {
   validateManifest, validateCheckReport, validateEnvironment,
