@@ -50,6 +50,20 @@ pnpm exec vitest run tests/integration/project-plan-network.test.ts
 - 代码审查者只读检查实现和测试，未发现阻断问题；另用 Windows PTY 的虚构输入确认秘密不回显及 Ctrl+C 可取消。
 - 当前本机 API 元数据已返回新增密码/浏览器入口；仅检查公开元数据，没有读取或替换用户登录凭据。
 
+## 升版与最终安装
+
+功能提交：`31c29807`。兼容变化按 0.x 规则递增 PATCH：平台根 0.2.10、CLI 0.1.4、API 0.1.9、admin 0.0.12，CHANGELOG 独立随升版提交。`pnpm install --lockfile-only --ignore-scripts` 返回 Already up to date，锁文件没有手工修改。
+
+升版后再次使用全局 pnpm 执行 `pnpm verify:workspace`、`$env:TURBO_FORCE='true'; pnpm typecheck` 与配置本机 SITE_URL 的 `pnpm build`：分别通过；typecheck 15 个任务、build 11 个任务，均为 0 缓存。
+
+`pnpm --filter @company/component-cli pack:juz` 生成冻结分发包 `packages/component-cli/.release/juz-cli-0.1.4.tgz`（584842 bytes），SHA-256：`fd15cfde4c776f706bdada73b397707ef7feb8ddf68da6c3a50d6de98f857258`。
+
+- 在工作区外新建临时消费者，通过 `npm install --prefix <临时目录> <同一份 tgz> --no-audit --no-fund --foreground-scripts` 安装；真实 postinstall 成功准备 Chromium 缓存，56 个包安装完成。
+- 对已安装包实际运行版本/帮助、HTTP 密码登录、浏览器 S256 PKCE 回环夹具、Token 进程登录、凭据隔离及隐藏输入检查，全部通过。这些登录网络服务明确为本机 synthetic 夹具；真实签名和会话由前述 Nest 平台用例覆盖。
+- 通过 `npm install -g <同一份 tgz> --no-audit --no-fund --foreground-scripts` 更新本机 CLI，postinstall 成功，`juz --version` 实际返回 0.1.4，帮助含三种登录方式和 HTTP 建议。
+- 最终全局 CLI 另用 Windows PTY 输入虚构密码，输出未回显；使用非 HTTP(S) 地址使请求在联网前拒绝，未写入临时凭据文件。
+- 安装后再次计算冻结 tgz SHA-256，和上述摘要一致；没有重新打包，没有读取或替换用户原有登录文件。
+
 ## 边界与基线
 
 未执行 npm/Verdaccio 对外发布、push、tag 或合并；未把本机通过等同公司生产 OIDC、远端 HTTP 网络、生产反向代理和 TLS 部署验收。未运行完整浏览器套件，因 5173–5177 上有用户开发服务，改用独立 Chromium 定向检查；完整套件仍须按原规则释放端口后运行。
