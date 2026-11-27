@@ -165,7 +165,7 @@ describe('signing keys and token issuance', () => {
     expect(verified.payload.platform_account_version).toBe('7');
     expect(verified.payload.platform_managed_user_id).toBe('acct-1');
     expect(verified.payload.auth_time).toBe(now);
-    expect(verified.payload.exp).toBe(now + 300);
+    expect(verified.payload.exp).toBe(now + 7200);
   });
 
   it('refuses subjects that would produce an invalid token', async () => {
@@ -178,6 +178,47 @@ describe('signing keys and token issuance', () => {
     expect(await capture(() => issueAccessToken(key, kid, { ...base, authTime: now + 60 }, config, now))).toBeInstanceOf(Error);
     expect(await capture(() => issueAccessToken(key, kid, { ...base, accountVersion: '1.5' }, config, now))).toBeInstanceOf(Error);
     expect(await capture(() => issueAccessToken(key, kid, { ...base, roles: ['root' as never] }, config, now))).toBeInstanceOf(Error);
+  });
+});
+
+describe('active JWT renewal', () => {
+  async function renewalFixture() {
+    const { db } = fakeDatabase();
+    const keys = new LocalSigningKeys(db);
+    const { kid, key } = await keys.active();
+    const service = new LocalIdentityService(new LocalIdentityStore(db), keys, options);
+    const now = Math.floor(Date.now() / 1000);
+    const subject = { subject: 'identity-user', managedUserId: 'acct-1', roles: ['publisher' as const, 'maintainer' as const], accountVersion: '7', authTime: now - 7100 };
+    const config = { issuer: ISSUER, audience: AUDIENCE, clientId: 'zhinexus-cli' };
+    const principal = { issuer: ISSUER, identitySubject: subject.subject, subject: 'platform-user', clientId: config.clientId, channel: 'cli' as const, roles: ['publisher' as const] };
+    const token = await issueAccessToken(key, kid, subject, config, now - 100);
+    return { service, keys, key, kid, now, subject, config, principal, token };
+  }
+
+  it('issues a fresh two-hour JWT while preserving auth_time, version, subject and client, using current effective roles', async () => {
+    const f = await renewalFixture();
+    const result = await f.service.renew('Bearer ' + f.token, f.principal);
+    const { payload } = await jwtVerify(result.accessToken, createLocalJWKSet(await f.keys.publicJwks()), { issuer: ISSUER, audience: AUDIENCE });
+    expect(result.expiresIn).toBe(7200);
+    expect(result.accessToken).not.toBe(f.token);
+    expect(payload).toMatchObject({ sub: 'identity-user', azp: 'zhinexus-cli', platform_managed_user_id: 'acct-1', platform_account_version: '7', auth_time: f.subject.authTime, roles: ['publisher'] });
+    expect(payload.exp! - payload.iat!).toBe(7200);
+    expect(payload.iat).toBeGreaterThanOrEqual(f.now);
+  });
+
+  it('rejects expired, forged and cookie credentials instead of re-signing them', async () => {
+    const f = await renewalFixture();
+    const expired = await issueAccessToken(f.key, f.kid, { ...f.subject, authTime: f.now - 8100 }, f.config, f.now - 8000);
+    for (const authorization of ['Bearer ' + expired, 'Bearer invalid.jwt.signature', 'Session ' + 'a'.repeat(43)]) {
+      expect(codeOf(await capture(() => f.service.renew(authorization, f.principal)))).toBe('UNAUTHENTICATED');
+    }
+  });
+
+  it('does not mint a local token for a different issuer, identity or client', async () => {
+    const f = await renewalFixture();
+    for (const [principal, code] of [[{ ...f.principal, issuer: 'https://company.example.com' }, 'NOT_FOUND'], [{ ...f.principal, identitySubject: 'someone-else' }, 'UNAUTHENTICATED'], [{ ...f.principal, clientId: 'zhinexus-web' }, 'UNAUTHENTICATED']] as const) {
+      expect(codeOf(await capture(() => f.service.renew('Bearer ' + f.token, principal)))).toBe(code);
+    }
   });
 });
 
@@ -233,7 +274,7 @@ describe('local identity authorization flow', () => {
     expect(codeOf(await capture(() => service.token({ code: grant.code, codeVerifier: verifier, clientId: 'zhinexus-cli', redirectUri: base.redirectUri })))).toBe('UNAUTHENTICATED');
     const tokens = await service.token({ code: grant.code, codeVerifier: verifier, clientId: 'zhinexus-web', redirectUri: base.redirectUri });
     expect(tokens.token_type).toBe('Bearer');
-    expect(tokens.expires_in).toBe(300);
+    expect(tokens.expires_in).toBe(7200);
     expect(codeOf(await capture(() => service.token({ code: grant.code, codeVerifier: verifier, clientId: 'zhinexus-web', redirectUri: base.redirectUri })))).toBe('UNAUTHENTICATED');
   });
 

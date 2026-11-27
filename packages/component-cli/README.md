@@ -29,6 +29,8 @@ juz login --api-url http://127.0.0.1:3000 --token <token>
 
 账号密码登录需要平台提供自托管密码入口。密码和 `--method token` 手动输入的 Token 均隐藏输入；首次登录按提示设置新密码。密码不接受命令行参数且不保存，只将验证后的 Token 和精确 API origin 保存在用户目录，不进入项目或发布包。自动化可用 `--token`；不要将真实 Token 写入脚本或日志。HTTPS 仍校验证书，私有 CA 可用 `--ca-file`。
 
+自托管 JWT 有效期为 2 小时。发布前置检查、上传、状态查询和轮询等平台请求会检查剩余时间，不足 5 分钟且仍有效时自动续签，已保存登录仅在原凭证仍匹配时更新；完全过期后重新 `juz login`。更新 API 和 CLI 后，旧的 5 分钟令牌需重新登录一次。外部 OIDC 的有效期与续签由其身份源控制。
+
 `integrate plan/apply` 的 API 与 registry 地址同样支持 HTTP/HTTPS，建议使用 HTTPS；仍拒绝重定向并分离两类凭证。
 
 日常像普通组件一样编辑 `src/Demo.tsx` 或 `src/Demo.vue`，使用 Props、回调 / Emits 与框架生命周期。`juz dev` 热更新源码；在对应包中运行 `pnpm typecheck` / `pnpm build`。模板的 `pnpm dev` 是构建导出监听。默认消费者桥接与 Vue 声明整理工具放在 `.juz/`，通常无需编辑，应纳入版本管理；它们不会进入组件 npm 包。`playground.json` 是唯一示例输入，可通过工作台保存。

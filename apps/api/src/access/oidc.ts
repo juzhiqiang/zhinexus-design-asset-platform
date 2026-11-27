@@ -182,7 +182,8 @@ export class CompanyOidc {
         await sql.query('INSERT INTO oidc_sessions(token_hash,generation,issuer,identity_subject,principal,expires_at,account_version,auth_time) VALUES ($1,$2,$3,$4,$5,to_timestamp($6),$7,$8)',[digest(token),active.generation,principal.issuer,principal.identitySubject,JSON.stringify(bound),Math.min(accessPayload.exp!,payload.exp!),managed ? Number(managed.version) : null,managed ? authTime : null]);
       });
       const location = attempt.web_target === 'admin' ? this.settings.adminOrigin+'/upload' : this.settings.galleryOrigin+'/library';
-      return { location,cookie:this.cookie('session',token,300) };
+      const remaining = Math.max(0, Math.floor(Math.min(accessPayload.exp!, payload.exp!) - Date.now() / 1000));
+      return { location,cookie:this.cookie('session',token,remaining) };
     } catch { throw new AuthFailure('UNAUTHENTICATED'); }
   }
   async candidateCli(input:unknown): Promise<{ passed:true }> {

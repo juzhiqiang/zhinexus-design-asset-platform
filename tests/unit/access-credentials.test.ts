@@ -8,7 +8,7 @@ import { executeStatusCommand } from '../../packages/component-cli/src/local/rel
 it('uses a saved login only for its exact API origin, with expiry and explicit credential precedence',async()=>{
   const dir=await mkdtemp(join(tmpdir(),'zh-cli-session-')),file=join(dir,'session.local');
   const token=(expiration:number)=>'header.'+Buffer.from(JSON.stringify({exp:expiration})).toString('base64url')+'.signature';
-  const saved=token(Math.floor(Date.now()/1000)+300);
+  const saved=token(Math.floor(Date.now()/1000)+7200);
   try {
     for(const key of ['ZHINEXUS_API_TOKEN','PLATFORM_TOKEN','PLATFORM_API_TOKEN','ZHINEXUS_TOKEN'])vi.stubEnv(key,'');
     vi.stubEnv('ZHINEXUS_CREDENTIAL_FILE',file);

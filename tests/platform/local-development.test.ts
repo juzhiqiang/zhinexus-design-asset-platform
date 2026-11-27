@@ -79,8 +79,11 @@ it.each(['admin', 'gallery'] as const)('local %s OIDC completes PKCE with a real
     expect(session).toMatch(/^zhinexus-dev-platform=/);
     expect(session).toContain('HttpOnly');
     expect(session).toContain('SameSite=Lax');
+    expect(Number(/Max-Age=(\d+)/.exec(session)?.[1])).toBeGreaterThan(7100);
+    expect(Number(/Max-Age=(\d+)/.exec(session)?.[1])).toBeLessThanOrEqual(7200);
     const headers = { cookie: session.split(';')[0]! };
     expect((await fetch(h.origin() + '/v1/auth/oidc/session', { headers })).status).toBe(200);
+    expect((await fetch(h.origin() + '/v1/auth/oidc/renew', { method: 'POST', headers: { ...headers, Origin: 'http://127.0.0.1:5177' } })).status).toBe(401);
     expect((await fetch(h.origin() + '/v1/auth/oidc/logout', { method: 'POST', headers })).status).toBe(403);
     expect((await fetch(h.origin() + '/v1/auth/oidc/logout', { method: 'POST', headers: { ...headers, Origin: 'http://127.0.0.1:5177' } })).status).toBe(200);
     expect((await fetch(h.origin() + '/v1/auth/oidc/session', { headers })).status).toBe(401);

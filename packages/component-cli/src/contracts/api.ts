@@ -19,6 +19,7 @@ export type AcceptedCompatibilityRecord = {
   candidateIntegrity: string; candidateSource: string; status: 'passed'; evidenceSha256: string; createdAt: string;
 };
 export type ApiMessages = {
+  renewTokenResponse: { accessToken: string; expiresIn: number };
   createUploadRequest: { manifestDigest: string; files: ArtifactRef[] };
   createUploadResponse: { uploadSessionId: string; files: { path: string; uploadUrl: string; expiresAt: string; multipart?: { uploadId: string; partSize: number; parts: { partNumber: number; uploadUrl: string; expiresAt: string }[] } }[] };
   completeUploadRequest: { parts: { path: string; partNumber: number; etag: string }[] };
@@ -56,6 +57,7 @@ const compatibilityFields = {
   status: choice('passed'), evidenceSha256: hash, createdAt: timestamp,
 };
 const schemas: Record<keyof ApiMessages, Schema> = {
+  renewTokenResponse: object({ accessToken: { ...text, maxLength: 16384, pattern: '^[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+\\.[A-Za-z0-9_-]+$' }, expiresIn: integer(1) }),
   createUploadRequest: object({ manifestDigest: hash, files: array(artifactSchema, 1) }),
   createUploadResponse: object({ uploadSessionId: identifier, files: array(object({ path: artifactPath, uploadUrl: url, expiresAt: timestamp, multipart: object({ uploadId: text, partSize: integer(5242880), parts: array(object({ partNumber: integer(1, 10000), uploadUrl: url, expiresAt: timestamp }), 1) }) }, ['multipart']), 1) }),
   completeUploadRequest: object({ parts: array(object({ path: artifactPath, partNumber: integer(1), etag: text })) }),

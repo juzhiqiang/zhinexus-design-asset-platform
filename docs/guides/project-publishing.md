@@ -115,4 +115,6 @@ API JSON 例子（按实际组件补充 props/events/notes）：
 
 `juz --help` 显示常用流程，`juz --help-all` 显示底层诊断、恢复和已有 component 兼容命令。检查失败按输出修改项目，再运行 package/publish；不要修改冻结 tarball 或上传后重新打包。
 
-凭据保存于用户目录，自定义路径可用 ZHINEXUS_CREDENTIAL_FILE。过期后重新登录；不要将 token、Cookie 或签名 URL 复制进配置、发布包或问题单。完整恢复边界见[发布与恢复](publishing.md)，本轮结果见[验证记录](../verification/project-publishing.md#2026-11-25-juz-simple-publishingmd)。
+凭据保存于用户目录，自定义路径可用 ZHINEXUS_CREDENTIAL_FILE。自托管 JWT 有效期为 2 小时，CLI 在命令和后续平台请求前检查，剩余不足 5 分钟时自动续签；长时间上传也会检查，但平台凭证不会发往对象存储。已保存登录仅在原凭证仍匹配时原子更新，`--token` 或环境变量中的 Token 不会覆盖其他登录。完全过期、停用或撤权后需要重新登录；旧的 5 分钟令牌不会自动变成两小时，更新 API 和 CLI 后请重新 `juz login` 一次。外部 OIDC 的有效期与续签由其身份源决定，本地平台不会冒签。不要将 token、Cookie 或签名 URL 复制进配置、发布包或问题单。完整恢复边界见[发布与恢复](publishing.md)，本轮结果见[验证记录](../verification/project-publishing.md#2026-11-25-juz-simple-publishingmd)。
+
+登录与自动续签共用凭据写入锁，避免另一终端的新登录被旧续签覆盖。若提示 `CREDENTIAL_BUSY`，先等正在运行的 CLI 操作结束再重试；若上次 CLI 已异常退出，仅在确认无相关操作后手动移除错误信息指明的 `.lock` 文件，保留原凭据文件。

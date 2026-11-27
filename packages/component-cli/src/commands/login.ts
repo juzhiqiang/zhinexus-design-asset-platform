@@ -1,12 +1,11 @@
-import { createHash,randomBytes,randomUUID } from 'node:crypto';
+import { createHash,randomBytes } from 'node:crypto';
 import { createServer,request as httpRequest } from 'node:http';
 import { request as httpsRequest } from 'node:https';
-import { readFile,mkdir,writeFile,rename,rm } from 'node:fs/promises';
-import { dirname,resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { spawn } from 'node:child_process';
 import { rootCertificates } from 'node:tls';
 import { validateOidcCliMetadata } from '../contracts/access-settings.js';
-import { credentialPath, platformApiOrigin, resolvePlatformApiUrl, validPlatformToken } from '../local/credentials.js';
+import { platformApiOrigin, resolvePlatformApiUrl, savePlatformCredential, validPlatformToken } from '../local/credentials.js';
 
 export type LoginMethod = 'password' | 'browser' | 'token';
 export class LoginError extends Error { constructor(readonly code: string) { super(code); } }
@@ -45,16 +44,7 @@ export async function companyLogin(options:LoginOptions):Promise<{authenticated:
       });req.on('error',reject);req.end(body);
     });
   }
-  const saveCredential = async (accessToken: string) => {
-    const target=resolve(credentialPath(options.credentialFile));
-    await mkdir(dirname(target),{recursive:true,mode:0o700});
-    const temporary = target+'.'+randomUUID()+'.local';
-    try {
-      await writeFile(temporary,JSON.stringify({apiOrigin,accessToken})+'\n',{mode:0o600,flag:'wx'});
-      await rename(temporary,target);
-    } finally {await rm(temporary,{force:true});}
-    return target;
-  };
+  const saveCredential = (accessToken: string) => savePlatformCredential(apiOrigin, accessToken, options.credentialFile);
   if (options.token !== undefined) {
     const session = await json(apiOrigin+'/v1/auth/oidc/session',undefined,options.token);
     if (!session || typeof session !== 'object' || !('authenticated' in session) || session.authenticated !== true) throw new Error('Protected access denied');

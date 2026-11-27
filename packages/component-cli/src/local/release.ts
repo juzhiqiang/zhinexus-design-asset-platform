@@ -7,7 +7,7 @@ import { manifestDigest } from '../contracts/digests.js';
 import type { ReleaseManifestV1 } from '../contracts/release-manifest.js';
 import { validateApiMessage, type ApiMessages } from '../contracts/api.js';
 import { loadReleaseBundle } from './manifest.js';
-import { resolvePlatformApiUrl,resolvePlatformToken } from './credentials.js';
+import { platformAuthorization,resolvePlatformApiUrl,resolvePlatformToken } from './credentials.js';
 
 export type ReleaseSession = {
   manifestDigest: string;
@@ -135,6 +135,7 @@ export async function executeReleaseCommand(
   if (!token) {
     throw new Error('AUTH_TOKEN_REQUIRED: 发布必须提供认证凭证 (--token 或 PLATFORM_TOKEN 环境变量)');
   }
+  const authorization = platformAuthorization(apiUrl, token);
 
   const timeoutMs = options.timeoutMs ?? 120_000;
   const deadline = Date.now() + timeoutMs;
@@ -147,7 +148,7 @@ export async function executeReleaseCommand(
         method: 'POST',
         redirect: 'error', headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${token}`,
+          authorization: await authorization(),
         },
         body: JSON.stringify({ parts: [] }),
         signal: operationTimeout(30_000),
@@ -176,7 +177,7 @@ export async function executeReleaseCommand(
       method: 'POST',
       redirect: 'error', headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
+        authorization: await authorization(),
       },
       body: JSON.stringify({
         manifestDigest: currentDigest,
@@ -210,6 +211,8 @@ export async function executeReleaseCommand(
         throw new Error(`BUNDLE_FILE_MISSING: Bundle 缺少待上传文件: ${filePlan.path}`);
       }
 
+      // Keep the platform credential current during a long upload, without sending it to storage.
+      await authorization();
       const putRes = await fetch(filePlan.uploadUrl, {
         method: 'PUT',
         redirect: 'error', headers: {
@@ -231,7 +234,7 @@ export async function executeReleaseCommand(
       method: 'POST',
       redirect: 'error', headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
+        authorization: await authorization(),
       },
       body: JSON.stringify({ parts: [] }),
       signal: operationTimeout(30_000),
@@ -257,7 +260,7 @@ export async function executeReleaseCommand(
       method: 'POST',
       redirect: 'error', headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
+        authorization: await authorization(),
         'idempotency-key': session.idempotencyKey,
       },
       body: JSON.stringify({
@@ -287,7 +290,7 @@ export async function executeReleaseCommand(
     const statusRes = await fetch(`${apiUrl}/v1/releases/${session.jobId}`, {
       method: 'GET',
       redirect: 'error', headers: {
-        authorization: `Bearer ${token}`,
+        authorization: await authorization(),
       },
       signal: operationTimeout(15_000),
     });
@@ -336,7 +339,7 @@ export async function executeReleaseCommand(
         method: 'POST',
         redirect: 'error', headers: {
           'content-type': 'application/json',
-          authorization: `Bearer ${token}`,
+          authorization: await authorization(),
         },
         body: JSON.stringify({}),
         signal: operationTimeout(15_000),
@@ -384,9 +387,10 @@ export async function executeStatusCommand(
     };
   }
 
+  const authorization = platformAuthorization(apiUrl, token);
   const res = await fetch(`${apiUrl}/v1/releases/${jobId}`, {
     redirect: 'error', headers: {
-      authorization: `Bearer ${token}`,
+      authorization: await authorization(),
     },
     signal: operationTimeout(15_000),
   });

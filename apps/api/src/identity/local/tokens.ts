@@ -4,11 +4,10 @@ import { randomUUID } from 'node:crypto';
 import { MANAGED_ACCOUNT_ROLES, type ManagedAccountRole } from '@company/contracts';
 
 /**
- * Access-token lifetime. Short by design: this platform both stores credentials and signs
- * tokens, so a leaked token must stop working quickly. Refresh-token rotation is deferred, so
- * the web session cookie — not the access token — carries the longer-lived authentication.
+ * Two-hour access tokens. Active CLI operations can exchange a still-valid token before
+ * expiry; account-version and auth_time checks continue to enforce immediate revocation.
  */
-export const ACCESS_TOKEN_SECONDS = 300;
+export const ACCESS_TOKEN_SECONDS = 7200;
 export type TokenSubject = {
   /** Identity-service subject; the platform maps it to a platform subject after verification. */
   subject: string;

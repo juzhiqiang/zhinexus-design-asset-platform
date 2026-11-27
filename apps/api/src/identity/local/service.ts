@@ -1,6 +1,8 @@
 import { randomBytes } from 'node:crypto';
 import { PlatformError } from '../../errors.js';
-import type { ManagedAccountRole, ValidationIssue } from '@company/contracts';
+import type { ApiMessages, ManagedAccountRole, ValidationIssue } from '@company/contracts';
+import { createLocalJWKSet, jwtVerify, type JSONWebKeySet } from 'jose';
+import type { Principal } from '../../auth/oidc.js';
 import { DUMMY_PASSWORD_HASH, PasswordPolicyError, assertPasswordPolicy, hashPassword, verifyPassword } from './password.js';
 import { LocalSigningKeys } from './keys.js';
 import { ACCESS_TOKEN_SECONDS, issueAccessToken, issueIdToken } from './tokens.js';
@@ -203,6 +205,33 @@ export class LocalIdentityService {
       response.id_token = await issueIdToken(key, kid, { subject: active.subject, nonce: claimed.nonce }, { issuer: this.options.issuer, clientId: claimed.clientId }, now);
     }
     return response;
+  }
+
+  /** The caller must first authenticate this bearer against the current account and access configuration. */
+  async renew(authorization: string | undefined, principal: Principal): Promise<ApiMessages['renewTokenResponse']> {
+    if (principal.issuer !== this.options.issuer) throw new PlatformError('NOT_FOUND');
+    const token = /^Bearer +([A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+)$/i.exec(authorization ?? '')?.[1];
+    if (!token) throw new PlatformError('UNAUTHENTICATED');
+    const keys = createLocalJWKSet(await this.jwks() as JSONWebKeySet);
+    try {
+      const { payload } = await jwtVerify(token, keys, { issuer: this.options.issuer, audience: this.options.audience, algorithms: ['ES256'], requiredClaims: ['exp', 'iat', 'sub', 'azp', 'platform_managed_user_id', 'platform_account_version', 'auth_time'], clockTolerance: 0 });
+      if (payload.sub !== principal.identitySubject || payload.azp !== principal.clientId
+          || ![this.options.webClientId, this.options.cliClientId].includes(principal.clientId)
+          || typeof payload.platform_managed_user_id !== 'string' || typeof payload.platform_account_version !== 'string'
+          || typeof payload.auth_time !== 'number' || typeof payload.iat !== 'number' || payload.iat > Math.floor(Date.now() / 1000)) {
+        throw new PlatformError('UNAUTHENTICATED');
+      }
+      if (!principal.roles.length) throw new PlatformError('FORBIDDEN');
+      const { kid, key } = await this.keys.active();
+      const accessToken = await issueAccessToken(key, kid, {
+        subject: payload.sub!, managedUserId: payload.platform_managed_user_id, roles: [...principal.roles],
+        accountVersion: payload.platform_account_version, authTime: payload.auth_time,
+      }, { issuer: this.options.issuer, audience: this.options.audience, clientId: principal.clientId });
+      return { accessToken, expiresIn: ACCESS_TOKEN_SECONDS };
+    } catch (error) {
+      if (error instanceof PlatformError) throw error;
+      throw new PlatformError('UNAUTHENTICATED');
+    }
   }
 
   private async accountFor(accountId: string) { return this.store.account(accountId); }

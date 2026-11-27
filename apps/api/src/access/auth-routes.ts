@@ -57,6 +57,18 @@ export class CompanyAuthController {
     if (revision) await this.platform.runAdministrator(auth,request.requestId,async () => true);
     return this.checked('oidc-cli',request.requestId,()=>this.runtime().cliMetadata(revision));
   }
+  @Post('renew') @HttpCode(200)
+  renew(@Headers('authorization') auth: string | undefined, @Req() request: { requestId: string }) {
+    return this.checked('oidc-renew', request.requestId, async () => {
+      // A browser session must never be exchangeable for an exportable bearer credential.
+      if (!/^Bearer +/i.test(auth ?? '')) throw new PlatformError('UNAUTHENTICATED');
+      const principal = await this.platform.authenticate(auth);
+      if (!this.platform.localIdentity) throw new PlatformError('NOT_FOUND');
+      const result = await this.platform.localIdentity.renew(auth, principal);
+      if (this.platform.db) await audit(this.platform.db, principal.subject, 'ACCESS_TOKEN_RENEWED', principal.clientId, { expiresIn: result.expiresIn }, request.requestId);
+      return result;
+    });
+  }
   @Post('candidate-cli') @HttpCode(200)
   candidateCli(@Body() body:unknown,@Headers('authorization') auth:string | undefined,@Req() request:{requestId:string}) {
     return this.platform.runAdministrator(auth,request.requestId,() => this.runtime().candidateCli(body));

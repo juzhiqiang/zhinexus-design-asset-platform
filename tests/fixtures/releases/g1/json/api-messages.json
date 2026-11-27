@@ -1,4 +1,8 @@
 {
+  "renewTokenResponse": {
+    "accessToken": "header.payload.signature",
+    "expiresIn": 7200
+  },
   "createUploadRequest": {
     "manifestDigest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "files": [

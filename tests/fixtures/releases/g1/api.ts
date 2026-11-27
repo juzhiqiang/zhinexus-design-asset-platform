@@ -5,6 +5,7 @@ export function makeApiFixtures(): Record<string, unknown> {
   const { manifest } = makeFixture();
   const job = { state: 'RETRY_WAIT', stage: 'ENSURE_PACKAGES', attempt: 2, lastError: { code: 'INFRA_UNAVAILABLE', message: 'Synthetic registry unavailable', details: [], requestId: 'request-synthetic' }, missingArtifacts: [], pollAfterMs: 1000 };
   return {
+    renewTokenResponse: { accessToken: 'header.payload.signature', expiresIn: 7200 },
     createUploadRequest: { manifestDigest: 'a'.repeat(64), files: manifest.files },
     createUploadResponse: { uploadSessionId: 'upload-synthetic', files: manifest.files.map(file => ({ path: file.path, uploadUrl: `https://uploads.example.test/${file.path}`, expiresAt: '2026-11-12T10:00:00.000Z' })) },
     completeUploadRequest: { parts: [{ path: manifest.files[0]!.path, partNumber: 1, etag: 'synthetic-etag' }] },

@@ -3,20 +3,21 @@ import type { AddressInfo } from 'node:net';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { makeFixture } from '../fixtures/releases/g1/factory.js';
 import { manifestDigest } from '../../packages/component-cli/src/contracts/digests.js';
 import {
   executeReleaseCommand, executeStatusCommand, loadReleaseSession, saveReleaseSession,
 } from '../../packages/component-cli/src/local/release.js';
 
-type Stage = 'upload' | 'complete' | 'release' | 'poll';
+type Stage = 'upload' | 'complete' | 'release' | 'poll' | 'renew';
 type Harness = {
   server: Server; origin: string; bundleDir: string;
   fixture: ReturnType<typeof makeFixture>;
   responses: Record<Stage, unknown>;
   rawResponses: Partial<Record<Stage, string>>;
   requests: string[]; uploads: Map<string, Buffer>;
+  authorization: Map<string, string | undefined>;
 };
 
 const readyJob = { state: 'READY', stage: 'READY', attempt: 0, missingArtifacts: [], pollAfterMs: 1 };
@@ -36,6 +37,7 @@ async function createHarness(): Promise<Harness> {
     fs.writeFileSync(filePath, bytes);
   }
   const requests: string[] = [];
+  const authorization = new Map<string, string | undefined>();
   const uploads = new Map<string, Buffer>();
   const rawResponses: Partial<Record<Stage, string>> = {};
   const responses: Record<Stage, unknown> = {
@@ -43,10 +45,12 @@ async function createHarness(): Promise<Harness> {
     complete: { status: 'complete', verifiedFiles: fixture.manifest.files },
     release: { jobId: 'job-valid', state: 'VALIDATING' },
     poll: { ...readyJob },
+    renew: undefined,
   };
   const server = createServer(async (request, response) => {
     const requestPath = request.url ?? '';
     requests.push(`${request.method} ${requestPath}`);
+    authorization.set(`${request.method} ${requestPath}`, request.headers.authorization);
     const chunks: Buffer[] = [];
     for await (const chunk of request) chunks.push(Buffer.from(chunk));
     if (request.method === 'PUT' && requestPath.startsWith('/objects/')) {
@@ -56,6 +60,7 @@ async function createHarness(): Promise<Harness> {
     }
     let stage: Stage;
     if (request.method === 'POST' && requestPath === '/v1/uploads') stage = 'upload';
+    else if (request.method === 'POST' && requestPath === '/v1/auth/oidc/renew') stage = 'renew';
     else if (request.method === 'POST' && requestPath.endsWith('/complete')) stage = 'complete';
     else if (request.method === 'POST' && requestPath === '/v1/releases') stage = 'release';
     else if (request.method === 'GET' && requestPath.startsWith('/v1/releases/')) stage = 'poll';
@@ -75,7 +80,7 @@ async function createHarness(): Promise<Harness> {
       expiresAt: '2026-11-21T12:00:00.000Z',
     })),
   };
-  return { server, origin, bundleDir, fixture, responses, rawResponses, requests, uploads };
+  return { server, origin, bundleDir, fixture, responses, rawResponses, requests, uploads, authorization };
 }
 
 async function seedSession(h: Harness, withJob = false): Promise<string> {
@@ -92,6 +97,7 @@ describe('CLI release successful response validation', () => {
   let h: Harness;
   beforeEach(async () => { h = await createHarness(); });
   afterEach(async () => {
+    vi.restoreAllMocks();
     await new Promise<void>((resolve, reject) => h.server.close(error => error ? reject(error) : resolve()));
     fs.rmSync(h.bundleDir, { recursive: true, force: true });
   });
@@ -108,6 +114,24 @@ describe('CLI release successful response validation', () => {
     expect(h.requests.slice(-3)).toEqual([
       'POST /v1/uploads/upload-valid/complete', 'POST /v1/releases', 'GET /v1/releases/job-valid',
     ]);
+  });
+
+  it('renews after a long upload and uses the new JWT for completion, submission and polling without leaking it to storage', async () => {
+    let now = Math.floor(Date.now() / 1000) * 1000;
+    vi.spyOn(Date, 'now').mockImplementation(() => now);
+    const token = (seconds: number) => 'header.' + Buffer.from(JSON.stringify({ exp: now / 1000 + seconds })).toString('base64url') + '.signature';
+    const original = token(600), renewed = token(7200);
+    h.responses.renew = { accessToken: renewed, expiresIn: 7200 };
+    const result = await executeReleaseCommand({ ...releaseOptions(h), token: original, timeoutMs: 720_000, onProgress: message => {
+      if (message.startsWith('所有文件传输完成')) now += 310_000;
+    } });
+    expect(result).toMatchObject({ ok: true, state: 'READY' });
+    expect(h.authorization.get('POST /v1/uploads')).toBe('Bearer ' + original);
+    expect(h.authorization.get('POST /v1/auth/oidc/renew')).toBe('Bearer ' + original);
+    for (const request of ['POST /v1/uploads/upload-valid/complete', 'POST /v1/releases', 'GET /v1/releases/job-valid']) {
+      expect(h.authorization.get(request), request).toBe('Bearer ' + renewed);
+    }
+    for (const [request, authorization] of h.authorization) if (request.startsWith('PUT ')) expect(authorization).toBeUndefined();
   });
 
   it.each([

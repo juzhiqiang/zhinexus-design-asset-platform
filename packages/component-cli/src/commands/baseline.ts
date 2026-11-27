@@ -2,7 +2,7 @@ import * as fs from 'node:fs/promises';
 import { validateCheckReport } from '../contracts/validation.js';
 import { validateApiMessage, type ApiMessages } from '../contracts/api.js';
 import { computeEnvironmentKey } from '../local/environment.js';
-import { resolvePlatformApiUrl,resolvePlatformToken } from '../local/credentials.js';
+import { platformAuthorization,resolvePlatformApiUrl,resolvePlatformToken } from '../local/credentials.js';
 
 export type AcceptBaselineOptions = {
   reportPath: string;
@@ -198,6 +198,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
   }
 
   const timeoutMs = options.timeoutMs ?? 30_000;
+  const authorization = platformAuthorization(apiUrl, token);
   const fetchFn = options.fetchImpl ?? globalThis.fetch;
 
   let resolvedScreenshotId = targetShot.id;
@@ -209,7 +210,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
       jobRes = await fetchFn(`${apiUrl}/v1/releases/${encodeURIComponent(options.jobId)}`, {
         method: 'GET',
         headers: {
-          authorization: `Bearer ${token}`,
+          authorization: await authorization(),
         },
         redirect: 'error',
         signal: AbortSignal.timeout(timeoutMs),
@@ -282,7 +283,7 @@ export async function acceptBaseline(options: AcceptBaselineOptions): Promise<Ac
       method: 'POST',
       headers: {
         'content-type': 'application/json',
-        authorization: `Bearer ${token}`,
+        authorization: await authorization(),
       },
       body: JSON.stringify(payload),
       redirect: 'error',

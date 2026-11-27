@@ -2,7 +2,7 @@ import {operationTimeout} from './lifecycle.js';
 import * as fs from 'node:fs/promises';
 import { z } from 'zod';
 import { validatePublishingOptions } from '../contracts/categories.js';
-import { platformApiOrigin, resolvePlatformApiUrl, resolvePlatformToken } from '../local/credentials.js';
+import { platformApiOrigin, platformAuthorization, resolvePlatformApiUrl, resolvePlatformToken } from '../local/credentials.js';
 import { projectPath, readVariantApi, type LoadedProject, type ProjectVariant } from './config.js';
 import { consumerTemplate } from './consumer.js';
 
@@ -11,8 +11,9 @@ export async function publishingAccess(apiInput?: string, tokenInput?: string) {
   platformApiOrigin(apiUrl);
   const token = await resolvePlatformToken(apiUrl, tokenInput);
   if (!token) throw new Error('UNAUTHENTICATED: 请先 component login 或提供 --token');
+  const authorization = platformAuthorization(apiUrl, token);
   const get = async (endpoint: string): Promise<unknown> => {
-    const response = await fetch(apiUrl + endpoint, { redirect: 'error', headers: { authorization: 'Bearer ' + token }, signal: operationTimeout(15_000) });
+    const response = await fetch(apiUrl + endpoint, { redirect: 'error', headers: { authorization: await authorization() }, signal: operationTimeout(15_000) });
     if (!response.ok) throw new Error((response.status === 401 ? 'UNAUTHENTICATED' : 'FORBIDDEN') + ': 平台前置检查被拒绝 (' + response.status + ')');
     return response.json();
   };
@@ -21,7 +22,7 @@ export async function publishingAccess(apiInput?: string, tokenInput?: string) {
   if (!identity.data.roles.some(role => role === 'publisher' || role === 'maintainer')) throw new Error('FORBIDDEN: 需要 publisher/maintainer');
   const checked = validatePublishingOptions(await get('/v1/publishing/options'));
   if (!checked.ok) throw new Error('PUBLISHING_OPTIONS_INVALID: ' + JSON.stringify(checked.issues));
-  return { apiUrl, token, identity: identity.data, options: checked.value };
+  return { apiUrl, token: (await authorization()).slice('Bearer '.length), identity: identity.data, options: checked.value };
 }
 export async function doctorProject(project: LoadedProject, variants: ProjectVariant[], apiUrl?: string, token?: string) {
   const access = await publishingAccess(apiUrl, token);
