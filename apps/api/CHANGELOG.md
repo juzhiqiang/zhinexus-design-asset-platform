@@ -1,5 +1,12 @@
 # @company/platform-api 更新日志
 
+## [0.1.11] - 2026-11-27
+
+### 修复
+
+- 新增迁移 `018_public_preview_grants.sql` 并扩展 `POST /v1/preview-grants`：无认证凭证时经 `preview_can_read(id, NULL)` 核验后为已就绪的公开组件签发匿名短期预览授权，非公开/未就绪/未知版本统一返回 `401` 并写 `AUTH_DENIED` 审计。
+- 受限本地回环开发模式（`dev-admin`）自动补齐 `127.0.0.1:3001` `ip-port` 预览配置，不放宽生产或显式部署的 HTTPS 策略。
+
 ## [0.1.2] - 2026-11-24
 
 ### 新增
