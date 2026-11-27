@@ -86,7 +86,7 @@ pnpm dev
 
 未显式配置 OIDC/身份服务时，API 在非生产、绑定 `127.0.0.1` 的本地模式下使用真实 PostgreSQL 账号、成员权限和接入配置服务。首次启动创建 `admin` / `ZhinexusAdmin!2026`（可在首次启动前用 `PLATFORM_DEV_ADMIN_USERNAME` / `PLATFORM_DEV_ADMIN_PASSWORD` 指定），之后密码和账号状态保留，不随重启重置。`PLATFORM_DEV_ADMIN=false` 关闭默认入口；生产及 `0.0.0.0` 绑定拒绝启用该模式。数据库凭证缺失时启动失败，迁移仍需显式运行。HTTP 开发会话使用独立 cookie；部署时仍需 HTTPS/OIDC 配置。
 
-若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。排查与实测见 [开发启动验证](docs/verification/2026-11-24-dev-startup.md)。
+若出现 `Port 5175 is already in use`，表示 React 示例端口已被占用。用 `Get-NetTCPConnection -State Listen -LocalPort 5175 | Select-Object LocalAddress,LocalPort,OwningProcess` 查询 PID，再用 `Get-Process -Id <PID>` 确认进程，在对应终端停止旧服务。其他开发端口同理。排查与实测记录见 git 历史中 2026-11-26 文档精简前的开发启动验证。
 
 本地三存储已启动且 `.tools/g2-local/credentials.json` 凭证齐全时，`pnpm dev` 会为 API 配置 PostgreSQL、MinIO 并初始化私有产物桶。发布联调还需另开终端在仓库根运行 `pnpm dev:worker`，该进程独立取得本地 Verdaccio 发布凭证并处理作业。缺少存储凭证时仍可开发其他功能，但启动会提示上传不可用；须恢复原凭证或显式配置存储。修改启动配置后须重启开发服务；`healthz` 只表示进程存活。
 
@@ -109,8 +109,10 @@ pnpm test:browser
 
 | 命令（仓库根目录） | 用途 |
 | --- | --- |
-| `.\scripts\verify.ps1` | 顺序执行冻结安装、工作区检查、构建、类型检查、单元/HTTP 测试与浏览器测试 |
-| `.\scripts\verify.ps1 -Bootstrap` | 在隔离临时目录验证工具链首次下载、校验与缓存重跑 |
+| `pnpm verify:workspace` | 校验 11 个工作区成员、依赖边界与 Turbo 缓存排除规则 |
+| `pnpm verify:docs` | 校验文档死链、失效路径、索引篇数与规则里的版本声明 |
+| `pnpm verify:release` | 校验 CHANGELOG 与各包版本一致性及 Git tag 策略 |
+| `pnpm build` 后接 `pnpm typecheck`、`pnpm test`、`pnpm test:browser` | 依次执行构建、类型检查、单元/HTTP 测试与浏览器测试 |
 | `pnpm build:services` | 仅构建 API、预览网关及 contracts |
 | `pnpm test:gallery-cache` | 检查画廊站点域名切换与 sitemap |
 | `pnpm infra:up` / `pnpm infra:stop` | 启停本地 PostgreSQL、Verdaccio 与 MinIO |

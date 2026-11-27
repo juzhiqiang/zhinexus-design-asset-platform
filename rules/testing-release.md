@@ -5,6 +5,8 @@
 Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18.0` 与 `node >= 24.6.0`）：
 
 - **工作区结构与边界测试（`verify:workspace`）**：运行 `pnpm verify:workspace`（`scripts/verify-workspace.ts`），校验 11 个固定成员、无循环依赖、公开包/私有包边界、`workspace:*` 内部协议、外部依赖精确版本锁定、公开包不依赖私有 `@company/contracts`、服务端安全依赖闭包及 Turbo 缓存排除规则。
+- **文档自洽测试（`verify:docs`）**：运行 `pnpm verify:docs`（`scripts/verify-docs.ts`），校验现行文档无死链、操作性文档无失效路径、`docs/README.md` 自称篇数与实际一致、`rules/` 与 `AGENTS.md` 声明的 TypeScript 版本与对应成员 `package.json` 一致，且不得把仓库仍停留在 `0.0.0` 骨架当作现状陈述。历史留痕（`CHANGELOG.md` 与 `docs/verification/`）按 AGENTS.md 不得重写，仅报告不阻断。
+- **版本一致性测试（`verify:release`）**：运行 `pnpm verify:release`（`scripts/verify-release.ts`），校验 `CHANGELOG.md` 首节版本与根 `package.json` 一致、四个公开包已脱离 `0.0.0`、每个升版提交声称的版本在该提交中真实落地、未推送区间内无版本号被重复声称，并报告 Git tag 现状。已发布版本不可变性需 Verdaccio/MinIO 在线校验，不在本脚本范围。
 - **契约、单元与服务 HTTP 测试（`test`）**：运行 `pnpm test`（先执行 `pnpm build:services`，再运行 `vitest run`）。
   - `@company/contracts`、核心状态机、摘要计算、环境键计算与错误分类优先使用 Vitest 单元测试，同时覆盖合法样例与反例 fixtures（缺图、错框架、错摘要、伪造 `'local-automatic'` 来源、路径穿越等）。
   - NestJS 服务测试必须加载 `dist/` 真实编译产物，验证依赖注入、控制器到服务链路及真实 HTTP 响应，不得只验证 mock 被调用。
@@ -23,7 +25,7 @@ Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18
 ### 格式与唯一来源
 
 - 遵循语义化版本 `MAJOR.MINOR.PATCH`：四个公开包（`@company/charts-core`、`@company/charts-vue`、`@company/charts-react`、`@company/component-cli`）以各自 `package.json` 的 `version` 字段为唯一事实来源；平台整体版本以根 `package.json` 的 `version` 为唯一事实来源。
-- 当前 `G0` 工程骨架阶段，根包与四个公开包版本均为 `0.0.0`，尚不可作为业务组件发布。
+- 平台整体版本与四个公开包均已脱离 `0.0.0` 工程骨架，按各自 `package.json` 的 `version` 独立递增；当前是否仍处于 `0.x` 阶段以根 `package.json` 实际值为准，由 `pnpm verify:release` 校验，不在本文件复述具体版本号。
 - 外部依赖在 `package.json` 中必须锁定精确版本 `x.y.z`（禁止 `^`、`~`、`*`），与根 `pnpm-lock.yaml` 保持一致。
 
 ### 递增时机
@@ -37,7 +39,7 @@ Windows 本机直接使用 `pnpm <command>` 运行检查（需安装 `pnpm 12.18
 ### 预发布
 
 - 预发布号格式为 `x.y.z-rc.N` 或 `x.y.z-beta.N`，`N` 从 `1` 递增；正式发布去掉后缀，不改前面的 `x.y.z`。
-- 不使用 `+build` 构建元数据，确保 tarball 文件名、Git tag 与 `package.json#version` 完全一致。
+- 不使用 `+build` 构建元数据，确保 tarball 文件名、Git tag 与 `package.json#version` 完全一致。仓库当前尚未创建任何 Git tag，tag 策略由 `pnpm verify:release` 校验；在建立 tag 前不得声称已按 tag 发布。
 - 预发布不得作为正式验收通过依据；正式版本必须基于冻结产物重新通过完整验证。
 
 ### tag 与不可变发布绑定

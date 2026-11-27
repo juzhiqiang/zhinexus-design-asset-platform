@@ -75,7 +75,7 @@
 - Windows 本机直接使用 `pnpm <command>` 执行工作区命令（要求系统安装 `pnpm 12.18.0` 与 `node >= 24.6.0`）。
 - 开发过程中运行当前任务对应的窄范围测试（如 `pnpm verify:workspace`、指定 Vitest 测试文件或单包构建）。
 - 根 `typecheck` 与 `test` 均先执行 `build:services`（生成 Nest 服务编译产物与声明文件）；运行 `test:browser` 前必须先完成 `build` 并关闭占用 `5173–5177` 端口的开发服务。
-- 声明任务完成前，运行该任务列出的全部验证命令（基础工程检查可运行 `pnpm verify:workspace`、`pnpm build`、`pnpm typecheck` 与 `pnpm test`）。
+- 声明任务完成前，运行该任务列出的全部验证命令（基础工程检查可运行 `pnpm verify:workspace`、`pnpm verify:docs`、`pnpm verify:release`、`pnpm build`、`pnpm typecheck` 与 `pnpm test`）。
 - 不得基于假设、Turbo 缓存命中或部分输出报告成功；必须在验证记录或任务文档中记录实际通过结果。如果必需的外部检查（如 G2 的 PostgreSQL / Verdaccio / MinIO / OIDC）无法运行，记录阻塞原因，并保持对应任务状态为未完成。
 
 ## 文档与规则维护
@@ -88,10 +88,11 @@
 
 ## Git 提交规范
 
-- **行尾统一**：仓库通过 `.gitattributes`（`* text=auto eol=lf`，`*.ps1` / `*.cmd` 为 `crlf`）管理行尾；不得删除或绕过该配置，也不要把工作区行尾差异当作改动提交。
+- **行尾统一**：仓库通过 `.gitattributes`（`* text=auto`，源码与数据文件逐类型声明 `eol=lf`，仅 `*.ps1` 为 `eol=crlf`，不存在 `*.cmd` 规则）管理行尾；不得删除或绕过该配置，也不要把工作区行尾差异当作改动提交。
 - **分支命名**：Bug 修复使用 `fix/<问题描述>`，新功能使用 `feat/<任务或功能描述>`（如 `feat/t02-core`、`feat/t04-cli`、`feat/t05-platform`），工程调整使用 `chore/<描述>`，遵循仓库现有约定。
 - **Commit Message**：必须使用中文，说明修改内容与目的。推荐格式：`<类型>: <修改目的>`，例如 `feat: 实现折线图核心控制器与生命周期清理`、`fix: 修复服务类型检查前置构建顺序`。
 - **分批提交**：按独立功能、Bug 修复或子任务拆分 commit；每个 commit 对应一个明确目的，避免混入无关修改。
+- **合并前查重**：合并前执行 `git cherry` 或比对两侧 `git patch-id --stable`，发现同一修改已在目标分支提交过时，先在源分支 rebase 去掉重复提交再合并；禁止两个分支各自提交同一份修复后直接合并（历史上因此产生 3 对 patch-id 完全相同的重复提交与 0.2.4 版本撞车）。
 - **自动升级版本号**：脱离 `0.0.0` 工程骨架阶段后，只要修改内容包含对外的实质性功能新增（`feat`）或缺陷修复（`fix`）且达到触发发布条件，必须自动按语义化版本规则递增对应版本号（当前 `0.x` 阶段兼容变更递增 PATCH，破坏性变更递增 MINOR）并同步 `CHANGELOG.md`，独立成一个 `chore: 升级版本号至 x.y.z` 提交，无需用户逐次提醒。
 - **并行协作**：并行任务在独立分支或 worktree 中实施；合并前检查文件冲突、契约一致性和完整验证结果（触碰公共包时运行全图检查）。
 - **AI 提交权限**：任务或子任务完成且相关验证通过后，可以主动执行 `git add` 和 `git commit`，无需逐次征求用户同意。

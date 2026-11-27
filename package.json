@@ -38,6 +38,8 @@
     "rehearse:recovery": "pnpm build:services && vitest run --config tests/platform/vitest.config.ts tests/platform/platform-acceptance.test.ts tests/platform/preview.test.ts",
     "infra:check-access": "pnpm --filter @company/contracts build && tsx infra/scripts/access.ts",
     "verify:workspace": "tsx scripts/verify-workspace.ts",
+    "verify:docs": "tsx scripts/verify-docs.ts",
+    "verify:release": "tsx scripts/verify-release.ts",
     "build:services": "turbo run build typecheck --filter=@company/platform-api --filter=@company/preview-gateway --cache=local:rw",
     "component": "node packages/component-cli/dist/bin.js"
   },
