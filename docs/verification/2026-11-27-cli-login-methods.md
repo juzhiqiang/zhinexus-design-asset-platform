@@ -63,6 +63,7 @@ pnpm exec vitest run tests/integration/project-plan-network.test.ts
 - 通过 `npm install -g <同一份 tgz> --no-audit --no-fund --foreground-scripts` 更新本机 CLI，postinstall 成功，`juz --version` 实际返回 0.1.4，帮助含三种登录方式和 HTTP 建议。
 - 最终全局 CLI 另用 Windows PTY 输入虚构密码，输出未回显；使用非 HTTP(S) 地址使请求在联网前拒绝，未写入临时凭据文件。
 - 安装后再次计算冻结 tgz SHA-256，和上述摘要一致；没有重新打包，没有读取或替换用户原有登录文件。
+- 最终构建后，已有 Nest watch 未自动拉起 API/网关。触发原监听进程重新编译，保持原运行环境；临时刷新后已恢复源文件原始字节，`git diff --exit-code -- apps/api/src/server.ts apps/preview-gateway/src/server.ts` 返回 0。最终 `GET http://127.0.0.1:3000/healthz`、`GET http://127.0.0.1:3001/healthz` 均成功，`GET /v1/auth/oidc/cli` 再次确认两种新增入口和 zhinexus-cli 客户端。
 
 ## 边界与基线
 
